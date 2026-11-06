@@ -29,7 +29,7 @@ export function SetCard({ set, gen, selected, order, onClick, compact, children 
 export function PickScreen({ title, team, gen, count, opponent, hint, onDone, onBack, prep }: {
 	title: string; team: PSet[]; gen: Gen; count: number; opponent?: { name: string; team: PSet[] };
 	hint?: string; onDone: (picked: PSet[]) => void; onBack?: () => void;
-	/** 아래 버튼 바로 위에 붙는 배틀 전 음악·배경 고르기 */ prep?: ComponentChildren;
+	/** 배틀 전 음악·배경 고르기 (안내 문구 아래 얇은 줄) */ prep?: ComponentChildren;
 }) {
 	const [picked, setPicked] = useState<number[]>([]);
 	const [view, setView] = useState<number | null>(null);
@@ -44,6 +44,7 @@ export function PickScreen({ title, team, gen, count, opponent, hint, onDone, on
 			<div class="preview-row">{opponent.team.map(s => <MiniSprite species={s.species} gen={gen} size={44} shiny={s.shiny} />)}</div>
 		</div>}
 		<p class="hint">{hint || `${count}마리를 순서대로 고르세요. 처음 고른 포켓몬이 먼저 나갑니다.`} 카드를 누르면 능력치를 볼 수 있어요.</p>
+		{prep}
 		<div class="card-list">
 			{team.map((s, i) => <SetCard set={s} gen={gen} selected={picked.includes(i)}
 				order={picked.includes(i) ? picked.indexOf(i) + 1 : undefined} onClick={() => setView(i)} />)}
@@ -54,7 +55,6 @@ export function PickScreen({ title, team, gen, count, opponent, hint, onDone, on
 			{ label: '닫기', kind: 'ghost', onClick: () => setView(null) },
 		]} />}
 		<div class="sticky-bottom">
-			{prep}
 			{picked.length === 0 && <button class="btn ghost" onClick={() => onDone(team.slice(0, need))}>이 순서 그대로</button>}
 			<button class="btn primary big" disabled={picked.length !== Math.min(count, team.length)}
 				onClick={() => onDone(picked.map(i => team[i]))}>결정 ({picked.length}/{Math.min(count, team.length)})</button>
@@ -66,7 +66,7 @@ export function PickScreen({ title, team, gen, count, opponent, hint, onDone, on
 export function InfoScreen({ title, heading, lines, sprites, gen, actions, banner, children, trainer, sets, prep }: {
 	title: string; heading?: string; lines?: string[]; sprites?: string[]; gen?: Gen; banner?: string; children?: ComponentChildren; trainer?: string; sets?: PSet[];
 	actions: { label: string; kind?: 'primary' | 'ghost' | 'danger' | 'yellow'; onClick: () => void }[];
-	/** 아래 버튼 바로 위에 붙는 배틀 전 음악·배경 고르기 */ prep?: ComponentChildren;
+	/** 배틀 전 음악·배경 고르기 (내용 맨 아래, 현재 연승 줄 밑 얇은 줄) */ prep?: ComponentChildren;
 }) {
 	const [view, setView] = useState<number | null>(null);
 	return <Screen title={title}>
@@ -79,9 +79,9 @@ export function InfoScreen({ title, heading, lines, sprites, gen, actions, banne
 			{sets && view !== null && <MonSheet set={sets[view]} gen={gen || 9} onClose={() => setView(null)} actions={[{ label: '닫기', kind: 'ghost', onClick: () => setView(null) }]} />}
 			{lines?.map(l => <p class="pre">{l}</p>)}
 			{children}
+			{prep}
 		</div>
 		<div class="sticky-bottom col">
-			{prep}
 			{actions.map(a => <button class={'btn big ' + (a.kind || 'primary')} onClick={a.onClick}>{a.label}</button>)}
 		</div>
 	</Screen>;

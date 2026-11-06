@@ -7,8 +7,8 @@ android {
         applicationId 'kr.battlesim.app'
         minSdk 24
         targetSdk 35
-        versionCode 83
-        versionName '2.33.1'
+        versionCode 84
+        versionName '2.33.2'
     }
     // 서명 키는 저장소에 넣지 않음: 환경변수 BATTLESIM_KEYSTORE(경로) / BATTLESIM_KEY_PASSWORD 로 지정.
     // 없으면 디버그 키로 서명 (설치·실행은 가능, 다른 키로 만든 APK 위에 업데이트 설치는 불가)

@@ -78,13 +78,13 @@ function BgmRow() {
 	const [v, setV] = useState(loadSettings().battleBgm || 'random');
 	const [bg, setBg] = useState(loadSettings().battleBg || 'auto');
 	return <div class="prep-pickers">
-		<ArrowPicker label="배틀 음악" icon="♪" items={BGM_CHOICES} value={v} onChange={k => {
+		<ArrowPicker label="음악" icon="♪" items={BGM_CHOICES} value={v} onChange={k => {
 			saveSettings({ ...loadSettings(), battleBgm: k }); setV(k);
 			stopMusic();
 			if (k === 'none') return;
 			setTimeout(() => playMusic(k === 'random' || k === 'shuffle' ? 'lobby' : k), 0);
 		}} />
-		<ArrowPicker label="배틀 배경" items={ARENA_CHOICES} value={bg} onChange={k => { saveSettings({ ...loadSettings(), battleBg: k }); setBg(k); }}
+		<ArrowPicker label="배경" items={ARENA_CHOICES} value={bg} onChange={k => { saveSettings({ ...loadSettings(), battleBg: k }); setBg(k); }}
 			bg={k => <div class={'arena-thumb bg-' + (k === 'auto' || k === 'random' ? 'field' : k) + (k === 'auto' || k === 'random' ? ' unknown' : '')}><div class="arena-bg" /></div>} />
 	</div>;
 }

@@ -282,8 +282,8 @@ export function ArrowPicker({ label, items, value, onChange, bg, icon }: {
 		{bg && <div class="pick-bg">{bg(items[i][0])}</div>}
 		<button class="pick-arrow" aria-label={label + ' 이전'} onClick={() => go(-1)}><i class="tri l" /></button>
 		<div class="pick-mid">
-			<b class="pick-name">{icon && <span class="pick-icon">{icon}</span>}{items[i][1]}</b>
-			<span class="pick-label">{label}</span>
+			<span class="ap-label">{label}</span>
+			<b class="ap-name">{icon && <span class="ap-icon">{icon}</span>}{items[i][1]}</b>
 		</div>
 		<button class="pick-arrow" aria-label={label + ' 다음'} onClick={() => go(1)}><i class="tri r" /></button>
 	</div>;
