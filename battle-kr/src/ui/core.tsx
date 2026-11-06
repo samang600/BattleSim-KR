@@ -100,7 +100,7 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls }: 
 	}
 	const cur = candidates[idx] || '';
 	// 배틀 그림: 정지 도트 그림이면 측정해 둔 바닥 여백을, 움직이는 그림이면 대략값을 CSS 변수로
-	const pad = (cls === 'front' || cls === 'back') ? (/\/gen5(-back)?(-shiny)?\/[^/]+\.png$/.test(cur) ? (PAD[id]?.[back ? 1 : 0] ?? 8) : 4) : undefined;
+	const pad = (cls === 'front' || cls === 'back') ? (/\/gen5(-back)?(-shiny)?\/[^/]+\.png$/.test(cur) || cur.startsWith('data:image/png') ? (PAD[id]?.[back ? 1 : 0] ?? 8) : 4) : undefined;
 	return <img class={'sprite ' + (cls || '')} src={cur} alt={species} loading="lazy"
 		style={{ maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': pad + 'px' } : {}) } as any}
 		onError={() => setIdx(idx + 1)} draggable={false} />;

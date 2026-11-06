@@ -20,5 +20,15 @@ for d, idx in (('gen5', 0), ('gen5-back', 1)):
             if idx == 0:
                 bb = Image.open(os.path.join(p, f)).convert('RGBA').getbbox()
                 if bb: e[2:6] = [bb[0], bb[1], bb[2] - bb[0], bb[3] - bb[1]]
+# 직접 넣은 그림(src/sprites-custom/<id>[-back].png, 예: PokéAPI 도트 그림)이 있으면 서버 그림 대신 그 값을 씀
+custom = os.path.join(here, '../src/sprites-custom')
+if os.path.isdir(custom):
+    for f in os.listdir(custom):
+        if not f.endswith('.png') or '-shiny' in f: continue
+        sid, back = (f[:-9], True) if f.endswith('-back.png') else (f[:-4], False)
+        e = out.setdefault(sid, [0, 0, 0, 0, 96, 96]); e[1 if back else 0] = pad(os.path.join(custom, f))
+        if not back:
+            bb = Image.open(os.path.join(custom, f)).convert('RGBA').getbbox()
+            if bb: e[2:6] = [bb[0], bb[1], bb[2] - bb[0], bb[3] - bb[1]]
 json.dump(out, open(os.path.join(here, '../src/gen/sprite-pad.json'), 'w'), separators=(',', ':'))
 print('sprite-pad.json:', len(out))
