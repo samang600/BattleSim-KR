@@ -272,19 +272,19 @@ export function FullscreenButton({ cls = 'icon-btn' }: { cls?: string }) {
 	</button>;
 }
 
-/** ◀ 이름 ▶ 으로 넘기며 고르는 상자 (배틀 전 음악·배경). preview 가 있으면 위에 미리보기 */
-export function ArrowPicker({ label, items, value, onChange, preview, icon }: {
-	label: string; items: [string, string][]; value: string; onChange: (k: string) => void; preview?: (k: string) => VNode; icon?: string;
+/** ◀ 이름 ▶ 으로 넘기며 고르는 작은 상자 (배틀 전 음악·배경). bg 가 있으면 상자 뒤에 그 그림을 깔아 미리 보여 줌 */
+export function ArrowPicker({ label, items, value, onChange, bg, icon }: {
+	label: string; items: [string, string][]; value: string; onChange: (k: string) => void; bg?: (k: string) => VNode; icon?: string;
 }) {
 	const i = Math.max(0, items.findIndex(x => x[0] === value));
 	const go = (d: number) => onChange(items[(i + d + items.length) % items.length][0]);
-	return <div class={'win pick-panel' + (preview ? ' has-preview' : '')}>
-		{preview && <div class="pick-preview">{preview(items[i][0])}</div>}
-		<div class="pick-line">
-			<button class="btn small pick-arrow" aria-label={label + ' 이전'} onClick={() => go(-1)}>◀</button>
+	return <div class={'win pick-panel' + (bg ? ' has-bg' : '')}>
+		{bg && <div class="pick-bg">{bg(items[i][0])}</div>}
+		<button class="pick-arrow" aria-label={label + ' 이전'} onClick={() => go(-1)}><i class="tri l" /></button>
+		<div class="pick-mid">
 			<b class="pick-name">{icon && <span class="pick-icon">{icon}</span>}{items[i][1]}</b>
-			<button class="btn small pick-arrow" aria-label={label + ' 다음'} onClick={() => go(1)}>▶</button>
+			<span class="pick-label">{label}</span>
 		</div>
-		<div class="pick-label">{label}<small>{i + 1} / {items.length}</small></div>
+		<button class="pick-arrow" aria-label={label + ' 다음'} onClick={() => go(1)}><i class="tri r" /></button>
 	</div>;
 }

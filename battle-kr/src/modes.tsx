@@ -72,7 +72,8 @@ async function confirmQuit<T>(show: () => Promise<T>, quitValue: T, msg: string)
 /** 배틀 배경 (설정 battleBg) — 'auto' 는 모드마다 정해진 배경 */
 export const ARENA_CHOICES: [string, string][] = [['auto', '상황에 맞게'], ['random', '무작위'], ['field', '들판'], ['gym', '체육관'], ['cave', '동굴'], ['beach', '해변'],
 	['snow', '설원'], ['volcano', '화산'], ['tower', '배틀타워'], ['factory', '배틀팩토리'], ['pwt', 'PWT 경기장'], ['champion', '챔피언 리그']];
-/** 배틀 전 화면의 음악·배경 고르기 (◀ ▶ 로 넘김). 음악은 곡 이름이 바뀔 때마다 바로 들려주고, 배경은 장소를 미리 보여 줌 */
+/** 배틀 전 화면(‘승부한다’ 화면, 네임드·프리는 엔트리 고르기 화면) 아래 버튼 바로 위의 음악·배경 고르기.
+ *  ◀ ▶ 로 넘기며, 음악은 곡 이름이 바뀔 때마다 바로 들려주고 배경은 상자 뒤에 장소 그림을 깔아 미리 보여 줌 */
 function BgmRow() {
 	const [v, setV] = useState(loadSettings().battleBgm || 'random');
 	const [bg, setBg] = useState(loadSettings().battleBg || 'auto');
@@ -84,9 +85,7 @@ function BgmRow() {
 			setTimeout(() => playMusic(k === 'random' || k === 'shuffle' ? 'lobby' : k), 0);
 		}} />
 		<ArrowPicker label="배틀 배경" items={ARENA_CHOICES} value={bg} onChange={k => { saveSettings({ ...loadSettings(), battleBg: k }); setBg(k); }}
-			preview={k => <div class={'arena-thumb bg-' + (k === 'auto' || k === 'random' ? 'field' : k) + (k === 'auto' || k === 'random' ? ' unknown' : '')}>
-				<div class="arena-bg" />{(k === 'auto' || k === 'random') && <span class="thumb-q">{k === 'auto' ? '모드마다 정해진 장소' : '배틀마다 무작위'}</span>}
-			</div>} />
+			bg={k => <div class={'arena-thumb bg-' + (k === 'auto' || k === 'random' ? 'field' : k) + (k === 'auto' || k === 'random' ? ' unknown' : '')}><div class="arena-bg" /></div>} />
 	</div>;
 }
 
@@ -99,7 +98,7 @@ function withLevel(team: PSet[], level: number) { return team.map(s => ({ ...clo
 
 async function chooseFormat(title: string, desc?: string, extended = false, opts?: BattleOpts, show: OptKey[] = ALL_OPTS, multi = false, diff = false): Promise<Fmt | typeof BACK> {
 	return ask<Fmt | typeof BACK>(r => <ChoiceScreen title={title} onBack={() => r(BACK)}
-		intro={desc ? <p class="hint">{desc}</p> : undefined} footer={opts && <><OptsBox opts={opts} show={show} diff={diff} /><BgmRow /></>}
+		intro={desc ? <p class="hint">{desc}</p> : undefined} footer={opts && <OptsBox opts={opts} show={show} diff={diff} />}
 		options={[
 			{ value: 'singles' as Fmt, label: extended ? '싱글 3vs3' : '싱글배틀', desc: '1대1로 싸웁니다 · 3마리', icon: '①' },
 			{ value: 'doubles' as Fmt, label: extended ? '더블 4vs4' : '더블배틀', desc: '2마리씩 동시에 싸웁니다 · 4마리', icon: '②' },
@@ -260,7 +259,7 @@ export async function runTower() {
 		const partnerT = state.partner ? namedById(state.partner.id) : null;
 		opp.team = withLevel(opp.team, lvl(opts));
 		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title={`배틀타워 · ${fmtLabel(fmt)}`}
-			banner={`${state!.streak + 1}번째 승부`} children={<BgmRow />}
+			banner={`${state!.streak + 1}번째 승부`} prep={<BgmRow />}
 			heading={opp.boss ? `⚠ 타워 타이쿤 등장! (${opp.boss}의 심볼)` : (opp as any).special ? `★ 특별 트레이너! ${whoOf(opp)}${josa(opp.name)} 나타났다!` : `${whoOf(opp)}${josa(opp.name)} 승부를 걸어왔다!${opp.monoLabel ?? monoTag(opp.mono)}`} trainer={opp.sprite}
 			lines={[`현재 ${state!.streak}연승 · 세트 ${Math.floor(state!.streak / 7) + 1} - ${state!.streak % 7 + 1}번째`, ...(partnerT ? [`파트너: ${partnerT.title} ${partnerT.name}`] : []), ...(opp.ranker ? [`★ 상위 랭커 (${opp.ranker})`] : []), ...optsLines(opts)]}
 			sprites={state!.team.map(s => s.species)} sets={state!.team} gen={9}
@@ -397,7 +396,7 @@ export async function runFactory() {
 		const opp = isHead ? { name: '팩토리 헤드', title: '', skill: 0.97, line: '지식과 운, 둘 다 시험해 보자고!', sprite: 'thorton', lines: { ace: '계산대로라면 여기서 역전이야!', lose: '내 계산이 틀렸다니… 대단한데!', win: '데이터는 거짓말을 안 하거든.' } } :
 			{ name: tr.name, title: tr.className, skill, line: tr.lines.intro, sprite: tr.sprite, lines: tr.lines };
 		const monoLabel = monoTag(mt);
-		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title="배틀팩토리" banner={`${no}번째 승부`} children={<BgmRow />}
+		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title="배틀팩토리" banner={`${no}번째 승부`} prep={<BgmRow />}
 			heading={isHead ? '⚠ 팩토리 헤드 등장!' : `${whoOf(opp)}${josa(opp.name)} 승부를 걸어왔다!${monoLabel}`} trainer={opp.sprite}
 			lines={[`현재 ${state!.streak}연승 · 레벨 ${level === 50 ? '50' : '오픈'}`, hint, ...optsLines(opts)]}
 			sprites={state!.team.map(s => s.species)} sets={state!.team} gen={9}
@@ -529,7 +528,7 @@ export async function runPWT() {
 	for (let round = 0; round < 3; round++) {
 		const opp = pool[oppIdx];
 		playMusic('pwthall');
-		await ask<void>(r => <InfoScreen title={cup.name} banner={['1회전', '준결승', '결승'][round]} lines={optsLines(opts)}
+		await ask<void>(r => <InfoScreen title={cup.name} banner={['1회전', '준결승', '결승'][round]} lines={optsLines(opts)} prep={<BgmRow />}
 			actions={[{ label: '승부한다', onClick: () => r() }]}>
 			<BracketView rounds={rounds} highlight={me} sprites={faces} message={`${['1회전', '준결승', '결승'][round]} 상대는 ${opp.title} ${opp.name}!\n${cup.name} · ${fmtKo}`} />
 		</InfoScreen>);
@@ -605,7 +604,7 @@ export async function runNamed() {
 			if (t === BACK) break;
 			const opts = defaultOpts();
 			const mode = await ask<'s3' | 's6' | 'd4' | 'd6' | typeof BACK>(r => <ChoiceScreen title={`${t.name} · 규칙`} onBack={() => r(BACK)}
-				intro={<p class="hint">“{t.line}”</p>} footer={<><OptsBox opts={opts} show={ALL_OPTS} /><BgmRow /></>}
+				intro={<p class="hint">“{t.line}”</p>} footer={<OptsBox opts={opts} show={ALL_OPTS} />}
 				options={[
 					{ value: 's3' as const, label: '싱글 3vs3', desc: '6마리 중 3마리 선택', icon: '①' },
 					{ value: 's6' as const, label: '싱글 6vs6 (풀배틀)', desc: '전원 참가', icon: '⑥' },
@@ -620,7 +619,7 @@ export async function runNamed() {
 			const oppTeam = withLevel(namedTeam(t, 6), lvl(opts));
 			const myTeam = team;
 			const picked = await ask<PSet[]>(r => <PickScreen title={myTeam.length > size ? '참가 포켓몬' : '선봉·순서 정하기'} team={myTeam} gen={9} count={Math.min(size, myTeam.length)}
-				opponent={{ name: t.name, team: oppTeam }} onDone={r} />);
+				opponent={{ name: t.name, team: oppTeam }} prep={<BgmRow />} onDone={r} />);
 			const oppPick = size < 6 ? aiPickEntry(oppTeam, myTeam, size, doubles, ['champion', 'boss', 'hero'].includes(t.role) ? 0.95 : 0.85, true) : oppTeam;
 			const res = await battle({
 				gen: 9, doubles, aiSkill: ['champion', 'boss', 'hero'].includes(t.role) ? 0.95 : 0.85, bg: ['champion', 'boss', 'hero'].includes(t.role) ? 'champion' : bgForTeam(oppTeam),
@@ -697,7 +696,7 @@ export async function runRank() {
 			lines={[`${streak ? `🔥 ${streak}연승 중 · ` : ''}승리 +${gain} RP${upper ? ` (상위 매칭 보너스 +${UPPER_BONUS} 포함)` : ''} · 패배 -${loss} RP`,
 				...(upper ? [`${rankTier(oppRp).name}(약 ${oppRp} RP) 실력의 상대입니다. 져도 연승은 끊기지 않아요.`] : []),
 				...(streak < 4 ? [`연승할수록 획득 RP 증가 (최대 +${RANK_BASE + 20 + (tier.min >= 1000 ? 5 : 0)})`] : []), ...(opp.named ? ['★ 강적 등장!'] : []), ...(opp.ranker ? [`★ 상위 랭커 (${opp.ranker})`] : []), ...optsLines(opts)]}
-			sprites={team.map(s => s.species)} sets={team} gen={9}
+			sprites={team.map(s => s.species)} sets={team} gen={9} prep={<BgmRow />}
 			actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '그만두기', kind: 'ghost', onClick: () => r('quit') }]} />);
 		if (go === 'quit') return;
 		// 챔피언스 방식: 상대 엔트리를 보고 참가 포켓몬 선택 (상대도 에이스 포함 n마리)
@@ -774,7 +773,7 @@ export async function runFree() {
 			{ value: 6, label: '풀배틀 6마리', desc: '전원 참가', icon: '6' },
 		]} onPick={r} />);
 		const picked = await ask<PSet[]>(r => <PickScreen title={myTeam.length > size ? '참가 포켓몬' : '선봉·순서 정하기'} team={myTeam} gen={9} count={Math.min(size, myTeam.length)}
-			opponent={{ name: oppName, team: oppTeam }} onDone={r} />);
+			opponent={{ name: oppName, team: oppTeam }} prep={<BgmRow />} onDone={r} />);
 		const oppSel = size < oppTeam.length ? aiPickEntry(oppTeam, myTeam, size, isDoubles(fmt), skill) : oppTeam;
 		const res = await battle({
 			gen: 9, doubles: isDoubles(fmt), aiSkill: skill, bg: rng.pick([...OUTDOOR_BGS]), label: modeName, noRecord: true, cheat, inverse: opts.inverse,

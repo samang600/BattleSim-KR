@@ -26,9 +26,10 @@ export function SetCard({ set, gen, selected, order, onClick, compact, children 
 }
 
 /** N마리 고르기 (순서 = 선택 순서, 첫 번째가 선봉) */
-export function PickScreen({ title, team, gen, count, opponent, hint, onDone, onBack }: {
+export function PickScreen({ title, team, gen, count, opponent, hint, onDone, onBack, prep }: {
 	title: string; team: PSet[]; gen: Gen; count: number; opponent?: { name: string; team: PSet[] };
 	hint?: string; onDone: (picked: PSet[]) => void; onBack?: () => void;
+	/** 아래 버튼 바로 위에 붙는 배틀 전 음악·배경 고르기 */ prep?: ComponentChildren;
 }) {
 	const [picked, setPicked] = useState<number[]>([]);
 	const [view, setView] = useState<number | null>(null);
@@ -53,6 +54,7 @@ export function PickScreen({ title, team, gen, count, opponent, hint, onDone, on
 			{ label: '닫기', kind: 'ghost', onClick: () => setView(null) },
 		]} />}
 		<div class="sticky-bottom">
+			{prep}
 			{picked.length === 0 && <button class="btn ghost" onClick={() => onDone(team.slice(0, need))}>이 순서 그대로</button>}
 			<button class="btn primary big" disabled={picked.length !== Math.min(count, team.length)}
 				onClick={() => onDone(picked.map(i => team[i]))}>결정 ({picked.length}/{Math.min(count, team.length)})</button>
@@ -61,9 +63,10 @@ export function PickScreen({ title, team, gen, count, opponent, hint, onDone, on
 }
 
 /** 트레이너 등장 / 결과 같은 안내 화면 */
-export function InfoScreen({ title, heading, lines, sprites, gen, actions, banner, children, trainer, sets }: {
+export function InfoScreen({ title, heading, lines, sprites, gen, actions, banner, children, trainer, sets, prep }: {
 	title: string; heading?: string; lines?: string[]; sprites?: string[]; gen?: Gen; banner?: string; children?: ComponentChildren; trainer?: string; sets?: PSet[];
 	actions: { label: string; kind?: 'primary' | 'ghost' | 'danger' | 'yellow'; onClick: () => void }[];
+	/** 아래 버튼 바로 위에 붙는 배틀 전 음악·배경 고르기 */ prep?: ComponentChildren;
 }) {
 	const [view, setView] = useState<number | null>(null);
 	return <Screen title={title}>
@@ -78,6 +81,7 @@ export function InfoScreen({ title, heading, lines, sprites, gen, actions, banne
 			{children}
 		</div>
 		<div class="sticky-bottom col">
+			{prep}
 			{actions.map(a => <button class={'btn big ' + (a.kind || 'primary')} onClick={a.onClick}>{a.label}</button>)}
 		</div>
 	</Screen>;
