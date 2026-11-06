@@ -1,6 +1,6 @@
 /** 공용 UI 조각과 화면 전환 도우미 */
 import { h, render, type ComponentChildren, type VNode } from 'preact';
-import { useState, useRef, useLayoutEffect } from 'preact/hooks';
+import { useState, useRef, useLayoutEffect, useEffect } from 'preact/hooks';
 import { spriteId, typeKo, speciesData, toID, RAW, type Gen } from '../data';
 import { loadSettings } from '../store';
 import { partBase } from '../offline';
@@ -238,3 +238,36 @@ export function confirmBox(title: string, body: string, ok = '확인', cancel = 
 
 export const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 void h;
+
+// ── 전체화면 (웹 전용: 안드로이드 앱은 이미 전체화면이고, 아이폰 사파리는 Fullscreen API 가 없어 버튼을 숨김) ──
+const fsDoc = document as any;
+const fsElement = () => fsDoc.fullscreenElement || fsDoc.webkitFullscreenElement || null;
+/** 이 환경에서 전체화면 버튼을 보여 줄지 */
+export const canFullscreen = () => !(window as any).BattleSimNative && !!(fsDoc.fullscreenEnabled || fsDoc.webkitFullscreenEnabled);
+export async function toggleFullscreen() {
+	try {
+		if (fsElement()) await (fsDoc.exitFullscreen || fsDoc.webkitExitFullscreen).call(fsDoc);
+		else {
+			const el = document.documentElement as any;
+			await (el.requestFullscreen || el.webkitRequestFullscreen).call(el, { navigationUI: 'hide' });
+		}
+	} catch { toast('이 브라우저에서는 전체화면을 쓸 수 없습니다'); }
+}
+/** 전체화면 여부 (Esc 등으로 빠져나와도 따라감) */
+export function useFullscreen(): boolean {
+	const [on, setOn] = useState(!!fsElement());
+	useEffect(() => {
+		const f = () => setOn(!!fsElement());
+		document.addEventListener('fullscreenchange', f); document.addEventListener('webkitfullscreenchange', f);
+		return () => { document.removeEventListener('fullscreenchange', f); document.removeEventListener('webkitfullscreenchange', f); };
+	}, []);
+	return on;
+}
+/** 화면 위쪽 막대에 넣는 전체화면 버튼 (지원하지 않으면 그리지 않음) */
+export function FullscreenButton({ cls = 'icon-btn' }: { cls?: string }) {
+	const on = useFullscreen();
+	if (!canFullscreen()) return null;
+	return <button class={cls + ' fs-btn' + (on ? ' on' : '')} onClick={e => { e.stopPropagation(); toggleFullscreen(); }} aria-label={on ? '전체화면 끄기' : '전체화면'} title={on ? '전체화면 끄기' : '전체화면'}>
+		<span class="fs-ico" aria-hidden="true" />
+	</button>;
+}

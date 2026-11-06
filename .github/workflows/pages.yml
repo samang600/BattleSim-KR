@@ -1,0 +1,46 @@
+# 웹 버전: main 에 푸시하면 battle-kr/dist 를 빌드해 GitHub Pages 에 올림
+# 주소: https://samang600.github.io/BattleSim-KR/
+name: 웹 버전 배포 (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 애니메이션 파일의 커밋 해시(jsDelivr 주소)를 구하려고 전체 기록이 필요
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node battle-kr/build.mjs
+        env:
+          GH_REPO: ${{ github.repository }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: battle-kr/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

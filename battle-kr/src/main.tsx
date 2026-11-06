@@ -1,7 +1,7 @@
 import './ps/registry';
 import { h, render, type VNode } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite } from './ui/core';
+import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton } from './ui/core';
 import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
@@ -26,6 +26,7 @@ const MODES = [
 function TitleScreen({ onStart }: { onStart: () => void }) {
 	return <div class="title-screen" onClick={onStart}>
 		<div class="title-glow" />
+		<div class="title-fs"><FullscreenButton /></div>
 		<div class="title-mons">
 			<Sprite species="garchomp" gen={9} size={110} />
 			<Sprite species="lucario" gen={9} size={90} />
@@ -59,7 +60,10 @@ function Home({ go }: { go: (v: string) => void }) {
 				<div class="hello">{settings.playerName}, 어서 와!</div>
 				<div class="stats-line">전적 {rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · 승률 ${Math.round(rec.wins / rec.battles * 100)}%` : ''}</div>
 			</div>
-			<button class="icon-btn" onClick={() => go('settings')} aria-label="설정">⚙</button>
+			<div class="head-btns">
+				<FullscreenButton />
+				<button class="icon-btn" onClick={() => go('settings')} aria-label="설정">⚙</button>
+			</div>
 		</div>
 		{suspended && <div class="notice">쉬는 중인 도전이 있어요. 해당 시설에 들어가면 이어서 할 수 있습니다.</div>}
 		<div class="mode-grid">

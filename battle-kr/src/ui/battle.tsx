@@ -7,7 +7,7 @@ import { moveData, moveKo, speciesData, speciesKo, toID, abilityKo, itemKo, natu
 	itemDesc, RAW, floats, type Gen } from '../data';
 import { toSimTeam, conceptBall, type PSet } from '../sets';
 import { loadSettings, updateRecords, saveReplay, newId } from '../store';
-import { Sprite, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon } from './core';
+import { Sprite, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
 import { MonSheet, type LiveInfo } from './screens';
 import { estimateDamage, typeEffOf, chooseAI } from '../ai';
 import * as FX from '../fx';
@@ -237,6 +237,7 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	const animBgRef = useRef<HTMLDivElement | null>(null);
 	const animUsedRef = useRef<ParsedLine | null>(null);
 	const [menuOpen, setMenuOpen] = useState(false);
+	const fullscreen = useFullscreen();
 	const [fieldOpen, setFieldOpen] = useState(false);
 	useEffect(() => {
 		const el = arenaRef.current; if (!el) return;
@@ -1345,6 +1346,7 @@ function typeTint(type: string) {
 				<button class="btn big" onClick={() => { setMenuOpen(false); setShowLog(true); }}>배틀 기록</button>
 				<button class="btn big" onClick={() => { setMenuOpen(false); setFieldOpen(true); }}>필드 상황</button>
 				<button class="btn big" onClick={() => cycleSpeed()}>배속 {SPEED_LABEL[settings.speed]}</button>
+				{canFullscreen() && <button class="btn big" onClick={() => { setMenuOpen(false); toggleFullscreen(); }}>{fullscreen ? '전체화면 끄기' : '전체화면'}</button>}
 				{phase === 'input' && <button class="btn big" onClick={() => { setMenuOpen(false); forfeit(); }}>기권</button>}
 				<button class="btn big danger" onClick={quitToMenu}>메인 메뉴로</button>
 			</div>
