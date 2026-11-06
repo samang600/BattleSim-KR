@@ -70,7 +70,7 @@ async function confirmQuit<T>(show: () => Promise<T>, quitValue: T, msg: string)
 }
 
 /** 배틀 배경 (설정 battleBg) — 'auto' 는 모드마다 정해진 배경 */
-export const ARENA_CHOICES: [string, string][] = [['auto', '상황에 맞게'], ['random', '무작위'], ['field', '들판'], ['gym', '체육관'], ['cave', '동굴'], ['beach', '해변'],
+export const ARENA_CHOICES: [string, string][] = [['auto', '기본'], ['random', '무작위'], ['field', '들판'], ['gym', '체육관'], ['cave', '동굴'], ['beach', '해변'],
 	['snow', '설원'], ['volcano', '화산'], ['tower', '배틀타워'], ['factory', '배틀팩토리'], ['pwt', 'PWT 경기장'], ['champion', '챔피언 리그']];
 /** 배틀 전 화면(‘승부한다’ 화면, 네임드·프리는 엔트리 고르기 화면) 아래 버튼 바로 위의 음악·배경 고르기.
  *  ◀ ▶ 로 넘기며, 음악은 곡 이름이 바뀔 때마다 바로 들려주고 배경은 상자 뒤에 장소 그림을 깔아 미리 보여 줌 */

@@ -237,7 +237,7 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	const animBgRef = useRef<HTMLDivElement | null>(null);
 	const animUsedRef = useRef<ParsedLine | null>(null);
 	const [menuOpen, setMenuOpen] = useState(false);
-	/** 배틀 배경: 설정(battleBg)이 '상황에 맞게'면 모드가 정한 배경, '무작위'면 배틀마다 하나 (리플레이는 원래 배경) */
+	/** 배틀 배경: 설정(battleBg)이 '기본'(auto)이면 모드가 정한 배경, '무작위'면 배틀마다 하나 (리플레이는 원래 배경) */
 	const [arenaBg] = useState(() => {
 		const pref = settings.battleBg || 'auto';
 		if (setup.replay || pref === 'auto') return setup.bg || 'field';

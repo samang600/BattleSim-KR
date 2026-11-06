@@ -386,11 +386,11 @@ let nextTime = 0;
 let bgmEl: HTMLAudioElement | null = null;
 const bgmFileMissing: { [k: string]: boolean } = {};
 
-export const BGM_CHOICES: [string, string][] = [['random', '상황에 맞게'], ['shuffle', '무작위'], ['none', '없음'], ['battle', '트레이너 배틀'], ['tower', '배틀 시설'], ['boss', '중요 배틀'], ['champion', '챔피언 결전'], ['pwt', 'PWT 토너먼트'], ['evil', '악의 조직'],
+export const BGM_CHOICES: [string, string][] = [['random', '기본'], ['shuffle', '무작위'], ['none', '없음'], ['battle', '트레이너 배틀'], ['tower', '배틀 시설'], ['boss', '중요 배틀'], ['champion', '챔피언 결전'], ['pwt', 'PWT 토너먼트'], ['evil', '악의 조직'],
 	['g3battle', '트레이너 배틀 2'], ['g3gym', '관장전'], ['g3frontier', '배틀 프런티어'],
 	['g3rival', '라이벌 배틀'], ['g3evil', '악의 조직 2'], ['g3brain', '프런티어 브레인'], ['g3champion', '챔피언 결전 2'],
 	['battle2', '옛 칩튠 1'], ['battle3', '옛 칩튠 2']];
-/** 배틀 음악 선택: 설정이 '상황에 맞게'면 상황별 곡 (작곡한 곡 우선) */
+/** 배틀 음악 선택: 설정이 '기본'(random)이면 상황별 곡 (작곡한 곡 우선) */
 export function pickBattleMusic(situation: 'battle' | 'tower' | 'pwt' | 'boss' | 'evil' | 'champion') {
 	const pref = loadSettings().battleBgm || 'random';
 	if (pref === 'none') return '';
