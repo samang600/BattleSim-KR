@@ -376,10 +376,11 @@ export function assignGimmicks(team: PSet[], opts: { mega?: number; z?: number }
 
 /** 9세대 배틀팩토리 세트 (티어: PU → NU → RU → UU → OU → Uber) */
 export const FACTORY_TIERS = ['PU', 'NU', 'RU', 'UU', 'OU', 'Uber'] as const;
-export function factoryTeam(tier: string, size: number, level: number, exclude = new Set<string>(), type?: string): PSet[] {
+export function factoryTeam(tier: string, size: number, level: number, exclude = new Set<string>(), type?: string, noSubLegend = false): PSet[] {
 	const table = (FACTORY_SETS as any)[tier] || (FACTORY_SETS as any).OU;
 	const rule = ruleById(loadSettings().battleRule);
-	const ids = rng.shuffle(Object.keys(table).filter(id => !exclude.has(id) && speciesData(id, 9) && speciesAllowed(rule, id) && (!type || speciesData(id, 9)!.t.includes(type))));
+	const ids = rng.shuffle(Object.keys(table).filter(id => !exclude.has(id) && speciesData(id, 9) && speciesAllowed(rule, id) && (!type || speciesData(id, 9)!.t.includes(type))
+		&& !(noSubLegend && speciesData(id, 9)!.tags?.some(t => t === 'Sub-Legendary' || t === 'Restricted Legendary' || t === 'Mythical'))));
 	const out: PSet[] = [];
 	const nums = new Set<number>();
 	for (const id of ids) {

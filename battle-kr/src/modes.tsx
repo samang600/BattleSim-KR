@@ -28,7 +28,6 @@ export interface BattleOpts { cheat: boolean; level100: boolean; inverse: boolea
 export type Diff = 'easy' | 'normal' | 'hard';
 const DIFF_LABEL: { [k in Diff]: string } = { easy: '쉬움', normal: '보통', hard: '어려움' };
 /** 난이도만큼 세트(7연승)를 당기거나 미룸: 쉬움 -2세트, 어려움 +3세트 */
-const diffShift = (o: BattleOpts) => o.diff === 'easy' ? -2 : o.diff === 'hard' ? 3 : 0;
 type OptKey = Exclude<keyof BattleOpts, 'diff'>;
 const defaultOpts = (): BattleOpts => ({ cheat: false, level100: false, inverse: false, mono: false });
 const lvl = (o: BattleOpts) => o.level100 ? 100 : 50;
@@ -164,7 +163,8 @@ function towerOpponent(streak: number, fmt: Fmt, playerTeam: PSet[] = [], mono =
 	const realTier = Math.floor(streak / 7);
 	// 난이도: 쉬움은 두 세트 늦게(처음 두 세트는 진화 전·중간 진화), 어려움은 세 세트 앞서서 시작
 	const tier = Math.max(0, realTier + (diff === 'easy' ? -2 : diff === 'hard' ? 3 : 0));
-	const early = diff === 'easy' && realTier < 2;
+	// 진화 전 포켓몬만 나오는 초반: 쉬움은 1~2세트 전부, 보통은 6회전까지
+	const early = (diff === 'easy' && realTier < 2) || (diff === 'normal' && streak < 6);
 	const n = teamSize(fmt);
 	const battleNo = streak + 1;
 	// 타이쿤: 21번째, 49번째
@@ -176,7 +176,8 @@ function towerOpponent(streak: number, fmt: Fmt, playerTeam: PSet[] = [], mono =
 			line: gold ? '여기까지 온 너에게 전력으로 답하겠다!' : '배틀타워의 정점, 타워 타이쿤이다. 승부다!' };
 	}
 	// 7의 배수 번째(세트 마지막): 네임드 트레이너가 등장 (세트가 오를수록 관장 → 사천왕 → 챔피언)
-	if (battleNo % 7 === 0) {
+	// 쉬움 1~2세트(진화 전 상대만 나오는 구간)는 네임드 대신 일반 트레이너 — 갑자기 완성된 팀이 나오지 않게
+	if (battleNo % 7 === 0 && !(diff === 'easy' && realTier < 2)) {
 		// 7연승마다: 초반엔 관장·간부, 중반엔 사천왕·라이벌, 후반엔 챔피언·보스·주인공
 		const roles = tier <= 1 ? ['leader', 'admin'] : tier <= 3 ? ['elite', 'rival'] : ['champion', 'boss', 'hero'];
 		const t = rng.pick(NAMED.filter(x => roles.includes(x.role)));
@@ -191,14 +192,14 @@ function towerOpponent(streak: number, fmt: Fmt, playerTeam: PSet[] = [], mono =
 	const quality = Math.min(1, 0.2 + tier * 0.15); // 7연승마다 Smogon 상위 세트·동료 조합에 가까워짐
 	// 타입 구애 도전: 한 타입으로만 짠 팀 (그 타입에 종족값 범위 안 포켓몬이 모자라면 범위를 넓힘)
 	const mt = mono ? monoTypeFor(tr.types) : undefined;
-	// 쉬움 초반: 세트 1 은 진화 전·중간 진화만(종족값 250~420), 세트 2 는 중간 진화 위주(330~480)
-	const nfe = early ? { stage: 'nfe' as const, minBst: realTier === 0 ? 250 : 330, maxBst: realTier === 0 ? 420 : 480 } : null;
-	let team = nfe ? randomTeam({ gen: 9, size: n, ...nfe, ivs: realTier === 0 ? 8 : 13, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality: 0.1 })
+	// 초반: 쉬움 세트 1 은 진화 전·중간 진화(종족값 250~420), 세트 2 는 중간 진화 위주(330~480) / 보통 6회전까지는 진화 전·중간 진화(250~480)
+	const nfe = early ? (diff === 'normal' ? { stage: 'nfe' as const, minBst: 250, maxBst: 480 } : { stage: 'nfe' as const, minBst: realTier === 0 ? 250 : 330, maxBst: realTier === 0 ? 420 : 480 }) : null;
+	let team = nfe ? randomTeam({ gen: 9, size: n, ...nfe, ivs: diff === 'normal' ? 16 : realTier === 0 ? 8 : 13, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality: 0.1 })
 		: randomTeam({ gen: 9, size: n, minBst, maxBst, allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality });
 	if (nfe && team.length < n) team = randomTeam({ gen: 9, size: n, ...nfe, ivs: 10, doubles: isDoubles(fmt), gimmicks: false, quality: 0.1 });
 	if (team.length < n) team = randomTeam({ gen: 9, size: n, ...(mt ? { minBst: minBst - 80 } : { minBst, maxBst }), allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : undefined, gimmicks: false, quality });
 	team = dedupeItems(assignGimmicks(team, early ? { mega: 0, z: 0 } : { mega: Math.min(1, 0.3 + tier * 0.15), z: Math.min(0.8, 0.2 + tier * 0.12) }));
-	const skill = early ? 0.45 + realTier * 0.05 : Math.min(0.97, 0.55 + tier * 0.08);
+	const skill = early ? (diff === 'normal' ? 0.5 : 0.45 + realTier * 0.05) : Math.min(0.97, 0.55 + tier * 0.08);
 	// 5세트(28연승)부터 가끔 실제 랭크배틀 상위 트레이너의 팀(PokéDB)이 나옴
 	if (!mt && tier >= 4 && Math.random() < (tier >= 6 ? 0.5 : 0.3)) {
 		const rk = rankerTeam(isDoubles(fmt), 50, Math.min(1, 0.6 + tier * 0.05));
@@ -318,22 +319,40 @@ export async function runTower() {
 interface FactoryState { fmt: Fmt; level: 50 | 100; team: PSet[]; streak: number; /** 다음 승부 상대 (쉬었다 와도 같게) */ next?: { streak: number; tr: any; mt?: string; oppTeam: PSet[]; hint: string } }
 const FACTORY_KEY = (fmt: Fmt, lv: number, o: BattleOpts) => `factory-${fmt}-${lv}${optsTag(o)}`;
 
-/** 세트(7연승)마다 렌탈 등급: PU → NU → RU → UU → OU → OU+Uber 절반 → Uber 위주 */
-const FACTORY_GRADE = ['PU', 'NU', 'RU', 'UU', 'OU', 'OU·Uber', 'Uber'];
-const factoryGrade = (streak: number) => FACTORY_GRADE[Math.min(Math.floor(streak / 7), FACTORY_GRADE.length - 1)];
-function factoryPool(streak: number, level: number, size: number, exclude?: Set<string>, type?: string) {
-	// 세트가 오를수록 높은 티어의 렌탈 (타입 구애면 그 타입만, 모자라면 다른 티어·무작위로 채움)
-	const grade = factoryGrade(streak);
+/** 렌탈 등급 (약한 순). 미진화·중간 진화는 Smogon 팩토리 세트가 없어 무작위 세트(진화 전만)로 만듦 */
+const FACTORY_GRADES = ['미진화', '미진화·중간 진화', '중간 진화', 'PU', 'NU', 'RU', 'UU', 'OU', 'OU·Uber', 'Uber'] as const;
+type FGrade = typeof FACTORY_GRADES[number];
+/** 난이도별 세트(7연승)마다 렌탈 등급
+ *  쉬움: 미진화 → 중간 진화 → PU → NU …   보통: 1세트(7회전까지) 미진화·중간 진화 → PU → NU …   어려움: UU 부터 */
+const FACTORY_LADDER: { [k in Diff]: FGrade[] } = {
+	easy: ['미진화', '중간 진화', 'PU', 'NU', 'RU', 'UU', 'OU', 'OU·Uber', 'Uber'],
+	normal: ['미진화·중간 진화', 'PU', 'NU', 'RU', 'UU', 'OU', 'OU·Uber', 'Uber'],
+	hard: ['UU', 'OU', 'OU·Uber', 'Uber'],
+};
+const factoryGrade = (streak: number, diff: Diff = 'normal'): FGrade => { const l = FACTORY_LADDER[diff]; return l[Math.min(Math.floor(streak / 7), l.length - 1)]; };
+/** 등급 위치 (AI 실력·팩토리 헤드 등급 계산용) */
+const gradeIdx = (g: FGrade) => FACTORY_GRADES.indexOf(g);
+const NFE_BST: { [g: string]: [number, number] } = { '미진화': [200, 400], '미진화·중간 진화': [200, 470], '중간 진화': [330, 480] };
+function factoryPool(grade: FGrade, level: number, size: number, exclude?: Set<string>, type?: string, diff: Diff = 'normal') {
+	// 미진화·중간 진화: 진화 전 포켓몬만, 준전설 없음
+	if (NFE_BST[grade]) {
+		const [minBst, maxBst] = NFE_BST[grade];
+		let team = randomTeam({ gen: 9, size, stage: 'nfe', minBst, maxBst, level, exclude, types: type ? [type] : undefined, gimmicks: false, quality: 0.5 });
+		if (team.length < size) team = [...team, ...randomTeam({ gen: 9, size: size - team.length, stage: 'nfe', minBst, maxBst: maxBst + 40, level, gimmicks: false, quality: 0.5 })];
+		return team;
+	}
+	// 낮은 등급(PU·NU, 쉬움은 RU 까지)은 준전설 제외
+	const noLeg = grade === 'PU' || grade === 'NU' || (diff === 'easy' && grade === 'RU');
 	let team: PSet[];
 	if (grade.includes('Uber')) {
 		const nUber = grade === 'Uber' ? Math.ceil(size * 0.7) : Math.ceil(size / 2);
 		const ub = factoryTeam('Uber', nUber, level, exclude, type);
 		team = [...ub, ...factoryTeam('OU', size - ub.length, level, new Set([...(exclude || []), ...ub.map(s => toID(s.species))]), type)];
-	} else team = factoryTeam(grade, size, level, exclude, type);
+	} else team = factoryTeam(grade, size, level, exclude, type, noLeg);
 	void FACTORY_TIERS;
 	if (type && team.length < size) {
 		const have = new Set([...(exclude || []), ...team.map(s => toID(s.species))]);
-		for (const t2 of ['OU', 'UU', 'RU', 'NU', 'PU']) { if (team.length >= size) break; team = [...team, ...factoryTeam(t2, size - team.length, level, have, type)]; team.forEach(s => have.add(toID(s.species))); }
+		for (const t2 of ['OU', 'UU', 'RU', 'NU', 'PU']) { if (team.length >= size) break; team = [...team, ...factoryTeam(t2, size - team.length, level, have, type, noLeg)]; team.forEach(s => have.add(toID(s.species))); }
 	}
 	return team.length >= size ? team : [...team, ...randomTeam({ gen: 9, size: size - team.length, minBst: 450, level, types: type ? [type] : undefined })];
 }
@@ -341,8 +360,9 @@ function factoryPool(streak: number, level: number, size: number, exclude?: Set<
 export async function runFactory() {
 	const opts = defaultOpts();
 	const fmt = await chooseFormat('배틀팩토리', '빌린 포켓몬으로 싸우는 시설 · 이길 때마다 상대 포켓몬과 교환 가능 · 세트가 오를수록 강한 렌탈', true, opts, ['inverse', 'mono'], false, true);
-	/** 난이도에 따라 렌탈·상대의 세트 수준을 당기거나 미룸 */
-	const es = (s: number) => Math.max(0, s + diffShift(opts) * 7);
+	/** 난이도별 렌탈·상대 등급 (FACTORY_LADDER) */
+	const diff: Diff = opts.diff || 'normal';
+	const gradeAt = (streak: number) => factoryGrade(streak, diff);
 	if (fmt === BACK) return;
 	const level = await ask<50 | 100 | typeof BACK>(r => <ChoiceScreen title="배틀팩토리 · 레벨" onBack={() => r(BACK)} options={[
 		{ value: 50 as const, label: '레벨 50', desc: '모든 포켓몬 레벨 50', icon: '50' },
@@ -359,8 +379,8 @@ export async function runFactory() {
 		if (v === 'new') state = null;
 	}
 	const rentalRound = async (streak: number) => {
-		const rentals = factoryPool(es(streak), level, n === 6 ? 8 : 6);
-		return ask<PSet[]>(r => <PickScreen title={`렌탈 포켓몬 선택 · ${factoryGrade(es(streak))} 등급`} team={rentals} gen={9} count={n}
+		const rentals = factoryPool(gradeAt(streak), level, n === 6 ? 8 : 6, undefined, undefined, diff);
+		return ask<PSet[]>(r => <PickScreen title={`렌탈 포켓몬 선택 · ${gradeAt(streak)} 등급`} team={rentals} gen={9} count={n}
 			hint={`빌릴 포켓몬 ${n}마리를 고르세요. 처음 고른 포켓몬이 먼저 나갑니다. (세트가 오를수록 더 강한 등급에서 빌려 줍니다)`} onDone={r} />);
 	};
 	if (!state) {
@@ -369,6 +389,12 @@ export async function runFactory() {
 		save(FACTORY_KEY(fmt, level, opts), state);
 	}
 	const head = (no: number) => no === 21 || no === 49;
+	/** 팩토리 헤드: 그 세트 등급보다 한 단계(49번째는 두 단계) 위 — 어려움은 원래대로 OU / Uber */
+	const headGrade = (streak: number): FGrade => {
+		if (diff === 'hard') return streak + 1 === 49 ? 'Uber' : 'OU';
+		const up = gradeIdx(gradeAt(streak)) + (streak + 1 === 49 ? 2 : 1);
+		return FACTORY_GRADES[Math.min(up, FACTORY_GRADES.length - 1)];
+	};
 	/** 직원이 알려주는 상대 정보 (Pt/HGSS 방식: 0~6연승 전부 → 7~ 2마리 → 14~ 1마리+기술 → 21~ 선봉의 기술 → 28~ 주로 쓰는 타입) */
 	const staffHint = (streak: number, team: PSet[]): string => {
 		const names = team.map(s => speciesKo(s.species));
@@ -389,10 +415,10 @@ export async function runFactory() {
 		const tr = saved ? saved.tr : randomTrainer();
 		// 타입 구애 도전: 일반 상대는 한 타입 팀
 		const mt = saved ? saved.mt : opts.mono && !isHead ? monoTypeFor(tr.types) : undefined;
-		const oppTeam: PSet[] = saved ? saved.oppTeam : isHead ? factoryTeam(no === 49 ? 'Uber' : 'OU', n, level) : factoryPool(es(state.streak), level, n, undefined, mt);
+		const oppTeam: PSet[] = saved ? saved.oppTeam : isHead ? factoryPool(headGrade(state.streak), level, n, undefined, undefined, diff) : factoryPool(gradeAt(state.streak), level, n, new Set(state.team.map(s => toID(s.species))), mt, diff);
 		const hint: string = saved ? saved.hint : staffHint(state.streak, oppTeam);
 		if (!saved) { state.next = { streak: state.streak, tr, mt, oppTeam, hint }; save(FACTORY_KEY(fmt, level, opts), state); }
-		const skill = Math.min(0.92, 0.5 + Math.floor(es(state.streak) / 7) * 0.1);
+		const skill = Math.min(0.92, 0.42 + gradeIdx(gradeAt(state.streak)) * 0.06);
 		const opp = isHead ? { name: '팩토리 헤드', title: '', skill: 0.97, line: '지식과 운, 둘 다 시험해 보자고!', sprite: 'thorton', lines: { ace: '계산대로라면 여기서 역전이야!', lose: '내 계산이 틀렸다니… 대단한데!', win: '데이터는 거짓말을 안 하거든.' } } :
 			{ name: tr.name, title: tr.className, skill, line: tr.lines.intro, sprite: tr.sprite, lines: tr.lines };
 		const monoLabel = monoTag(mt);
@@ -426,7 +452,7 @@ export async function runFactory() {
 		if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 		if (s % 7 === 0) {
 			await ask<void>(r => <InfoScreen title="배틀팩토리" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`}
-				lines={['빌린 포켓몬을 모두 반납하고, 새 렌탈 포켓몬을 처음부터 다시 고릅니다.', `다음 세트 렌탈 등급: ${factoryGrade(es(s))}${factoryGrade(es(s)) !== factoryGrade(es(s - 1)) ? ' (등급 상승!)' : ''}`]} actions={[{ label: '새로 빌리기', onClick: () => r() }]} />);
+				lines={['빌린 포켓몬을 모두 반납하고, 새 렌탈 포켓몬을 처음부터 다시 고릅니다.', `다음 세트 렌탈 등급: ${gradeAt(s)}${gradeAt(s) !== gradeAt(s - 1) ? ' (등급 상승!)' : ''}`]} actions={[{ label: '새로 빌리기', onClick: () => r() }]} />);
 			state.team = await rentalRound(s);
 		} else {
 			const swap = await ask<{ give: number; take: number } | null>(r => <SwapScreen mine={state!.team} theirs={oppTeam} gen={9} onDone={r} />);

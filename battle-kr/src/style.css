@@ -1326,7 +1326,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .title-fs { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 8px); right: 8px; z-index: 5; }
 
 /* ── 배틀 전 음악·배경 고르기: 내용 맨 아래(현재 연승 줄 밑) 얇은 두 줄(음악·배경) [◀ 음악 이름 ▶] (v2.33.2). 배경 칸은 뒤에 장소 그림 ── */
-.prep-pickers { display: grid; grid-template-columns: 1fr; gap: 6px; width: 100%; max-width: 360px; margin: 6px auto 0; }
+.prep-pickers { display: grid; grid-template-columns: 1fr; gap: 2px; width: 100%; max-width: 360px; margin: 6px auto 0; }
 .pick-panel { position: relative; display: flex; align-items: center; height: 32px; padding: 0 2px; overflow: hidden; }
 .pick-bg { position: absolute; inset: 0; z-index: 0; }
 .pick-bg .arena-thumb { position: absolute; inset: 0; width: auto; aspect-ratio: auto; clip-path: none; box-shadow: none; }
@@ -1380,3 +1380,25 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .trainer-spr.foe.second { left: 60%; top: 71%; z-index: 0; transform: translate(130%, -100%) scale(calc(var(--s) * .76)); }
 .trainer-spr.foe.second.in { transform: translate(-50%, -100%) scale(calc(var(--s) * .76)); }
 
+
+/* ── 화면 높이가 낮을 때(웹 브라우저 주소창·아래 메뉴) 기술 버튼이 줄어 기술 이름이 안 보이던 문제 (v2.33.4) ──
+   1) 기술을 고르는 동안 낮은 화면에서는 '…는 무엇을 할까?' 메시지 창을 접어(포켓몬 이름은 버튼 위에 있음) 버튼 자리를 늘림
+   2) 버튼은 최소 높이를 지키고, 그래도 모자라면 기술 칸만 스크롤
+   3) 기술 이름은 줄지 않고, 버튼이 낮으면 위·아래 줄을 작게 하고 빈 줄은 숨김 */
+@media (max-height: 760px) {
+	.battle:has(.controls > .move-panel) .msgbox { display: none; }
+}
+.move-panel > .move-grid, .move-panel > .move-grid.win-dark { grid-template-rows: repeat(2, minmax(56px, 1fr)); overflow-y: auto; }
+.move-panel .mvb { container-type: size; }
+.mvb-name { flex-shrink: 0; }
+.mvb-top, .mvb-bottom { flex-shrink: 1; min-height: 0; overflow: hidden; }
+@container (max-height: 60px) {
+	.mvb { justify-content: center; gap: 1px; }
+	.mvb-top, .mvb-bottom { margin: 0 !important; }
+	.mvb-name, .mvb-name.l { font-size: 15px; line-height: 18px; }
+	.mvb-name.xl { font-size: 12px; line-height: 18px; }
+	.mvb-bottom:not(:has(.mvb-eff, .mvb-dmg)) { display: none; }
+}
+@container (max-height: 46px) {
+	.mvb-top, .mvb-bottom { display: none; }
+}
