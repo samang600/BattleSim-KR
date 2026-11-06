@@ -1,0 +1,12 @@
+/dist/
+/test/selfplay.html
+/android/build/
+/android/app/build/
+/android/.gradle/
+/android/local.properties
+/android/app/src/main/assets/www/
+/android/*.keystore
+/public/sprites/
+/public/cries/
+/android/app/src/full/assets/www/
+/android/app/src/lite/assets/www/

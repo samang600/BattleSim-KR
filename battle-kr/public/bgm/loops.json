@@ -1,0 +1,34 @@
+{
+ "title": {
+  "start": 0.0,
+  "end": 50.087
+ },
+ "battle": {
+  "start": 5.3933,
+  "end": 48.5393
+ },
+ "tower": {
+  "start": 2.9268,
+  "end": 49.7561
+ },
+ "boss": {
+  "start": 5.3333,
+  "end": 48.0
+ },
+ "evil": {
+  "start": 3.2,
+  "end": 54.4
+ },
+ "victory": {
+  "start": 3.6364,
+  "end": 32.7273
+ },
+ "pwt": {
+  "start": 2.7907,
+  "end": 47.4419
+ },
+ "champion": {
+  "start": 5.1613,
+  "end": 46.4516
+ }
+}

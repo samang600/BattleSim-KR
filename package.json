@@ -1,0 +1,24 @@
+{
+  "name": "battlesim-kr",
+  "private": true,
+  "version": "2.31.0",
+  "description": "한국어 포켓몬 배틀 시뮬레이터 앱 (Pokémon Showdown 배틀 엔진 기반)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build-engine": "node build",
+    "gen-data": "node battle-kr/scripts/gen-data.cjs",
+    "build": "node battle-kr/build.mjs",
+    "build:android": "node battle-kr/build.mjs --android"
+  },
+  "dependencies": {
+    "esbuild": "^0.25.0",
+    "preact": "^10.5.15",
+    "ts-chacha20": "^1.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
