@@ -62,7 +62,7 @@ function Home({ go }: { go: (v: string) => void }) {
 			</div>
 			<div class="head-btns">
 				<FullscreenButton />
-				<button class="icon-btn" onClick={() => go('settings')} aria-label="설정">⚙</button>
+				<button class="icon-btn pix-btn" onClick={() => go('settings')} aria-label="설정"><span class="pix-ico gear" aria-hidden="true" /></button>
 			</div>
 		</div>
 		{suspended && <div class="notice">쉬는 중인 도전이 있어요. 해당 시설에 들어가면 이어서 할 수 있습니다.</div>}

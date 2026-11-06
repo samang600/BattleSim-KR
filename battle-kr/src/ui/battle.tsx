@@ -20,7 +20,7 @@ export interface BattleSetup {
 	gen: Gen;
 	doubles: boolean;
 	p1: { name: string; team: PSet[]; sprite?: string };
-	p2: { name: string; title?: string; team: PSet[]; line?: string; sprite?: string; lines?: { intro?: string; ace?: string; lose?: string; win?: string } };
+	p2: { name: string; title?: string; team: PSet[]; line?: string; sprite?: string; /** 멀티배틀 상대 둘째 트레이너 그림 */ sprite2?: string; lines?: { intro?: string; ace?: string; lose?: string; win?: string } };
 	aiSkill: number;
 	label?: string; // 예: '배틀타워 12번째'
 	/** 전적에 넣지 않음 (프리·치트 배틀) */
@@ -35,7 +35,7 @@ export interface BattleSetup {
 	/** 배경음악 상황 (없으면 배경으로 정함): 악의 조직 간부·보스는 'evil', 관장·사천왕·챔피언은 'boss' */
 	music?: 'battle' | 'tower' | 'pwt' | 'boss' | 'evil' | 'champion';
 	/** 멀티배틀: p1.team 중 theirs[i] 가 true 인 포켓몬은 파트너(AI)의 것. 포켓몬 주인이 지시함 */
-	partner?: { name: string; theirs: boolean[]; skill?: number };
+	partner?: { name: string; theirs: boolean[]; skill?: number; /** 파트너 트레이너 그림 (내 트레이너 옆에 나옴) */ sprite?: string };
 }
 export interface BattleResult { win: boolean; forfeit: boolean; turns: number; p1Left: number; p2Left: number; quit?: boolean }
 
@@ -237,6 +237,13 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	const animBgRef = useRef<HTMLDivElement | null>(null);
 	const animUsedRef = useRef<ParsedLine | null>(null);
 	const [menuOpen, setMenuOpen] = useState(false);
+	/** 배틀 배경: 설정(battleBg)이 '상황에 맞게'면 모드가 정한 배경, '무작위'면 배틀마다 하나 (리플레이는 원래 배경) */
+	const [arenaBg] = useState(() => {
+		const pref = settings.battleBg || 'auto';
+		if (setup.replay || pref === 'auto') return setup.bg || 'field';
+		if (pref === 'random') { const all = ['field', 'gym', 'cave', 'beach', 'snow', 'volcano', 'tower', 'factory', 'pwt', 'champion']; return all[Math.floor(Math.random() * all.length)]; }
+		return pref;
+	});
 	const fullscreen = useFullscreen();
 	const [fieldOpen, setFieldOpen] = useState(false);
 	useEffect(() => {
@@ -1297,7 +1304,7 @@ function typeTint(type: string) {
 	}
 
 	const slots = setup.doubles ? [0, 1] : [0];
-	return <div class={'battle bg-' + (setup.bg || 'field') + (setup.doubles ? ' doubles' : ' singles')} style={{ '--spd': FX.fxSpeed() } as any}>
+	return <div class={'battle bg-' + arenaBg + (setup.doubles ? ' doubles' : ' singles')} style={{ '--spd': FX.fxSpeed() } as any}>
 		<div class="hud-top">
 			<span class="badge">{setup.label || ''}</span>
 			<span class="badge">{scene.turn ? `${scene.turn}턴` : ''}</span>
@@ -1314,7 +1321,9 @@ function typeTint(type: string) {
 			{(['p1', 'p2'] as const).map(sd => { const pp = scene.popup?.[sd]; return pp ? <div class={'ab-pop ' + (sd === 'p1' ? 'own' : 'foe') + ' ' + pp.kind} key={pp.key}>
 				{pp.item && <ItemIcon item={pp.item} />}<span><small>{pp.who}의</small><b>{pp.what}</b></span></div> : null; })}
 			<canvas class="anim-canvas back" ref={backRef} />
+			{setup.p2.sprite2 && <img class={'trainer-spr foe second' + (trainerVis.foe ? ' in' : '')} src={SPRITE_URL(setup.p2.sprite2)} alt="" onError={trainerImgError} />}
 			{setup.p2.sprite && <img class={'trainer-spr foe' + (trainerVis.foe ? ' in' : '')} src={SPRITE_URL(setup.p2.sprite)} alt="" onError={trainerImgError} />}
+			{setup.partner?.sprite && <img class={'trainer-spr own partner' + (trainerVis.own ? ' in' : '')} src={SPRITE_URL(setup.partner.sprite)} alt="" onError={trainerImgError} />}
 			{setup.p1.sprite && <img class={'trainer-spr own' + (trainerVis.own ? ' in' : '')} src={SPRITE_URL(setup.p1.sprite)} alt="" onError={trainerImgError} />}
 			{slots.map(i => spriteSlot(scene.p2.active[i] || null, false, i))}
 			{slots.map(i => spriteSlot(scene.p1.active[i] || null, true, i))}

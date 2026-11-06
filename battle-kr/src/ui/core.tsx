@@ -267,7 +267,24 @@ export function useFullscreen(): boolean {
 export function FullscreenButton({ cls = 'icon-btn' }: { cls?: string }) {
 	const on = useFullscreen();
 	if (!canFullscreen()) return null;
-	return <button class={cls + ' fs-btn' + (on ? ' on' : '')} onClick={e => { e.stopPropagation(); toggleFullscreen(); }} aria-label={on ? '전체화면 끄기' : '전체화면'} title={on ? '전체화면 끄기' : '전체화면'}>
-		<span class="fs-ico" aria-hidden="true" />
+	return <button class={cls + ' pix-btn fs-btn' + (on ? ' on' : '')} onClick={e => { e.stopPropagation(); toggleFullscreen(); }} aria-label={on ? '전체화면 끄기' : '전체화면'} title={on ? '전체화면 끄기' : '전체화면'}>
+		<span class="pix-ico fs" aria-hidden="true" />
 	</button>;
+}
+
+/** ◀ 이름 ▶ 으로 넘기며 고르는 상자 (배틀 전 음악·배경). preview 가 있으면 위에 미리보기 */
+export function ArrowPicker({ label, items, value, onChange, preview, icon }: {
+	label: string; items: [string, string][]; value: string; onChange: (k: string) => void; preview?: (k: string) => VNode; icon?: string;
+}) {
+	const i = Math.max(0, items.findIndex(x => x[0] === value));
+	const go = (d: number) => onChange(items[(i + d + items.length) % items.length][0]);
+	return <div class={'win pick-panel' + (preview ? ' has-preview' : '')}>
+		{preview && <div class="pick-preview">{preview(items[i][0])}</div>}
+		<div class="pick-line">
+			<button class="btn small pick-arrow" aria-label={label + ' 이전'} onClick={() => go(-1)}>◀</button>
+			<b class="pick-name">{icon && <span class="pick-icon">{icon}</span>}{items[i][1]}</b>
+			<button class="btn small pick-arrow" aria-label={label + ' 다음'} onClick={() => go(1)}>▶</button>
+		</div>
+		<div class="pick-label">{label}<small>{i + 1} / {items.length}</small></div>
+	</div>;
 }

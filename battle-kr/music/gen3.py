@@ -3,6 +3,7 @@
   g3battle   트레이너 배틀 (D단조 156): i-VI-VII-V 진행, 옥타브 8분 베이스, 반음계 상승 인트로
   g3gym      관장전 (C단조 168): 영웅적인 단조, B 구간 끝에 나폴리 화음(Db)
   g3frontier 배틀 프런티어풍 (F장조 160): 금관 팡파르 느낌의 장조, 믹솔리디안 Bb·C7
+  pwthall    PWT 대진표 대기 (Bb장조 132): 경기장 행진풍 (NEW 의 song2 형식)
 형식: 인트로 → A(8마디) → B(8마디) → A 로 반복 (intro 칸부터)
 출력: <앱>/src/gen/chip-gen3.json (chip-tracks.json 과 같은 형식: 16분음표 한 칸에 한 글자, ' ' 쉼, '!' 지속, 그 밖 chr(MIDI+14))
 사용: python3 gen3.py [출력 경로]"""
@@ -265,6 +266,17 @@ NEW = {
          'b5.4 d6.4 g6.6 f#6.2|e6.4 c#6.4 a5.8|c#6.6 a5.2 f#5.8|d6.4 f#6.4 b6.8|g6.4 f#6.2 e6.2 d6.4 b5.4|c#6.4 e6.4 a6.8|bb6.6 f6.2 d6.8|c#6.2 e6.2 g6.2 a6.2 c#7.8',
          {'harm': 'stab', 'bass': 'gallop', 'arp': True, 'drum': 'b'}),
     ]),
+    # PWT 대진표·토너먼트 대기 (Bb장조 132): 경기장 행진풍 — 셋잇단 같은 연타 팡파르 인트로, 워킹 베이스, B 에서 Eb·Dm 으로 펼쳐지고 F7 로 돌아옴
+    'pwthall': (132, [
+        ('intro', ['Bb', 'F'],
+         'bb4.2 bb4.2 bb4.2 f5.6 r.4|a5.2 a5.2 a5.2 c6.6 r.4', {'harm': 'third', 'bass': 'drive', 'drum': 'intro'}),
+        ('A', ['Bb', 'F', 'Gm', 'Eb', 'Bb', 'Eb', 'C7', 'F7'],
+         'd6.4 bb5.2 f5.2 bb5.4 d6.4|c6.6 a5.2 f5.4 a5.4|bb5.3 a5.1 g5.4 d6.4 bb5.4|g5.2 a5.2 bb5.2 c6.2 eb6.8|'
+         'f6.4 d6.2 bb5.2 f5.4 bb5.4|g6.4 eb6.2 bb5.2 g5.4 eb6.4|e6.2 d6.2 c6.2 bb5.2 g5.4 c6.4|a5.8 c6.4 eb6.4', {'harm': 'third', 'bass': 'walk'}),
+        ('B', ['Eb', 'F', 'Dm', 'Gm', 'Cm', 'F', 'Bb', 'F7'],
+         'g5.4 bb5.4 eb6.6 d6.2|c6.4 a5.4 f5.8|f5.4 a5.4 d6.6 c6.2|bb5.8 g5.4 d5.4|'
+         'eb6.4 c6.4 g5.4 c6.4|a5.2 bb5.2 c6.2 d6.2 f6.8|d6.6 c6.2 bb5.4 f5.4|a5.2 c6.2 eb6.2 f6.2 a6.8', {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k...s...k.k.s...', 'b': 'k...s.k.k.k.s.ss', 'intro': 's.s.s.s.s.s.ssss'}, 'k.s.k.s.s.ssssss'),
 }
 for k, (bpm, secs, *dr) in NEW.items():
     print(consonance(k, secs))

@@ -128,13 +128,46 @@ export function ChoiceScreen<T>({ title, intro, footer, options, onPick, onBack 
 }
 
 /** 대진표 */
-export function BracketView({ rounds, highlight }: { rounds: string[][]; highlight: string }) {
-	const names = ['1회전', '준결승', '결승', '우승'];
-	return <div class="bracket">
-		{rounds.map((r, ri) => <div class="b-round">
-			<div class="b-title">{names[ri]}</div>
-			{r.map(n => <div class={'b-entry' + (n === highlight ? ' me' : '') + (!n ? ' tbd' : '')}>{n || '?'}</div>)}
-		</div>)}
+/** PWT 대진표: 왼쪽 4명·오른쪽 4명 초상, 가운데 왕관으로 모이는 대진선 (이긴 길은 노랗게), 아래 메시지 창.
+ *  좌표는 모두 2px 격자 (카드 48, 줄 간격 68, 가로 344). rounds = [8명, 4, 2, 1] — 빈 문자열은 아직 안 정해짐 */
+const BK = { W: 344, card: 48, x1: 76, x2: 112, pitch: 68, cy0: 24 };
+export function BracketView({ rounds, highlight, sprites, message }: { rounds: string[][]; highlight: string; sprites?: { [name: string]: string | undefined }; message?: string }) {
+	const cy = (row: number) => BK.cy0 + row * BK.pitch;                     // 초상 가운데 높이
+	const pairMid = (m: number) => (cy((m % 2) * 2) + cy((m % 2) * 2 + 1)) / 2;  // 1회전 경기 m 의 가운데
+	const finY = (cy(0) + cy(3)) / 2;
+	const mx = (x: number, right: boolean) => right ? BK.W - x : x;
+	const segs: { x: number; y: number; w: number; h: number; lit: boolean }[] = [];
+	const line = (xa: number, ya: number, xb: number, yb: number, lit: boolean) =>
+		segs.push({ x: Math.min(xa, xb), y: Math.min(ya, yb), w: Math.abs(xb - xa) + 2, h: Math.abs(yb - ya) + 2, lit });
+	const [r0, r1 = [], r2 = [], r3 = []] = rounds;
+	r0.forEach((n, i) => {
+		const right = i >= 4, row = i % 4, y = cy(row), m = Math.floor(i / 2), lit = !!n && r1[m] === n;
+		line(mx(BK.card, right), y, mx(BK.x1, right), y, lit);
+		line(mx(BK.x1, right), y, mx(BK.x1, right), pairMid(m), lit);
+	});
+	[0, 1, 2, 3].forEach(m => {
+		const right = m >= 2, y = pairMid(m), lit = !!r1[m] && r2[Math.floor(m / 2)] === r1[m];
+		line(mx(BK.x1, right), y, mx(BK.x2, right), y, lit);
+		line(mx(BK.x2, right), y, mx(BK.x2, right), finY, lit);
+	});
+	[0, 1].forEach(j => { const right = j === 1, lit = !!r2[j] && r3[0] === r2[j]; line(mx(BK.x2, right), finY, mx(BK.W / 2 - 12, right), finY, lit); });
+	const out = (n: string) => { for (let k = 1; k < rounds.length; k++) if (rounds[k].some(Boolean) && !rounds[k].includes(n) && rounds[k - 1].includes(n)) { const m = Math.floor(rounds[k - 1].indexOf(n) / 2); if (rounds[k][m]) return true; } return false; };
+	const champ = r3[0];
+	return <div class="bk-wrap">
+		<div class="bk-board"><div class="bk" style={{ width: BK.W + 'px', height: (cy(3) + 40) + 'px' }}>
+			{segs.map(g => <i class={'bk-line' + (g.lit ? ' lit' : '')} style={{ left: g.x + 'px', top: g.y + 'px', width: g.w + 'px', height: g.h + 'px' }} />)}
+			<div class={'bk-crown' + (champ ? ' won' : '')} style={{ left: (BK.W / 2 - 14) + 'px', top: (finY - 22) + 'px' }} />
+			<div class="bk-final" style={{ top: (finY + 8) + 'px' }}>{champ || '결승'}</div>
+			{r0.map((n, i) => {
+				const right = i >= 4, sp = sprites?.[n];
+				return <div class={'bk-card' + (right ? ' right' : '') + (n === highlight ? ' me' : '') + (out(n) ? ' out' : '') + (n === champ ? ' champ' : '')}
+					style={{ left: (right ? BK.W - BK.card : 0) + 'px', top: (cy(i % 4) - 24) + 'px' }}>
+					<div class="bk-face">{sp ? <img src={SPRITE_URL(sp)} alt="" onError={trainerImgError} /> : <span>?</span>}</div>
+					<div class="bk-name">{n || '?'}</div>
+				</div>;
+			})}
+		</div></div>
+		{message && <div class="win bk-msg">{message.split('\n').map(l => <div>{l}</div>)}<span class="bk-more">▼</span></div>}
 	</div>;
 }
 

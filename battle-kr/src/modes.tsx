@@ -1,7 +1,7 @@
 /** 게임 모드 진행 (배틀타워 · 배틀팩토리 · PWT · 네임드 트레이너 · 프리 배틀) */
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
-import { ask, abortMode, gen5Icon, confirmBox } from './ui/core';
+import { ask, abortMode, gen5Icon, confirmBox, ArrowPicker } from './ui/core';
 import { BattleView, type BattleSetup, type BattleResult } from './ui/battle';
 import { PickScreen, InfoScreen, SwapScreen, ChoiceScreen, BracketView } from './ui/screens';
 import { randomTeam, randomSetFor, cloneSet, dedupeItems, rng, factoryTeam, assignGimmicks, fitSetToMega, FACTORY_TIERS, type PSet } from './sets';
@@ -69,13 +69,25 @@ async function confirmQuit<T>(show: () => Promise<T>, quitValue: T, msg: string)
 	}
 }
 
-/** 배틀 음악 고르기 (설정의 배틀 음악과 같음) — 바꾸면 미리 들려줌 */
+/** 배틀 배경 (설정 battleBg) — 'auto' 는 모드마다 정해진 배경 */
+export const ARENA_CHOICES: [string, string][] = [['auto', '상황에 맞게'], ['random', '무작위'], ['field', '들판'], ['gym', '체육관'], ['cave', '동굴'], ['beach', '해변'],
+	['snow', '설원'], ['volcano', '화산'], ['tower', '배틀타워'], ['factory', '배틀팩토리'], ['pwt', 'PWT 경기장'], ['champion', '챔피언 리그']];
+/** 배틀 전 화면의 음악·배경 고르기 (◀ ▶ 로 넘김). 음악은 곡 이름이 바뀔 때마다 바로 들려주고, 배경은 장소를 미리 보여 줌 */
 function BgmRow() {
 	const [v, setV] = useState(loadSettings().battleBgm || 'random');
-	return <label class="sel-row"><span>배틀 음악</span><select value={v} onChange={e => {
-		const k = (e.target as HTMLSelectElement).value; saveSettings({ ...loadSettings(), battleBgm: k }); setV(k);
-		if (k === 'none') stopMusic(); else if (k !== 'random' && k !== 'shuffle') { stopMusic(); setTimeout(() => playMusic(k), 0); }
-	}}>{BGM_CHOICES.map(([k, l]) => <option value={k}>{l}</option>)}</select></label>;
+	const [bg, setBg] = useState(loadSettings().battleBg || 'auto');
+	return <div class="prep-pickers">
+		<ArrowPicker label="배틀 음악" icon="♪" items={BGM_CHOICES} value={v} onChange={k => {
+			saveSettings({ ...loadSettings(), battleBgm: k }); setV(k);
+			stopMusic();
+			if (k === 'none') return;
+			setTimeout(() => playMusic(k === 'random' || k === 'shuffle' ? 'lobby' : k), 0);
+		}} />
+		<ArrowPicker label="배틀 배경" items={ARENA_CHOICES} value={bg} onChange={k => { saveSettings({ ...loadSettings(), battleBg: k }); setBg(k); }}
+			preview={k => <div class={'arena-thumb bg-' + (k === 'auto' || k === 'random' ? 'field' : k) + (k === 'auto' || k === 'random' ? ' unknown' : '')}>
+				<div class="arena-bg" />{(k === 'auto' || k === 'random') && <span class="thumb-q">{k === 'auto' ? '모드마다 정해진 장소' : '배틀마다 무작위'}</span>}
+			</div>} />
+	</div>;
 }
 
 function battle(setup: BattleSetup): Promise<BattleResult> {
@@ -205,7 +217,7 @@ function towerPair(streak: number, mono: boolean, diff: Diff = 'normal') {
 	let b: any = towerOpponent(streak, 'multi', [], mono, diff);
 	for (let i = 0; i < 5 && b.name === a.name; i++) b = towerOpponent(streak, 'multi', [], mono, diff);
 	const monoTypes = [a.mono, b.mono].filter(Boolean);
-	return { ...a, name: `${whoOf(a)} & ${whoOf(b)}`, title: '', team: [...a.team, ...b.team], skill: Math.max(a.skill, b.skill), special: a.special || b.special,
+	return { ...a, name: `${whoOf(a)} & ${whoOf(b)}`, title: '', sprite2: b.sprite, team: [...a.team, ...b.team], skill: Math.max(a.skill, b.skill), special: a.special || b.special,
 		music: a.music || b.music, ranker: undefined, mono: monoTypes.length ? monoTypes.join('/') : undefined, monoLabel: monoTypes.length ? ` (${monoTypes.map(t => typeKo(t)).join('·')}타입 구애)` : '' };
 }
 
@@ -263,8 +275,8 @@ export async function runTower() {
 		const res = await battle({
 			gen: 9, doubles: isDoubles(fmt), aiSkill: opp.skill, bg: opp.boss || (opp as any).special ? 'champion' : 'tower',
 			label: `배틀타워 ${state.streak + 1}번째`, noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse, music: opp.boss ? 'boss' : (opp as any).music,
-			p1: { name: playerName(), team: state.partner ? multiTeam(myEntry, state.partner.team).team : myEntry, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppEntry, line: opp.line, sprite: opp.sprite, lines: { intro: opp.line, ...opp.lines } },
-			partner: partnerT && state.partner ? { name: partnerT.name, theirs: multiTeam(myEntry, state.partner.team).flags, skill: 0.9 } : undefined,
+			p1: { name: playerName(), team: state.partner ? multiTeam(myEntry, state.partner.team).team : myEntry, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppEntry, line: opp.line, sprite: opp.sprite, sprite2: opp.sprite2, lines: { intro: opp.line, ...opp.lines } },
+			partner: partnerT && state.partner ? { name: partnerT.name, theirs: multiTeam(myEntry, state.partner.team).flags, skill: 0.9, sprite: namedSprite(partnerT) } : undefined,
 		});
 		state.next = undefined;
 		if (res.win) {
@@ -399,7 +411,7 @@ export async function runFactory() {
 		const oppEntry = fmt === 'doubles64' ? aiPickEntry(oppTeam, state.team, 4, true, opp.skill) : oppTeam;
 		const res = await battle({
 			gen: 9, doubles: isDoubles(fmt), aiSkill: opp.skill, bg: isHead ? 'champion' : 'factory', label: `배틀팩토리 ${no}번째`, noRecord: noRec(opts), inverse: opts.inverse,
-			p1: { name: playerName(), team: myEntry, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppEntry, line: opp.line, sprite: opp.sprite, lines: { intro: opp.line, ...opp.lines } },
+			p1: { name: playerName(), team: myEntry, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppEntry, line: opp.line, sprite: opp.sprite, sprite2: opp.sprite2, lines: { intro: opp.line, ...opp.lines } },
 		});
 		state.next = undefined;
 		if (!res.win) {
@@ -507,14 +519,19 @@ export async function runPWT() {
 		await ask<void>(r => <InfoScreen title={cup.name} heading="렌탈 포켓몬을 받았다!" sprites={myTeam.map(s => s.species)} sets={myTeam} gen={9}
 			actions={[{ label: '확인', onClick: () => r() }]} />);
 	}
+	// 대진표 초상 (이름 → 트레이너 그림)
+	const faces: { [name: string]: string | undefined } = { [me]: playerSprite(), ...Object.fromEntries(entrants.map(e => [e.name, e.sprite])) };
+	const fmtKo = ({ singles: '싱글배틀', doubles: '더블배틀' } as any)[fmt] || fmtLabel(fmt);
+	// 토너먼트 진입: 대진표 전용 곡
+	playMusic('pwthall');
 	// 1회전 상대 = slots[1], 다른 경기는 무작위 진행
 	let oppIdx = 0;
 	for (let round = 0; round < 3; round++) {
 		const opp = pool[oppIdx];
-		await ask<void>(r => <InfoScreen title={cup.name} banner={['1회전', '준결승', '결승'][round]}
-			heading={`VS ${opp.title} ${opp.name}`} trainer={opp.sprite} lines={optsLines(opts)}
+		playMusic('pwthall');
+		await ask<void>(r => <InfoScreen title={cup.name} banner={['1회전', '준결승', '결승'][round]} lines={optsLines(opts)}
 			actions={[{ label: '승부한다', onClick: () => r() }]}>
-			<BracketView rounds={rounds} highlight={me} />
+			<BracketView rounds={rounds} highlight={me} sprites={faces} message={`${['1회전', '준결승', '결승'][round]} 상대는 ${opp.title} ${opp.name}!\n${cup.name} · ${fmtKo}`} />
 		</InfoScreen>);
 		const oppTeam = withLevel(opp.team(), lvl(opts));
 		// PWT(BW2): 배틀 전 상대 엔트리를 보고 6마리 중 n마리를 고름
@@ -545,14 +562,18 @@ export async function runPWT() {
 			const nextName = winners[1];
 			oppIdx = pool.findIndex(e => e.name === nextName);
 			if (oppIdx < 0) oppIdx = 0;
-			await ask<void>(r => <InfoScreen title={cup.name} banner="승리!" heading="대진표" actions={[{ label: '다음 경기로', onClick: () => r() }]}>
-				<BracketView rounds={rounds} highlight={me} />
+			playMusic('pwthall');
+			await ask<void>(r => <InfoScreen title={cup.name} banner="승리!" actions={[{ label: '다음 경기로', onClick: () => r() }]}>
+				<BracketView rounds={rounds} highlight={me} sprites={faces} message={`${['1회전', '준결승'][round]} 승리! 다음은 ${round === 0 ? '준결승' : '결승'}이다.`} />
 			</InfoScreen>);
 		}
 	}
 	if (!noRec(opts)) updateRecords(r => { r.cups[cup.id] = (r.cups[cup.id] || 0) + 1; });
+	playMusic('pwthall');
 	await ask<void>(r => <InfoScreen title={cup.name} banner="🏆 우승!" heading={`${cup.name} 우승을 축하합니다!`} lines={noRec(opts) ? ['(치트·거꾸로 배틀은 전적에 남지 않습니다)'] : undefined}
-		sprites={myTeam.map(s => s.species)} sets={myTeam} gen={9} actions={[{ label: '메뉴로', onClick: () => r() }]} />);
+		sprites={myTeam.map(s => s.species)} sets={myTeam} gen={9} actions={[{ label: '메뉴로', onClick: () => r() }]}>
+		<BracketView rounds={rounds} highlight={me} sprites={faces} />
+	</InfoScreen>);
 	void pool; pool = [];
 }
 
