@@ -1382,12 +1382,8 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 
 
 /* ── 화면 높이가 낮을 때(웹 브라우저 주소창·아래 메뉴) 기술 버튼이 줄어 기술 이름이 안 보이던 문제 (v2.33.4) ──
-   1) 기술을 고르는 동안 낮은 화면에서는 '…는 무엇을 할까?' 메시지 창을 접어(포켓몬 이름은 버튼 위에 있음) 버튼 자리를 늘림
    2) 버튼은 최소 높이를 지키고, 그래도 모자라면 기술 칸만 스크롤
    3) 기술 이름은 줄지 않고, 버튼이 낮으면 위·아래 줄을 작게 하고 빈 줄은 숨김 */
-@media (max-height: 760px) {
-	.battle:has(.controls > .move-panel) .msgbox { display: none; }
-}
 .move-panel > .move-grid, .move-panel > .move-grid.win-dark { grid-template-rows: repeat(2, minmax(56px, 1fr)); overflow-y: auto; }
 .move-panel .mvb { container-type: size; }
 .mvb-name { flex-shrink: 0; }
@@ -1403,13 +1399,17 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.mvb-top, .mvb-bottom { display: none; }
 }
 
-/* ── 더블배틀 HP 상자를 한 줄로 (v2.33.5): [이름 ♂ Lv][HP ▬▬▬] — 상자 높이를 줄여 상대 포켓몬이 덜 가려지게 ── */
-.doubles .info { display: flex; align-items: center; gap: 4px; }
-.doubles .info .info-top { flex: 0 1 auto; min-width: 0; font-size: 12px; line-height: 14px; gap: 2px; }
+/* ── 더블배틀 HP 상자를 한 줄로 (v2.33.5~6): [이름 ♂][HP ▬▬▬] — Lv 표시 없음, 이름 칸 폭을 고정해 HP 바 길이를 모두 같게 ── */
+.doubles .info { display: grid; grid-template-columns: 50% 1fr; align-items: center; column-gap: 4px; }
+.doubles .info .info-top { min-width: 0; font-size: 12px; line-height: 14px; gap: 2px; }
 .doubles .info .info-name { flex: 0 1 auto; }
-.doubles .info .hpbar { min-width: 44px; }
-.doubles .info .lv { font-size: 10px; }
-.doubles .info .hpbar { flex: 1 1 0; min-width: 36px; margin: 0 0 0 16px; }
+.doubles .info .lv { display: none; }
+.doubles .info .hpbar { min-width: 0; margin: 0 0 0 16px; }
 .doubles .info .hpbar::before { left: -16px; }
 .doubles .info .tera-badge { display: none; }
 .doubles .panels { gap: 0; }
+
+/* ── 배틀 대화창 높이 고정 (v2.33.6): 글 길이·화면 상태와 상관없이 두 줄 높이. 안 들어가는 긴 글은 글자를 줄임(fit1·fit2) ── */
+.battle .msgbox, .battle .msgbox.win-dark { height: 60px; min-height: 60px; max-height: 60px; flex: none; overflow: hidden; }
+.battle .msgbox p.fit1 { font-size: 12.5px; line-height: 1.3; }
+.battle .msgbox p.fit2 { font-size: 11px; line-height: 1.25; }

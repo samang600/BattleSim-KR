@@ -1,6 +1,6 @@
 /** 배틀 화면 */
 import { h, Fragment } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Session } from '../engine';
 import { KoreanText, parseLine, effectInfo, type ParsedLine } from '../text';
 import { moveData, moveKo, speciesData, speciesKo, toID, abilityKo, itemKo, natureKo, STAT_SHORT, STAT_KO, typeKo, abilityDesc,
@@ -237,6 +237,15 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	const animBgRef = useRef<HTMLDivElement | null>(null);
 	const animUsedRef = useRef<ParsedLine | null>(null);
 	const [menuOpen, setMenuOpen] = useState(false);
+	/** 대화창은 높이가 고정: 두 줄에 안 들어가는 긴 글은 글자를 한두 단계 줄여 맞춤 */
+	const msgRef = useRef<HTMLParagraphElement>(null);
+	useLayoutEffect(() => {
+		const el = msgRef.current; if (!el) return;
+		el.classList.remove('fit1', 'fit2');
+		const box = el.parentElement!;
+		const over = () => el.scrollHeight > box.clientHeight + 1;
+		if (over()) { el.classList.add('fit1'); if (over()) { el.classList.remove('fit1'); el.classList.add('fit2'); } }
+	});
 	/** 배틀 배경: 설정(battleBg)이 '기본'(auto)이면 모드가 정한 배경, '무작위'면 배틀마다 하나 (리플레이는 원래 배경) */
 	const [arenaBg] = useState(() => {
 		const pref = settings.battleBg || 'auto';
@@ -1349,7 +1358,7 @@ function typeTint(type: string) {
 		</div>
 		<div class="bottom">
 			<div class="msgbox win-dark" onClick={() => skipRef.current?.()}>
-				<p>{message}</p>
+				<p ref={msgRef}>{message}</p>
 				{phase === 'playing' && <span class="msg-arrow">▼</span>}
 			</div>
 			{controls()}
