@@ -932,6 +932,11 @@ function typeTint(type: string) {
 	const activeReq = req?.active?.[slotIdx];
 	const curMon = scene.p1.active[slotIdx];
 
+	/** 화면에 보이는 대로의 상대: 일루전(조로아크)으로 둔갑한 포켓몬은 둔갑한 모습으로 상성·데미지를 계산 (진짜 타입이 새지 않게) */
+	const seen = (p: any): any => {
+		if (!p?.illusion) return p;
+		return p.terastallized ? [p.terastallized] : p.illusion.species.types;
+	};
 	/** 예상 데미지 비율 문자열 (설정 켜짐 때) */
 	const dmgPreview = (m: any, targetSide: 'p1' | 'p2' = 'p2', slot?: number): string => {
 		if (!settings.damagePreview) return '';
@@ -941,7 +946,7 @@ function typeTint(type: string) {
 		const mv = b.dex.moves.get(m.id);
 		if (!mv || mv.category === 'Status' || !targets.length || !targets[0]) return '';
 		try {
-			const d = estimateDamage(b, user, targets[0], mv);
+			const d = estimateDamage(b, user, targets[0].illusion && !targets[0].terastallized ? targets[0].illusion : targets[0], mv);
 			if (d <= 0) return '';
 			const pct = Math.round(d * targets[0].hp / targets[0].maxhp * 100);
 			return pct >= 100 ? 'KO 가능' : `약 ${Math.max(1, pct)}%`;
@@ -971,7 +976,7 @@ function typeTint(type: string) {
 			const s = sessionRef.current!.battle;
 			const target = s.p2.active.find((p: any) => p && !p.fainted);
 			if (target) {
-				const e = typeEffOf(s, type, target);
+				const e = typeEffOf(s, type, seen(target));
 				eff = e === 0 ? '효과 없음' : e >= 4 ? '효과 매우 굉장' : e >= 2 ? '효과 굉장' : e <= 0.25 ? '매우 별로' : e < 1 ? '효과 별로' : '보통';
 			}
 		}
@@ -1109,7 +1114,7 @@ function typeTint(type: string) {
 		const effOf = (side: 'p1' | 'p2', i: number) => {
 			const tg = b?.[side].active[i];
 			if (!md || !tg || md.category === 'Status') return '';
-			const e = typeEffOf(b, md.type, tg);
+			const e = typeEffOf(b, md.type, seen(tg));
 			return e === 0 ? '효과가 없음' : e >= 2 ? '효과가 굉장함' : e < 1 ? '효과가 별로' : '';
 		};
 		const go = (suffix: string) => pushChoice(`move ${pendingMove.num}${suffix}${pendingMove.gm || ''}`);

@@ -330,6 +330,9 @@ const FACTORY_LADDER: { [k in Diff]: FGrade[] } = {
 	hard: ['UU', 'OU', 'OU·Uber', 'Uber'],
 };
 const factoryGrade = (streak: number, diff: Diff = 'normal'): FGrade => { const l = FACTORY_LADDER[diff]; return l[Math.min(Math.floor(streak / 7), l.length - 1)]; };
+/** 화면에 보이는 등급 이름 (Smogon 티어 이름 대신) */
+const GRADE_LABEL: { [k in FGrade]: string } = { '미진화': '미진화', '미진화·중간 진화': '미진화·중간 진화', '중간 진화': '중간 진화',
+	PU: '브론즈', NU: '실버', RU: '골드', UU: '플래티넘', OU: '다이아몬드', 'OU·Uber': '마스터', Uber: '레전드' };
 /** 등급 위치 (AI 실력·팩토리 헤드 등급 계산용) */
 const gradeIdx = (g: FGrade) => FACTORY_GRADES.indexOf(g);
 const NFE_BST: { [g: string]: [number, number] } = { '미진화': [200, 400], '미진화·중간 진화': [200, 470], '중간 진화': [330, 480] };
@@ -380,7 +383,7 @@ export async function runFactory() {
 	}
 	const rentalRound = async (streak: number) => {
 		const rentals = factoryPool(gradeAt(streak), level, n === 6 ? 8 : 6, undefined, undefined, diff);
-		return ask<PSet[]>(r => <PickScreen title={`렌탈 포켓몬 선택 · ${gradeAt(streak)} 등급`} team={rentals} gen={9} count={n}
+		return ask<PSet[]>(r => <PickScreen title={`렌탈 포켓몬 선택 · ${GRADE_LABEL[gradeAt(streak)]} 등급`} team={rentals} gen={9} count={n}
 			hint={`빌릴 포켓몬 ${n}마리를 고르세요. 처음 고른 포켓몬이 먼저 나갑니다. (세트가 오를수록 더 강한 등급에서 빌려 줍니다)`} onDone={r} />);
 	};
 	if (!state) {
@@ -452,7 +455,7 @@ export async function runFactory() {
 		if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 		if (s % 7 === 0) {
 			await ask<void>(r => <InfoScreen title="배틀팩토리" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`}
-				lines={['빌린 포켓몬을 모두 반납하고, 새 렌탈 포켓몬을 처음부터 다시 고릅니다.', `다음 세트 렌탈 등급: ${gradeAt(s)}${gradeAt(s) !== gradeAt(s - 1) ? ' (등급 상승!)' : ''}`]} actions={[{ label: '새로 빌리기', onClick: () => r() }]} />);
+				lines={['빌린 포켓몬을 모두 반납하고, 새 렌탈 포켓몬을 처음부터 다시 고릅니다.', `다음 세트 렌탈 등급: ${GRADE_LABEL[gradeAt(s)]}${gradeAt(s) !== gradeAt(s - 1) ? ' (등급 상승!)' : ''}`]} actions={[{ label: '새로 빌리기', onClick: () => r() }]} />);
 			state.team = await rentalRound(s);
 		} else {
 			const swap = await ask<{ give: number; take: number } | null>(r => <SwapScreen mine={state!.team} theirs={oppTeam} gen={9} onDone={r} />);

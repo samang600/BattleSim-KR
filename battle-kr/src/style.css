@@ -1402,3 +1402,14 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 @container (max-height: 46px) {
 	.mvb-top, .mvb-bottom { display: none; }
 }
+
+/* ── 더블배틀 HP 상자를 한 줄로 (v2.33.5): [이름 ♂ Lv][HP ▬▬▬] — 상자 높이를 줄여 상대 포켓몬이 덜 가려지게 ── */
+.doubles .info { display: flex; align-items: center; gap: 4px; }
+.doubles .info .info-top { flex: 0 1 auto; min-width: 0; font-size: 12px; line-height: 14px; gap: 2px; }
+.doubles .info .info-name { flex: 0 1 auto; }
+.doubles .info .hpbar { min-width: 44px; }
+.doubles .info .lv { font-size: 10px; }
+.doubles .info .hpbar { flex: 1 1 0; min-width: 36px; margin: 0 0 0 16px; }
+.doubles .info .hpbar::before { left: -16px; }
+.doubles .info .tera-badge { display: none; }
+.doubles .panels { gap: 0; }
