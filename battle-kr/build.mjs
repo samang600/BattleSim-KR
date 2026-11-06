@@ -42,7 +42,7 @@ const lite = !args.has('--full'); // 기본은 저용량판(그림·울음소리
 // 저용량판: 그림·울음소리·애니메이션을 앱에 넣지 않고 인터넷에서 받음 (애니메이션은 jsDelivr 의 저장소 파일)
 // 저장소 주소: GH_REPO 환경변수(예: myname/battlesim-kr) → git origin 주소 → 기본값 순서로 정함 (새 저장소로 옮겨도 그대로 동작)
 const git = (cmd, fb) => { try { return execSync(cmd, { cwd: path.join(HERE, '..'), stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || fb; } catch { return fb; } };
-const REPO = process.env.GH_REPO || (git('git remote get-url origin', '').match(/github\.com[:/]([^/]+\/[^/.]+?)(?:\.git)?$/) || [])[1] || 'samang600/pokemon-showdown';
+const REPO = process.env.GH_REPO || (git('git remote get-url origin', '').match(/github\.com[:/]([^/]+\/[^/.]+?)(?:\.git)?$/) || [])[1] || 'samang600/BattleSim-KR';
 const APP_DIR = fs.existsSync(path.join(HERE, '..', 'sim')) && path.basename(HERE) === 'battle-kr' ? 'battle-kr/' : '';
 const animCommit = git(`git log -1 --format=%H -- ${APP_DIR}public/anims`, 'main');
 const ANIM_BASE = `https://cdn.jsdelivr.net/gh/${REPO}@${animCommit}/${APP_DIR}public/anims/`;
