@@ -1532,3 +1532,8 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle { grid-template-rows: auto minmax(0, 1fr) clamp(330px, 34dvh, 350px); }
 	.battle .controls:has(.sd-panel) .ctl-log { display: none; }   /* 기록은 오른쪽에 항상 보이므로 */
 }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	/* 더블 대상 고르기: 카드 폭·높이를 조금 줄임 (화면 가로 끝까지 늘어나지 않게) */
+	.battle .target-pane > .target-grid2 { grid-template-columns: repeat(2, minmax(0, 420px)); grid-template-rows: none; grid-auto-rows: 64px; justify-content: center; gap: 10px 14px; }
+	.battle .target-pane .tcard { min-height: 0; }
+}
