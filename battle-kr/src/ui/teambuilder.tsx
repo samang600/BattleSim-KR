@@ -357,7 +357,7 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 			{allNatures().map(n => <option value={n.id}>{n.n}{n.p ? ` (${STAT_SHORT[n.p]}▲ ${STAT_SHORT[n.m]}▼)` : ' (변화 없음)'}</option>)}</select>
 			<b class="muted small">{nat?.p ? `${STAT_KO[nat.p]} ▲ / ${STAT_KO[nat.m]} ▼` : '능력 변화 없음'}</b></label>
 		<h3 class="sec">테라스탈 타입</h3>
-		{fixedTera(s.species) ? <label class="sel-row big"><TypeBadge type={fixedTera(s.species)!} /><span class="muted small">{typeKo(fixedTera(s.species)!)} 고정 (이 포켓몬은 테라 타입을 바꿀 수 없어요)</span></label> :
+		{fixedTera(s.species) ? <label class="sel-row big"><TypeBadge type={fixedTera(s.species)!} /><em class="tera-fixed">{typeKo(fixedTera(s.species)!)} 고정 — 이 포켓몬은 테라 타입을 바꿀 수 없어요</em></label> :
 		<label class="sel-row big"><TypeBadge type={s.teraType || sd.t[0]} /><select value={s.teraType || sd.t[0]} onChange={e => up({ teraType: (e.target as HTMLSelectElement).value })}>
 			{ALL_TYPES.map(t => <option value={t}>{typeKo(t)}</option>)}</select></label>}
 		<h3 class="sec">{evDisplay() ? '노력치' : '능력 포인트'} <small class={'muted' + (spTotal > SP_TOTAL ? ' bad' : '')}>{evDisplay() ? `${STATS.reduce((a, k) => a + spToEv(sp[k]), 0)} · ` : ''}{cheat ? `${spTotal}${evDisplay() ? '포인트' : ''} (제한 없음)` : `${spTotal}/${SP_TOTAL}${evDisplay() ? '포인트' : ''}`}</small>

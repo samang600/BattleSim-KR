@@ -3,7 +3,7 @@
 스마트폰에서 바로 하는 한국어 포켓몬 배틀 앱. 배틀 계산은 이 저장소의 **Pokémon Showdown 시뮬레이터(`sim/`)를 그대로** 브라우저에서 돌립니다.
 
 ## 받기
-- **안드로이드**: [`release/BattleSimKR-v2.49.7.apk`](release/BattleSimKR-v2.49.7.apk) (약 2MB, 칩튠 배경음악 포함) 를 받아 설치 (출처를 알 수 없는 앱 허용 필요, 안드로이드 7.0 이상)
+- **안드로이드**: [`release/BattleSimKR-v2.49.8.apk`](release/BattleSimKR-v2.49.8.apk) (약 2MB, 칩튠 배경음악 포함) 를 받아 설치 (출처를 알 수 없는 앱 허용 필요, 안드로이드 7.0 이상)
 - 그림·울음소리·기술 애니메이션은 기본적으로 인터넷에서 그때그때 받습니다. **설정 → 오프라인 데이터 → 한 번에 받기**(약 24MB 내려받기, 풀면 약 60MB)를 누르면 앱 저장소에 받아 두어 인터넷 없이도 모두 나옵니다.
 - **웹 (설치 없이)**: **https://samang600.github.io/BattleSim-KR/** — 아이폰·PC·안드로이드 브라우저에서 바로 실행 (홈 화면에 추가 → 앱처럼 실행). `main` 에 푸시하면 GitHub Actions(`.github/workflows/pages.yml`)가 빌드해 자동으로 다시 올립니다.
   - 방문자 수는 GoatCounter(쿠키 없음)로 집계합니다: https://samang600.goatcounter.com — 웹 배포 주소에서만 세고 안드로이드 앱은 세지 않습니다.
