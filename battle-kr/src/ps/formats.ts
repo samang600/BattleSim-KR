@@ -14,7 +14,7 @@ const common = {
 };
 
 /** 규칙의 포켓몬 풀별 데이터 모드: gen9 = 스칼렛·바이올렛, krchamp = 최신(챔피언스), kr8·kr7·kr6 = 그 세대 사양 */
-const MODS = ['gen9', 'krchamp', 'kr8', 'kr7', 'kr6'];
+const MODS = ['gen9', 'krchamp', 'kr8', 'kr7', 'kr6', 'krmax'];
 export const Formats = [
 	...MODS.flatMap(mod => {
 		const sfx = mod === 'gen9' ? '' : ' ' + mod;

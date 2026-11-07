@@ -54,6 +54,7 @@ export function gimmickId(kinds: GimmickKind[], mode: GimmickMode) { return GIMM
 /** 2) 포켓몬 풀 (게임·레귤레이션) — gimmick: 고를 때 맞춰 주는 그 게임의 기믹 */
 export const POOLS: (Choice & { gimmick: string; maxNum?: number; noFuture?: boolean; avail?: string; megaOnly?: Set<string>; noSub?: boolean; legends?: [LegendMode, LegendMode]; era: string; mod: string; lsMode: 'all' | 'champ' | 'era'; itemAv: string })[] = [
 	{ id: 'natdex', name: '전국도감', gimmick: 'mzdt_one', era: '', mod: 'krchamp', lsMode: 'all', itemAv: '', desc: '모든 포켓몬·도구, 최신 사양(포켓몬 챔피언스 기술·상태이상), 모든 세대의 기술과 메가진화(레전즈 Z-A 메가 포함)' },
+	{ id: 'max', name: '무제한 (너프 없음)', gimmick: 'mzdt_stack', legends: ['yes', 'yes'], era: 'max', mod: 'krmax', lsMode: 'all', itemAv: '', desc: '모든 포켓몬·도구·기술, 너프 전 사양: 종족값은 가장 높았던 세대, 특성은 모든 세대의 특성 중에서, 기술 위력·명중·PP는 가장 높았던 값 (예: 킬가르도 블레이드폼 공격 150, 팬텀 부유)' },
 	{ id: 'sv', name: '스칼렛·바이올렛', gimmick: 't_one', avail: 's', era: '9', mod: 'gen9', lsMode: 'era', itemAv: 's', desc: '스칼렛·바이올렛(DLC 포함)의 포켓몬·도구·기술 사양' },
 	{ id: 'swsh', name: '소드·실드', gimmick: 'd_one', avail: 'w', maxNum: 905, era: '8', mod: 'kr8', lsMode: 'era', itemAv: 'w', desc: '소드·실드(DLC 포함)의 포켓몬·도구, 그때의 종족값·특성·기술' },
 	{ id: 'usum', name: '7세대까지', gimmick: 'mz_each', avail: '7', maxNum: 809, noFuture: true, era: '7', mod: 'kr7', lsMode: 'era', itemAv: '7', desc: '울트라썬·문까지의 포켓몬(1~7세대)·도구, 그때의 종족값·특성·기술' },

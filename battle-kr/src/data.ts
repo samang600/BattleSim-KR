@@ -7,12 +7,12 @@ export const GEN: Gen = 9;
 export type StatID = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe';
 export const STATS: StatID[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 
-interface SpeciesGen { t: string[]; bs: number[]; ab: string[]; fe: number; bo?: number; gr?: string; req?: string; wt: number; ls?: number[]; /** ls 와 같은 순서로, 배울 수 있는 세대 표시 글자(48+비트: 1=6세대까지 2=7세대까지 4=8세대 8=9세대) */ lg?: string; cls?: number[] }
+export interface SpeciesGen { t: string[]; bs: number[]; ab: string[]; fe: number; bo?: number; gr?: string; req?: string; wt: number; ls?: number[]; /** ls 와 같은 순서로, 배울 수 있는 세대 표시 글자(48+비트: 1=6세대까지 2=7세대까지 4=8세대 8=9세대) */ lg?: string; cls?: number[] }
 /** 세대 사양(종족값·타입·특성) 차이 */
-interface SpeciesEra { bs?: number[]; t?: string[]; ab?: string[] }
+export interface SpeciesEra { bs?: number[]; t?: string[]; ab?: string[] }
 type MoveTuple = [string, string, number, number, number, number, string, number];
 export interface SpeciesEntry { n: string; en: string; num: number; base?: string; tags?: string[]; tier?: string; fut?: 1; /** 게임별 등장: s=스칼렛·바이올렛 w=소드·실드 c=챔피언스 M-C b=챔피언스 M-B */ av?: string; /** 거다이맥스 가능 */ gx?: 1; g: { [gen: string]: SpeciesGen }; /** 세대별 사양 차이 ('8'·'7'·'6') */ e?: { [era: string]: SpeciesEra } }
-interface MoveEntry { n: string; d: string; z?: number; x?: number; g: { [gen: string]: MoveTuple }; /** 세대 사양: '9'=챔피언스 변경 전 9세대, '8'·'7'·'6' */ e?: { [era: string]: MoveTuple } }
+export interface MoveEntry { n: string; d: string; z?: number; x?: number; g: { [gen: string]: MoveTuple }; /** 세대 사양: '9'=챔피언스 변경 전 9세대, '8'·'7'·'6' */ e?: { [era: string]: MoveTuple } }
 
 const D = DEX as any as {
 	species: { [id: string]: SpeciesEntry };
@@ -43,7 +43,7 @@ export const STAT_SHORT: { [k: string]: string } = { hp: 'HP', atk: '공격', de
 export function typeKo(t: string) { return D.types[t] || t; }
 
 /** 규칙의 포켓몬 풀에 따른 데이터 사양 (rules.ts applyRuleData 가 정함)
- *  era: '' 최신(챔피언스 사양) / '9' 스칼렛·바이올렛 / '8'·'7'·'6' 그 세대 — 종족값·타입·특성·기술 수치
+ *  era: '' 최신(챔피언스 사양) / '9' 스칼렛·바이올렛 / '8'·'7'·'6' 그 세대 / 'max' 무제한(세대 중 가장 강한 사양) — 종족값·타입·특성·기술 수치
  *  lsMode: 'all' 전 세대+챔피언스 기술 / 'champ' 챔피언스 목록 / 'era' 그 세대에 배울 수 있는 기술
  *  itemAv: 도구 등장 글자 ('' = 전부) */
 let ERA = '', LS_MODE: 'all' | 'champ' | 'era' = 'all', ITEM_AV = '';
@@ -52,11 +52,28 @@ export function dataEra() { return ERA; }
 /** 지금 풀에 있는 도구인가 */
 export function itemInPool(id: string) { if (!ITEM_AV) return true; const it = D.items[toID(id)]; return !!it?.av?.includes(ITEM_AV); }
 
+/** 무제한(너프 없음): 세대 중 가장 강한 사양 — 종족값은 합계가 가장 높은 세대, 특성은 모든 세대의 특성, 타입은 최신 */
+const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+export function maxSpecies(s: SpeciesEntry, g: SpeciesGen): SpeciesEra {
+	const eras = Object.values(s.e || {});
+	const bs = [g.bs, ...eras.map(e => e.bs).filter(Boolean) as number[][]].reduce((a, b) => sum(b) > sum(a) ? b : a);
+	return { bs, t: g.t, ab: [...new Set([...g.ab, ...eras.flatMap(e => e.ab || [])])] };
+}
+/** 무제한(너프 없음): 기술 위력·명중은 챔피언스 포함 세대 중 가장 높은 값, PP는 본가 중 최대 (타입·분류 등은 챔피언스 변경 전 9세대) */
+export function maxMove(m: MoveEntry): MoveTuple {
+	const all = [m.g[9], ...Object.values(m.e || {})];
+	const t = [...(m.e?.['9'] || m.g[9])] as MoveTuple;
+	t[2] = Math.max(...all.map(x => x[2]));
+	t[3] = all.some(x => x[3] === 0) ? 0 : Math.max(...all.map(x => x[3]));
+	// PP: 챔피언스 PP(포인트업 없음)는 빼고 본가 값 중 최대 (본가는 포인트업으로 1.6배)
+	t[4] = Math.max(...[m.e?.['9'] || m.g[9], ...['8', '7', '6'].map(k => m.e?.[k]).filter(Boolean) as MoveTuple[]].map(x => x[4]));
+	return t;
+}
 export function speciesData(id: string, gen: Gen) {
 	const s = D.species[toID(id)];
 	if (!s) return null;
 	const g = s.g[gen] || s.g[9];
-	const e = ERA && ERA !== '9' ? s.e?.[ERA] : undefined;
+	const e = ERA === 'max' ? maxSpecies(s, g) : ERA && ERA !== '9' ? s.e?.[ERA] : undefined;
 	return { id: toID(id), ...s, ...g, ...(e ? { bs: e.bs ?? g.bs, t: e.t ?? g.t, ab: e.ab ?? g.ab } : {}) };
 }
 export function speciesKo(nameOrId: string) {
@@ -88,7 +105,7 @@ export function moveData(id: string, gen: Gen) {
 	if (/^return\d+$/.test(id)) id = 'return';
 	const m = D.moves[id];
 	if (!m) return null;
-	const g = (ERA ? m.e?.[ERA] ?? m.e?.['9'] : undefined) || m.g[gen] || m.g[9];
+	const g = ERA === 'max' ? maxMove(m) : (ERA ? m.e?.[ERA] ?? m.e?.['9'] : undefined) || m.g[gen] || m.g[9];
 	return {
 		id, name: m.n, desc: m.d, type: g[0], category: g[1] as 'Physical' | 'Special' | 'Status', basePower: g[2],
 		accuracy: g[3], pp: g[4], priority: g[5], target: g[6], contact: !!g[7],

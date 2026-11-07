@@ -18,7 +18,7 @@ import * as base_typechart from '../../../data/typechart';
 import * as rb_gen9 from '../../../data/random-battles/gen9/teams';
 
 import * as formats from './formats';
-import { RAW } from '../data';
+import { RAW, maxSpecies, maxMove } from '../data';
 import CHAMP from './champions-moves.json';
 import { Conditions as CHAMP_CONDITIONS } from '../../../data/mods/champions/conditions';
 import { Moves as CHAMP_MOD_MOVES } from '../../../data/mods/champions/moves';
@@ -86,7 +86,7 @@ export function applyChampionsConditions(Conditions: { [id: string]: any }) {
 
 // ── 규칙의 포켓몬 풀에 따른 데이터 모드 ──
 // 기본(gen9) = 스칼렛·바이올렛 사양 그대로. krchamp = 포켓몬 챔피언스 사양(전국도감 '최신'·챔피언스 풀),
-// kr8·kr7·kr6 = 그 세대의 종족값·타입·특성·기술 수치 (배틀 처리 방식은 9세대 그대로)
+// kr8·kr7·kr6 = 그 세대의 종족값·타입·특성·기술 수치, krmax = 무제한(세대 중 가장 강한 사양) (배틀 처리 방식은 9세대 그대로)
 const cloneTable = (t: { [id: string]: any }) => Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v && typeof v === 'object' ? { ...v, ...(v.condition ? { condition: { ...v.condition } } : {}) } : v]));
 const champMoves = cloneTable((base_moves as any).Moves); applyChampionsMoves(champMoves);
 const champConditions = cloneTable((base_conditions as any).Conditions); applyChampionsConditions(champConditions);
@@ -94,25 +94,25 @@ const champAbilities = cloneTable((base_abilities as any).Abilities); applyChamp
 
 const ABIL = (base_abilities as any).Abilities as { [id: string]: { name: string } };
 /** 세대 모드: dex.json 의 세대 차이(e)로 종족·기술을 덮어씀 */
-function eraMod(era: '8' | '7' | '6') {
+function eraMod(era: '8' | '7' | '6' | 'max') {
 	const Pokedex: { [id: string]: any } = {}, Moves: { [id: string]: any } = {};
 	for (const [id, sp] of Object.entries(RAW.species)) {
-		const e = sp.e?.[era];
+		const e = era === 'max' ? (sp.e ? maxSpecies(sp, sp.g[9]) : undefined) : sp.e?.[era];
 		if (!e || !(base_pokedex as any).Pokedex[id]) continue;
 		const patch: any = { inherit: true };
 		if (e.bs) patch.baseStats = { hp: e.bs[0], atk: e.bs[1], def: e.bs[2], spa: e.bs[3], spd: e.bs[4], spe: e.bs[5] };
 		if (e.t) patch.types = e.t;
-		if (e.ab) { const keys = ['0', '1', 'H', 'S']; patch.abilities = Object.fromEntries(e.ab.map((a, i) => [keys[i], ABIL[a]?.name || a])); }
+		if (e.ab) { const keys = ['0', '1', 'H', 'S', '2', '3', '4', '5']; patch.abilities = Object.fromEntries(e.ab.map((a, i) => [keys[i], ABIL[a]?.name || a])); }
 		Pokedex[id] = patch;
 	}
 	for (const [id, mv] of Object.entries(RAW.moves)) {
-		const t = mv.e?.[era];
+		const t = era === 'max' ? (mv.e ? maxMove(mv) : undefined) : mv.e?.[era];
 		if (!t || !(base_moves as any).Moves[id]) continue;
 		Moves[id] = { inherit: true, type: t[0], category: t[1], basePower: t[2], accuracy: t[3] === 0 ? true : t[3], pp: t[4], priority: t[5], target: t[6] };
 	}
 	return { scripts: { Scripts: { inherit: 'gen9', gen: 9 } }, pokedex: { Pokedex }, moves: { Moves } };
 }
-const ERA_MODS = { kr8: eraMod('8'), kr7: eraMod('7'), kr6: eraMod('6') };
+const ERA_MODS = { kr8: eraMod('8'), kr7: eraMod('7'), kr6: eraMod('6'), krmax: eraMod('max') };
 export const MODS: string[] = ['krchamp', ...Object.keys(ERA_MODS)];
 const MOD_FILES: { [path: string]: any } = {
 	'/ps/data/mods/krchamp/scripts': { Scripts: { inherit: 'gen9', gen: 9 } },
