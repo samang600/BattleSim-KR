@@ -215,6 +215,7 @@ export function floats(speciesId: string): boolean {
 export function learnset(id: string, gen: Gen): string[] {
 	const s: any = speciesData(id, gen);
 	if (!s) return [];
+	if (s.id === 'smeargle' || toID(s.en || '') === 'smeargle') return sketchable(gen);
 	const own = s.ls || s.cls ? s : s.base ? speciesData(s.base, gen) : null;
 	if (!own) return [];
 	// 챔피언스 목록: 폼(펌킨인 크기·가라르 파오리 등)에 따로 없으면 기본 모습의 목록
@@ -230,6 +231,19 @@ export function learnset(id: string, gen: Gen): string[] {
 	}
 	const out = new Set<number>([...(own.ls || []), ...(own.cls || [])]);
 	return [...out].map(i => D.moveIds[i]);
+}
+/** 루브도(스케치): 지금 규칙(게임·풀)에서 다른 포켓몬이 배울 수 있는 기술 전부. 스케치로 못 베끼는 기술(수다·발버둥)과 Z·다이맥스 기술은 뺌 */
+const NO_SKETCH = new Set(['chatter', 'struggle']);
+const sketchCache = new Map<string, string[]>();
+function sketchable(gen: Gen): string[] {
+	const key = `${LS_MODE}|${ERA}|${gen}`;
+	let out = sketchCache.get(key);
+	if (out) return out;
+	const set = new Set<string>(['sketch']);
+	for (const id of Object.keys(D.species)) if (id !== 'smeargle') for (const m of learnset(id, gen)) set.add(m);
+	out = [...set].filter(m => { const mv: any = (D.moves as any)[m]; return mv && !mv.z && !mv.x && !NO_SKETCH.has(m); });
+	sketchCache.set(key, out);
+	return out;
 }
 export function allItems(gen: Gen) {
 	return Object.entries(D.items).filter(([id, it]) => it.gens.includes(gen) && !it.ball && (itemInPool(id) || !!it.mega || !!it.zt))   // 메가스톤·Z크리스탈은 기믹 규칙이 정함
