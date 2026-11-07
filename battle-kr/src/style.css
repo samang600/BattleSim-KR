@@ -1663,3 +1663,14 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .tcard.foe.on { background: linear-gradient(180deg, #7a3448 0 6px, #66283a 6px 55%, #561f30 55% 82%, #461828 82%); }
 .target-grid2.spread .tcard.foe.on, .tcard.foe.on:hover { border-image-source: var(--ring-ty); }
 .tcard::after { inset: auto; left: 0; top: 4px; bottom: 4px; width: 6px; clip-path: none; }
+
+/* 대상 카드가 세로로 길 때(휴대폰 등): 카드 아래쪽 빈 곳에 포켓몬 그림을 작게 */
+.tcard { container-type: size; }
+.tcard .tspr { display: none; }
+@container (min-height: 120px) {
+	.tcard .tspr { display: flex; position: absolute; z-index: 0; right: 6%; bottom: 5%; width: 62%; height: 60%; align-items: flex-end; justify-content: flex-end; pointer-events: none; }
+	.tcard .tspr .sprite, .tcard .tspr img { width: 100% !important; height: 100% !important; object-fit: contain; object-position: right bottom; image-rendering: pixelated; }
+	.tcard .tname, .tcard small, .tcard .hpbar { position: relative; z-index: 1; }
+	.tcard .teff { z-index: 2; }
+	.tcard.off .tspr { opacity: .5; }
+}

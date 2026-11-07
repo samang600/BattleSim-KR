@@ -1180,6 +1180,7 @@ function typeTint(type: string) {
 			const click = !on ? undefined : plan.mode === 'all' ? () => go('') : () => go(side === 'p2' ? ` ${i + 1}` : ` -${i + 1}`);
 			return <button class={'tcard ' + (side === 'p2' ? 'foe' : 'ally') + (on ? ' on' : ' off')} disabled={!on} onClick={click}>
 				{eff && <span class={'teff ' + (eff.includes('굉장') ? 'up' : 'down')}>{eff}</span>}
+				<span class="tspr" aria-hidden="true"><Sprite species={m.species} gen={gen} size={96} anim={false} shiny={m.shiny} /></span>
 				<span class="tname">{self ? '자신 · ' : ''}{m.nick}</span>
 				<HPBar hp={pct} maxhp={100} />
 				<small>{side === 'p2' ? `${pct}%` : `${m.hp}/${m.maxhp}`}{dp && ` · ${dp}`}</small>
