@@ -13,7 +13,7 @@ import { ruleById } from './rules';
 import { rosterForRule } from './legends';
 import { aiPickEntry } from './smogon';
 import { rankerTeam, rankerCount } from './pokedb';
-import { speciesKo, spriteId, megaStonesFor, moveKo, typeKo, speciesData, toID, ALL_TYPES, type Gen } from './data';
+import { speciesKo, spriteId, megaStonesFor, moveKo, typeKo, speciesData, toID, ALL_TYPES, bst, RAW, type Gen } from './data';
 
 type Fmt = 'singles' | 'doubles' | 'singles6' | 'doubles64' | 'doubles6' | 'multi';
 const isDoubles = (f: Fmt) => f === 'doubles' || f === 'doubles64' || f === 'doubles6' || f === 'multi';
@@ -159,10 +159,35 @@ function multiTeam(mine: PSet[], theirs: PSet[]) {
 const TOWER_KEY = (fmt: Fmt, o: BattleOpts) => `tower-${fmt}${optsTag(o)}`;
 interface TowerState { fmt: Fmt; team: PSet[]; streak: number; opts?: BattleOpts; partner?: { id: string; team: PSet[] }; /** 다음 승부 상대 (쉬었다 와도 같게) */ next?: { streak: number; opp: any } }
 
-function towerOpponent(streak: number, fmt: Fmt, playerTeam: PSet[] = [], mono = false, diff: Diff = 'normal') {
+/** 연승 단계별 상대 제한 (언바운드 배틀 프런티어의 방식을 참고): 
+ *  ~9연승 종족값 520 미만·메가/Z 없음 → ~19 540 미만·메가 없음 → ~29 570 미만 → ~49 570 이상은 한 마리까지 → 50~ 제한 없음.
+ *  eff = 난이도로 당기거나 미룬 연승 수 (쉬움 -14, 어려움 +21) */
+function streakCaps(eff: number) {
+	return eff < 10 ? { cap: 519, mega: false, z: false, big: 0 } : eff < 20 ? { cap: 539, mega: false, z: true, big: 0 }
+		: eff < 30 ? { cap: 569, mega: true, z: true, big: 0 } : eff < 50 ? { cap: 569, mega: true, z: true, big: 1 } : { cap: 9999, mega: true, z: true, big: 6 };
+}
+type Caps = ReturnType<typeof streakCaps>;
+/** 팀이 연승 단계 제한에 맞는가 (랭커 팀 등 이미 짜인 팀 점검용) */
+function fitsCaps(team: PSet[], c: Caps) {
+	if (!c.mega && team.some(s => RAW.items[toID(s.item)]?.mega)) return false;
+	if (!c.z && team.some(s => RAW.items[toID(s.item)]?.zt)) return false;
+	return team.filter(s => bst(toID(s.species), 9) > c.cap).length <= c.big;
+}
+/** 메가스톤·Z크리스탈을 일반 도구로 (첫 타이쿤 전의 네임드 트레이너) */
+function stripGimmickItems(team: PSet[], c: { mega: boolean; z: boolean }) {
+	const alts = ['leftovers', 'sitrusberry', 'lifeorb', 'lumberry', 'expertbelt', 'focussash'];
+	for (const s of team) {
+		const it = RAW.items[toID(s.item)];
+		if ((it?.mega && !c.mega) || (it?.zt && !c.z)) s.item = alts.find(a => !team.some(x => x.item === a)) || '';
+	}
+	return team;
+}
+
+export function towerOpponent(streak: number, fmt: Fmt, playerTeam: PSet[] = [], mono = false, diff: Diff = 'normal') {
 	const realTier = Math.floor(streak / 7);
 	// 난이도: 쉬움은 두 세트 늦게(처음 두 세트는 진화 전·중간 진화), 어려움은 세 세트 앞서서 시작
 	const tier = Math.max(0, realTier + (diff === 'easy' ? -2 : diff === 'hard' ? 3 : 0));
+	const caps = streakCaps(Math.max(0, streak + (diff === 'easy' ? -14 : diff === 'hard' ? 21 : 0)));
 	// 진화 전 포켓몬만 나오는 초반: 쉬움은 1~2세트 전부, 보통은 6회전까지
 	const early = (diff === 'easy' && realTier < 2) || (diff === 'normal' && streak < 6);
 	const n = teamSize(fmt);
@@ -181,12 +206,16 @@ function towerOpponent(streak: number, fmt: Fmt, playerTeam: PSet[] = [], mono =
 		// 7연승마다: 초반엔 관장·간부, 중반엔 사천왕·라이벌, 후반엔 챔피언·보스·주인공
 		const roles = tier <= 1 ? ['leader', 'admin'] : tier <= 3 ? ['elite', 'rival'] : ['champion', 'boss', 'hero'];
 		const t = rng.pick(NAMED.filter(x => roles.includes(x.role)));
-		const team = namedTeam(t, n);
+		// 첫 타워 타이쿤(21번째)을 이기기 전의 네임드 트레이너는 메가진화·Z기술을 쓰지 않음
+		const team = battleNo < 21 ? stripGimmickItems(namedTeam(t, n), { mega: false, z: false }) : namedTeam(t, n);
 		return { name: t.name, title: namedTitle(t), team, skill: 0.9 + tier * 0.02, boss: '', line: t.line, sprite: namedSprite(t), lines: namedLines(t), special: true, music: namedMusic(t) };
 	}
-	// 올라갈수록 강해짐: 종족값 범위 ↑, 능력 포인트 투자 ↑(세트 1: 55% → 세트 5+: 100%), AI 실력 ↑, 세트 4부터 준전설, 세트 2부터 기믹 소지율 ↑
+	// 올라갈수록 강해짐: 종족값 범위 ↑(연승 단계 상한 안에서), 능력 포인트 투자 ↑(세트 1: 55% → 세트 5+: 100%), AI 실력 ↑, 세트 4부터 준전설, 메가는 20연승·Z는 10연승부터
 	const ranges = [[400, 500], [450, 530], [480, 560], [500, 600], [520, 640], [540, 700], [560, 720]];
-	const [minBst, maxBst] = ranges[Math.min(tier, ranges.length - 1)];
+	const [minBst0, maxBst0] = ranges[Math.min(tier, ranges.length - 1)];
+	// 연승 단계 상한: 종족값 상한을 넘는 포켓몬은 (단계에 따라) 한 마리까지만 따로 넣음
+	const maxBst = Math.min(maxBst0, caps.cap), minBst = Math.min(minBst0, maxBst - 40);
+	const bigSlot = caps.big > 0 && caps.big < 6 && maxBst0 > caps.cap && Math.random() < 0.7 ? 1 : 0;
 	const tr = randomTrainer();
 	const ivs = Math.min(31, 17 + tier * 4); // 31이면 능력 포인트 전부, 그 아래면 비율만큼 줄어듦
 	const quality = Math.min(1, 0.2 + tier * 0.15); // 7연승마다 Smogon 상위 세트·동료 조합에 가까워짐
@@ -195,15 +224,21 @@ function towerOpponent(streak: number, fmt: Fmt, playerTeam: PSet[] = [], mono =
 	// 초반: 쉬움 세트 1 은 진화 전·중간 진화(종족값 250~420), 세트 2 는 중간 진화 위주(330~480) / 보통 6회전까지는 진화 전·중간 진화(250~480)
 	const nfe = early ? (diff === 'normal' ? { stage: 'nfe' as const, minBst: 250, maxBst: 480 } : { stage: 'nfe' as const, minBst: realTier === 0 ? 250 : 330, maxBst: realTier === 0 ? 420 : 480 }) : null;
 	let team = nfe ? randomTeam({ gen: 9, size: n, ...nfe, ivs: diff === 'normal' ? 16 : realTier === 0 ? 8 : 13, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality: 0.1 })
-		: randomTeam({ gen: 9, size: n, minBst, maxBst, allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality });
+		: randomTeam({ gen: 9, size: n - bigSlot, minBst, maxBst, allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality });
+	if (!nfe && bigSlot && team.length === n - 1) {
+		const big = randomTeam({ gen: 9, size: 1, minBst: caps.cap + 1, maxBst: maxBst0, allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : undefined, gimmicks: false, quality, exclude: new Set(team.map(x => toID(x.species))) });
+		team = [...team, ...big];
+	}
 	if (nfe && team.length < n) team = randomTeam({ gen: 9, size: n, ...nfe, ivs: 10, doubles: isDoubles(fmt), gimmicks: false, quality: 0.1 });
 	if (team.length < n) team = randomTeam({ gen: 9, size: n, ...(mt ? { minBst: minBst - 80 } : { minBst, maxBst }), allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : undefined, gimmicks: false, quality });
-	team = dedupeItems(assignGimmicks(team, early ? { mega: 0, z: 0 } : { mega: Math.min(1, 0.3 + tier * 0.15), z: Math.min(0.8, 0.2 + tier * 0.12) }));
+	team = dedupeItems(stripGimmickItems(assignGimmicks(team, early ? { mega: 0, z: 0 } : { mega: caps.mega ? Math.min(1, 0.3 + tier * 0.15) : 0, z: caps.z ? Math.min(0.8, 0.2 + tier * 0.12) : 0 }), caps));
 	const skill = early ? (diff === 'normal' ? 0.5 : 0.45 + realTier * 0.05) : Math.min(0.97, 0.55 + tier * 0.08);
 	// 5세트(28연승)부터 가끔 실제 랭크배틀 상위 트레이너의 팀(PokéDB)이 나옴
 	if (!mt && tier >= 4 && Math.random() < (tier >= 6 ? 0.5 : 0.3)) {
-		const rk = rankerTeam(isDoubles(fmt), 50, Math.min(1, 0.6 + tier * 0.05));
-		if (rk) {
+		// 연승 단계 제한에 맞는 상위 팀만 (몇 번 다시 뽑아 봄)
+		let rk = rankerTeam(isDoubles(fmt), 50, Math.min(1, 0.6 + tier * 0.05));
+		for (let k = 0; k < 6 && rk && !fitsCaps(rk.team, caps); k++) rk = rankerTeam(isDoubles(fmt), 50, Math.min(1, 0.6 + tier * 0.05));
+		if (rk && fitsCaps(rk.team, caps)) {
 			const t2 = n < 6 ? aiPickEntry(rk.team, playerTeam, n, isDoubles(fmt), skill) : rk.team;
 			return { name: tr.name, title: '랭커', sprite: tr.sprite, lines: tr.lines, team: t2, skill, boss: '', line: tr.lines.intro, ranker: `시즌 ${rk.season} 상위 구축 · 레이트 ${rk.rating}` };
 		}
