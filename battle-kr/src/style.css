@@ -1748,3 +1748,32 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 			linear-gradient(180deg, var(--wg1) 0 18%, var(--wg2) 18% 40%, var(--wg3) 40% 64%, var(--wg4) 64% 82%, var(--wg5) 82%); }
 	.battle > .arena, .battle > .side-info { position: relative; z-index: 1; }
 }
+
+
+/* ═════ v2.44: 낮 테마 — 타이틀·메뉴 배경과 배틀시설(타워·팩토리·경기장) 배경을 낮 그림으로 ═════ */
+:root[data-tod="day"] body::before { background-image: url(__IMG_arena_title_day__); filter: brightness(.72); }
+:root[data-tod="day"] .title-screen { background-image: url(__IMG_arena_title_day__); }
+:root[data-tod="day"][data-bg="field"] body::before { background-image: url(__IMG_arena_field__); filter: brightness(.6); }
+:root[data-tod="day"][data-bg="tower"] body::before { background-image: url(__IMG_arena_tower_day__); filter: brightness(.6); }
+:root[data-tod="day"][data-bg="factory"] body::before { background-image: url(__IMG_arena_factory_day__); filter: brightness(.6); }
+:root[data-tod="day"][data-bg="pwt"] body::before { background-image: url(__IMG_arena_pwt_day__); filter: brightness(.6); }
+:root[data-tod="day"][data-bg="champion"] body::before { background-image: url(__IMG_arena_champion__); filter: brightness(.55); }
+:root[data-tod="day"] .bg-tower .arena-bg { background-image: url(__IMG_arena_tower_day__); }
+:root[data-tod="day"] .bg-factory .arena-bg { background-image: url(__IMG_arena_factory_day__); }
+:root[data-tod="day"] .bg-pwt .arena-bg { background-image: url(__IMG_arena_pwt_day__); }
+:root[data-tod="day"] .title-glow { background: radial-gradient(circle at 50% 42%, rgba(255,255,255,.22), transparent 55%); }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	:root[data-tod="day"]:not([data-bg]) body::before, :root[data-tod="day"][data-bg="title"] body::before, :root[data-tod="day"] .title-screen { background-image: url(__IMG_arena_title_wide_day__); }
+}
+:root[data-tod="day"] .battle.bg-tower { --wg1: #3d4354; --wg2: #5e6e88; --wg3: #7e8ea3; --wg4: #70788d; --wg5: #5f6678; --wgl: #b4c0e1; }
+:root[data-tod="day"] .battle.bg-factory { --wg1: #2a4960; --wg2: #4f606d; --wg3: #5f5e59; --wg4: #73767c; --wg5: #616469; --wgl: #b8bcc5; }
+:root[data-tod="day"] .battle.bg-pwt { --wg1: #1f425f; --wg2: #516c8e; --wg3: #8b546e; --wg4: #804e67; --wg5: #6c4258; --wgl: #cd7da3; }
+
+/* ── 타이틀 로고 그림 (v2.44, scripts/gen-title.py) ── */
+.title-logo-img { position: relative; width: min(92vw, 396px); aspect-ratio: 198 / 60; background: url(__IMG_title_logo__) center / 100% 100% no-repeat; image-rendering: pixelated;
+	filter: drop-shadow(0 4px 0 rgba(0,0,0,.35)); }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) { .title-screen > .title-logo-img { width: 396px; zoom: 1.5; } }
+/* 타이틀 "TAP ANYWHERE" 점멸 (화면 아래) */
+.title-screen > .title-tap { position: absolute; bottom: calc(14% + var(--safe-bottom)); margin: 0; font-size: 20px; letter-spacing: 3px; color: #ffe870;
+	text-shadow: 2px 0 0 #140c1c, -2px 0 0 #140c1c, 0 2px 0 #140c1c, 0 -2px 0 #140c1c, 2px 2px 0 #140c1c, -2px -2px 0 #140c1c, 2px -2px 0 #140c1c, -2px 2px 0 #140c1c, 0 4px 0 #140c1c;
+	animation: blink 1.2s steps(1) infinite; }

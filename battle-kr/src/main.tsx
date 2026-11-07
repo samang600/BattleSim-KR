@@ -31,12 +31,8 @@ function TitleScreen({ onStart }: { onStart: () => void }) {
 			<Sprite species="garchomp" gen={9} size={110} />
 			<Sprite species="lucario" gen={9} size={90} />
 		</div>
-		<div class="title-logo">
-			<span class="logo-small">BATTLE SIMULATOR</span>
-			<span class="logo-main">배틀 시뮬레이터</span>
-			<span class="logo-sub">타워 · 팩토리 · 토너먼트 · 더블배틀</span>
-		</div>
-		<div class="title-tap">화면을 터치하세요</div>
+		<div class="title-logo-img" role="img" aria-label="배틀 시뮬레이터 — 타워 · 팩토리 · 토너먼트" />
+		<div class="title-tap" aria-label="화면을 터치하세요">TAP ANYWHERE</div>
 		<div class="title-foot">Pokémon Showdown 엔진 기반 · 팬 메이드</div>
 	</div>;
 }
@@ -255,8 +251,11 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		<p class="muted small">팀·전적·리플레이·설정·진행 중인 연승 도전을 파일 하나로 저장합니다. 앱을 지우거나 폰을 바꿀 때 내보내 두었다가 불러오세요. (오프라인 그림 데이터는 다시 받으면 됩니다)</p>
 		<h3 class="sec">창틀 디자인</h3>
 		<div class="seg">{([['stone', '블루'], ['silver', '레드'], ['dark', '블랙']] as const).map(([k, l]) => <button class={s.frame === k ? 'on' : ''} onClick={() => { up({ frame: k }); applyTheme({ ...s, frame: k }); }}>{l}</button>)}</div>
+		<h3 class="sec">시간대</h3>
+		<div class="seg">{([['night', '밤'], ['day', '낮'], ['auto', '시간에 따라']] as const).map(([k, l]) => <button class={(s.tod || 'night') === k ? 'on' : ''} onClick={() => { up({ tod: k }); applyTheme({ ...s, tod: k }); }}>{l}</button>)}</div>
+		<p class="muted small">타이틀·메뉴 배경과 배틀타워·팩토리·경기장 배경이 낮·밤으로 바뀝니다. '시간에 따라'는 6시~18시에 낮입니다.</p>
 		<h3 class="sec">메뉴 배경</h3>
-		<div class="seg wrap">{([['title', '밤하늘'], ['field', '초원'], ['tower', '타워'], ['factory', '팩토리'], ['pwt', '경기장'], ['champion', '챔피언']] as const).map(([k, l]) => <button class={s.homeBg === k ? 'on' : ''} onClick={() => { up({ homeBg: k }); applyTheme({ ...s, homeBg: k }); }}>{l}</button>)}</div>
+		<div class="seg wrap">{([['title', '하늘'], ['field', '초원'], ['tower', '타워'], ['factory', '팩토리'], ['pwt', '경기장'], ['champion', '챔피언']] as const).map(([k, l]) => <button class={s.homeBg === k ? 'on' : ''} onClick={() => { up({ homeBg: k }); applyTheme({ ...s, homeBg: k }); }}>{l}</button>)}</div>
 		<p class="muted small">효과음·배경음악은 이 앱에서 합성한 칩튠, 기술 효과음은 Pokémon Reborn 제작. 울음소리는 인터넷에서 받아 옵니다.</p>
 		<h3 class="sec">배틀 규칙</h3>
 		<RuleRows s={s} up={up} />
@@ -355,7 +354,15 @@ export function applyTheme(s: Settings) {
 	const root = document.documentElement;
 	root.setAttribute('data-frame', s.frame || 'stone');
 	root.setAttribute('data-bg', s.homeBg || 'title');
+	root.setAttribute('data-tod', resolveTod(s.tod));
 }
+/** 시간대: 'auto' 면 지금 시각으로 (6시~18시 낮) */
+export function resolveTod(t?: string): 'day' | 'night' {
+	if (t === 'day' || t === 'night') return t;
+	if (t === 'auto') { const h = new Date().getHours(); return h >= 6 && h < 18 ? 'day' : 'night'; }
+	return 'night';
+}
+setInterval(() => { const s = loadSettings(); if (s.tod === 'auto') document.documentElement.setAttribute('data-tod', resolveTod('auto')); }, 60000);
 
 // 버튼 누를 때 효과음
 document.addEventListener('pointerdown', e => {

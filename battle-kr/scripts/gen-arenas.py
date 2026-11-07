@@ -166,64 +166,8 @@ def champion():
     return im
 
 
-def title():
-    im = Image.new('RGB', (W, H * 2))
-    d = ImageDraw.Draw(im)
-    bands(d, 0, H * 2, ['#0c0a1e', '#120f2a', '#181436', '#1e1a42', '#26204e', '#2e265a', '#3a2c62', '#4a3268'])
-    rnd = random.Random(5)
-    for _ in range(90):
-        x, y = rnd.randint(0, W), rnd.randint(0, H)
-        d.point((x, y), fill=rnd.choice(['#ffffff', '#c8d0ff', '#ffe8a0']))
-    pts = [(0, H * 2)]
-    for x in range(0, W + 6, 6):
-        pts.append((x, int(H * 1.45 - 26 * abs(math.sin(x / 41)) - 10 * abs(math.sin(x / 13)))))
-    pts.append((W, H * 2))
-    d.polygon(pts, fill='#1a1430')
-    # 탑 실루엣
-    d.rectangle([W // 2 - 14, 70, W // 2 + 14, H * 2], fill='#100c22')
-    d.polygon([(W // 2 - 18, 70), (W // 2, 44), (W // 2 + 18, 70)], fill='#100c22')
-    for y in range(80, H * 2, 12):
-        d.rectangle([W // 2 - 3, y, W // 2 + 2, y + 4], fill='#f0c050')
-    return im
 
 
-def title_wide():
-    """PC 넓은 화면용 타이틀·메뉴 배경 (512x288): 같은 밤하늘·산·탑, 양옆에 낮은 시설 건물 실루엣"""
-    WW, HH = W * 2, H * 2
-    im = Image.new('RGB', (WW, HH))
-    d = ImageDraw.Draw(im)
-    bands(d, 0, HH, ['#0c0a1e', '#120f2a', '#181436', '#1e1a42', '#26204e', '#2e265a', '#3a2c62', '#4a3268'], WW)
-    rnd = random.Random(5)
-    for _ in range(180):
-        x, y = rnd.randint(0, WW), rnd.randint(0, H)
-        d.point((x, y), fill=rnd.choice(['#ffffff', '#c8d0ff', '#ffe8a0']))
-    # 먼 산 (두 겹)
-    pts = [(0, HH)]
-    for x in range(0, WW + 6, 6):
-        pts.append((x, int(H * 1.30 - 30 * abs(math.sin(x / 57)) - 8 * abs(math.sin(x / 17)))))
-    pts.append((WW, HH))
-    d.polygon(pts, fill='#211938')
-    pts = [(0, HH)]
-    for x in range(0, WW + 6, 6):
-        pts.append((x, int(H * 1.45 - 26 * abs(math.sin(x / 41)) - 10 * abs(math.sin(x / 13)))))
-    pts.append((WW, HH))
-    d.polygon(pts, fill='#1a1430')
-    # 양옆 낮은 시설 건물 (창문 불빛)
-    for bx, bw, bh in [(70, 40, 58), (124, 26, 40), (356, 30, 44), (402, 44, 62)]:
-        top = HH - bh
-        d.rectangle([bx, top, bx + bw, HH], fill='#130e26')
-        d.rectangle([bx + bw // 2 - 4, top - 6, bx + bw // 2 + 4, top], fill='#130e26')
-        for y in range(top + 6, HH - 4, 8):
-            for x in range(bx + 4, bx + bw - 4, 8):
-                if rnd.random() < 0.55:
-                    d.rectangle([x, y, x + 2, y + 2], fill=rnd.choice(['#f0c050', '#d89a30', '#f8e08a']))
-    # 가운데 탑 (세로 화면판과 같은 크기)
-    cx = WW // 2
-    d.rectangle([cx - 14, 70, cx + 14, HH], fill='#100c22')
-    d.polygon([(cx - 18, 70), (cx, 44), (cx + 18, 70)], fill='#100c22')
-    for y in range(80, HH, 12):
-        d.rectangle([cx - 3, y, cx + 2, y + 4], fill='#f0c050')
-    return im
 
 
 def cave():
@@ -375,6 +319,116 @@ def gym():
     return im
 
 
+# ───────── 낮 버전 (v2.44): 배틀시설 3종 + 타이틀 ─────────
+def clouds(d, rnd, n, y0, y1, w=None, c1='#f4fbff', c2='#dcefff'):
+    for _ in range(n):
+        cx, cy = rnd.randint(0, w or W), rnd.randint(y0, y1)
+        for k in range(4):
+            d.ellipse([cx + k * 9 - 12, cy - 5 + (k % 2) * 3, cx + k * 9 + 6, cy + 6], fill=c1)
+        d.rectangle([cx - 12, cy + 3, cx + 36, cy + 6], fill=c2)
+
+
+def tower_day():
+    """배틀타워 낮: 밝은 벽, 창밖 파란 하늘과 구름, 햇빛 비치는 타일"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#9aa8d0', '#a4b2d8', '#aebcde', '#b8c4e4', '#c2ceea', '#ccd6ee'])
+    rnd = random.Random(7)
+    for wx in range(14, W, 58):
+        d.rectangle([wx, 10, wx + 30, 58], fill='#4a5890')
+        sky = Image.new('RGB', (27, 45)); sd = ImageDraw.Draw(sky)
+        for i, c in enumerate(['#5ab0f0', '#68b8f2', '#78c2f4', '#8ccdf6', '#a2d8f8']):
+            sd.rectangle([0, i * 9, 27, i * 9 + 9], fill=c)
+        cy = rnd.randint(8, 30); cx = rnd.randint(-6, 14)
+        sd.ellipse([cx, cy, cx + 14, cy + 7], fill='#f4fbff'); sd.ellipse([cx + 8, cy - 3, cx + 20, cy + 6], fill='#f4fbff')
+        im.paste(sky, (wx + 2, 12))
+        d.rectangle([wx + 14, 12, wx + 15, 56], fill='#4a5890')
+        d.rectangle([wx + 2, 33, wx + 28, 34], fill='#4a5890')
+        d.line([(wx + 4, 14), (wx + 10, 14)], fill='#ffffff')  # 유리 반사
+    for px in range(0, W, 58):
+        d.rectangle([px - 6, 0, px + 4, 78], fill='#e4eaf6')
+        d.rectangle([px - 6, 0, px - 4, 78], fill='#ffffff')
+        d.rectangle([px + 2, 0, px + 4, 78], fill='#a8b4d4')
+    bands(d, 76, H, ['#c0cef0', '#b6c6ec', '#acbce6', '#a2b2e0', '#98a8d8', '#8e9ed0'])
+    for y in range(78, H, 8):
+        d.line([(0, y), (W, y)], fill='#d6e0f8')
+    for i in range(-12, 14):
+        d.line([(W // 2 + i * 6, 76), (W // 2 + i * 22, H)], fill='#d6e0f8')
+    for wx in range(14, W, 58):  # 창으로 드는 햇빛 (바닥에 밝은 사다리꼴)
+        d.polygon([(wx + 4, 78), (wx + 28, 78), (wx + 40, 92), (wx + 12, 92)], fill='#d8e4fa')
+    ellipse_platform(d, 196, 82, 46, 9, '#eef2fc', '#b4c0e4', '#7884b4')
+    ellipse_platform(d, 62, 132, 62, 11, '#eef2fc', '#b4c0e4', '#7884b4')
+    return im
+
+
+def factory_day():
+    """배틀팩토리 낮: 천장 채광창으로 빛이 드는 밝은 공장"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#7c8494', '#868e9e', '#9098a8', '#9aa2b0', '#a4acb8', '#aeb5c0'])
+    for x in range(8, W, 48):  # 채광창
+        d.rectangle([x, 0, x + 32, 10], fill='#3c4250')
+        for i, c in enumerate(['#6ab8f0', '#80c6f4', '#98d4f6']):
+            d.rectangle([x + 2, i * 3, x + 30, i * 3 + 3], fill=c)
+        d.rectangle([x + 15, 0, x + 16, 10], fill='#3c4250')
+    for y, c, hi in [(16, '#c08a3a', '#e8b860'), (32, '#4a8ac0', '#7ab4e0')]:  # 파이프
+        d.rectangle([0, y, W, y + 6], fill=c)
+        d.rectangle([0, y, W, y + 1], fill=hi)
+        for x in range(10, W, 40):
+            d.rectangle([x, y - 1, x + 4, y + 7], fill='#50545c')
+    d.rectangle([0, 58, W, 72], fill='#4a4e58')
+    for x in range(-14, W, 14):
+        d.polygon([(x, 72), (x + 7, 72), (x + 14, 66), (x + 7, 66)], fill='#f0c030')
+    d.rectangle([0, 64, W, 66], fill='#34373e')
+    for x in range(20, W, 64):
+        d.rectangle([x, 44, x + 18, 58], fill='#b08850')
+        d.rectangle([x, 44, x + 18, 45], fill='#d8b070')
+        d.line([(x, 44), (x + 18, 58)], fill='#8a6838')
+    bands(d, 76, H, ['#c4c9d2', '#bcc1cb', '#b4b9c3', '#acb1bb', '#a4a9b3', '#9ca1ab'])
+    for y in range(76, H, 10):
+        for x in range((y // 10 % 2) * 10, W, 20):
+            d.rectangle([x, y, x + 9, y + 9], outline='#d4d8e0')
+    for x in range(8, W, 48):  # 채광창 빛
+        d.polygon([(x + 4, 76), (x + 30, 76), (x + 38, 96), (x + 10, 96)], fill='#d0d6e0')
+    ellipse_platform(d, 196, 82, 46, 9, '#eef0f4', '#c0c4cc', '#80848e')
+    ellipse_platform(d, 62, 132, 62, 11, '#eef0f4', '#c0c4cc', '#80848e')
+    return im
+
+
+def stadium_day():
+    """경기장(PWT) 낮: 파란 하늘 아래 관중석·깃발"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 30, ['#4ea6ec', '#64b4f0', '#7cc2f4'])
+    clouds(d, random.Random(12), 3, 4, 18)
+    rnd = random.Random(11)
+    for x in range(10, W, 40):  # 깃발
+        d.rectangle([x, 12, x, 30], fill='#f0f0f0')
+        d.polygon([(x + 1, 12), (x + 10, 15), (x + 1, 18)], fill=['#f04a6a', '#f2c25a', '#4a9ae8'][(x // 40) % 3])
+    for row in range(6):
+        y = 30 + row * 6
+        d.rectangle([0, y, W, y + 5], fill=['#c86a9a', '#d478a6', '#c86a9a', '#d478a6', '#c86a9a', '#d478a6'][row])
+        for x in range((row % 2) * 2, W, 4):
+            d.rectangle([x, y + 1, x + 1, y + 3], fill=rnd.choice(['#e83a5a', '#f2b23a', '#3a90e0', '#9a60d8', '#ffffff', '#8a3a6a']))
+    d.rectangle([0, 66, W, 76], fill='#7a2a5a')
+    for x in range(0, W, 32):
+        d.rectangle([x + 4, 68, x + 26, 73], fill='#ffffff' if (x // 32) % 2 else '#f2c25a')
+    bands(d, 76, H, ['#e07aa8', '#d874a2', '#d06e9c', '#c86896', '#c06290', '#b85c8a'])
+    d.ellipse([60, 88, 196, 140], outline='#fcd8e8')
+    d.line([(0, 110), (W, 110)], fill='#f0a0c8')
+    ellipse_platform(d, 196, 82, 46, 9, '#fde0ee', '#eca8cc', '#a04a78')
+    ellipse_platform(d, 62, 132, 62, 11, '#fde0ee', '#eca8cc', '#a04a78')
+    return im
+
+
+
+
+
+
+
+
+
+
 def extend_top(im, extra, stars=True):
     w, h = im.size
     out = Image.new('RGB', (w, h + extra))
@@ -393,12 +447,14 @@ def extend_top(im, extra, stars=True):
 
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
-    for name, fn in [('field', field), ('tower', tower), ('factory', factory), ('pwt', stadium), ('champion', champion), ('title', title),
+    for name, fn in [('field', field), ('tower', tower), ('factory', factory), ('pwt', stadium), ('champion', champion),
                      ('cave', cave), ('beach', beach), ('snow', snow), ('volcano', volcano), ('gym', gym)]:
         im = fn()
         if name != 'title':
             im = extend_top(im, 48, stars=name not in ('cave', 'gym'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림
         im.save(os.path.join(OUT, f'arena_{name}.png'), optimize=True)
         print('arena_' + name)
-    title_wide().save(os.path.join(OUT, 'arena_title_wide.png'), optimize=True)
-    print('arena_title_wide')
+    # 타이틀·메뉴 배경(arena_title*) 은 scripts/gen-title.py 가 만든다
+    for name, fn in [('tower_day', tower_day), ('factory_day', factory_day), ('pwt_day', stadium_day)]:
+        extend_top(fn(), 48, stars=False).save(os.path.join(OUT, f'arena_{name}.png'), optimize=True)
+        print('arena_' + name)
