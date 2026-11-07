@@ -92,6 +92,18 @@ const SPEED_LABEL: { [k: number]: string } = { 1: '▶ ×0.5', 2: '▶ ×1', 3: 
 /** 기술 애니메이션 재생 배속 */
 const ANIM_SPEED: { [k: number]: number } = { 1: 0.7, 2: 1, 3: 2, 4: 3 };
 
+/** 넓은 화면(PC 등): 쇼다운식 배치 — 필드 아래에 공격·교체를 함께, 오른쪽에 배틀 기록 */
+const WIDE_Q = '(min-width: 960px) and (min-aspect-ratio: 5/4)';
+function useWide() {
+	const [w, setW] = useState(() => typeof matchMedia !== 'undefined' && matchMedia(WIDE_Q).matches);
+	useEffect(() => {
+		const m = matchMedia(WIDE_Q), f = () => setW(m.matches);
+		m.addEventListener?.('change', f);
+		return () => m.removeEventListener?.('change', f);
+	}, []);
+	return w;
+}
+
 export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: BattleResult) => void }) {
 	const settings = useRef(loadSettings()).current;
 	const sessionRef = useRef<Session | null>(null);
@@ -111,6 +123,9 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	const skipRef = useRef<(() => void) | null>(null);
 	const wakeRelease = useRef<(() => void) | null>(null);
 	const logRef = useRef<string[]>([]);
+	const wide = useWide();
+	const sideLogRef = useRef<HTMLDivElement>(null);
+	useEffect(() => { const el = sideLogRef.current; if (el) el.scrollTop = el.scrollHeight; }, [log, wide]);
 
 	// 입력 상태
 	const [slotIdx, setSlotIdx] = useState(0);
@@ -1203,7 +1218,9 @@ function typeTint(type: string) {
 			}}>◀ 뒤로</button> : null;
 		const usedG = parts.join(' ');
 		const g: [string, string, string][] = [];
-		if (activeReq && menu === 'moves') {
+		// 넓은 화면: 처음부터 공격·교체를 함께 보여 줌 (쇼다운식)
+		const combined = wide && menu === 'main' && !req.forceSwitch;
+		if (activeReq && (menu === 'moves' || combined)) {
 			if (!/ mega| ultra/.test(usedG)) {
 				if (activeReq.canMegaEvo) g.push(['mega', '메가진화', '#e070e0']);
 				if (activeReq.canMegaEvoX) g.push(['megax', '메가진화 X', '#e070e0']);
@@ -1221,7 +1238,13 @@ function typeTint(type: string) {
 				<button class="btn small ctl-log" onClick={() => setShowLog(true)}>기록</button>
 				{back}
 			</div>
-			{menu === 'main' && <div class="cmd-menu">
+			{combined && <div class="sd-panel">
+				<div class="sd-label">공격</div>
+				{renderMoves()}
+				<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>기권</button></div>
+				{renderSwitch()}
+			</div>}
+			{menu === 'main' && !combined && <div class="cmd-menu">
 				<button class="cmd-fight" onClick={() => { setFocus(0); setMenu('moves'); }}><span>싸운다</span></button>
 				<div class="cmd-row">
 					<button class="cmd-sub yellow" onClick={() => setFieldOpen(true)}>필드</button>
@@ -1363,6 +1386,10 @@ function typeTint(type: string) {
 			</div>
 			{controls()}
 		</div>
+		{wide && <div class="side-log" ref={sideLogRef}>
+			<div class="side-log-title">배틀 기록</div>
+			{log.map((l, i) => <div key={i} class={l.startsWith('──') ? 'log-turn' : 'log-line'}>{l}</div>)}
+		</div>}
 		{menuOpen && <Modal title="메뉴" onClose={() => setMenuOpen(false)}>
 			<div class="battle-menu">
 				<button class="btn big" onClick={() => setMenuOpen(false)}>배틀로 돌아가기</button>
@@ -1385,7 +1412,7 @@ function typeTint(type: string) {
 			const d = liveOf(sheet.idx);
 			if (!d) return null;
 			const reason = !sheet.canSwitch ? (d.live.hp <= 0 ? '쓰러져서 낼 수 없다.' : reqMon?.[sheet.idx]?.active ? '지금 배틀에 나와 있다.' : activeReq?.trapped ? '도망칠 수 없어서 교체할 수 없다!' : '') : '';
-			return <MonSheet set={d.set} gen={gen} live={d.live} note={reason} onClose={() => setSheet(null)} actions={phase === 'input' && menu === 'switch' ? [
+			return <MonSheet set={d.set} gen={gen} live={d.live} note={reason} onClose={() => setSheet(null)} actions={phase === 'input' && (menu === 'switch' || (wide && menu === 'main')) ? [
 				{ label: req?.forceSwitch ? '내보낸다' : '교체한다', disabled: !sheet.canSwitch, onClick: () => { const i = sheet.idx; setSheet(null); pushChoice(`switch ${i + 1}`); } },
 				{ label: '닫기', kind: 'ghost', onClick: () => setSheet(null) },
 			] : [{ label: '닫기', kind: 'ghost', onClick: () => setSheet(null) }]} />;
