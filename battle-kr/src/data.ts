@@ -232,7 +232,8 @@ export function learnset(id: string, gen: Gen): string[] {
 	return [...out].map(i => D.moveIds[i]);
 }
 export function allItems(gen: Gen) {
-	return Object.entries(D.items).filter(([id, it]) => it.gens.includes(gen) && !it.ball && (itemInPool(id) || !!it.mega || !!it.zt))   // 메가스톤·Z크리스탈은 기믹 규칙이 정함.map(([id, it]) => ({ id, ...it }));
+	return Object.entries(D.items).filter(([id, it]) => it.gens.includes(gen) && !it.ball && (itemInPool(id) || !!it.mega || !!it.zt))   // 메가스톤·Z크리스탈은 기믹 규칙이 정함
+		.map(([id, it]) => ({ id, ...it }));
 }
 /** 몬스터볼 종류 (겉모습용) */
 export function allBalls() {
