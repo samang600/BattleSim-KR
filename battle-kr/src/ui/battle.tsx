@@ -487,6 +487,7 @@ function typeTint(type: string) {
 			soundMoveCry(p, mon);
 			animate(mon, args[1].startsWith('p1') ? 'attack-own' : 'attack-foe', 450);
 			if (animUsedRef.current === p) { animUsedRef.current = null; pendingHitRef.current = { at: 0, sound: '' }; return 150; }
+			if (kw.noanim) return 400;
 			const impact = settings.effects === false ? (moveSound(moveData(toID(args[2]), gen)?.type || 'Normal', moveData(toID(args[2]), gen)?.category || 'Physical'), 0) : moveFx(p);
 			return Math.max(500, impact + 300);
 		}
@@ -651,6 +652,19 @@ function typeTint(type: string) {
 			if (/^\|detailschange\|[^|]+\|[^|,]*-(Mega|Primal|Ultra)/.test(lines[i]) && /^\|-(mega|primal|burst)\|/.test(lines[i + 1]) &&
 				lines[i].split('|')[2] === lines[i + 1].split('|')[2]) { [lines[i], lines[i + 1]] = [lines[i + 1], lines[i]]; i++; }
 		}
+		// 빗나가거나 막힌(방어·무효·실패) 기술: 실제로 맞은 대상이 없으면 기술 연출 생략 ([noanim] 표시)
+		const BLOCK = /^\|-activate\|[^|]*\|(move: )?(Protect|Detect|King's Shield|Spiky Shield|Baneful Bunker|Silk Trap|Obstruct|Burning Bulwark|Max Guard|Wide Guard|Quick Guard|Mat Block|Crafty Shield)/;
+		for (let i = 0; i < lines.length; i++) {
+			if (!lines[i].startsWith('|move|')) continue;
+			if (/\[(miss|notarget)\]/.test(lines[i])) { lines[i] += '|[noanim]'; continue; }
+			let failed = false, hit = false;
+			for (let j = i + 1; j < lines.length && !/^\|(move|turn|switch|drag|upkeep|cant)\|/.test(lines[j]) && lines[j] !== '|'; j++) {
+				const l = lines[j];
+				if (/^\|-(miss|immune|fail)\|/.test(l) || BLOCK.test(l)) failed = true;
+				else if (/^\|-(damage|status|boost|unboost|heal|start|sidestart|fieldstart|weather|clearallboost|transform|setboost|swapboost|activate|singleturn|singlemove|item|enditem)\|/.test(l) && !/\[from\]/.test(l)) hit = true;
+			}
+			if (failed && !hit) lines[i] += '|[noanim]';
+		}
 		const kt = textRef.current!;
 		for (const line of lines) {
 			if (deadRef.current) return;
@@ -696,7 +710,7 @@ function typeTint(type: string) {
 				if (mon && !mon.seen.includes(p.args[2])) mon.seen.push(p.args[2]);
 				soundMoveCry(p, mon);
 				rerender();
-				const used = await tryRebornAnim(p);
+				const used = p.kw.noanim ? false : await tryRebornAnim(p);
 				if (!used) {
 					const d = apply(p) / FX.fxSpeed(); rerender();
 					await wait(Math.max(d, SPEED_MS[settings.speed] * 0.6));
@@ -1488,7 +1502,7 @@ function typeTint(type: string) {
 		</div>
 		<div class="bottom">
 			<div class="msgbox win-dark" onClick={() => skipRef.current?.()}>
-				<p ref={msgRef}>{message}</p>
+				<p ref={msgRef}>{/급소에 맞았다/.test(message) ? <span class="msg-crit">{message}</span> : message}</p>
 				{phase === 'playing' && <span class="msg-arrow">▼</span>}
 			</div>
 			{controls()}

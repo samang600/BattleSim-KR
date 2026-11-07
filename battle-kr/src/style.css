@@ -1964,3 +1964,8 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 @media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
 	.battle .slot.foe.s0 { top: 61.3%; } .battle.doubles .slot.foe.s0 { top: 58.8%; } .battle.doubles .slot.foe.s1 { top: 60.8%; }
 }
+
+/* 다이맥스: 빨간 바깥 빛이 은은하게 점멸 (core.tsx TeraFilters 의 dmax-glow) */
+.slot.dmax .sprite { filter: url(#dmax-glow); }
+/* 급소 메시지는 노란색 */
+.msgbox .msg-crit { color: var(--yellow); }

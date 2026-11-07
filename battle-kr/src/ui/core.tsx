@@ -302,14 +302,37 @@ export function ArrowPicker({ label, items, value, onChange, bg, icon }: {
 const TERA_FACET = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'><polygon points='0,0 8,0 0,8' fill='white' fill-opacity='.7'/><polygon points='8,0 16,0 16,8 8,8' fill='white' fill-opacity='.25'/><polygon points='0,8 8,8 0,16' fill='white' fill-opacity='.45'/><polygon points='16,8 16,16 8,16' fill='white' fill-opacity='.6'/></svg>");
 export function TeraFilters() {
 	return <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
-		<defs>{Object.entries({ ...TYPE_COLOR, Stellar: '#2b3a96' }).map(([t, c]) => <filter id={'tera-' + t} x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
+		<defs>{glowFilter('dmax-glow', '#ff2a40', 3, 6, '.12;.42;.12', '1.6s', false)}
+		{Object.entries({ ...TYPE_COLOR, Stellar: '#2b3a96' }).map(([t, c]) => <filter id={'tera-' + t} x="-0.2" y="-0.2" width="1.4" height="1.4" color-interpolation-filters="sRGB">
+			{glowRings(c, 2, 4, '.18;.36;.18', '2.4s')}
 			<feImage href={TERA_FACET} x="0" y="0" width="16" height="16" result="t" />
 			<feTile in="t" result="pat" />
 			<feFlood flood-color={c} result="col" />
 			<feBlend in="pat" in2="col" mode="screen" result="tex" />
 			<feComposite in="tex" in2="SourceAlpha" operator="in" result="cut" />
 			<feComponentTransfer in="cut" result="half"><feFuncA type="linear" slope="0.38" /></feComponentTransfer>
-			<feMerge><feMergeNode in="SourceGraphic" /><feMergeNode in="half" /></feMerge>
+			<feMerge><feMergeNode in="ring2" /><feMergeNode in="ring1" /><feMergeNode in="SourceGraphic" /><feMergeNode in="half" /></feMerge>
 		</filter>)}</defs>
 	</svg>;
+}
+
+/** 바깥 빛: 그림 테두리를 r1·r2 칸 넓힌 두 겹 띠(흐림 없이 계단식), 진하기가 values 대로 천천히 점멸 */
+function glowRings(color: string, r1: number, r2: number, values: string, dur: string) {
+	return <>
+		<feMorphology in="SourceAlpha" operator="dilate" radius={r1} result="d1" />
+		<feMorphology in="SourceAlpha" operator="dilate" radius={r2} result="d2" />
+		<feFlood flood-color={color} result="gc" />
+		<feComposite in="gc" in2="d1" operator="in" result="g1" />
+		<feComposite in="g1" in2="SourceAlpha" operator="out" result="g1o" />
+		<feComposite in="gc" in2="d2" operator="in" result="g2" />
+		<feComposite in="g2" in2="d1" operator="out" result="g2o" />
+		<feComponentTransfer in="g1o" result="ring1"><feFuncA type="linear" slope=".4"><animate attributeName="slope" values={values.split(';').map(v => String(+v * 1.4)).join(';')} dur={dur} repeatCount="indefinite" /></feFuncA></feComponentTransfer>
+		<feComponentTransfer in="g2o" result="ring2"><feFuncA type="linear" slope=".2"><animate attributeName="slope" values={values} dur={dur} repeatCount="indefinite" /></feFuncA></feComponentTransfer>
+	</>;
+}
+function glowFilter(id: string, color: string, r1: number, r2: number, values: string, dur: string, _x: boolean) {
+	return <filter id={id} x="-0.25" y="-0.25" width="1.5" height="1.5" color-interpolation-filters="sRGB">
+		{glowRings(color, r1, r2, values, dur)}
+		<feMerge><feMergeNode in="ring2" /><feMergeNode in="ring1" /><feMergeNode in="SourceGraphic" /></feMerge>
+	</filter>;
 }
