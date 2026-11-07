@@ -1511,3 +1511,24 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle { grid-template-rows: auto minmax(0, 1fr) clamp(270px, 32dvh, 340px); }
 	.battle > .bottom { overflow-y: auto; }
 }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	/* 더블: 두 번째 포켓몬 차례에는 '◀ 뒤로'(앞 선택 취소)가 보이게 머리줄을 다시 보임 */
+	.battle .controls:has(.sd-panel) > .ctl-head:has(.ctl-back) { display: flex; }
+	/* 낮은 화면에서도 교체 줄까지 보이게 아래 칸을 조금 높게 */
+	.battle { grid-template-rows: auto minmax(0, 1fr) clamp(304px, 34dvh, 350px); }
+}
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	/* 아래 칸 촘촘하게 (낮은 화면·더블에서 교체 줄까지 들어가게) */
+	.battle > .bottom { padding: 4px 10px 6px; gap: 3px; }
+	.battle .msgbox, .battle .msgbox.win-dark { min-height: 34px; font-size: 15px; }
+	.battle .controls { gap: 3px; }
+	.battle .controls > .ctl-head { min-height: 24px; }
+	.battle .sd-panel { gap: 3px; } .battle .sd-label { font-size: 13px; line-height: 16px; min-height: 22px; }
+	.battle .controls .move-panel > .move-grid { grid-auto-rows: 56px; }
+	.battle .controls .switch-list, .battle .controls > .switch-list { grid-auto-rows: 48px; }
+	.battle .controls > .gm-bar .gmb { min-height: 26px; }
+}
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	.battle { grid-template-rows: auto minmax(0, 1fr) clamp(330px, 34dvh, 350px); }
+	.battle .controls:has(.sd-panel) .ctl-log { display: none; }   /* 기록은 오른쪽에 항상 보이므로 */
+}
