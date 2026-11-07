@@ -907,7 +907,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	animation: abIn .22s ease-out; }
 .ab-pop span { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .ab-pop small { font-size: 11px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ab-pop b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ab-pop b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ab-pop.own { left: 0; top: 52%; border-radius: 0 10px 10px 0; }
 .ab-pop.foe { right: 0; top: 30%; border-radius: 10px 0 0 10px; background: linear-gradient(270deg, rgba(110,20,40,.92), rgba(180,50,70,.85)); animation-name: abInR; }
 .ab-pop.item { background: linear-gradient(90deg, rgba(30,80,40,.92), rgba(60,140,70,.85)); }
@@ -1696,8 +1696,8 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 @media (min-width: 960px) and (min-aspect-ratio: 5/4) {
 	/* 길이는 싱글 상자(220px×1.35)와 같게, 배율은 1 → 상자가 얇아짐 */
 	.battle.doubles .arena .panels { zoom: 1; gap: 2px; }
-	.battle.doubles .arena .panels.foe { width: min(46%, 297px); }
-	.battle.doubles .arena .panels.own { width: min(48%, 311px); }
+	.battle.doubles .arena .panels.foe { width: min(41.4%, 267px); }
+	.battle.doubles .arena .panels.own { width: min(43.2%, 280px); }
 	.battle.doubles .arena .info { padding-top: 2px; padding-bottom: 2px; }
 	.battle.doubles .arena .info .info-top { font-size: 12px; line-height: 14px; }
 	.battle.doubles .arena .info .hpbar { height: 5px; margin: 2px 0 0 16px; }
