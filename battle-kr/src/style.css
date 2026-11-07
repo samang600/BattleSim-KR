@@ -1777,3 +1777,6 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .title-screen > .title-tap { position: absolute; bottom: calc(14% + var(--safe-bottom)); margin: 0; font-size: 20px; letter-spacing: 3px; color: #ffe870;
 	text-shadow: 2px 0 0 #140c1c, -2px 0 0 #140c1c, 0 2px 0 #140c1c, 0 -2px 0 #140c1c, 2px 2px 0 #140c1c, -2px -2px 0 #140c1c, 2px -2px 0 #140c1c, -2px 2px 0 #140c1c, 0 4px 0 #140c1c;
 	animation: blink 1.2s steps(1) infinite; }
+/* 타이틀 포켓몬: 늘 2D 도트, 바닥 여백(--pad)만큼 내려 로고 윗변에 발을 딛게 */
+.title-screen > .title-mons { z-index: 1; margin-bottom: 0; gap: 0; }
+.title-screen > .title-mons .sprite { transform: translateY(calc(var(--pad, 8px) * 1.5)) scale(1.5); transform-origin: bottom center; }

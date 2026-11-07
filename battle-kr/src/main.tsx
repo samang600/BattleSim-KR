@@ -28,8 +28,8 @@ function TitleScreen({ onStart }: { onStart: () => void }) {
 		<div class="title-glow" />
 		<div class="title-fs"><FullscreenButton /></div>
 		<div class="title-mons">
-			<Sprite species="garchomp" gen={9} size={110} />
-			<Sprite species="lucario" gen={9} size={90} />
+			<Sprite species="garchomp" gen={9} size={110} anim={false} cls="front" />
+			<Sprite species="lucario" gen={9} size={90} anim={false} cls="front" />
 		</div>
 		<div class="title-logo-img" role="img" aria-label="배틀 시뮬레이터 — 타워 · 팩토리 · 토너먼트" />
 		<div class="title-tap" aria-label="화면을 터치하세요">TAP ANYWHERE</div>
