@@ -124,6 +124,13 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	const wakeRelease = useRef<(() => void) | null>(null);
 	const logRef = useRef<string[]>([]);
 	const wide = useWide();
+	/** 마우스를 올리면 뜨는 정보 상자 (넓은 화면) */
+	const [tip, setTip] = useState<{ x: number; y: number; body: any } | null>(null);
+	const hov = (body: () => any) => wide ? {
+		onMouseEnter: (e: MouseEvent) => setTip({ x: e.clientX, y: e.clientY, body: body() }),
+		onMouseMove: (e: MouseEvent) => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : t),
+		onMouseLeave: () => setTip(null),
+	} : {};
 	const sideLogRef = useRef<HTMLDivElement>(null);
 	useEffect(() => { const el = sideLogRef.current; if (el) el.scrollTop = el.scrollHeight; }, [log, wide]);
 
@@ -1040,6 +1047,10 @@ function typeTint(type: string) {
 						onPointerDown={() => { pressRef.current.long = false; clearTimeout(pressRef.current.t); pressRef.current.t = setTimeout(() => { pressRef.current.long = true; setInfoMove(i); }, 450); }}
 						onPointerUp={() => clearTimeout(pressRef.current.t)} onPointerLeave={() => clearTimeout(pressRef.current.t)}
 						onContextMenu={e => e.preventDefault()}
+						{...hov(() => md ? <div><b>{name}</b> <span class="tip-types"><TypeBadge type={type} small /><CatIcon cat={md.category} /></span>
+							<div>위력 <b>{md.basePower || '-'}</b> · 명중 <b>{md.accuracy || '필중'}</b>{md.priority ? ` · 우선도 ${md.priority > 0 ? '+' : ''}${md.priority}` : ''}{md.contact ? ' · 접촉' : ''}</div>
+							{eff && <div>{eff}</div>}
+							<div class="muted">{md.desc}</div></div> : null)}
 						onClick={() => { if (pressRef.current.long) { pressRef.current.long = false; return; } if (disabled) { setInfoMove(i); return; } onMove(i + 1, m); }}>
 						<span class="mvb-top"><TypeBadge type={type} small />{md && <CatIcon cat={md.category} />}
 							<span class={'mvb-pp' + (low ? ' low' : '')}>{m.maxpp ? <>PP <b>{m.pp}</b>/{m.maxpp}</> : ''}</span></span>
@@ -1265,7 +1276,9 @@ function typeTint(type: string) {
 		const boosts = Object.entries(mon.boosts).filter(([, v]) => v);
 		const vols = [...mon.vol].filter(v => VOLATILE_KO[v]);
 		// 포켓몬마다 새 상자 (교체 때 HP 바가 이전 포켓몬 값에서 늘거나 주는 것처럼 보이지 않게)
-		return <div class={'info ' + (own ? 'own' : 'foe') + ' i' + i} key={mon.ident + ':' + i} onClick={() => setDetail({ mon, own })}>
+		const ownIdx = own ? (sessionRef.current?.battle.p1.pokemon || []).findIndex((p: any) => p.name === mon.nick) : -1;
+		return <div class={'info ' + (own ? 'own' : 'foe') + ' i' + i} key={mon.ident + ':' + i} onClick={() => setDetail({ mon, own })}
+			{...hov(() => own && ownIdx >= 0 ? ownTip(ownIdx) : foeTip(mon))}>
 			<div class="info-top">
 				<b class="info-name">{mon.nick}</b>
 				{mon.gender && <span class={'gender ' + mon.gender}>{mon.gender === 'M' ? '♂' : '♀'}</span>}
@@ -1325,6 +1338,71 @@ function typeTint(type: string) {
 			live: { hp: sm.hp, maxhp: sm.maxhp, status: sm.status, pp, stats: { hp: sm.maxhp, ...sm.storedStats }, boosts: sm.isActive ? sm.boosts : undefined },
 		};
 	}
+
+	/** 정보 상자: 내 포켓몬 (실제 세트), 상대 포켓몬 (드러난 정보만) */
+	const statLine = (bs: number[]) => bs.join(' / ');
+	function ownTip(idx: number) {
+		const d = liveOf(idx);
+		if (!d) return null;
+		const sd = speciesData(toID(d.set.species), gen);
+		return <div>
+			<b>{nickOf(d.set)}</b> <span class="muted">Lv{d.set.level}</span>
+			<div class="tip-types">{sd?.t.map(t => <TypeBadge type={t} small />)}</div>
+			<div>HP {d.live.hp}/{d.live.maxhp} ({Math.round(100 * d.live.hp / Math.max(1, d.live.maxhp))}%){d.live.status && <> · <StatusBadge status={d.live.status} /></>}</div>
+			<div>특성 <b>{abilityKo(d.set.ability)}</b> · 도구 <b>{d.set.item ? itemKo(d.set.item) : '없음'}</b></div>
+			{d.live.stats && <div class="muted">능력치 {['atk', 'def', 'spa', 'spd', 'spe'].map(k => `${STAT_SHORT[k]} ${d.live.stats![k]}`).join(' · ')}</div>}
+			<ul class="tip-moves">{d.set.moves.map(m => <li>{moveKo(m)} <span class="muted">{d.live.pp?.[toID(m)] ? `${d.live.pp[toID(m)][0]}/${d.live.pp[toID(m)][1]}` : ''}</span></li>)}</ul>
+		</div>;
+	}
+	function foeTip(mon: Mon) {
+		const sd = speciesData(toID(mon.species), gen);
+		return <div>
+			<b>{mon.nick}</b> <span class="muted">Lv{mon.level}</span>
+			<div class="tip-types">{sd?.t.map(t => <TypeBadge type={t} small />)}</div>
+			<div>HP {mon.fainted ? 0 : Math.round(100 * mon.hp / Math.max(1, mon.maxhp))}%{mon.status && <> · <StatusBadge status={mon.status} /></>}</div>
+			<div>특성 <b>{mon.ability ? abilityKo(mon.ability) : '미확인'}</b>{!mon.ability && sd && <span class="muted"> (후보: {sd.ab.map(abilityKo).join(' / ')})</span>}</div>
+			<div>도구 <b>{mon.item ? itemKo(mon.item) : mon.itemSeen ? '없음' : '미확인'}</b></div>
+			{sd && <div class="muted">종족값 {statLine(sd.bs)}</div>}
+			{mon.seen.length > 0 && <ul class="tip-moves">{mon.seen.map(m => <li>{moveKo(m)}</li>)}</ul>}
+		</div>;
+	}
+	const nickOf = (set: PSet) => set.name || speciesKo(set.species);
+	/** 필드 양옆: 트레이너 그림·이름과 파티 현황 (쇼다운처럼) — 넓은 화면에서만 */
+	const sidePanel = (own: boolean) => {
+		const sd = own ? scene.p1 : scene.p2;
+		const sprite = own ? setup.p1.sprite : setup.p2.sprite;
+		const name = own ? setup.p1.name : setup.p2.name;
+		const cells: any[] = [];
+		if (own) {
+			const all = sessionRef.current?.battle.p1.pokemon || [];
+			all.forEach((pm: any, i: number) => {
+				const d = liveOf(i);
+				if (!d) return;
+				const fnt = d.live.hp <= 0;
+				cells.push(<div class={'sp-mon' + (fnt ? ' fnt' : '') + (pm.isActive ? ' act' : '')} {...hov(() => ownTip(i))} onClick={() => setSheet({ idx: i, canSwitch: false })}>
+					<Sprite species={d.set.species} gen={gen} size={56} anim={false} shiny={!!d.set.shiny} />
+					<HPBar hp={d.live.hp} maxhp={d.live.maxhp || 1} />
+				</div>);
+			});
+		} else {
+			for (let i = 0; i < sd.teamSize; i++) {
+				const m = sd.team[i];
+				cells.push(m ? <div class={'sp-mon' + (m.fainted ? ' fnt' : '') + (sd.active.includes(m) ? ' act' : '')} {...hov(() => foeTip(m))} onClick={() => setDetail({ mon: m, own: false })}>
+					<Sprite species={m.species} gen={gen} size={56} anim={false} shiny={m.shiny} />
+					<HPBar hp={m.fainted ? 0 : m.hp} maxhp={m.maxhp || 1} />
+				</div> : <div class="sp-mon unk"><span class="ball unk" /></div>);
+			}
+		}
+		return <div class={'side-info ' + (own ? 'own' : 'foe')}>
+			<div class="si-name">{own ? (setup.partner ? `${name} & ${setup.partner.name}` : name) : name}</div>
+			<div class="si-trainers">
+				{sprite && <img class="si-tr" src={SPRITE_URL(sprite)} alt="" onError={trainerImgError} />}
+				{own && setup.partner?.sprite && <img class="si-tr" src={SPRITE_URL(setup.partner.sprite)} alt="" onError={trainerImgError} />}
+				{!own && setup.p2.sprite2 && <img class="si-tr" src={SPRITE_URL(setup.p2.sprite2)} alt="" onError={trainerImgError} />}
+			</div>
+			<div class="si-party">{cells}</div>
+		</div>;
+	};
 
 	// 내 팀 순서대로 미리 채우기
 	if (reqMon && scene.p1.team.length < reqMon.length) {
@@ -1386,6 +1464,9 @@ function typeTint(type: string) {
 			</div>
 			{controls()}
 		</div>
+		{wide && sidePanel(true)}
+		{wide && sidePanel(false)}
+		{tip && <div class="hover-tip" style={{ left: Math.min(tip.x + 16, innerWidth - 300) + 'px', top: Math.min(tip.y + 16, innerHeight - 260) + 'px' }}>{tip.body}</div>}
 		{wide && <div class="side-log" ref={sideLogRef}>
 			<div class="side-log-title">배틀 기록</div>
 			{log.map((l, i) => <div key={i} class={l.startsWith('──') ? 'log-turn' : 'log-line'}>{l}</div>)}
