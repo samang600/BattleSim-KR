@@ -15,5 +15,7 @@
 <div id="app"><div class="loading">불러오는 중…</div></div>
 <script>/*__JS__*/</script>
 <script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});</script>
+<!-- 방문자 집계 (GoatCounter, 쿠키 없음): 웹 배포 주소(github.io)에서만. 안드로이드 앱·로컬 파일은 세지 않음 -->
+<script>if (/\.github\.io$/.test(location.hostname)) { var gc = document.createElement('script'); gc.async = true; gc.src = 'https://gc.zgo.at/count.js'; gc.setAttribute('data-goatcounter', 'https://samang600.goatcounter.com/count'); document.head.appendChild(gc); }</script>
 </body>
 </html>
