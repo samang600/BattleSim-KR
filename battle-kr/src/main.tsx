@@ -185,6 +185,19 @@ function backupLoad() {
 	inp.click();
 }
 
+/** 주인공 모습: ◀ 그림·이름 ▶ 한 줄로 넘기며 고름 (이웃한 모습도 작게 보여 줌) */
+function AvatarPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+	const n = PLAYER_SPRITES.length, i = Math.max(0, PLAYER_SPRITES.findIndex(p => p.id === value));
+	const at = (d: number) => PLAYER_SPRITES[(i + d + n) % n];
+	return <div class="win pick-panel avatar-panel">
+		<button class="pick-arrow" aria-label="주인공 모습 이전" onClick={() => onChange(at(-1).id)}><i class="tri l" /></button>
+		<img class="av-side" src={SPRITE_URL(at(-1).id)} alt="" onClick={() => onChange(at(-1).id)} />
+		<div class="av-mid"><img src={SPRITE_URL(at(0).id)} alt="" /><b class="ap-name">{at(0).name}</b><span class="av-count">{i + 1}/{n}</span></div>
+		<img class="av-side" src={SPRITE_URL(at(1).id)} alt="" onClick={() => onChange(at(1).id)} />
+		<button class="pick-arrow" aria-label="주인공 모습 다음" onClick={() => onChange(at(1).id)}><i class="tri r" /></button>
+	</div>;
+}
+
 /** 배틀 규칙: 포켓몬 풀(게임·레귤레이션) · 기믹(복수 선택) · 초전설 · 환상 을 따로 고름 */
 function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }) {
 	const cur = ruleById(s.battleRule);
@@ -220,8 +233,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		<h3 class="sec">메시지 속도</h3>
 		<div class="seg">{([1, 2, 3, 4] as const).map(v => <button class={s.speed === v ? 'on' : ''} onClick={() => up({ speed: v })}>{['느림', '보통', '빠름', '매우 빠름'][v - 1]}</button>)}</div>
 		<h3 class="sec">주인공 모습</h3>
-		<div class="avatar-pick">{PLAYER_SPRITES.map(p => <button class={s.playerSprite === p.id ? 'on' : ''} onClick={() => up({ playerSprite: p.id })}>
-			<img src={SPRITE_URL(p.id)} alt="" />{p.name}</button>)}</div>
+		<AvatarPicker value={s.playerSprite} onChange={id => up({ playerSprite: id })} />
 		<h3 class="sec">소리</h3>
 		<div class="seg">
 			<button class={s.sound ? 'on' : ''} onClick={() => { up({ sound: !s.sound }); }}>효과음 {s.sound ? '켜짐' : '꺼짐'}</button>
