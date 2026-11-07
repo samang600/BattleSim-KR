@@ -112,7 +112,39 @@ export function moveData(id: string, gen: Gen) {
 	};
 }
 export function abilityKo(nameOrId: string) { return D.abilities[toID(nameOrId)]?.n || nameOrId; }
-export function abilityDesc(id: string) { return D.abilities[toID(id)]?.d || ''; }
+/** 룰(세대·무제한·챔피언스)에 따라 성능이 다른 특성의 설명 — 배틀 동작은 ps/registry.ts ABIL_ERA·챔피언스 모드와 같음.
+ *  키: '8'·'7'·'6' = 그 세대 이하 룰, 'max' = 무제한, 'c' = 챔피언스 사양(전국도감·챔피언스 룰) */
+const ABIL_ERA_DESC: { [id: string]: { [k: string]: string } } = {
+	intrepidsword: { 8: '등장했을 때 공격이 1랭크 올라간다. 나올 때마다 발동한다.' },
+	dauntlessshield: { 8: '등장했을 때 방어가 1랭크 올라간다. 나올 때마다 발동한다.' },
+	protean: { 8: '기술을 쓰기 직전에 자신이 그 기술과 같은 타입으로 바뀐다. 기술을 쓸 때마다 발동한다.' },
+	libero: { 8: '기술을 쓰기 직전에 자신이 그 기술과 같은 타입으로 바뀐다. 기술을 쓸 때마다 발동한다.' },
+	innerfocus: { 7: '정신력이 강해서 풀죽지 않는다.' },
+	oblivious: { 7: '둔감해서 헤롱헤롱이나 도발 상태가 되지 않는다.' },
+	owntempo: { 7: '마이페이스라서 혼란 상태가 되지 않는다.' },
+	scrappy: { 7: '고스트 타입 포켓몬에게 노말·격투 타입 기술을 맞힐 수 있다.' },
+	rattled: { 7: '악·고스트·벌레 타입 기술에 맞으면 무서워서 스피드가 1랭크 올라간다.' },
+	disguise: { 7: '탈로 몸을 덮어 상대의 공격을 1번 막는다(데미지 없음). 막으면 탈이 벗겨진다.' },
+	moody: { 7: '매 턴이 끝날 때 능력 하나(명중률·회피율 포함)가 2랭크 오르고 다른 하나가 1랭크 떨어진다.' },
+	galewings: { 6: '비행 타입 기술의 우선도가 1 올라간다. HP와 관계없이 발동한다.' },
+	aerilate: { 6: '노말 타입 기술이 비행 타입이 되고 위력이 1.3배가 된다.' },
+	pixilate: { 6: '노말 타입 기술이 페어리 타입이 되고 위력이 1.3배가 된다.' },
+	refrigerate: { 6: '노말 타입 기술이 얼음 타입이 되고 위력이 1.3배가 된다.' },
+	normalize: { 6: '자신이 쓰는 모든 기술이 노말 타입이 된다. 위력은 그대로다.' },
+	healer: { c: '턴이 끝날 때 50% 확률로 같은 편 포켓몬의 상태이상을 회복한다.' },
+	runaway: { c: '도망칠 수 없게 하는 기술·특성의 영향을 받지 않고 언제든 교체할 수 있다.' },
+};
+/** 무제한(너프 없음)에서 쓰는 쪽 (registry.ts MAX_ABIL 과 같음) */
+const MAX_ABIL_DESC = ['intrepidsword', 'dauntlessshield', 'protean', 'libero', 'disguise', 'galewings', 'aerilate', 'pixilate', 'refrigerate'];
+export function abilityDesc(id: string) {
+	const k = toID(id), e = ABIL_ERA_DESC[k];
+	if (e) {
+		if (ERA === 'max') { if (MAX_ABIL_DESC.includes(k)) return Object.values(e)[0]; }
+		else if (ERA === '') { if (e.c) return e.c; }
+		else if (+ERA <= 8) { const g = Object.keys(e).filter(x => x !== 'c' && +ERA <= +x).sort()[0]; if (g) return e[g]; }
+	}
+	return D.abilities[k]?.d || '';
+}
 export function itemKo(nameOrId: string) { return D.items[toID(nameOrId)]?.n || nameOrId; }
 export function itemDesc(id: string) { return D.items[toID(id)]?.d || ITEM_DESC[toID(id)] || ''; }
 export function natureKo(nameOrId: string) { return D.natures[toID(nameOrId)]?.n || nameOrId; }

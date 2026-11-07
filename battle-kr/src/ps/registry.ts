@@ -23,6 +23,9 @@ import CHAMP from './champions-moves.json';
 import { Conditions as CHAMP_CONDITIONS } from '../../../data/mods/champions/conditions';
 import { Moves as CHAMP_MOD_MOVES } from '../../../data/mods/champions/moves';
 import { Abilities as CHAMP_MOD_ABILITIES } from '../../../data/mods/champions/abilities';
+import { Abilities as GEN8_ABILITIES } from '../../../data/mods/gen8/abilities';
+import { Abilities as GEN7_ABILITIES } from '../../../data/mods/gen7/abilities';
+import { Abilities as GEN6_ABILITIES } from '../../../data/mods/gen6/abilities';
 
 /** 포켓몬 챔피언스 PP: 5→8, 10→12, 15→16, 20 이상→20 (1 같은 특수값은 그대로) */
 export function championsPP(pp: number) { return pp >= 20 ? 20 : pp >= 15 ? 16 : pp >= 10 ? 12 : pp >= 5 ? 8 : pp; }
@@ -93,6 +96,25 @@ const champConditions = cloneTable((base_conditions as any).Conditions); applyCh
 const champAbilities = cloneTable((base_abilities as any).Abilities); applyChampionsMod(champAbilities, CHAMP_MOD_ABILITIES as any);
 
 const ABIL = (base_abilities as any).Abilities as { [id: string]: { name: string } };
+/** 세대마다 배틀 성능이 다른 특성: 쇼다운의 그 세대 모드 동작을 가져옴 (설명은 data.ts ABIL_ERA_DESC)
+ *  값 = 그 동작이 쓰인 마지막 세대 → 그 세대 이하 룰에 적용. 무제한(max)은 MAX_ABIL 의 더 강한 쪽 */
+const ABIL_ERA: { [id: string]: 8 | 7 | 6 } = {
+	intrepidsword: 8, dauntlessshield: 8, protean: 8, libero: 8,          // 8세대: 나올 때마다 / 기술마다
+	innerfocus: 7, oblivious: 7, owntempo: 7, scrappy: 7, rattled: 7,     // 7세대: 위협 무효·발동 없음
+	disguise: 7, moody: 7,                                                // 7세대: 탈 데미지 없음, 명중·회피도 오름
+	galewings: 6, aerilate: 6, pixilate: 6, refrigerate: 6, normalize: 6, // 6세대: HP 조건 없음, 1.3배, 노말화 위력 보정 없음
+};
+const MAX_ABIL = ['intrepidsword', 'dauntlessshield', 'protean', 'libero', 'disguise', 'galewings', 'aerilate', 'pixilate', 'refrigerate'];
+const GEN_ABIL: { [g: number]: { [id: string]: any } } = { 8: GEN8_ABILITIES as any, 7: GEN7_ABILITIES as any, 6: GEN6_ABILITIES as any };
+function eraAbilities(era: '8' | '7' | '6' | 'max') {
+	const out: { [id: string]: any } = {};
+	for (const [id, g] of Object.entries(ABIL_ERA)) {
+		if (era === 'max' ? !MAX_ABIL.includes(id) : g < +era) continue;
+		const src = GEN_ABIL[g][id];
+		if (src) out[id] = { ...src, inherit: true };
+	}
+	return out;
+}
 /** 세대 모드: dex.json 의 세대 차이(e)로 종족·기술을 덮어씀 */
 function eraMod(era: '8' | '7' | '6' | 'max') {
 	const Pokedex: { [id: string]: any } = {}, Moves: { [id: string]: any } = {};
@@ -110,7 +132,7 @@ function eraMod(era: '8' | '7' | '6' | 'max') {
 		if (!t || !(base_moves as any).Moves[id]) continue;
 		Moves[id] = { inherit: true, type: t[0], category: t[1], basePower: t[2], accuracy: t[3] === 0 ? true : t[3], pp: t[4], priority: t[5], target: t[6] };
 	}
-	return { scripts: { Scripts: { inherit: 'gen9', gen: 9 } }, pokedex: { Pokedex }, moves: { Moves } };
+	return { scripts: { Scripts: { inherit: 'gen9', gen: 9 } }, pokedex: { Pokedex }, moves: { Moves }, abilities: { Abilities: eraAbilities(era) } };
 }
 const ERA_MODS = { kr8: eraMod('8'), kr7: eraMod('7'), kr6: eraMod('6'), krmax: eraMod('max') };
 export const MODS: string[] = ['krchamp', ...Object.keys(ERA_MODS)];
