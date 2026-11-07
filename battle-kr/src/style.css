@@ -1955,3 +1955,12 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	/* 상성 띠: 테두리 안쪽 위 오른쪽 (도트 모서리로 잘리지 않게) */
 	.battle .sd-panel .mvb .mvb-eff { top: -2px; right: 4px; font-size: 8px; line-height: 10px; padding: 0 2px; }
 }
+
+/* ── v2.46.1 테라스탈: 보석 결은 SVG 필터(core.tsx TeraFilters) ── */
+.slot.tera .sprite { filter: none; }
+/* 상대 포켓몬을 필드 정중앙에 서게 조금 위로 */
+.slot.foe.s0 { top: 61.3%; }
+.doubles .slot.foe.s0 { top: 58.8%; } .doubles .slot.foe.s1 { top: 60.8%; }
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle .slot.foe.s0 { top: 61.3%; } .battle.doubles .slot.foe.s0 { top: 58.8%; } .battle.doubles .slot.foe.s1 { top: 60.8%; }
+}

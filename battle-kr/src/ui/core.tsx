@@ -81,8 +81,8 @@ export function preloadSprite(species: string, back: boolean, shiny?: boolean) {
 }
 
 /** 포켓몬 그림 (인터넷 연결 시 쇼다운 스프라이트, 실패하면 이름 카드) */
-export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls }: {
-	species: string; back?: boolean; shiny?: boolean; gen?: Gen; size?: number; anim?: boolean; cls?: string;
+export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, tera }: {
+	species: string; back?: boolean; shiny?: boolean; gen?: Gen; size?: number; anim?: boolean; cls?: string; /** 테라스탈 타입: 그림 모양대로 반투명 보석 결을 겹침 */ tera?: string;
 }) {
 	const settings = loadSettings();
 	const id = species === 'substitute' ? 'substitute' : spriteId(species);
@@ -108,9 +108,9 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls }: 
 	// 배틀 그림 크기 보정: 바뀐 모습 배율 × (3D 설정인데 3D 그림이 없어 도트 그림으로 나오면 3D 그림 크기에 맞춰 1.3배)
 	const isAni = /\.gif$/.test(cur);
 	const ks = pad !== undefined ? (cur.includes(`/${id}.`) || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? SCALE[id]?.[isAni ? 1 : 0] ?? 1 : 1) * (useAnim && !isAni ? 1.3 : 1) : 1;
-	return <img class={'sprite ' + (cls || '')} src={cur} alt={species} loading="lazy"
-		style={{ maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': pad + 'px' } : {}), ...(ks !== 1 ? { '--ks': ks } : {}) } as any}
-		onError={() => setIdx(idx + 1)} draggable={false} />;
+	const st = { maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': pad + 'px' } : {}), ...(ks !== 1 ? { '--ks': ks } : {}) } as any;
+	// 테라스탈: 그림 모양대로 반투명 보석 결을 겹치는 SVG 필터 (TeraFilters) — 다른 사이트 그림에도 쓸 수 있음
+	return <img class={'sprite ' + (cls || '')} src={cur} alt={species} loading="lazy" style={tera ? { ...st, filter: `url(#tera-${tera})` } : st} onError={() => setIdx(idx + 1)} draggable={false} />;
 }
 
 /** 그림 후보 순서: 온라인이면 움직이는 그림 → 앱 안의 정지 그림 → 서버 정지 그림, 오프라인이면 앱 안의 그림부터 */
@@ -296,4 +296,20 @@ export function ArrowPicker({ label, items, value, onChange, bg, icon }: {
 		</div>
 		<button class="pick-arrow" aria-label={label + ' 다음'} onClick={() => go(1)}><i class="tri r" /></button>
 	</div>;
+}
+
+/** 테라스탈 보석 결 필터 (타입별 하나씩, 배틀 화면에 한 번 넣음): 삼각 면 무늬 + 타입 색을 그림 모양(알파)대로 잘라 반투명하게 겹침 */
+const TERA_FACET = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'><polygon points='0,0 8,0 0,8' fill='white' fill-opacity='.7'/><polygon points='8,0 16,0 16,8 8,8' fill='white' fill-opacity='.25'/><polygon points='0,8 8,8 0,16' fill='white' fill-opacity='.45'/><polygon points='16,8 16,16 8,16' fill='white' fill-opacity='.6'/></svg>");
+export function TeraFilters() {
+	return <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+		<defs>{Object.entries({ ...TYPE_COLOR, Stellar: '#2b3a96' }).map(([t, c]) => <filter id={'tera-' + t} x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
+			<feImage href={TERA_FACET} x="0" y="0" width="16" height="16" result="t" />
+			<feTile in="t" result="pat" />
+			<feFlood flood-color={c} result="col" />
+			<feBlend in="pat" in2="col" mode="screen" result="tex" />
+			<feComposite in="tex" in2="SourceAlpha" operator="in" result="cut" />
+			<feComponentTransfer in="cut" result="half"><feFuncA type="linear" slope="0.38" /></feComponentTransfer>
+			<feMerge><feMergeNode in="SourceGraphic" /><feMergeNode in="half" /></feMerge>
+		</filter>)}</defs>
+	</svg>;
 }

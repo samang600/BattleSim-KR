@@ -7,7 +7,7 @@ import { moveData, moveKo, speciesData, speciesKo, toID, abilityKo, itemKo, natu
 	itemDesc, RAW, floats, type Gen } from '../data';
 import { toSimTeam, conceptBall, type PSet } from '../sets';
 import { loadSettings, updateRecords, saveReplay, newId } from '../store';
-import { Sprite, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
+import { TeraFilters, Sprite, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
 import { MonSheet, type LiveInfo } from './screens';
 import { estimateDamage, typeEffOf, chooseAI } from '../ai';
 import * as FX from '../fx';
@@ -1317,10 +1317,10 @@ function typeTint(type: string) {
 			<HPBar hp={mon.hp} maxhp={mon.maxhp} />
 			<div class="info-bottom">
 				<StatusBadge status={mon.status} />
+				{mon.tera && <span class="tera-badge" style={{ background: TYPE_COLOR[mon.tera] }}>테라 {typeKo(mon.tera)}</span>}
 				{own ? <span class="hp-num">{mon.hp}/{mon.maxhp}</span> : <span class="hp-num">{mon.maxhp ? Math.ceil(mon.hp / mon.maxhp * 100) : 0}%</span>}
 			</div>
 			{/* 랭크 변화·혼란 등 기타 상태는 '필드' 메뉴에서 (HP 창에는 상태이상·테라만) */}
-			{mon.tera && <span class="tera-badge" style={{ background: TYPE_COLOR[mon.tera] }}>테라 {typeKo(mon.tera)}</span>}
 		</div>;
 	};
 
@@ -1331,7 +1331,7 @@ function typeTint(type: string) {
 		return <div class={'slot ' + pos + ' ' + (mon.anim || '') + (mon.vol.has('dynamax') ? ' dmax' : '') + (mon.tera ? ' tera' : '') + (fl ? ' float' : '')} key={i}
 			style={mon.tera ? { '--tera': TYPE_COLOR[mon.tera] } as any : undefined} onClick={() => setDetail({ mon, own })}>
 			{mon.vol.has('substitute') ? <Sprite species="substitute" back={own} gen={gen} size={400} cls={own ? 'back' : 'front'} /> :
-				<Sprite species={mon.transformed || mon.species} back={own} shiny={mon.shiny} gen={gen} size={400} cls={own ? 'back' : 'front'} />}
+				<Sprite species={mon.transformed || mon.species} back={own} shiny={mon.shiny} gen={gen} size={400} cls={own ? 'back' : 'front'} tera={mon.tera || undefined} />}
 		</div>;
 	};
 
@@ -1457,6 +1457,7 @@ function typeTint(type: string) {
 		<div class="arena-wings" aria-hidden="true" />
 		<div class={'arena' + (trainerVis.foe ? ' t-foe' : '')} ref={arenaRef} style={{ '--s': scale } as any} onClick={() => skipRef.current?.()}>
 			<div class="arena-bg" />
+			<TeraFilters />
 			{/* 날씨와 필드(테라인)는 다른 레이어: 한 요소에 두면 필드의 '입자 없음' 규칙이 비·모래 줄기(가상 요소)까지 지움 */}
 			<div class={'weather-ov ' + (scene.weather || '')} />
 			<div class={'weather-ov terrain-ov ' + [...scene.pseudo].join(' ')} />
