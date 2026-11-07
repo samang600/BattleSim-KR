@@ -299,19 +299,31 @@ export function ArrowPicker({ label, items, value, onChange, bg, icon }: {
 }
 
 /** 테라스탈 보석 결 필터 (타입별 하나씩, 배틀 화면에 한 번 넣음): 삼각 면 무늬 + 타입 색을 그림 모양(알파)대로 잘라 반투명하게 겹침 */
+/** 반짝임 띠: 계단식 대각선 흰 띠 (가운데 진하게) — 그림 위를 왼쪽 위에서 오른쪽 아래로 지나감 */
+const TERA_SHINE = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='40' height='120' shape-rendering='crispEdges'><polygon points='16,0 20,0 4,120 0,120' fill='white' fill-opacity='.4'/><polygon points='20,0 26,0 10,120 4,120' fill='white' fill-opacity='.9'/><polygon points='26,0 29,0 13,120 10,120' fill='white' fill-opacity='.4'/><polygon points='33,0 35,0 19,120 17,120' fill='white' fill-opacity='.55'/></svg>");
+/** 반짝이는 점(✦): 결정 면 위에 작은 별이 번갈아 깜박임 */
+const TERA_SPARK = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' shape-rendering='crispEdges'><g fill='white'><rect x='5' y='3' width='1' height='5'/><rect x='3' y='5' width='5' height='1'/><rect x='20' y='18' width='1' height='3'/><rect x='19' y='19' width='3' height='1'/></g></svg>");
 const TERA_FACET = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'><polygon points='0,0 8,0 0,8' fill='white' fill-opacity='.7'/><polygon points='8,0 16,0 16,8 8,8' fill='white' fill-opacity='.25'/><polygon points='0,8 8,8 0,16' fill='white' fill-opacity='.45'/><polygon points='16,8 16,16 8,16' fill='white' fill-opacity='.6'/></svg>");
 export function TeraFilters() {
 	return <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
 		<defs>{glowFilter('dmax-glow', '#ff2a40', 3, 6, '.12;.42;.12', '1.6s', false)}
 		{Object.entries({ ...TYPE_COLOR, Stellar: '#2b3a96' }).map(([t, c]) => <filter id={'tera-' + t} x="-0.2" y="-0.2" width="1.4" height="1.4" color-interpolation-filters="sRGB">
-			{glowRings(c, 2, 4, '.18;.36;.18', '2.4s')}
+			{glowRings(c, 1, 2, '.2;.45;.2', '2.4s')}
 			<feImage href={TERA_FACET} x="0" y="0" width="16" height="16" result="t" />
 			<feTile in="t" result="pat" />
 			<feFlood flood-color={c} result="col" />
 			<feBlend in="pat" in2="col" mode="screen" result="tex" />
 			<feComposite in="tex" in2="SourceAlpha" operator="in" result="cut" />
 			<feComponentTransfer in="cut" result="half"><feFuncA type="linear" slope="0.38" /></feComponentTransfer>
-			<feMerge><feMergeNode in="ring2" /><feMergeNode in="ring1" /><feMergeNode in="SourceGraphic" /><feMergeNode in="half" /></feMerge>
+			{/* 빛나는 띠가 2.4초마다 그림 위를 대각선으로 훑고 지나감 (그림 모양대로 잘림) */}
+			<feImage href={TERA_SHINE} y="-12" width="40" height="120" result="sh"><animate attributeName="x" values="-50;-50;-40;-30;-20;-10;0;10;20;30;40;50;60;70;80" keyTimes="0;0.450;0.489;0.529;0.568;0.607;0.646;0.686;0.725;0.764;0.804;0.843;0.882;0.921;0.961" dur="2.4s" repeatCount="indefinite" calcMode="discrete" /></feImage>
+			<feComposite in="sh" in2="SourceAlpha" operator="in" result="shine" />
+			{/* 반짝이는 별: 그림 모양 안에서 깜박임 */}
+			<feImage href={TERA_SPARK} x="0" y="0" width="28" height="28" result="sp0" />
+			<feTile in="sp0" result="spt" />
+			<feComposite in="spt" in2="SourceAlpha" operator="in" result="sp1" />
+			<feComponentTransfer in="sp1" result="spark"><feFuncA type="linear" slope="0"><animate attributeName="slope" values="0;0;.9;0;0;.6;0" dur="1.8s" repeatCount="indefinite" calcMode="discrete" /></feFuncA></feComponentTransfer>
+			<feMerge><feMergeNode in="ring2" /><feMergeNode in="ring1" /><feMergeNode in="SourceGraphic" /><feMergeNode in="half" /><feMergeNode in="shine" /><feMergeNode in="spark" /></feMerge>
 		</filter>)}</defs>
 	</svg>;
 }
