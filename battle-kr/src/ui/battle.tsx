@@ -487,7 +487,7 @@ function typeTint(type: string) {
 			soundMoveCry(p, mon);
 			animate(mon, args[1].startsWith('p1') ? 'attack-own' : 'attack-foe', 450);
 			if (animUsedRef.current === p) { animUsedRef.current = null; pendingHitRef.current = { at: 0, sound: '' }; return 150; }
-			if (kw.noanim) return 400;
+			if (kw.noanim || kw.still) return 400;   // 빗나감·막힘, 2턴 기술의 준비 턴([still])은 기술 연출 없음
 			const impact = settings.effects === false ? (moveSound(moveData(toID(args[2]), gen)?.type || 'Normal', moveData(toID(args[2]), gen)?.category || 'Physical'), 0) : moveFx(p);
 			return Math.max(500, impact + 300);
 		}
@@ -508,6 +508,21 @@ function typeTint(type: string) {
 		case '-supereffective': { sfx('hitSuper'); vibrate(40); if (arenaRef.current) FX.shake(arenaRef.current, true); return 0; }
 		case '-crit': { sfx('crit'); vibrate([30, 40, 30]); if (fxRef.current) FX.flash(fxRef.current); return 0; }
 		case '-miss': { sfx('miss'); return 0; }
+		case '-singleturn': {
+			// 힘껏펀치·부리캐논·트랩셸: 턴 처음에 기운을 모으는 연출
+			const kind = /Focus Punch/.test(args[2]) ? 'focus' : /Beak Blast/.test(args[2]) ? 'beak' : /Shell Trap/.test(args[2]) ? 'shell' : '';
+			if (!kind || settings.effects === false) return 0;
+			const pt = slotPoint(args[1]); if (!pt || !fxRef.current) return 0;
+			sfx('status');
+			return FX.charge(fxRef.current, pt, kind === 'focus' ? 'Fighting' : 'Fire', scale, kind as any);
+		}
+		case '-prepare': {
+			// 2턴 기술(솔라빔·공중날기·메테오빔 등)의 준비 턴: 기술 타입 색으로 기운을 모음
+			if (settings.effects === false) return 0;
+			const pt = slotPoint(args[1]); if (!pt || !fxRef.current) return 0;
+			sfx('status');
+			return FX.charge(fxRef.current, pt, moveData(toID(args[2]), gen)?.type || 'Normal', scale, 'prepare');
+		}
 		case '-zpower': { sfx('zmove'); const pt = slotPoint(args[1]); if (pt && fxRef.current) FX.pillar(fxRef.current, pt, '#ffe040', scale); return 700; }
 		case '-curestatus': {
 			const side = scene[args[1].slice(0, 2) as 'p1' | 'p2'];
@@ -710,7 +725,7 @@ function typeTint(type: string) {
 				if (mon && !mon.seen.includes(p.args[2])) mon.seen.push(p.args[2]);
 				soundMoveCry(p, mon);
 				rerender();
-				const used = p.kw.noanim ? false : await tryRebornAnim(p);
+				const used = p.kw.noanim || p.kw.still ? false : await tryRebornAnim(p);
 				if (!used) {
 					const d = apply(p) / FX.fxSpeed(); rerender();
 					await wait(Math.max(d, SPEED_MS[settings.speed] * 0.6));

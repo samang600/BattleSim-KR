@@ -734,3 +734,34 @@ export function playMove(layer: HTMLElement, arena: HTMLElement, m: MoveFxInfo, 
 	burst(layer, to, t, s, strong);
 	return 180;
 }
+
+// ───────── 기술 준비(힘껏펀치·부리캐논·트랩셸, 2턴 기술의 준비 턴) ─────────
+/** 기운을 모음: 바깥에서 가운데로 모여드는 도트 + 안으로 좁혀지는 고리. kind 로 모양을 조금씩 다르게 */
+export function charge(layer: HTMLElement, at: Pt, type: string, s: number, kind: 'focus' | 'beak' | 'shell' | 'prepare' = 'prepare'): number {
+	const { c, l } = col(type);
+	const n = kind === 'focus' ? 16 : 12;
+	for (let i = 0; i < n; i++) {
+		const a = (i / n) * Math.PI * 2 + rnd(0, 0.3);
+		const r = rnd(34, 48) * s;
+		const size = Math.round(rnd(3, 5) * s);
+		const el = px(layer, at.x + Math.cos(a) * r, at.y + Math.sin(a) * r * 0.7, size, size, i % 3 ? c : '#ffffff');
+		anim(el, [{ transform: 'translate(0,0)', opacity: 0 }, { opacity: 1, offset: 0.2 },
+			{ transform: `translate(${-Math.cos(a) * r}px,${-Math.sin(a) * r * 0.7}px)`, opacity: 0.2 }], { duration: 620, delay: i * 18, easing: 'steps(8)' });
+	}
+	for (let i = 0; i < 2; i++) {
+		const ring = px(layer, at.x, at.y, 24 * s, 24 * s, 'transparent', `border:${Math.max(2, Math.round(2 * s))}px solid ${i ? c : l};border-radius:50%`);
+		anim(ring, [{ transform: 'scale(3)', opacity: 0 }, { opacity: 0.9, offset: 0.3 }, { transform: 'scale(.3)', opacity: 0 }], { duration: 560, delay: 120 + i * 160, easing: 'steps(7)' });
+	}
+	if (kind === 'beak') {   // 부리에 열이 모임: 아지랑이처럼 올라가는 불티
+		for (let i = 0; i < 10; i++) {
+			const el = px(layer, at.x + rnd(-14, 14) * s, at.y + rnd(-4, 10) * s, 3 * s, 3 * s, i % 2 ? '#ffd040' : '#ff6020');
+			anim(el, [{ transform: 'translateY(0)', opacity: 0 }, { opacity: 1, offset: 0.3 }, { transform: `translateY(${-30 * s}px) translateX(${rnd(-6, 6) * s}px)`, opacity: 0 }], { duration: 700, delay: 200 + i * 45, easing: 'steps(8)' });
+		}
+	}
+	if (kind === 'shell') {  // 등껍질 덫: 육각 고리가 두 번 깜박임
+		const hex = px(layer, at.x, at.y, 46 * s, 40 * s, 'transparent', `border:${Math.max(2, Math.round(2 * s))}px solid ${l};clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);background:${c}33`);
+		anim(hex, [{ opacity: 0 }, { opacity: 0.9 }, { opacity: 0.2 }, { opacity: 0.9 }, { opacity: 0 }], { duration: 760, delay: 300, easing: 'steps(5)' });
+	}
+	if (kind === 'focus') later(() => flash(layer, '#ffd0a0', 140), 560);
+	return kind === 'shell' ? 1000 : 800;
+}
