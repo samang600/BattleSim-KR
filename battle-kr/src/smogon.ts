@@ -7,6 +7,7 @@ import { fixedTera, RAW, speciesData, learnset, moveData, toID, type Gen } from 
 import { ruleById, megaStoneAllowed, itemAllowed, type BattleRule } from './rules';
 import { loadSettings } from './store';
 import { evToSp, spToEv, fillSP, type PSet } from './sets';
+import { teamPlan } from './plan';
 import { Dex } from '../../sim/dex';
 
 type Pair = [string, number];
@@ -129,7 +130,7 @@ function attackTypes(set: PSet, own: boolean, doubles: boolean): { type: string;
 
 /** AI 쪽 참가 포켓몬 고르기: 상대 팀(종족만 보임)에 대한 상성·체크/카운터 점수로 n마리, 에이스(keepLast)는 항상 포함.
  *  skill 이 낮으면 무작위를 섞는다. 반환은 순서대로(선봉 먼저) */
-export function aiPickEntry(mine: PSet[], foes: PSet[], n: number, doubles: boolean, skill: number, keepLast = false): PSet[] {
+export function aiPickEntry(mine: PSet[], foes: PSet[], n: number, doubles: boolean, skill: number, keepLast = false, usePlan = true): PSet[] {
 	if (mine.length <= n) return mine;
 	if (!smogonEnabled) return [...shuffle(mine.slice(0, keepLast ? -1 : undefined)).slice(0, n - (keepLast ? 1 : 0)), ...(keepLast ? [mine[mine.length - 1]] : [])];
 	const dex = Dex.mod('gen9');
@@ -154,9 +155,24 @@ export function aiPickEntry(mine: PSet[], foes: PSet[], n: number, doubles: bool
 		sc += (Math.random() - 0.5) * 6 * (1 - skill);
 		return { s, i, sc };
 	});
+	// 팀 성향(날씨·트릭룸·순풍): 판을 까는 포켓몬과 그 판에서 강해지는 포켓몬을 함께 데려감
+	const plan = usePlan && doubles && skill >= 0.6 ? teamPlan(mine) : null;   // 더블만 (싱글은 효과 없음)
+	const themed = !!plan && (!!plan.weather || plan.trickRoom || plan.tailwind);
+	if (themed) score.forEach(x => { const r = plan!.roles[x.i]; if (r === 'setter') x.sc += 1.2; else if (r === 'abuser') x.sc += 0.8; });
 	const last = keepLast ? score[score.length - 1] : null;
 	const ranked = score.filter(x => x !== last).sort((a, b) => b.sc - a.sc);
 	const chosen = ranked.slice(0, n - (last ? 1 : 0));
+	if (themed) {
+		const role = (x: { i: number }) => plan!.roles[x.i];
+		// 덕 보는 포켓몬만 있고 까는 포켓몬이 빠졌으면 바꿔 넣음
+		if (chosen.some(x => role(x) === 'abuser') && !chosen.some(x => role(x) === 'setter')) {
+			const setter = ranked.find(x => role(x) === 'setter' && !chosen.includes(x));
+			const out = [...chosen].reverse().find(x => !role(x));
+			if (setter && out) chosen[chosen.indexOf(out)] = setter;
+		}
+		// 선봉: 까는 포켓몬부터 (더블은 앞 두 마리가 선봉)
+		chosen.sort((a, b) => (role(b) === 'setter' ? 1 : 0) - (role(a) === 'setter' ? 1 : 0) || b.sc - a.sc);
+	}
 	if (last) chosen.push(last);
 	// 선봉: 상대 전체에 가장 유리한 포켓몬 (에이스는 맨 뒤 유지)
 	return chosen.map(x => x.s);

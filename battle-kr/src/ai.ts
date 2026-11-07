@@ -5,6 +5,7 @@
  */
 import { State } from '../../sim/state';
 import { PRNG } from '../../sim/prng';
+import { sidePlan, type TeamPlan } from './plan';
 type Battle = any;
 type Pokemon = any;
 
@@ -217,6 +218,12 @@ function matchup(battle: Battle, mon: Pokemon, foes: Pokemon[]) {
 	return score + hpFrac * 0.3;
 }
 
+/** 팀 성향 (자체 대전 비교용으로 진영마다 끌 수 있음: globalThis.__noPlan = { p1: true }) */
+function planOf(user: Pokemon): TeamPlan | null {
+	if ((globalThis as any).__noPlan?.[user.side.id]) return null;
+	if (user.side.battle?.gameType !== 'doubles') return null;   // 싱글은 자체 대전에서 효과가 없어(400판 47%) 더블만
+	try { return sidePlan(user.side); } catch { return null; }
+}
 function statusScore(battle: Battle, user: Pokemon, move: any, target: Pokemon | null, foes: Pokemon[]): number {
 	const id = move.id;
 	const hpFrac = user.hp / user.maxhp;
@@ -258,7 +265,7 @@ function statusScore(battle: Battle, user: Pokemon, move: any, target: Pokemon |
 		const cur = Math.max(...stats.map(s => user.boosts[s] || 0));
 		if (cur >= 4) return 0;
 		if (hpFrac < 0.55 || threat > 0.6) return 10;
-		return 75 - cur * 18 - threat * 30;
+		return 75 - cur * 18 - threat * 30 + (cur === 0 && planOf(user)?.setup ? 8 : 0);   // 랭크업 파티: 첫 랭크업을 조금 더 우선
 	}
 	if (id === 'bellydrum') return hpFrac > 0.75 && threat < 0.4 && user.boosts.atk < 6 ? 70 : 0;
 	if (id === 'curse' && !user.hasType('Ghost')) return hpFrac > 0.5 && user.boosts.atk < 4 ? 55 - threat * 30 : 5;
@@ -307,16 +314,28 @@ function statusScore(battle: Battle, user: Pokemon, move: any, target: Pokemon |
 	}
 	if (id === 'healbell' || id === 'aromatherapy') return user.side.pokemon.filter((p: Pokemon) => p.status && !p.fainted).length >= 1 ? 50 : 0;
 	if (id === 'painsplit') return t && t.hp / t.maxhp > hpFrac + 0.2 ? 60 : 0;
+	const plan = planOf(user);
 	if (id === 'trickroom') {
-		if (battle.field.pseudoWeather['trickroom']) return 0;
 		const mySpe = user.side.pokemon.filter((p: Pokemon) => !p.fainted).reduce((a: number, p: Pokemon) => a + st(p, 'spe'), 0);
 		const foeSpe = user.side.foe.pokemon.filter((p: Pokemon) => !p.fainted).reduce((a: number, p: Pokemon) => a + st(p, 'spe'), 0);
+		if (battle.field.pseudoWeather['trickroom']) {
+			// 성향: 상대가 건 트릭룸이 우리에게 불리하면 다시 써서 끔
+			return plan && !plan.trickRoom && mySpe > foeSpe * 1.1 && (battle.field.pseudoWeather['trickroom'].duration || 0) >= 3 ? 55 : 0;
+		}
+		if (plan?.trickRoom) return mySpe < foeSpe ? 95 : 20;   // 트릭룸 파티: 우리가 더 느리면 가장 먼저 깖
 		return mySpe < foeSpe ? 70 : 5;
 	}
-	if (id === 'tailwind') return user.side.sideConditions['tailwind'] ? 0 : 50;
+	if (id === 'tailwind') return user.side.sideConditions['tailwind'] ? 0 : plan?.tailwind ? 75 : 50;
 	if (id === 'helpinghand') return allyOf(user) ? 35 : 0;
 	if (id === 'followme' || id === 'ragepowder') return allyOf(user) && hpFrac > 0.5 ? 30 : 0;
-	if (['raindance', 'sunnyday', 'sandstorm', 'hail'].includes(id)) {
+	if (['raindance', 'sunnyday', 'sandstorm', 'hail', 'snowscape'].includes(id)) {
+		const w = id === 'hail' ? 'snowscape' : id;
+		if (plan?.weather) {
+			if (plan.weather !== w) return 5;   // 우리 팀 날씨가 아님
+			const cur = battle.field.weather, left = battle.field.weatherState?.duration ?? 0;
+			if (battle.field.isWeather(w) || (w === 'snowscape' && battle.field.isWeather('hail'))) return left && left <= 1 ? 60 : 0;
+			return cur ? 90 : 80;   // 상대 날씨를 덮어씀
+		}
 		return battle.field.isWeather(id) ? 0 : 30;
 	}
 	if (id === 'destinybond') return hpFrac < 0.3 && threat >= 1 ? 60 : 0;
@@ -920,6 +939,24 @@ function fieldScore(b: Battle, sideId: 'p1' | 'p2', F: { haz?: number; scr?: num
 	return v;
 }
 
+/** 팀 성향 기준 장 상황: 우리 날씨가 깔려 있는 남은 턴, 우리에게 유리한 트릭룸의 남은 턴 */
+function planField(b: Battle, sideId: 'p1' | 'p2'): number {
+	const side = b[sideId], plan = sidePlan(side);
+	let v = 0;
+	if (plan.weather && b.field.weather) {
+		const w = b.field.weather === 'hail' ? 'snowscape' : b.field.weather;
+		if (w === plan.weather) v += 0.045 * Math.min(5, b.field.weatherState?.duration ?? 5);
+	}
+	const tr = b.field.pseudoWeather?.['trickroom'];
+	if (tr) {
+		const alive = (sd: any) => sd.pokemon.filter((p: any) => !p.fainted && p.hp);
+		const avg = (ps: any[]) => ps.length ? ps.reduce((a: number, p: any) => a + p.getStat('spe', false, true), 0) / ps.length : 0;
+		const mine = avg(alive(side)), theirs = avg(alive(side.foe));
+		if (mine && theirs) v += 0.05 * Math.min(4, tr.duration ?? 4) * (mine < theirs ? 1 : -1) * (plan.trickRoom ? 1.3 : 1);
+	}
+	return v;
+}
+
 /** 진영 평가: HP 비율 합 + 살아 있는 수 (내 쪽 − 상대 쪽), v2 는 장 상황도 */
 function evalState(b: Battle, mySide: 'p1' | 'p2'): number {
 	const score = (side: any) => {
@@ -944,6 +981,7 @@ function evalState(b: Battle, mySide: 'p1' | 'p2'): number {
 		// 항목별 가중(테스트에서 __aiFeat[진영] 으로 조절)
 		const F = (globalThis as any).__aiFeat?.[mySide] || AI_FEAT;
 		try { v += fieldScore(b, mySide, F) - fieldScore(b, foe, F); } catch {}
+		if (!(globalThis as any).__noPlan?.[mySide] && b.gameType === 'doubles') { try { v += planField(b, mySide) - planField(b, foe); } catch {} }
 	}
 	// 턴이 끝난 뒤의 대면 상황: 내가 상대를 위협하는가 / 상대가 나를 위협하는가
 	const mine = b[mySide].active.filter((p: any) => p && !p.fainted && p.hp), theirs = b[foe].active.filter((p: any) => p && !p.fainted && p.hp);

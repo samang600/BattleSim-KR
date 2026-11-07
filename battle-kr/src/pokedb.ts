@@ -83,7 +83,7 @@ export function rankerTeam(doubles: boolean, level = 50, quality = 0.8, gen: Gen
 			if (mv.length >= 2) set.moves = [...mv, ...set.moves.filter(m => !mv.includes(m))].slice(0, 4);   // 모자라면 통계 기술로 채움
 		}
 		if (nature) set.nature = nature;
-		if (sp && sp.some(v => v > 0)) STAT_KEYS.forEach((s, j) => set.evs[s] = spToEv(sp[j] || 0));
+		if (sp && sp.some(v => v > 0)) STAT_KEYS.forEach((s, j) => set.evs[s] = spToEv(sp[j] || 0));   // 능력 포인트 그대로 (다른 세트와 같은 합계 66 방식)
 		const tera = c.tera?.[i];
 		if (tera && tera !== 'Stellar' && speciesData(sid, gen)) set.teraType = tera;
 		return conformSet(set, gen);

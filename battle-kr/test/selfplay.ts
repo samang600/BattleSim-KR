@@ -7,12 +7,15 @@ import { ruleById, applyRuleData, speciesAllowed } from '../src/rules';
 import { randomTeam, toSimTeam, randomSetFor } from '../src/sets';
 import { setSmogon, aiPickEntry } from '../src/smogon';
 import { rankerTeam, rankerCount, rankerSources } from '../src/pokedb';
+import { teamPlan, planText } from '../src/plan';
 import { KoreanText, parseLine } from '../src/text';
 /** o.aSmogon/bSmogon: 각 팀을 Smogon 통계로 만들지 / o.quality: 통계 세트의 쏠림 / o.pick: 6마리 중 n마리 (A 는 aiPickEntry, B 는 무작위) */
 (window as any).__Battle = Battle; (window as any).__toSimTeam = toSimTeam;
+(window as any).__plan = { teamPlan, planText };
 (window as any).__ranker = { rankerTeam, rankerCount, rankerSources, applyRuleData, ruleById, loadSettings, speciesAllowed };
 (window as any).selfplay = (n: number, gen: 9, doubles: boolean, skillA: number, skillB: number, _unused = false, size = 0,
-	o: { aSmogon?: boolean; bSmogon?: boolean; quality?: number; pick?: number; depthA?: number; depthB?: number; budget?: number; aRanker?: boolean; minBstB?: number; cfgA?: { budget?: number; seeds?: number }; cfgB?: { budget?: number; seeds?: number }; verA?: number; verB?: number; swap?: boolean; featA?: any; featB?: any } = {}) => {
+	o: { aSmogon?: boolean; bSmogon?: boolean; quality?: number; pick?: number; depthA?: number; depthB?: number; budget?: number; aRanker?: boolean; bRanker?: boolean; planA?: boolean; planB?: boolean; minBstB?: number; cfgA?: { budget?: number; seeds?: number }; cfgB?: { budget?: number; seeds?: number }; verA?: number; verB?: number; swap?: boolean; featA?: any; featB?: any } = {}) => {
+	(globalThis as any).__noPlan = { p1: o.planA === false, p2: o.planB === false };
 	(globalThis as any).__aiFeat = o.featA || o.featB ? { p1: o.featA, p2: o.featB } : null;
 	(globalThis as any).__aiVer = o.verA || o.verB ? { p1: o.verA ?? 2, p2: o.verB ?? 2 } : null;
 	let prevTeams: any = null;
@@ -34,11 +37,12 @@ import { KoreanText, parseLine } from '../src/text';
 		setSmogon(o.aSmogon ?? true); let ta = randomTeam({ gen, size: sz, minBst: 450, doubles, quality: o.quality });
 		setSmogon(o.bSmogon ?? true); let tb = randomTeam({ gen, size: sz, minBst: o.minBstB ?? 450, allowSubLegend: !!o.minBstB, doubles, quality: o.quality });
 		if (o.aRanker) { setSmogon(true); const rk = rankerTeam(doubles, 50, 0.9); if (rk) ta = rk.team.slice(0, sz); }
+		if (o.bRanker) { setSmogon(true); const rk = rankerTeam(doubles, 50, 0.9); if (rk) tb = rk.team.slice(0, sz); }
 		// swap: 두 판씩 같은 두 팀을 진영만 바꿔서 (팀 운을 상쇄해 AI 버전끼리 공정하게 비교)
 		if (o.swap) { if (k % 2 === 1 && prevTeams) { ta = prevTeams[1]; tb = prevTeams[0]; } else prevTeams = [ta, tb]; }
 		if (o.pick) {
-			setSmogon(true); const pa = aiPickEntry(ta, tb, o.pick, doubles, 1);
-			setSmogon(true); const pb = aiPickEntry(tb, ta, o.pick, doubles, 1); // 양쪽 같은 방식으로 (예전엔 B 만 통계 없이 골라 A 가 약 58% 유리했음)
+			setSmogon(true); const pa = aiPickEntry(ta, tb, o.pick, doubles, 1, false, o.planA !== false);
+			setSmogon(true); const pb = aiPickEntry(tb, ta, o.pick, doubles, 1, false, o.planB !== false); // 양쪽 같은 방식으로 (예전엔 B 만 통계 없이 골라 A 가 약 58% 유리했음)
 			ta = pa; tb = pb;
 		}
 		setSmogon(true);
@@ -73,6 +77,12 @@ import { KoreanText, parseLine } from '../src/text';
 			if (!acted) { res.errors.push('stall'); break; }
 		}
 		res.turns += b.turn;
+		// 성향 관련 행동 횟수 (A=p1, B=p2 — swap 이어도 AI 쪽 기준은 진영 그대로)
+		const ev = ((res as any).ev ||= {});
+		for (const l of lines) {
+			const m = /^\|move\|(p[12])[a-d]?: [^|]*\|(Trick Room|Tailwind|Rain Dance|Sunny Day|Sandstorm|Snowscape|Swords Dance|Dragon Dance|Nasty Plot|Calm Mind|Quiver Dance|Protect)\|/.exec(l);
+			if (m) { const k = m[1] + ' ' + m[2]; ev[k] = (ev[k] || 0) + 1; }
+		}
 		if (b.winner === 'A') res.aWins++; else if (b.winner === 'B') res.bWins++; else res.ties++;
 		const kt = new KoreanText({ gen, ownSide: 'p1', doubles, trainerName: s => s });
 		for (let i = 0; i < lines.length; i++) {
