@@ -157,7 +157,7 @@ function multiTeam(mine: PSet[], theirs: PSet[]) {
 
 // ───────────── 배틀타워 ─────────────
 const TOWER_KEY = (fmt: Fmt, o: BattleOpts) => `tower-${fmt}${optsTag(o)}`;
-interface TowerState { fmt: Fmt; team: PSet[]; streak: number; opts?: BattleOpts; partner?: { id: string; team: PSet[] }; /** 다음 승부 상대 (쉬었다 와도 같게) */ next?: { streak: number; opp: any } }
+interface TowerState { fmt: Fmt; team: PSet[]; streak: number; opts?: BattleOpts; partner?: { id: string; team: PSet[] }; /** 다음 승부 상대 (쉬었다 와도 같게) */ next?: { streak: number; opp: any; rule?: string } }
 
 /** 연승 단계별 상대 제한 (언바운드 배틀 프런티어의 방식을 참고): 
  *  ~9연승 종족값 520 미만·메가/Z 없음 → ~19 540 미만·메가 없음 → ~29 570 미만 → ~49 570 이상은 한 마리까지 → 50~ 제한 없음.
@@ -226,14 +226,15 @@ export function towerOpponent(streak: number, fmt: Fmt, playerTeam: PSet[] = [],
 	const nfe = early && diff === 'easy' ? { stage: 'nfe' as const, minBst: realTier === 0 ? 250 : 330, maxBst: realTier === 0 ? 420 : 480 } : null;
 	const weak = early && diff === 'normal';
 	let team = nfe ? randomTeam({ gen: 9, size: n, ...nfe, ivs: realTier === 0 ? 8 : 13, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality: 0.1 })
-		: weak ? randomTeam({ gen: 9, size: n, minBst: 380, maxBst: 480, ivs: 16, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality: 0.1 })
+		: weak ? randomTeam({ gen: 9, size: n, minBst: 380, maxBst: 480, noStrongNfe: true, ivs: 16, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality: 0.1 })
 		: randomTeam({ gen: 9, size: n - bigSlot, minBst, maxBst, allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality });
 	if (!nfe && !weak && bigSlot && team.length === n - 1) {
 		const big = randomTeam({ gen: 9, size: 1, minBst: caps.cap + 1, maxBst: maxBst0, allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : undefined, gimmicks: false, quality, exclude: new Set(team.map(x => toID(x.species))) });
 		team = [...team, ...big];
 	}
 	if (nfe && team.length < n) team = randomTeam({ gen: 9, size: n, ...nfe, ivs: 10, doubles: isDoubles(fmt), gimmicks: false, quality: 0.1 });
-	if (team.length < n) team = randomTeam({ gen: 9, size: n, ...(mt ? { minBst: minBst - 80 } : { minBst, maxBst }), allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : undefined, gimmicks: false, quality });
+	// 타입 구애 도전으로 모자라면 종족값 하한만 낮춤 (상한은 지켜서 초반에 강한 포켓몬이 나오지 않게)
+	if (team.length < n) team = randomTeam({ gen: 9, size: n, ...(mt ? { minBst: minBst - 80, maxBst: weak ? 480 : maxBst + 40 } : { minBst, maxBst }), allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : undefined, gimmicks: false, quality });
 	team = dedupeItems(stripGimmickItems(assignGimmicks(team, early ? { mega: 0, z: 0 } : { mega: caps.mega ? Math.min(1, 0.3 + tier * 0.15) : 0, z: caps.z ? Math.min(0.8, 0.2 + tier * 0.12) : 0 }), caps));
 	const skill = early ? (diff === 'normal' ? 0.5 : 0.45 + realTier * 0.05) : Math.min(0.97, 0.55 + tier * 0.08);
 	// 5세트(28연승)부터 가끔 실제 랭크배틀 상위 트레이너의 팀(PokéDB)이 나옴
@@ -292,9 +293,12 @@ export async function runTower() {
 	const key = `tower-${fmt}${diffTag(opts)}`;
 	while (true) {
 		// 같은 승부의 상대는 저장해 둠: 쉬었다 와도(앱을 껐다 켜도) 같은 트레이너·팀
-		const opp: any = state.next?.streak === state.streak ? state.next.opp
+		// (저장할 때와 배틀 규칙이 달라졌으면 새 규칙으로 다시 뽑음)
+		const rule = loadSettings().battleRule;
+		const keep = state.next?.streak === state.streak && (!state.next.rule || state.next.rule === rule);
+		const opp: any = keep ? state.next!.opp
 			: fmt === 'multi' ? towerPair(state.streak, !!opts.mono, opts.diff) : towerOpponent(state.streak, fmt, state.team, !!opts.mono, opts.diff);
-		if (state.next?.streak !== state.streak) { state.next = { streak: state.streak, opp }; save(TOWER_KEY(fmt, opts), state); }
+		if (!keep) { state.next = { streak: state.streak, opp, rule }; save(TOWER_KEY(fmt, opts), state); }
 		const partnerT = state.partner ? namedById(state.partner.id) : null;
 		opp.team = withLevel(opp.team, lvl(opts));
 		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title={`배틀타워 · ${fmtLabel(fmt)}`}
@@ -354,7 +358,7 @@ export async function runTower() {
 }
 
 // ───────────── 배틀팩토리 ─────────────
-interface FactoryState { fmt: Fmt; level: 50 | 100; team: PSet[]; streak: number; /** 다음 승부 상대 (쉬었다 와도 같게) */ next?: { streak: number; tr: any; mt?: string; oppTeam: PSet[]; hint: string } }
+interface FactoryState { fmt: Fmt; level: 50 | 100; team: PSet[]; streak: number; /** 다음 승부 상대 (쉬었다 와도 같게) */ next?: { streak: number; tr: any; mt?: string; oppTeam: PSet[]; hint: string; rule?: string } }
 const FACTORY_KEY = (fmt: Fmt, lv: number, o: BattleOpts) => `factory-${fmt}-${lv}${optsTag(o)}`;
 
 /** 렌탈 등급 (약한 순). 미진화·중간 진화는 Smogon 팩토리 세트가 없어 무작위 세트(진화 전만)로 만듦 */
@@ -452,13 +456,14 @@ export async function runFactory() {
 		const no = state.streak + 1;
 		const isHead = head(no);
 		// 같은 승부의 상대는 저장해 둠: 쉬었다 와도 같은 트레이너·팀·직원 힌트
-		const saved = state.next?.streak === state.streak ? state.next : null;
+		const rule = loadSettings().battleRule;
+		const saved = state.next?.streak === state.streak && (!state.next.rule || state.next.rule === rule) ? state.next : null;
 		const tr = saved ? saved.tr : randomTrainer();
 		// 타입 구애 도전: 일반 상대는 한 타입 팀
 		const mt = saved ? saved.mt : opts.mono && !isHead ? monoTypeFor(tr.types) : undefined;
 		const oppTeam: PSet[] = saved ? saved.oppTeam : isHead ? factoryPool(headGrade(state.streak), level, n, undefined, undefined, diff) : factoryPool(gradeAt(state.streak), level, n, new Set(state.team.map(s => toID(s.species))), mt, diff);
 		const hint: string = saved ? saved.hint : staffHint(state.streak, oppTeam);
-		if (!saved) { state.next = { streak: state.streak, tr, mt, oppTeam, hint }; save(FACTORY_KEY(fmt, level, opts), state); }
+		if (!saved) { state.next = { streak: state.streak, tr, mt, oppTeam, hint, rule }; save(FACTORY_KEY(fmt, level, opts), state); }
 		const skill = Math.min(0.92, 0.42 + gradeIdx(gradeAt(state.streak)) * 0.06);
 		const opp = isHead ? { name: '팩토리 헤드', title: '', skill: 0.97, line: '지식과 운, 둘 다 시험해 보자고!', sprite: 'thorton', lines: { ace: '계산대로라면 여기서 역전이야!', lose: '내 계산이 틀렸다니… 대단한데!', win: '데이터는 거짓말을 안 하거든.' } } :
 			{ name: tr.name, title: tr.className, skill, line: tr.lines.intro, sprite: tr.sprite, lines: tr.lines };
@@ -491,6 +496,8 @@ export async function runFactory() {
 		state.streak++;
 		const s = state.streak;
 		if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
+		// 이긴 결과를 바로 저장 (교환·렌탈 화면에서 앱을 꺼도 같은 승부를 다시 하지 않게)
+		save(FACTORY_KEY(fmt, level, opts), state);
 		if (s % 7 === 0) {
 			await ask<void>(r => <InfoScreen title="배틀팩토리" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`}
 				lines={['빌린 포켓몬을 모두 반납하고, 새 렌탈 포켓몬을 처음부터 다시 고릅니다.', `다음 세트 렌탈 등급: ${GRADE_LABEL[gradeAt(s)]}${gradeAt(s) !== gradeAt(s - 1) ? ' (등급 상승!)' : ''}`]} actions={[{ label: '새로 빌리기', onClick: () => r() }]} />);

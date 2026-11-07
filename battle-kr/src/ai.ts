@@ -819,13 +819,20 @@ function simulateTurn(ser: any, battle: Battle, me: 'p1' | 'p2', myChoice: strin
 	try {
 		const c: any = State.deserializeBattle(ser);
 		c.send = () => {};
+		// 앱 규칙은 9세대에서도 다이맥스를 허용하는데(formats.ts onBegin), 함수는 복제되지 않으므로 다시 붙임 — 없으면 강한 AI가 다이맥스를 계산하지 못함
+		for (const sd of c.sides) sd.canDynamaxNow = function (this: any) { return !this.dynamaxUsed; };
+		// 이번 턴 요청의 다이맥스 허용(앱이 원본 요청에 켜 둔 canDynamax·maxMoves)도 복제본에 옮김
+		for (const sid of ['p1', 'p2'] as const) {
+			const o = (battle as any)[sid].activeRequest, r = c[sid].activeRequest;
+			if (o?.active && r?.active) o.active.forEach((a: any, i: number) => { if (a && r.active[i]) { r.active[i].canDynamax = a.canDynamax; if (a.maxMoves) r.active[i].maxMoves = a.maxMoves; } });
+		}
 		c.prng = searchSeed ? new PRNG(searchSeed) : new PRNG();
 		// 복제본의 로그는 원본과 같은 배열을 가리키므로 떼어 낸다 (원본 로그 오염·'Infinite loop' 방지)
 		c.log = []; c.sentLogPos = 0; c.inputLog = [];
 		const startTurn = c.turn;
 		// 상대가 이미 골랐으면(플레이어가 먼저 고른 실제 선택) 내 수만 넣으면 그 턴이 진행됨 — 상대 쪽은 건드리지 않음
 		const foeDone = !!c[foeSide].isChoiceDone?.();
-		if (!c.choose(me, myChoice)) return null;
+		if (!c.choose(me, myChoice)) { if (/ (dynamax|mega|zmove|terastallize)/.test(myChoice)) { const g = ((globalThis as any).__la ||= { calls: 0, serFail: 0, simFail: 0, err: '' }); g.gmFail = (g.gmFail || 0) + 1; g.gmErr = myChoice + ': ' + c[me].choice?.error; } return null; }
 		if (!foeDone && !c.choose(foeSide, foeChoice)) c.choose(foeSide, 'default');
 		let guard = 0;
 		while (!c.ended && c.turn === startTurn && guard++ < 3) { c.choose(me, 'default'); c.choose(foeSide, 'default'); }
@@ -1041,8 +1048,9 @@ function lookahead(battle: Battle, side: any, user: Pokemon, opts: Option[], req
 	/** 한 번의 난수(시드)로 후보들을 평가: 1턴 → (강한 AI) 좋은 가지부터 2턴 */
 	const evalWithSeed = (opts: typeof myOpts) => {
 		searchSeed = PRNG.generateSeed();
-		const grid = opts.map(mo => ({ mo, cells: foeMoves.map(fo => ({ fo, r: simulateTurn(ser, battle, me, mo.choice, fo.choice, true) })) }));
-		const rows = grid.filter(g => g.cells.every(c => c.r)).map(g => ({ mo: g.mo, cells: g.cells.map(c => ({ fo: c.fo, v: c.r!.v, c: c.r!.c })) }));
+		// 시간이 넘으면 남은 후보는 건너뜀 (최소 2개는 평가)
+		const grid = opts.map((mo, k) => ({ mo, cells: k >= 2 && over() ? [] : foeMoves.map(fo => ({ fo, r: simulateTurn(ser, battle, me, mo.choice, fo.choice, true) })) }));
+		const rows = grid.filter(g => g.cells.length && g.cells.every(c => c.r)).map(g => ({ mo: g.mo, cells: g.cells.map(c => ({ fo: c.fo, v: c.r!.v, c: c.r!.c })) }));
 		if (depth >= 2) {
 			const order = rows.slice().sort((a, b) => score1(b.cells) - score1(a.cells));
 			for (const row of order) {
@@ -1079,13 +1087,14 @@ function searchDepth(me: 'p1' | 'p2', skill: number): number {
 	if (o && o[me]) return o[me];
 	return skill >= 0.9 ? 2 : 1;
 }
-/** 숙고 시간·난수 반복 횟수: 실력 0.9 이상은 최대 5초 (테스트에서는 __searchCfg 로 진영별 지정).
+/** 숙고 시간·난수 반복 횟수: 실력 0.9 이상은 최대 1.6초 (테스트에서는 __searchCfg 로 진영별 지정).
  *  같은 수를 다른 난수로 여러 번 돌려 평균 내는 것(seeds>1)은 자체 대전 360판에서 51.1%로 효과가 없어 기본은 1번 */
 function searchCfg(me: 'p1' | 'p2', skill: number): { budget: number; seeds: number } {
 	const o = (globalThis as any).__searchCfg?.[me];
 	if (o) return { budget: o.budget ?? 5000, seeds: o.seeds ?? 8 };
 	const b = (globalThis as any).__laBudget;
-	return skill >= 0.9 ? { budget: b ?? 5000, seeds: 1 } : { budget: b ?? 700, seeds: 1 };
+	// 최대 1.6초: 저사양 휴대폰에서 화면이 오래 멈추거나 '응답 없음'이 뜨지 않게 (첫 턴 계산 중에도 시간을 확인)
+	return skill >= 0.9 ? { budget: b ?? 1600, seeds: 1 } : { budget: b ?? 700, seeds: 1 };
 }
 /** 한 턴 뒤 상태(c)에서 양쪽이 한 턴 더 두었을 때의 평가: 내 상위 후보 3개 중 최선 (상대는 상위 2개 가중 + 최악 25%) */
 function secondTurn(c: any, battle: Battle, me: 'p1' | 'p2', skill: number, over: () => boolean = () => false): number | null {

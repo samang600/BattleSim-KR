@@ -222,7 +222,7 @@ export function randomSetFor(speciesId: string, gen: Gen, level = 50, doubles = 
 	const id = toID(speciesId);
 	// Smogon 사용률 통계가 있으면 실전형 세트 (quality 가 높을수록 자주 쓰는 구성)
 	const sm = smogonSet(id, gen, level, doubles, quality);
-	if (sm) { sm.name = nickKo(id); if ((RAW.items as any)[sm.item]?.mega) fitSetToMega(sm, sm.item, gen); return sm; }
+	if (sm && sm.moves.length) { sm.name = nickKo(id); if ((RAW.items as any)[sm.item]?.mega) fitSetToMega(sm, sm.item, gen); return sm; }
 	const g = generator(gen);
 	let set: PSet;
 	const table = doubles ? g.randomDoublesSets : g.randomSets;
@@ -249,7 +249,11 @@ export function randomSetFor(speciesId: string, gen: Gen, level = 50, doubles = 
 		set = buildSet(id, gen);
 	}
 	set.level = level;
-	return conformSet(set, gen);
+	const out = conformSet(set, gen);
+	// 안전장치: 기술이 하나도 없으면(코스모그처럼 배우는 기술이 적은 포켓몬) 배울 수 있는 기술로 채움 — 기술 없는 세트는 배틀 시작 오류
+	if (!out.moves.length) out.moves = learnset(id, gen).slice(0, 4);
+	if (!out.moves.length) out.moves = ['struggle'];
+	return out;
 }
 
 /** 세트를 지금 규칙의 포켓몬 풀 사양에 맞춤: 그 세대에 없는 기술·특성·도구를 바꿈 (랭크배틀·팩토리·무작위 상대 등) */
@@ -275,7 +279,7 @@ export function conformSet<T extends PSet>(set: T, gen: Gen = 9): T {
 }
 
 export interface PoolOptions {
-	gen: Gen; minBst?: number; maxBst?: number; allowSubLegend?: boolean; types?: string[]; exclude?: Set<string>; /** nfe: 진화 전·중간 진화만 */ stage?: 'nfe';
+	gen: Gen; minBst?: number; maxBst?: number; allowSubLegend?: boolean; types?: string[]; exclude?: Set<string>; /** nfe: 진화 전·중간 진화만 */ stage?: 'nfe'; /** 성능 좋은 미진화체(진화의휘석)도 빼기 — 약한 상대용 */ noStrongNfe?: boolean;
 	/** 전설·환상(restricted/mythical)도 포함 (규칙이 허용할 때만) / legendOnly: 전설·환상만 */
 	allowLegend?: boolean; legendOnly?: boolean;
 }
@@ -300,7 +304,7 @@ export function speciesPool(o: PoolOptions): string[] {
 		if (!s || !RAW.species[id].g[o.gen]) continue;
 		// stage 'nfe': 진화 전·중간 진화만 (쉬움 난이도 초반), 아니면 최종 진화만
 		// 성능이 좋은 미진화체(종족값 450 이상, 진화의휘석으로 자주 쓰이는 것)는 최종 진화와 함께 나옴
-		if ((o.stage === 'nfe' ? s.fe : !s.fe && !strongNfe(id, o.gen)) || s.bo || BANNED_POOL.has(id) || o.exclude?.has(id)) continue;
+		if ((o.stage === 'nfe' ? s.fe : !s.fe && (o.noStrongNfe || !strongNfe(id, o.gen))) || s.bo || BANNED_POOL.has(id) || o.exclude?.has(id)) continue;
 		const isR = !!s.tags?.includes('Restricted Legendary'), isM = !!s.tags?.includes('Mythical'), legend = isR || isM;
 		// 상대 무작위 팀의 초전설·환상: 그 종류가 가능한 규칙에서만
 		const foeOk = (isR && rule.restricted === 'yes') || (isM && rule.mythical === 'yes');
@@ -350,6 +354,14 @@ export function randomTeam(o: PoolOptions & { size: number; level?: number; ivs?
 		if (usedBase.has(num)) continue;
 		usedBase.add(num);
 		picked.push(next);
+	}
+	// 동료 우선 고르기로 건너뛴 후보가 있어 모자라면 남은 후보로 채움 (좁은 풀에서 팀이 짧아지지 않게)
+	for (const id of pool) {
+		if (picked.length >= o.size) break;
+		const num = speciesData(id, o.gen)!.num;
+		if (usedBase.has(num)) continue;
+		usedBase.add(num);
+		picked.push(id);
 	}
 	const team = picked.map(id => {
 		const set = randomSetFor(id, o.gen, o.level ?? 50, !!o.doubles, quality);

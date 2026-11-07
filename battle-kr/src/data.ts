@@ -111,7 +111,7 @@ export function moveData(id: string, gen: Gen) {
 		accuracy: g[3], pp: g[4], priority: g[5], target: g[6], contact: !!g[7],
 	};
 }
-export function abilityKo(nameOrId: string) { return D.abilities[toID(nameOrId)]?.n || nameOrId; }
+export function abilityKo(nameOrId: string) { const id = toID(nameOrId); return id === 'asone' ? '혼연일체' : D.abilities[id]?.n || nameOrId; }
 /** 룰(세대·무제한·챔피언스)에 따라 성능이 다른 특성의 설명 — 배틀 동작은 ps/registry.ts ABIL_ERA·챔피언스 모드와 같음.
  *  키: '8'·'7'·'6' = 그 세대 이하 룰, 'max' = 무제한, 'c' = 챔피언스 사양(전국도감·챔피언스 룰) */
 const ABIL_ERA_DESC: { [id: string]: { [k: string]: string } } = {
@@ -130,9 +130,9 @@ const ABIL_ERA_DESC: { [id: string]: { [k: string]: string } } = {
 	aerilate: { 6: '노말 타입 기술이 비행 타입이 되고 위력이 1.3배가 된다.' },
 	pixilate: { 6: '노말 타입 기술이 페어리 타입이 되고 위력이 1.3배가 된다.' },
 	refrigerate: { 6: '노말 타입 기술이 얼음 타입이 되고 위력이 1.3배가 된다.' },
-	normalize: { 6: '자신이 쓰는 모든 기술이 노말 타입이 된다. 위력은 그대로다.' },
 	healer: { c: '턴이 끝날 때 50% 확률로 같은 편 포켓몬의 상태이상을 회복한다.' },
 	runaway: { c: '도망칠 수 없게 하는 기술·특성의 영향을 받지 않고 언제든 교체할 수 있다.' },
+	unseenfist: { c: '접촉 기술이 방어 등으로 막히지 않고 맞지만, 그때 데미지는 1/4이 된다.' },
 };
 /** 무제한(너프 없음)에서 쓰는 쪽 (registry.ts MAX_ABIL 과 같음) */
 const MAX_ABIL_DESC = ['intrepidsword', 'dauntlessshield', 'protean', 'libero', 'disguise', 'galewings', 'aerilate', 'pixilate', 'refrigerate'];
@@ -185,11 +185,16 @@ export function learnset(id: string, gen: Gen): string[] {
 	if (!s) return [];
 	const own = s.ls || s.cls ? s : s.base ? speciesData(s.base, gen) : null;
 	if (!own) return [];
-	if (LS_MODE === 'champ' && own.cls) return own.cls.map((i: number) => D.moveIds[i]);
+	// 챔피언스 목록: 폼(펌킨인 크기·가라르 파오리 등)에 따로 없으면 기본 모습의 목록
+	const base: any = s.base ? speciesData(s.base, gen) : null;
+	const cls = own.cls || base?.cls;
+	if (LS_MODE === 'champ' && cls) return cls.map((i: number) => D.moveIds[i]);
 	if (LS_MODE !== 'all') {
 		// 그 세대에 배울 수 있는 기술만 (챔피언스 목록에 없는 포켓몬은 스칼렛·바이올렛 기준)
 		const bit = ({ '9': 8, '8': 4, '7': 2, '6': 1 } as { [k: string]: number })[ERA] || 8;
-		return (own.ls || []).filter((_: number, k: number) => ((own.lg?.charCodeAt(k) ?? 63) - 48) & bit).map((i: number) => D.moveIds[i]);
+		const out = (own.ls || []).filter((_: number, k: number) => ((own.lg?.charCodeAt(k) ?? 63) - 48) & bit).map((i: number) => D.moveIds[i]);
+		// 그 세대 정보가 없어 비면 기본 모습의 목록
+		return out.length || !base || base === own ? out : learnset(s.base, gen);
 	}
 	const out = new Set<number>([...(own.ls || []), ...(own.cls || [])]);
 	return [...out].map(i => D.moveIds[i]);

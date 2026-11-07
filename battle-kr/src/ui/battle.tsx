@@ -508,6 +508,11 @@ function typeTint(type: string) {
 		case '-supereffective': { sfx('hitSuper'); vibrate(40); if (arenaRef.current) FX.shake(arenaRef.current, true); return 0; }
 		case '-crit': { sfx('crit'); vibrate([30, 40, 30]); if (fxRef.current) FX.flash(fxRef.current); return 0; }
 		case '-miss': { sfx('miss'); return 0; }
+		case '-anim': {
+			// 쾌청 솔라빔·파워풀허브 2턴 기술·드래곤애로우 두 번째 등: 실제 기술 연출
+			if (settings.effects === false) return 300;
+			return Math.max(500, moveFx(p) + 300);
+		}
 		case '-singleturn': {
 			// 힘껏펀치·부리캐논·트랩셸: 턴 처음에 기운을 모으는 연출
 			const kind = /Focus Punch/.test(args[2]) ? 'focus' : /Beak Blast/.test(args[2]) ? 'beak' : /Shell Trap/.test(args[2]) ? 'shell' : '';
@@ -673,9 +678,12 @@ function typeTint(type: string) {
 			if (!lines[i].startsWith('|move|')) continue;
 			if (/\[(miss|notarget)\]/.test(lines[i])) { lines[i] += '|[noanim]'; continue; }
 			let failed = false, hit = false;
+			const user = lines[i].split('|')[2]?.slice(0, 3) || '';
 			for (let j = i + 1; j < lines.length && !/^\|(move|turn|switch|drag|upkeep|cant)\|/.test(lines[j]) && lines[j] !== '|'; j++) {
 				const l = lines[j];
 				if (/^\|-(miss|immune|fail)\|/.test(l) || BLOCK.test(l)) failed = true;
+				// 킹실드·니들가드·토치카 등: 막힌 쪽(기술을 쓴 포켓몬)의 능력 하락·상태이상은 맞은 것이 아님
+				else if (failed && /^\|-(unboost|boost|status)\|/.test(l) && l.split('|')[2]?.startsWith(user)) continue;
 				else if (/^\|-(damage|status|boost|unboost|heal|start|sidestart|fieldstart|weather|clearallboost|transform|setboost|swapboost|activate|singleturn|singlemove|item|enditem)\|/.test(l) && !/\[from\]/.test(l)) hit = true;
 			}
 			if (failed && !hit) lines[i] += '|[noanim]';
@@ -926,6 +934,7 @@ function typeTint(type: string) {
 		const ended = s.ended || !!setup.replay;
 		if (!ended && !(await confirmBox('메인 메뉴로', setup.noRecord ? '배틀을 그만두고 메인 메뉴로 돌아갈까요?' :
 			'배틀을 그만두고 메인 메뉴로 돌아갈까요?\n이 배틀은 패배로 기록되고, 진행 중인 연승 도전은 끝납니다.', '메인 메뉴로', '계속 싸운다'))) return;
+		deadRef.current = true;   // 진행 중인 재생 루프를 멈춤 (메뉴에서 승리 음악·기록이 남지 않게)
 		skipRef.current?.();
 		cancelAnims();
 		stopMusic();
@@ -1540,7 +1549,7 @@ function typeTint(type: string) {
 				<button class="btn big danger" onClick={quitToMenu}>메인 메뉴로</button>
 			</div>
 		</Modal>}
-		{fieldOpen && <FieldModal session={sessionRef.current!} onClose={() => setFieldOpen(false)} />}
+		{fieldOpen && <FieldModal session={sessionRef.current!} scene={sceneRef.current} onClose={() => setFieldOpen(false)} />}
 		{showLog && <Modal title="배틀 기록" onClose={() => setShowLog(false)}>
 			<button class="btn small" onClick={() => { navigator.clipboard?.writeText(log.join('\n')).then(() => toast('배틀 기록을 복사했습니다'), () => toast('복사하지 못했습니다')); }}>기록 복사</button>
 			{/* 최근 턴이 위로 (턴 안의 순서는 그대로) */}
@@ -1585,7 +1594,8 @@ function megaFormsOf(set: PSet): string[] {
 const TERRAIN_KO: { [id: string]: string } = { electricterrain: '일렉트릭필드', grassyterrain: '그래스필드', mistyterrain: '미스트필드', psychicterrain: '사이코필드' };
 const SIDE_COND_KO: { [id: string]: string } = { ...SIDE_KO, auroraveil: '오로라베일', craftyshield: '트릭가드', matblock: '마룻바닥세워막기', luckychant: '행운의주술', stickyweb: '끈적끈적네트' };
 /** 필드 상황: 날씨·필드·방·양쪽 설치기와 남은 턴 */
-function FieldModal({ session, onClose }: { session: Session; onClose: () => void }) {
+/** 필드 상황: 날씨·필드·벽은 엔진, 포켓몬 상태(랭크·혼란 등)는 화면에 보인 그대로(연출보다 앞서 보이거나 상대의 숨은 정보가 드러나지 않게) */
+function FieldModal({ session, scene, onClose }: { session: Session; scene: any; onClose: () => void }) {
 	const b = session.battle;
 	const turns = (st: any) => st?.duration ? `${st.duration}턴 남음` : st?.id ? '지속' : '';
 	const w = b.field.weatherState, t = b.field.terrainState;
@@ -1596,11 +1606,14 @@ function FieldModal({ session, onClose }: { session: Session; onClose: () => voi
 			<b>{label}</b>
 			{!conds.length && <span class="muted"> 없음</span>}
 			{conds.map(([id, st]) => <div class="field-row"><span>{SIDE_COND_KO[id] || (id.startsWith('gmax') ? moveKo(id) : id)}{st.layers > 1 ? ` ×${st.layers}` : ''}</span><span class="muted">{turns(st)}</span></div>)}
-			{side.active.filter((p: any) => p && !p.fainted).map((p: any) => {
-				const vols = Object.entries(p.volatiles || {}).filter(([id]) => VOLATILE_KO[id] || /^perish|^stockpile/.test(id)).map(([id, st]: any) => `${VOLATILE_KO[id] || id}${st?.duration ? `(${st.duration}턴)` : ''}`);
-				const st = p.status ? `${STATUS_LABEL_KO[p.status] || p.status}${p.status === 'slp' && p.statusState?.time ? `(최대 ${p.statusState.time}턴)` : ''}` : '';
-				const bs = Object.entries(p.boosts || {}).filter(([, v]) => v).map(([k, v]: any) => `${STAT_SHORT[k] || STAT_KO[k] || k}${v > 0 ? '+' : ''}${v}`);
-				return (vols.length || st || bs.length) ? <div class="field-row"><span>{p.name}</span><span class="muted">{[st, ...bs, ...vols].filter(Boolean).join(' · ')}</span></div> : null;
+			{(scene?.[side.id]?.active || []).filter((m: any) => m && !m.fainted && !m.hidden).map((m: any) => {
+				const own = side.id === 'p1';
+				// 남은 턴 수는 내 편만 (엔진에서 같은 포켓몬을 찾아서)
+				const ep = own ? side.active.find((p: any) => p && p.name === m.nick) : null;
+				const vols = [...(m.vol || [])].filter((id: string) => VOLATILE_KO[id]).map((id: string) => `${VOLATILE_KO[id]}${ep?.volatiles?.[id]?.duration ? `(${ep.volatiles[id].duration}턴)` : ''}`);
+				const st = m.status && m.status !== 'fnt' ? STATUS_LABEL_KO[m.status] || m.status : '';
+				const bs = Object.entries(m.boosts || {}).filter(([, v]) => v).map(([k, v]: any) => `${STAT_SHORT[k] || STAT_KO[k] || k}${v > 0 ? '+' : ''}${v}`);
+				return (vols.length || st || bs.length) ? <div class="field-row"><span>{m.nick}</span><span class="muted">{[st, ...bs, ...vols].filter(Boolean).join(' · ')}</span></div> : null;
 			})}
 		</div>;
 	};

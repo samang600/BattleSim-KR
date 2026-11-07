@@ -102,7 +102,7 @@ const ABIL_ERA: { [id: string]: 8 | 7 | 6 } = {
 	intrepidsword: 8, dauntlessshield: 8, protean: 8, libero: 8,          // 8세대: 나올 때마다 / 기술마다
 	innerfocus: 7, oblivious: 7, owntempo: 7, scrappy: 7, rattled: 7,     // 7세대: 위협 무효·발동 없음
 	disguise: 7, moody: 7,                                                // 7세대: 탈 데미지 없음, 명중·회피도 오름
-	galewings: 6, aerilate: 6, pixilate: 6, refrigerate: 6, normalize: 6, // 6세대: HP 조건 없음, 1.3배, 노말화 위력 보정 없음
+	galewings: 6, aerilate: 6, pixilate: 6, refrigerate: 6,               // 6세대: HP 조건 없음, 1.3배 (노말스킨은 6세대 동작이 Z기술·다이맥스까지 노말로 바꿔서 제외)
 };
 const MAX_ABIL = ['intrepidsword', 'dauntlessshield', 'protean', 'libero', 'disguise', 'galewings', 'aerilate', 'pixilate', 'refrigerate'];
 const GEN_ABIL: { [g: number]: { [id: string]: any } } = { 8: GEN8_ABILITIES as any, 7: GEN7_ABILITIES as any, 6: GEN6_ABILITIES as any };
@@ -112,6 +112,14 @@ function eraAbilities(era: '8' | '7' | '6' | 'max') {
 		if (era === 'max' ? !MAX_ABIL.includes(id) : g < +era) continue;
 		const src = GEN_ABIL[g][id];
 		if (src) out[id] = { ...src, inherit: true };
+	}
+	// 7세대 탈: 잠꼬대로 나온 구르기·아이스볼은 기술 상태가 없을 수 있음 → 없으면 건너뜀 (9세대 엔진에서 오류 방지)
+	if (out.disguise?.onDamage) {
+		const orig = out.disguise.onDamage;
+		out.disguise.onDamage = function (this: any, damage: number, target: any, source: any, effect: any) {
+			if (effect && ['rollout', 'iceball'].includes(effect.id) && !source?.volatiles?.[effect.id]) source.volatiles[effect.id] = { contactHitCount: 1 };
+			return orig.call(this, damage, target, source, effect);
+		};
 	}
 	return out;
 }

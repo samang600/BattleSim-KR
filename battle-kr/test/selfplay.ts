@@ -3,8 +3,8 @@ import { Battle } from '../../sim/battle';
 import { chooseAI } from '../src/ai';
 import { filterGimmicks, gimmickOfLine, Session } from '../src/engine';
 import { loadSettings } from '../src/store';
-import { ruleById } from '../src/rules';
-import { randomTeam, toSimTeam } from '../src/sets';
+import { ruleById, applyRuleData } from '../src/rules';
+import { randomTeam, toSimTeam, randomSetFor } from '../src/sets';
 import { setSmogon, aiPickEntry } from '../src/smogon';
 import { rankerTeam } from '../src/pokedb';
 import { KoreanText, parseLine } from '../src/text';
@@ -22,9 +22,9 @@ import { KoreanText, parseLine } from '../src/text';
 	for (let k = 0; k < n; k++) {
 		const reqs: any = {};
 		const used: any = { p1: new Set(), p2: new Set() };
-		const rule = ruleById(loadSettings().battleRule);
+		const rule = ruleById(loadSettings().battleRule); applyRuleData(rule);
 		const lines: string[] = [];
-		const b = new Battle({ formatid: `gen${gen}kr${doubles ? 'doubles' : 'singles'}` as any, send: (t: string, d: any) => {
+		const b = new Battle({ formatid: `gen${gen}kr${doubles ? 'doubles' : 'singles'}${rule.mod === 'gen9' ? '' : rule.mod}` as any, send: (t: string, d: any) => {
 			if (t === 'sideupdate') { const s = String(d); const side = s.slice(0, 2); const r = s.slice(3); if (r.startsWith('|request|')) reqs[side] = JSON.parse(r.slice(9)); }
 			if (t === 'update') { const ls = Array.isArray(d) ? d : String(d).split('\n'); lines.push(...ls); for (const l of ls) { const g = gimmickOfLine(l); if (g) used[g[0]].add(g[1]); } }
 		} } as any);
@@ -98,3 +98,9 @@ import { KoreanText, parseLine } from '../src/text';
 };
 (window as any).__Battle = Battle; // 테스트용: 상태이상 확률 측정 등
 (window as any).__Session = Session; // 테스트용: 멀티배틀 기믹 등
+(window as any).__rs = randomSetFor;
+(window as any).__ard = () => applyRuleData(ruleById(loadSettings().battleRule));
+import { learnset as __ls } from '../src/data';
+(window as any).__ls = __ls;
+import { speciesPool } from '../src/sets';
+(window as any).__pool = speciesPool;

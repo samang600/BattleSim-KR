@@ -37,7 +37,7 @@ export function setFxSpeed(v: number) { SPEED = Math.max(0.5, Math.min(4, v)); }
 export function fxSpeed() { return SPEED; }
 const later = (fn: () => void, ms: number) => setTimeout(fn, ms / SPEED);
 function anim(el: HTMLElement, frames: Keyframe[], opts: KeyframeAnimationOptions) {
-	const a = el.animate(frames, { easing: 'steps(6)', fill: 'forwards', ...opts });
+	const a = el.animate(frames, { easing: 'steps(6)', fill: 'both', ...opts });   // both: 지연 중에도 첫 장면(투명 등)으로 — 미리 보였다가 깜박이지 않게
 	a.playbackRate = SPEED;
 	a.onfinish = () => el.remove();
 	return a;
