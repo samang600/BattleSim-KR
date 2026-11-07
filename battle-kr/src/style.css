@@ -1440,3 +1440,74 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 @media (min-width: 1500px) and (min-aspect-ratio: 5/4) and (min-height: 1040px) {
 	body:not(:has(.battle)) #app { zoom: 1.4; }
 }
+
+/* ═════ v2.39 시안: 넓은 화면 배틀 — 포켓몬 챔피언스풍 배치, 도트 스타일 유지 ═════
+   필드가 화면 전체(4:3 필드 + 양옆은 같은 배경을 거울처럼 이어 붙임), 조작 UI 는 필드 위에 떠 있음:
+   상대 HP 상자 오른쪽 위 · 내 HP 상자 왼쪽 아래 · 메시지는 상자 없이 아래 가운데 · 명령은 오른쪽 아래 큰 버튼 · 기술은 오른쪽 세로 목록 */
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	.battle { --aw: min(100vw, calc(100dvh * 4 / 3)); display: block; position: relative; height: 100dvh; overflow: hidden; background: #05070c; }
+	.battle.bg-field { --aimg: url(__IMG_arena_field__); } .battle.bg-tower { --aimg: url(__IMG_arena_tower__); } .battle.bg-factory { --aimg: url(__IMG_arena_factory__); }
+	.battle.bg-pwt { --aimg: url(__IMG_arena_pwt__); } .battle.bg-champion { --aimg: url(__IMG_arena_champion__); } .battle.bg-cave { --aimg: url(__IMG_arena_cave__); }
+	.battle.bg-beach { --aimg: url(__IMG_arena_beach__); } .battle.bg-snow { --aimg: url(__IMG_arena_snow__); } .battle.bg-volcano { --aimg: url(__IMG_arena_volcano__); }
+	.battle.bg-gym { --aimg: url(__IMG_arena_gym__); }
+	/* 양옆: 필드 그림을 좌우로 뒤집어 이어 붙임 (경계가 자연스럽게), 조금 어둡게 */
+	.battle::before, .battle::after { content: ''; position: absolute; top: 0; bottom: 0; width: calc((100% - var(--aw)) / 2 + 1px); z-index: 0;
+		background: var(--aimg, #05070c) no-repeat; background-size: var(--aw) 100%; image-rendering: pixelated; transform: scaleX(-1); filter: brightness(.7); }
+	.battle::before { left: 0; background-position: left bottom; }
+	.battle::after { right: 0; background-position: right bottom; }
+	.battle > .arena { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: var(--aw); height: 100dvh; aspect-ratio: auto; margin: 0; z-index: 1; }
+	/* 상단 바: 왼쪽 위에 작게 */
+	.battle > .hud-top { position: absolute; top: 6px; left: 8px; right: auto; z-index: 6; }
+	/* HP 상자: 상대는 오른쪽 위, 나는 왼쪽 아래 (필드 기준) */
+	.battle .arena .panels.foe { left: auto; right: 10px; top: 10px; align-items: stretch; }
+	.battle .arena .panels.own { right: auto; left: 10px; bottom: 10px; }
+	.battle .arena .panels.foe .side-row { justify-content: flex-end; }
+	.battle .arena .panels.own .side-row { justify-content: flex-start; flex-direction: row-reverse; }
+	/* 내 포켓몬을 조금 위·안쪽으로 (HP 상자와 겹치지 않게) */
+	.battle.singles .slot.own.s0 { left: 30%; top: 88%; }
+	.battle.doubles .slot.own.s0 { left: 22%; top: 87%; } .battle.doubles .slot.own.s1 { left: 40%; top: 90%; }
+	/* 조작 층: 화면 전체를 덮되 빈 곳은 클릭이 필드로 */
+	.battle > .bottom { position: absolute; inset: 0; z-index: 5; display: block; padding: 0; border: 0; box-shadow: none; background: none; pointer-events: none; zoom: 1; }
+	.battle > .bottom > * { pointer-events: auto; }
+	/* 메시지: 상자 없이 아래 가운데, 굵은 외곽선 글자 */
+	.battle .msgbox, .battle .msgbox.win-dark { position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%); width: min(56vw, 900px); min-height: 0; margin: 0; padding: 0;
+		border: 0 !important; border-image: none !important; clip-path: none !important; background: none !important; box-shadow: none !important;
+		font-size: clamp(20px, 2.2vw, 30px); line-height: 1.35; text-align: center; color: #fff;
+		text-shadow: 3px 0 0 #000, -3px 0 0 #000, 0 3px 0 #000, 0 -3px 0 #000, 3px 3px 0 #000, -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 5px 5px 0 rgba(0,0,0,.45); }
+	.battle .msgbox .msg-arrow { position: static; display: inline-block; margin-left: 8px; color: var(--yellow); }
+	/* 입력 차례: 메시지는 위쪽 반투명 띠로 */
+	.battle:has(.controls .ctl-head) .msgbox { top: 56px; bottom: auto; left: 12px; transform: none; width: auto; max-width: 40vw; text-align: left; padding: 6px 20px; font-size: clamp(16px, 1.5vw, 22px);
+		background: rgba(10, 12, 28, .72) !important; text-shadow: 2px 2px 0 #000; }
+	/* 조작 패널: 오른쪽 아래 */
+	.battle .controls { position: absolute; right: 20px; bottom: 20px; width: clamp(320px, 24vw, 430px); max-height: calc(100dvh - 120px); display: flex; flex-direction: column; gap: 8px; }
+	.battle .controls .ctl-head { justify-content: flex-end; gap: 8px; }
+	.battle .controls .ctl-title { margin-right: auto; padding: 2px 10px; background: rgba(10, 12, 28, .72); text-shadow: 2px 2px 0 #000; }
+	/* 명령: 큰 '싸운다' · '포켓몬' 버튼을 세로로, 필드·기권은 작게 */
+	.battle .controls > .cmd-menu { flex: none; max-height: none; overflow: visible; align-items: flex-end; gap: 12px; padding: 0; }
+	.battle .cmd-fight { flex: none; width: 200px; height: 150px; min-height: 0; }
+	.battle .cmd-fight > span { font-size: 30px; text-align: center; }
+	.battle .cmd-fight > span::after { content: '\A Enter'; white-space: pre; display: block; font-size: 12px; opacity: .75; }
+	.battle .controls .cmd-row { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; min-height: 0; }
+	.battle .controls { overflow: visible; }
+	.battle .controls .cmd-sub.green { order: -1; width: 200px; height: 110px; min-height: 110px; font-size: 24px; }
+	.battle .controls .cmd-sub.yellow, .battle .controls .cmd-sub.blue { width: 200px; height: 40px; min-height: 40px; font-size: 15px; }
+	/* 기술: 오른쪽 세로 목록 — 왼쪽 타입, 가운데 이름·상성, 오른쪽 PP */
+	.battle .controls .move-panel { flex: none; min-height: auto; display: flex; flex-direction: column; gap: 6px; }
+	.battle .controls .move-panel > .move-grid, .battle .controls .move-panel > .move-grid.win-dark { flex: none; display: flex; flex-direction: column; gap: 10px; padding: 0; overflow: visible; min-height: auto; }
+	.battle .mvb { display: grid !important; grid-template-columns: auto 1fr auto; grid-template-rows: 1fr auto; grid-template-areas: "ty nm pp" "ty ef pp"; align-items: center;
+		column-gap: 12px; height: 74px; min-height: 0; padding: 6px 16px !important; }
+	.battle .mvb .mvb-top, .battle .mvb .mvb-bottom { display: contents; }
+	.battle .mvb .type { grid-area: ty; align-self: center; font-size: 15px; padding: 4px 8px; }
+	.battle .mvb .cat-icon { display: none; }
+	.battle .mvb .mvb-pp { grid-area: pp; margin: 0; font-size: 13px; text-align: right; white-space: nowrap; } .battle .mvb .mvb-pp b { font-size: 22px; display: inline; line-height: 1; }
+	.battle .mvb .mvb-name { grid-area: nm; text-align: left; font-size: 22px; line-height: 26px; align-self: end; }
+	.battle .mvb .mvb-name.l { font-size: 19px; } .battle .mvb .mvb-name.xl { font-size: 16px; }
+	.battle .mvb .mvb-eff, .battle .mvb .mvb-dmg { grid-area: ef; justify-self: start; align-self: start; font-size: 12px; }
+	.battle .mvb .mvb-dmg { justify-self: end; }
+	.battle .move-panel .mv-hint { text-align: right; text-shadow: 1px 1px 0 #000; }
+	.battle .controls > .gm-bar .gmb { min-height: 40px; font-size: 14px; }
+	/* 교체·대상: 오른쪽 패널 안에서 2열 */
+	.battle .controls > .switch-list { grid-template-columns: 1fr 1fr; grid-auto-rows: 84px; }
+	/* 배틀 끝 버튼 */
+	.battle .controls.end { width: clamp(320px, 24vw, 430px); }
+}
