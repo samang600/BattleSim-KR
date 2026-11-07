@@ -118,6 +118,14 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	const [message, setMessage] = useState('');
 	const [log, setLog] = useState<string[]>([]);
 	const [phase, setPhase] = useState<'playing' | 'input' | 'ended'>('playing');
+	// 웹: 배틀 중에 탭·창을 닫거나 새로고침하면 브라우저의 '사이트에서 나가시겠습니까? 변경사항이 저장되지 않을 수 있습니다' 확인창
+	// (안드로이드 앱·리플레이·배틀이 끝난 뒤에는 묻지 않음. 문구는 브라우저가 정함)
+	useEffect(() => {
+		if (setup.replay || phase === 'ended' || document.documentElement.classList.contains('native')) return;
+		const onLeave = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; return ''; };
+		addEventListener('beforeunload', onLeave);
+		return () => removeEventListener('beforeunload', onLeave);
+	}, [phase === 'ended']);
 	const [showLog, setShowLog] = useState(false);
 	const [detail, setDetail] = useState<{ mon: Mon; own: boolean } | null>(null);
 	const skipRef = useRef<(() => void) | null>(null);
