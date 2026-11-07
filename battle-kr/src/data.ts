@@ -328,6 +328,15 @@ export function zCrystalForType(type: string): string | null {
 	for (const [id, it] of Object.entries(D.items)) if (it.zt === type && !it.zf) return id;
 	return null;
 }
+/** 테라 타입이 정해진 포켓몬: 테라파고스 = 스텔라, 오거폰 = 가면 타입 (없으면 null) */
+export function fixedTera(species: string): string | null {
+	const s = speciesData(toID(species), 9);
+	if (!s) return null;
+	const base = toID(s.en).replace(/(terastal|stellar|wellspring|hearthflame|cornerstone|teal|tera)+$/g, '');
+	if (base === 'terapagos') return 'Stellar';
+	if (base === 'ogerpon') return s.t[1] || 'Grass';
+	return null;
+}
 export const ALL_TYPES = ['Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice', 'Fighting', 'Poison', 'Ground', 'Flying', 'Psychic',
 	'Bug', 'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel', 'Fairy', 'Stellar'];
 

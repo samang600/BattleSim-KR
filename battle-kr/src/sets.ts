@@ -2,7 +2,7 @@
 import { loadSettings } from './store';
 import { ruleById, speciesAllowed, megaStoneAllowed, itemAllowed } from './rules';
 import { Teams } from '../../sim/teams';
-import { RAW, speciesData, learnset, moveData, toID, bst, speciesKo, nickKo, megaStonesFor, zCrystalForType, type Gen, type StatID } from './data';
+import { fixedTera, RAW, speciesData, learnset, moveData, toID, bst, speciesKo, nickKo, megaStonesFor, zCrystalForType, type Gen, type StatID } from './data';
 import FACTORY_SETS from '../../data/random-battles/gen9/factory-sets.json';
 import { smogonSet, synergyPick } from './smogon';
 
@@ -262,6 +262,7 @@ export function conformSet<T extends PSet>(set: T, gen: Gen = 9): T {
 	const rule = ruleById(loadSettings().battleRule);
 	const id = toID(set.species), sd = speciesData(id, gen);
 	if (!sd) return set;
+	const ft = fixedTera(id); if (ft) set.teraType = ft;
 	// 특성
 	if (set.ability && !sd.ab.includes(toID(set.ability))) set.ability = sd.ab[0];
 	// 기술: 배울 수 없는 것은 빼고, 모자라면 자동 세트의 기술로 채움
@@ -412,7 +413,7 @@ export function assignGimmicks(team: PSet[], opts: { mega?: number; z?: number }
 			if (z) set.item = z;
 		}
 	}
-	for (const s of team) if (!s.teraType) s.teraType = speciesData(s.species, 9)?.t[0];
+	for (const s of team) s.teraType = fixedTera(s.species) || s.teraType || speciesData(s.species, 9)?.t[0];
 	return team;
 }
 
@@ -444,7 +445,7 @@ export function factoryTeam(tier: string, size: number, level: number, exclude =
 		const ivs = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31, ...(fs.ivs || {}) };
 		out.push(conformSet({
 			name: nickKo(sid), species: sd.en, item: toID(pick(fs.item) || ''), ability: toID(pick(fs.ability) || sd.ab[0]),
-			moves: [...new Set(moves)] as string[], nature: toID(pick(fs.nature) || 'serious'), evs, ivs, level, teraType: pick(fs.teraType) || sd.t[0],
+			moves: [...new Set(moves)] as string[], nature: toID(pick(fs.nature) || 'serious'), evs, ivs, level, teraType: fixedTera(id) || pick(fs.teraType) || sd.t[0],
 		}));
 	}
 	return out;
@@ -516,7 +517,7 @@ export function toSimTeam(team: PSet[], cheat = false) {
 	return team.map(s => ({
 		name: nameOf(s), species: s.species, item: s.item, ability: s.ability, moves: s.moves.slice(),
 		nature: s.nature, evs: { ...s.evs }, ivs: { ...s.ivs }, level: s.level, gender: s.gender || '', shiny: !!s.shiny, gigantamax: !!s.gigantamax && !!speciesData(s.species, 9)?.gx, pokeball: s.pokeball || 'pokeball',
-		teraType: s.teraType || speciesData(s.species, 9)?.t[0],
+		teraType: fixedTera(s.species) || s.teraType || speciesData(s.species, 9)?.t[0],
 	}));
 }
 

@@ -2,7 +2,7 @@
 import { h } from 'preact';
 import { useMemo, useState, useRef, useLayoutEffect } from 'preact/hooks';
 import { allSpecies, allItems, allNatures, learnset, moveData, speciesData, toID, abilityKo, abilityDesc, itemKo, itemDesc,
-	natureKo, STAT_KO, STAT_SHORT, STATS, RAW, speciesKo, nickKo, ALL_TYPES, typeKo, megaStonesFor, allBalls, type Gen, type StatID } from '../data';
+	natureKo, STAT_KO, STAT_SHORT, STATS, RAW, speciesKo, nickKo, ALL_TYPES, typeKo, fixedTera, megaStonesFor, allBalls, type Gen, type StatID } from '../data';
 import { typeEff } from './calc';
 import { randomSetFor, applySpread, randomTeam, normalizeSP, fillSP, cheatSP, spOf, spToEv, evToSp, SP_MAX, SP_TOTAL, evDisplay, fmtSP, evsFor510, type PSet } from '../sets';
 import { ruleById, teamRuleWarnings } from '../rules';
@@ -131,7 +131,7 @@ export function exportText(sets: PSet[]) {
 		const lines = [`${nick}${s.gender ? ` (${s.gender})` : ''}${s.item ? ' @ ' + itemKo(s.item) : ''}`, `특성: ${abilityKo(s.ability)}`,
 			evDisplay() ? `노력치: ${(() => { const e = evsFor510(spOf(s)); return STATS.filter(k => e[k]).map(k => `${e[k]} ${STAT_SHORT[k]}`).join(' / '); })()}`
 				: `능력 포인트: ${(() => { const p = spOf(s); return STATS.filter(k => p[k]).map(k => `${p[k]} ${STAT_SHORT[k]}`).join(' / '); })()}`,
-			`${natureKo(s.nature)} 성격`, `테라타입: ${typeKo(s.teraType || speciesData(toID(s.species), 9)?.t[0] || 'Normal')}`,
+			`${natureKo(s.nature)} 성격`, `테라타입: ${typeKo(fixedTera(s.species) || s.teraType || speciesData(toID(s.species), 9)?.t[0] || 'Normal')}`,
 			...(s.gigantamax ? ['거다이맥스: 예'] : []), ...(s.pokeball && s.pokeball !== 'pokeball' ? [`볼: ${itemKo(s.pokeball)}`] : []), ...(s.shiny ? ['색이 다른: 예'] : []), ...s.moves.map(m => `- ${moveData(m, 5)?.name || m}`)];
 		return lines.join('\n');
 	}).join('\n\n');
@@ -357,8 +357,9 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 			{allNatures().map(n => <option value={n.id}>{n.n}{n.p ? ` (${STAT_SHORT[n.p]}▲ ${STAT_SHORT[n.m]}▼)` : ' (변화 없음)'}</option>)}</select>
 			<b class="muted small">{nat?.p ? `${STAT_KO[nat.p]} ▲ / ${STAT_KO[nat.m]} ▼` : '능력 변화 없음'}</b></label>
 		<h3 class="sec">테라스탈 타입</h3>
+		{fixedTera(s.species) ? <label class="sel-row big"><TypeBadge type={fixedTera(s.species)!} /><span class="muted small">{typeKo(fixedTera(s.species)!)} 고정 (이 포켓몬은 테라 타입을 바꿀 수 없어요)</span></label> :
 		<label class="sel-row big"><TypeBadge type={s.teraType || sd.t[0]} /><select value={s.teraType || sd.t[0]} onChange={e => up({ teraType: (e.target as HTMLSelectElement).value })}>
-			{ALL_TYPES.map(t => <option value={t}>{typeKo(t)}</option>)}</select></label>
+			{ALL_TYPES.map(t => <option value={t}>{typeKo(t)}</option>)}</select></label>}
 		<h3 class="sec">{evDisplay() ? '노력치' : '능력 포인트'} <small class={'muted' + (spTotal > SP_TOTAL ? ' bad' : '')}>{evDisplay() ? `${STATS.reduce((a, k) => a + spToEv(sp[k]), 0)} · ` : ''}{cheat ? `${spTotal}${evDisplay() ? '포인트' : ''} (제한 없음)` : `${spTotal}/${SP_TOTAL}${evDisplay() ? '포인트' : ''}`}</small>
 			<button class="btn ghost small" onClick={() => { const n = applySpread({ ...s, evs: { ...s.evs } }, gen); up({ evs: fillSP({ ...s, evs: n.evs, ivs: { ...s.ivs } }).evs, nature: n.nature }); }}>자동 배분</button></h3>
 		<p class="muted small">{evDisplay()

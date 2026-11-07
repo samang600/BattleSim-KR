@@ -3,7 +3,7 @@
  *  - 팀을 짤 때 자주 같이 쓰는 포켓몬을 고르고
  *  - 6→3/6→4 참가 선택에서 상대 팀을 보고 유리한 포켓몬을 고른다. */
 import SMOGON from './gen/smogon.json';
-import { RAW, speciesData, learnset, moveData, toID, type Gen } from './data';
+import { fixedTera, RAW, speciesData, learnset, moveData, toID, type Gen } from './data';
 import { ruleById, megaStoneAllowed, itemAllowed, type BattleRule } from './rules';
 import { loadSettings } from './store';
 import { evToSp, spToEv, fillSP, type PSet } from './sets';
@@ -89,7 +89,7 @@ export function smogonSet(speciesId: string, gen: Gen, level: number, doubles: b
 	const teraType = tera ? tera.charAt(0).toUpperCase() + tera.slice(1) : sd.t[0];
 	const set: PSet = {
 		name: '', species: sd.en, item, ability, moves, nature: toID(nat) || 'serious', evs,
-		ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 }, level, teraType: teraType === 'Stellar' ? sd.t[0] : teraType,
+		ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 }, level, teraType: fixedTera(sd.en) || (teraType === 'Stellar' ? sd.t[0] : teraType),
 	};
 	return fillSP(set);
 }

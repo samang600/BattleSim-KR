@@ -1,7 +1,7 @@
 /** 메뉴·선택 화면들 */
 import { h, Fragment, type ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
-import { speciesData, toID, moveKo, itemKo, abilityKo, natureKo, typeKo, STAT_SHORT, STAT_KO, STATS, moveData, natureData, abilityDesc, itemDesc, calcStat, type Gen } from '../data';
+import { fixedTera, speciesData, toID, moveKo, itemKo, abilityKo, natureKo, typeKo, STAT_SHORT, STAT_KO, STATS, moveData, natureData, abilityDesc, itemDesc, calcStat, type Gen } from '../data';
 import { evToSp, spToEv, evDisplay, fmtSP, type PSet } from '../sets';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { Screen, Sprite, MiniSprite, CropSprite, TypeBadge, Modal, HPBar, StatusBadge, TYPE_COLOR } from './core';
@@ -16,7 +16,7 @@ export function SetCard({ set, gen, selected, order, onClick, compact, children 
 		<div class="set-sprite"><CropSprite species={set.species} gen={gen} size={64} shiny={set.shiny} /></div>
 		<div class="set-body">
 			<div class="set-title"><b>{set.name || sd?.n}</b>{sd?.t.map(t => <TypeBadge type={t} small />)}
-				<span class="tera-tag" title="테라스탈 타입">테라<TypeBadge type={set.teraType || sd?.t[0] || 'Normal'} small /></span>
+				<span class="tera-tag" title="테라스탈 타입">테라<TypeBadge type={fixedTera(set.species) || set.teraType || sd?.t[0] || 'Normal'} small /></span>
 				{set.gigantamax && <span class="gmax-tag" title="거다이맥스">거다이</span>}</div>
 			<div class="set-meta">{abilityKo(set.ability)} · {set.item ? itemKo(set.item) : '도구 없음'}{!compact && ` · ${natureKo(set.nature)}`}</div>
 			<div class="set-moves">{set.moves.map(m => <span>{moveKo(m)}</span>)}</div>
@@ -191,7 +191,7 @@ export function MonSheet({ set, gen, live, actions, onClose, note }: {
 				<div class="sheet-info">
 					<div class="types">{sd?.t.map(t => <TypeBadge type={t} />)}</div>
 					{sd && sd.n !== set.name && <div class="muted small">{sd.n}</div>}
-					{set.teraType && <div class="small">테라스탈 <TypeBadge type={set.teraType} small /></div>}
+					{set.teraType && <div class="small">테라스탈 <TypeBadge type={fixedTera(set.species) || set.teraType} small /></div>}
 					{live && <div class="sheet-hp"><HPBar hp={live.hp} maxhp={live.maxhp || 1} /><span>{live.hp}/{live.maxhp}</span> <StatusBadge status={live.status} /></div>}
 				</div>
 			</div>

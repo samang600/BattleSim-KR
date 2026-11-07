@@ -3,7 +3,7 @@ import { h, Fragment } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import { TypeChart } from '../../../data/typechart';
 import { speciesData, moveData, learnset, toID, abilityKo, itemKo, natureKo, natureData, calcStat, STAT_KO, STAT_SHORT, STATS, speciesKo,
-	nickKo, allSpecies, typeKo, RAW, type Gen, type StatID } from '../data';
+	nickKo, allSpecies, typeKo, fixedTera, RAW, type Gen, type StatID } from '../data';
 import { randomSetFor, evToSp, spToEv, type PSet } from '../sets';
 import { loadTeams } from '../store';
 import { Screen, Sprite, MiniSprite, TypeBadge, Modal, toast, CatIcon } from './core';
@@ -123,7 +123,7 @@ export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): Calc
 	if (f.crit) { base = Math.floor(base * 1.5); notes.push('급소'); }
 	// 자속
 	const aTypes = as.t;
-	const teraType = atk.tera ? (atk.set.teraType || aTypes[0]) : '';
+	const teraType = atk.tera ? ((fixedTera(atk.set.species) || atk.set.teraType) || aTypes[0]) : '';
 	let stab = 1;
 	if (teraType && teraType !== 'Stellar') {
 		if (moveType === teraType) stab = aTypes.includes(teraType) ? 2 : 1.5;
@@ -132,8 +132,8 @@ export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): Calc
 	if (teraType === 'Stellar') stab = aTypes.includes(moveType) ? 2 : 1.2;
 	if (aAb === 'adaptability' && stab === 1.5) stab = 2;
 	// 상성
-	let defTypes = def.tera ? [def.set.teraType || ds.t[0]] : ds.t;
-	if (def.tera && def.set.teraType === 'Stellar') defTypes = ds.t;
+	let defTypes = def.tera ? [(fixedTera(def.set.species) || def.set.teraType) || ds.t[0]] : ds.t;
+	if (def.tera && (fixedTera(def.set.species) || def.set.teraType) === 'Stellar') defTypes = ds.t;
 	let eff = typeEff(moveType, defTypes);
 	if (moveType === 'Ground' && (dAb === 'levitate' || dItem === 'airballoon')) eff = 0;
 	if (dAb === 'wonderguard' && eff <= 1) eff = 0;
@@ -239,13 +239,13 @@ export function CalcScreen({ onBack }: { onBack: () => void }) {
 				<MiniSprite species={side.set.species} gen={GEN} size={56} shiny={side.set.shiny} />
 				<div class="calc-mon-info">
 					<div class="cm-name"><b>{side.set.name || sd.n}</b><span class="muted small">Lv{side.set.level}</span>
-						<span class="types">{sd.t.map(t => <TypeBadge type={t} small />)}{side.tera && side.set.teraType && <><span class="small">→</span><TypeBadge type={side.set.teraType} small /></>}</span></div>
+						<span class="types">{sd.t.map(t => <TypeBadge type={t} small />)}{side.tera && (fixedTera(side.set.species) || side.set.teraType) && <><span class="small">→</span><TypeBadge type={(fixedTera(side.set.species) || side.set.teraType)} small /></>}</span></div>
 					<div class="cm-meta"><span>{abilityKo(side.set.ability)}</span><span>{side.set.item ? itemKo(side.set.item) : '도구 없음'}</span><span>{natureKo(side.set.nature)}</span></div>
 				</div>
 			</div>
 			<div class="stat-strip">{STATS.map(k => <div class={'ss ' + ((which === 'atk' ? (k === 'atk' || k === 'spa' || k === 'spe') : (k === 'hp' || k === 'def' || k === 'spd' || k === 'spe')) ? 'key' : '')}><span>{STAT_SHORT[k]}</span><b>{stat(side.set, k)}</b></div>)}</div>
 			<div class="chips-row">
-				<button class={'chipbtn' + (side.tera ? ' on' : '')} onClick={() => setSide({ ...side, tera: !side.tera })}>테라스탈 {typeKo(side.set.teraType || sd.t[0])}</button>
+				<button class={'chipbtn' + (side.tera ? ' on' : '')} onClick={() => setSide({ ...side, tera: !side.tera })}>테라스탈 {typeKo((fixedTera(side.set.species) || side.set.teraType) || sd.t[0])}</button>
 				{(which === 'atk' ? ['brn', 'par', 'psn'] : ['brn', 'par', 'psn', 'slp']).map(st => <button class={'chipbtn' + (side.status === st ? ' on' : '')} onClick={() => setSide({ ...side, status: side.status === st ? '' : st })}>{{ brn: '화상', par: '마비', psn: '독', slp: '잠듦' }[st]}</button>)}
 			</div>
 			{boostRow(side, setSide, which === 'atk' ? ['atk', 'spa', 'spe'] : ['def', 'spd', 'spe'])}

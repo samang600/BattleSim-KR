@@ -470,7 +470,10 @@ export class Pokemon {
 		this.knownType = true;
 		this.apparentType = this.baseSpecies.types.join('/');
 		// Every Pokemon has a Terastal type
-		this.teraType = this.set.teraType || this.types[0];
+		// 배틀시뮬 KR: 테라파고스는 스텔라, 오거폰은 가면 타입으로 테라스탈 고정 (게임 규칙)
+		const bs = this.species.baseSpecies;
+		this.teraType = bs === 'Terapagos' ? 'Stellar' : bs === 'Ogerpon' ? (this.species.types[1] || 'Grass') :
+			this.set.teraType || this.types[0];
 
 		this.switchFlag = false;
 		this.forceSwitchFlag = false;
