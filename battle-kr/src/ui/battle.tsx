@@ -1073,7 +1073,7 @@ function typeTint(type: string) {
 							<div class="muted">{md.desc}</div></div> : null)}
 						onClick={() => { if (pressRef.current.long) { pressRef.current.long = false; return; } if (disabled) { setInfoMove(i); return; } onMove(i + 1, m); }}>
 						<span class="mvb-top"><TypeBadge type={type} small />{md && <CatIcon cat={md.category} />}
-							<span class={'mvb-pp' + (low ? ' low' : '')}>{m.maxpp ? <>PP <b>{m.pp}</b>/{m.maxpp}</> : ''}</span></span>
+							<span class={'mvb-pp' + (low ? ' low' : '')}>{m.maxpp ? <><i class="pp-l">PP </i><b>{m.pp}</b>/{m.maxpp}</> : ''}</span></span>
 						<span class={'mvb-name' + (name.length >= 9 ? ' xl' : name.length >= 7 ? ' l' : '')}>{name}</span>
 						<span class="mvb-bottom">
 							{eff && eff !== '보통' ? <span class={'mvb-eff ' + (eff.includes('굉장') ? 'good' : eff === '효과 없음' ? 'none' : 'bad')}>{eff}</span> : <span />}
@@ -1305,8 +1305,6 @@ function typeTint(type: string) {
 
 	const infoBox = (mon: Mon | null, own: boolean, i: number) => {
 		if (!mon || (mon.fainted && !mon.anim)) return <div class="info empty" key={i} />;
-		const boosts = Object.entries(mon.boosts).filter(([, v]) => v);
-		const vols = [...mon.vol].filter(v => VOLATILE_KO[v]);
 		// 포켓몬마다 새 상자 (교체 때 HP 바가 이전 포켓몬 값에서 늘거나 주는 것처럼 보이지 않게)
 		const ownIdx = own ? (sessionRef.current?.battle.p1.pokemon || []).findIndex((p: any) => p.name === mon.nick) : -1;
 		return <div class={'info ' + (own ? 'own' : 'foe') + ' i' + i} key={mon.ident + ':' + i} onClick={() => setDetail({ mon, own })}
@@ -1321,10 +1319,7 @@ function typeTint(type: string) {
 				<StatusBadge status={mon.status} />
 				{own ? <span class="hp-num">{mon.hp}/{mon.maxhp}</span> : <span class="hp-num">{mon.maxhp ? Math.ceil(mon.hp / mon.maxhp * 100) : 0}%</span>}
 			</div>
-			{(boosts.length > 0 || vols.length > 0) && <div class="chips">
-				{boosts.map(([k, v]) => <span class={'chip ' + (v > 0 ? 'up' : 'down')}>{STAT_SHORT[k] || STAT_KO[k]}{v > 0 ? '+' : ''}{v}</span>)}
-				{vols.map(v => <span class="chip vol">{VOLATILE_KO[v]}</span>)}
-			</div>}
+			{/* 랭크 변화·혼란 등 기타 상태는 '필드' 메뉴에서 (HP 창에는 상태이상·테라만) */}
 			{mon.tera && <span class="tera-badge" style={{ background: TYPE_COLOR[mon.tera] }}>테라 {typeKo(mon.tera)}</span>}
 		</div>;
 	};
@@ -1574,7 +1569,8 @@ function FieldModal({ session, onClose }: { session: Session; onClose: () => voi
 			{side.active.filter((p: any) => p && !p.fainted).map((p: any) => {
 				const vols = Object.entries(p.volatiles || {}).filter(([id]) => VOLATILE_KO[id] || /^perish|^stockpile/.test(id)).map(([id, st]: any) => `${VOLATILE_KO[id] || id}${st?.duration ? `(${st.duration}턴)` : ''}`);
 				const st = p.status ? `${STATUS_LABEL_KO[p.status] || p.status}${p.status === 'slp' && p.statusState?.time ? `(최대 ${p.statusState.time}턴)` : ''}` : '';
-				return (vols.length || st) ? <div class="field-row"><span>{p.name}</span><span class="muted">{[st, ...vols].filter(Boolean).join(' · ')}</span></div> : null;
+				const bs = Object.entries(p.boosts || {}).filter(([, v]) => v).map(([k, v]: any) => `${STAT_SHORT[k] || STAT_KO[k] || k}${v > 0 ? '+' : ''}${v}`);
+				return (vols.length || st || bs.length) ? <div class="field-row"><span>{p.name}</span><span class="muted">{[st, ...bs, ...vols].filter(Boolean).join(' · ')}</span></div> : null;
 			})}
 		</div>;
 	};

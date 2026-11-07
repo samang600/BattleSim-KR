@@ -15,12 +15,12 @@ export interface MoveFxInfo { id: string; type: string; category: string; flags:
 const LIGHT: { [t: string]: string } = {
 	Fire: '#ffd040', Water: '#b0e0ff', Electric: '#fff8a0', Grass: '#b0f080', Ice: '#e8ffff', Psychic: '#ffc0e0',
 	Ghost: '#c8a0ff', Dark: '#a08080', Dragon: '#b0b8ff', Fairy: '#ffe0ff', Poison: '#e0a0ff', Steel: '#f0f0ff',
-	Fighting: '#ffc080', Ground: '#e8c890', Rock: '#e0d8b0', Bug: '#e0f080', Flying: '#e0f0ff', Normal: '#ffffff', Stellar: '#ffffff',
+	Fighting: '#ffc080', Ground: '#e8c890', Rock: '#e0d8b0', Bug: '#e0f080', Flying: '#e0f0ff', Normal: '#ffffff', Stellar: '#8ea0ff',
 };
 const DARK: { [t: string]: string } = {
 	Fire: '#a02010', Water: '#1040a0', Electric: '#a07000', Grass: '#206020', Ice: '#2080a0', Psychic: '#a02060',
 	Ghost: '#402060', Dark: '#301818', Dragon: '#203090', Fairy: '#a040a0', Poison: '#501870', Steel: '#405060',
-	Fighting: '#a04000', Ground: '#603010', Rock: '#605030', Bug: '#506010', Flying: '#4070a0', Normal: '#808080', Stellar: '#404060',
+	Fighting: '#a04000', Ground: '#603010', Rock: '#605030', Bug: '#506010', Flying: '#4070a0', Normal: '#808080', Stellar: '#1c2670',
 };
 const col = (t: string) => ({ c: TYPE_COLOR[t] || '#fff', l: LIGHT[t] || '#fff', d: DARK[t] || '#444' });
 

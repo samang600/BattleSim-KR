@@ -5,8 +5,12 @@ import { spriteId, typeKo, speciesData, toID, RAW, type Gen } from '../data';
 import { loadSettings } from '../store';
 import { partBase } from '../offline';
 import SPRITE_PAD from '../gen/sprite-pad.json';
+import SPRITE_SCALE from '../gen/sprite-scale.json';
+import ZA_MEGA from '../gen/za-mega-ids.json';
 /** 정지 도트 그림의 아래 투명 여백(px) [앞, 뒤] — 발판에 딱 서도록 그만큼 내림 (scripts/sprite-pad.py) */
 const PAD = SPRITE_PAD as { [id: string]: number[] };
+/** 메가진화 등 바뀐 모습이 기본 모습보다 작아 보이지 않게 하는 배율 [정지 도트, 3D] (scripts/sprite-scale.py) */
+const SCALE = SPRITE_SCALE as { [id: string]: number[] };
 
 // ── 화면 전환: 모드 진행 코드를 async 함수로 쓰기 위한 도우미 ──
 let setViewFn: ((v: VNode | null) => void) | null = null;
@@ -31,7 +35,7 @@ export function ask<T>(render: (resolve: (v: T) => void) => VNode): Promise<T> {
 export const TYPE_COLOR: { [t: string]: string } = {
 	Normal: '#9fa19f', Fire: '#e62829', Water: '#2980ef', Electric: '#d9b400', Grass: '#3fa129', Ice: '#3dcef3',
 	Fighting: '#ff8000', Poison: '#9141cb', Ground: '#915121', Flying: '#81b9ef', Psychic: '#ef4179', Bug: '#91a119',
-	Rock: '#afa981', Ghost: '#704170', Dragon: '#5060e1', Dark: '#624d4e', Steel: '#60a1b8', Fairy: '#ef70ef', '???': '#68a090',
+	Rock: '#afa981', Ghost: '#704170', Dragon: '#5060e1', Dark: '#624d4e', Steel: '#60a1b8', Fairy: '#ef70ef', Stellar: '#2b3a96', '???': '#68a090',
 };
 
 export function TypeBadge({ type, small }: { type: string; small?: boolean }) {
@@ -101,8 +105,11 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls }: 
 	const cur = candidates[idx] || '';
 	// 배틀 그림: 정지 도트 그림이면 측정해 둔 바닥 여백을, 움직이는 그림이면 대략값을 CSS 변수로
 	const pad = (cls === 'front' || cls === 'back') ? (/\/gen5(-back)?(-shiny)?\/[^/]+\.png$/.test(cur) || cur.startsWith('data:image/png') ? (PAD[id]?.[back ? 1 : 0] ?? 8) : 4) : undefined;
+	// 배틀 그림 크기 보정: 바뀐 모습 배율 × (3D 설정인데 3D 그림이 없어 도트 그림으로 나오면 3D 그림 크기에 맞춰 1.3배)
+	const isAni = /\.gif$/.test(cur);
+	const ks = pad !== undefined ? (cur.includes(`/${id}.`) || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? SCALE[id]?.[isAni ? 1 : 0] ?? 1 : 1) * (useAnim && !isAni ? 1.3 : 1) : 1;
 	return <img class={'sprite ' + (cls || '')} src={cur} alt={species} loading="lazy"
-		style={{ maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': pad + 'px' } : {}) } as any}
+		style={{ maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': pad + 'px' } : {}), ...(ks !== 1 ? { '--ks': ks } : {}) } as any}
 		onError={() => setIdx(idx + 1)} draggable={false} />;
 }
 
@@ -123,7 +130,9 @@ function spriteCandidates(species: string, id: string, back: boolean, shiny: boo
 	const remote: string[] = [];
 	if (useAnim) remote.push(`${SPRITE_HOST}/ani${b}${sh}/${id}.gif`, `${SPRITE_HOST}/gen5ani${b}${sh}/${id}.gif`);
 	if (gen === 4) remote.push(`${SPRITE_HOST}/gen4${b}${sh}/${id}.png`);
-	const remoteStatic = `${SPRITE_HOST}/gen5${b}${sh}/${id}.png`;
+	// 레전즈 Z-A 메가: 쇼다운 서버에 뒷모습이 없거나 흐릿해서 PokeAPI 도트 그림 (앱 오프라인 묶음과 같은 그림, scripts/fetch-za-megas.py)
+	const za = (ZA_MEGA as { [id: string]: number })[id];
+	const remoteStatic = za ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${back ? 'back/' : ''}${shiny ? 'shiny/' : ''}${za}.png` : `${SPRITE_HOST}/gen5${b}${sh}/${id}.png`;
 	if (!sb) { const rb = base ? [`${SPRITE_HOST}/gen5${b}${sh}/${spriteId(base)}.png`] : []; return useAnim ? [...remote, remoteStatic, ...rb] : [remoteStatic, ...rb]; }
 	if (!online()) return [...local, remoteStatic];
 	return useAnim ? [...remote, local[0], remoteStatic, ...local.slice(1)] : [local[0], remoteStatic, ...local.slice(1)];

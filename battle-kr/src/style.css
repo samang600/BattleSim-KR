@@ -846,7 +846,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .avatar-pick img { height: 56px; }
 
 /* ── 포켓몬 위치: 그림의 아래 투명 여백(--pad)만큼 내려 발판에 서게, 크기는 --k ── */
-.slot .sprite { --k: 1; transform: translateX(-50%) translateY(calc(var(--pad, 6px) * var(--s) * var(--k))) scale(calc(var(--s) * var(--k))) !important; }
+.slot .sprite { --k: 1; transform: translateX(-50%) translateY(calc(var(--pad, 6px) * var(--s) * var(--k) * var(--ks, 1))) scale(calc(var(--s) * var(--k) * var(--ks, 1))) !important; }
 .slot.foe .sprite { --k: .66; } .slot.own .sprite { --k: .86; }
 .doubles .slot.foe .sprite { --k: .56; } .doubles .slot.own .sprite { --k: .72; }
 .slot.own.dmax .sprite { --k: 1.1; } .slot.foe.dmax .sprite { --k: .95; }
@@ -1917,6 +1917,41 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle { --arenaW: min(calc(var(--arenaH) * 16 / 9), calc(100vw - var(--logw) - 384px)); }
 }
 /* 타이틀: 로고·포켓몬을 화면 위쪽으로 */
-.title-screen { justify-content: flex-start; padding-top: max(13dvh, 56px); }
+.title-screen { justify-content: flex-start; padding-top: max(18dvh, 70px); }
 @media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) { .title-screen { padding-top: 15dvh; } }
 @media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) { .title-screen { padding-top: 8dvh; } }
+/* ── v2.45.3 휴대폰 가로: 작은 화면(예: 600×270)에서도 깨지지 않게 — 얇은 도트 테두리(2칸), 높이는 화면에 비례, 좁으면 타입 글자·'PP'·교체 이름 생략 ── */
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle > .bottom > .controls { container-type: inline-size; min-width: 0; overflow-x: hidden; }
+	.battle .sd-panel .mvb, .battle .controls > .gm-bar .gmb {
+		border-width: 6px !important; border-image: var(--ring-i2) 3 / 6px stretch !important; clip-path: var(--clip2) !important; }
+	.battle .controls > .gm-bar .gmb.on { border-image-source: var(--ring-i2) !important; box-shadow: inset 0 0 0 2px var(--gc); }
+	.battle .controls > .gm-bar .gmb { height: clamp(24px, 9dvh, 36px); line-height: 1; }
+	.battle .controls .move-panel > .move-grid, .battle .controls .move-panel > .move-grid.win-dark { grid-auto-rows: clamp(30px, 12dvh, 52px); row-gap: clamp(6px, 2.4dvh, 10px); padding-top: 4px; }
+	.battle .sd-panel .mvb { padding: 0 6px !important; min-width: 0; }
+	.battle .sd-panel .mvb .mvb-name { font-size: 14px; }
+	.battle .controls .switch-list, .battle .controls > .switch-list { grid-auto-rows: clamp(30px, 10dvh, 42px); }
+	.battle .controls .switch-list .switch-btn { min-width: 0; overflow: hidden; }
+	.battle .controls .switch-list .sw-info { min-width: 0; flex: 1; }
+	.battle .controls .switch-list .sw-info b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.battle .sd-label { min-height: 0; }
+	.battle .controls, .battle .sd-panel { gap: clamp(3px, 1.4dvh, 6px); }
+}
+@container (max-width: 400px) {
+	.battle .sd-panel .mvb { grid-template-columns: minmax(0, 1fr) auto !important; grid-template-areas: "nm pp" !important; }
+	.battle .sd-panel .mvb .type { display: none !important; }
+	.battle .sd-panel .mvb .mvb-name { font-size: 13px; } .battle .sd-panel .mvb .mvb-name.l, .battle .sd-panel .mvb .mvb-name.xl { font-size: 12px; }
+	.battle .sd-panel .mvb .pp-l { display: none; }
+	.battle .controls > .gm-bar .gmb { font-size: 11px; padding: 0 4px; gap: 3px; }
+}
+@container (max-width: 330px) {
+	.battle .controls .switch-list .sw-info b { display: none; }
+	.battle .controls .switch-list .switch-btn { justify-content: center; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle .controls .switch-list .switch-btn, :root[data-frame] .battle .controls .switch-list .switch-btn {
+		border-width: 6px !important; border-image: var(--ring-i2) 3 / 6px stretch !important; clip-path: var(--clip2) !important; padding: 0 2px; }
+	.battle .controls .switch-list .switch-btn .hpbar { margin-top: 1px; }
+	/* 상성 띠: 테두리 안쪽 위 오른쪽 (도트 모서리로 잘리지 않게) */
+	.battle .sd-panel .mvb .mvb-eff { top: -2px; right: 4px; font-size: 8px; line-height: 10px; padding: 0 2px; }
+}
