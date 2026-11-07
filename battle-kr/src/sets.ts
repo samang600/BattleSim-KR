@@ -287,6 +287,10 @@ const BANNED_POOL = new Set(['unown', 'ditto', 'smeargle', 'wobbuffet', 'wynaut'
 	'genesectdouse', 'genesectshock', 'genesectburn', 'genesectchill', 'keldeoresolute', 'meloettapirouette',
 ]);
 
+/** 성능이 좋은 미진화체: 종족값 합계 450 이상(폴리곤2·미끄네일·럭키·스라크 등) 또는 진화의휘석으로 실전에서 쓰이는 것 */
+const STRONG_NFE_EXTRA = new Set(['gligar', 'doublade', 'sneasel', 'sneaselhisui', 'clefairy', 'gurdurr', 'vigoroth', 'ferroseed']);
+export function strongNfe(id: string, gen: Gen) { return STRONG_NFE_EXTRA.has(id) || bst(id, gen) >= 450; }
+
 /** 조건에 맞는 최종진화(일반) 포켓몬 목록 */
 export function speciesPool(o: PoolOptions): string[] {
 	const out: string[] = [];
@@ -295,7 +299,8 @@ export function speciesPool(o: PoolOptions): string[] {
 		const s = speciesData(id, o.gen);
 		if (!s || !RAW.species[id].g[o.gen]) continue;
 		// stage 'nfe': 진화 전·중간 진화만 (쉬움 난이도 초반), 아니면 최종 진화만
-		if ((o.stage === 'nfe' ? s.fe : !s.fe) || s.bo || BANNED_POOL.has(id) || o.exclude?.has(id)) continue;
+		// 성능이 좋은 미진화체(종족값 450 이상, 진화의휘석으로 자주 쓰이는 것)는 최종 진화와 함께 나옴
+		if ((o.stage === 'nfe' ? s.fe : !s.fe && !strongNfe(id, o.gen)) || s.bo || BANNED_POOL.has(id) || o.exclude?.has(id)) continue;
 		const isR = !!s.tags?.includes('Restricted Legendary'), isM = !!s.tags?.includes('Mythical'), legend = isR || isM;
 		// 상대 무작위 팀의 초전설·환상: 그 종류가 가능한 규칙에서만
 		const foeOk = (isR && rule.restricted === 'yes') || (isM && rule.mythical === 'yes');

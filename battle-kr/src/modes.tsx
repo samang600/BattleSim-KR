@@ -188,7 +188,7 @@ export function towerOpponent(streak: number, fmt: Fmt, playerTeam: PSet[] = [],
 	// 난이도: 쉬움은 두 세트 늦게(처음 두 세트는 진화 전·중간 진화), 어려움은 세 세트 앞서서 시작
 	const tier = Math.max(0, realTier + (diff === 'easy' ? -2 : diff === 'hard' ? 3 : 0));
 	const caps = streakCaps(Math.max(0, streak + (diff === 'easy' ? -14 : diff === 'hard' ? 21 : 0)));
-	// 진화 전 포켓몬만 나오는 초반: 쉬움은 1~2세트 전부, 보통은 6회전까지
+	// 초반(약한 상대): 쉬움은 1~2세트 전부 진화 전·중간 진화, 보통은 6회전까지 약한 최종 진화
 	const early = (diff === 'easy' && realTier < 2) || (diff === 'normal' && streak < 6);
 	const n = teamSize(fmt);
 	const battleNo = streak + 1;
@@ -222,10 +222,13 @@ export function towerOpponent(streak: number, fmt: Fmt, playerTeam: PSet[] = [],
 	// 타입 구애 도전: 한 타입으로만 짠 팀 (그 타입에 종족값 범위 안 포켓몬이 모자라면 범위를 넓힘)
 	const mt = mono ? monoTypeFor(tr.types) : undefined;
 	// 초반: 쉬움 세트 1 은 진화 전·중간 진화(종족값 250~420), 세트 2 는 중간 진화 위주(330~480) / 보통 6회전까지는 진화 전·중간 진화(250~480)
-	const nfe = early ? (diff === 'normal' ? { stage: 'nfe' as const, minBst: 250, maxBst: 480 } : { stage: 'nfe' as const, minBst: realTier === 0 ? 250 : 330, maxBst: realTier === 0 ? 420 : 480 }) : null;
-	let team = nfe ? randomTeam({ gen: 9, size: n, ...nfe, ivs: diff === 'normal' ? 16 : realTier === 0 ? 8 : 13, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality: 0.1 })
+	// 미진화체(성능이 좋은 것 제외)는 쉬움에서만. 보통의 초반 6회전은 약한 최종 진화(종족값 380~480, 능력 포인트 절반)
+	const nfe = early && diff === 'easy' ? { stage: 'nfe' as const, minBst: realTier === 0 ? 250 : 330, maxBst: realTier === 0 ? 420 : 480 } : null;
+	const weak = early && diff === 'normal';
+	let team = nfe ? randomTeam({ gen: 9, size: n, ...nfe, ivs: realTier === 0 ? 8 : 13, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality: 0.1 })
+		: weak ? randomTeam({ gen: 9, size: n, minBst: 380, maxBst: 480, ivs: 16, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality: 0.1 })
 		: randomTeam({ gen: 9, size: n - bigSlot, minBst, maxBst, allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : Math.random() < 0.6 ? tr.types : undefined, gimmicks: false, quality });
-	if (!nfe && bigSlot && team.length === n - 1) {
+	if (!nfe && !weak && bigSlot && team.length === n - 1) {
 		const big = randomTeam({ gen: 9, size: 1, minBst: caps.cap + 1, maxBst: maxBst0, allowSubLegend: tier >= 3, ivs, doubles: isDoubles(fmt), types: mt ? [mt] : undefined, gimmicks: false, quality, exclude: new Set(team.map(x => toID(x.species))) });
 		team = [...team, ...big];
 	}
@@ -361,7 +364,7 @@ type FGrade = typeof FACTORY_GRADES[number];
  *  쉬움: 미진화 → 중간 진화 → PU → NU …   보통: 1세트(7회전까지) 미진화·중간 진화 → PU → NU …   어려움: UU 부터 */
 const FACTORY_LADDER: { [k in Diff]: FGrade[] } = {
 	easy: ['미진화', '중간 진화', 'PU', 'NU', 'RU', 'UU', 'OU', 'OU·Uber', 'Uber'],
-	normal: ['미진화·중간 진화', 'PU', 'NU', 'RU', 'UU', 'OU', 'OU·Uber', 'Uber'],
+	normal: ['PU', 'NU', 'RU', 'UU', 'OU', 'OU·Uber', 'Uber'],   // 미진화 렌탈은 쉬움에서만
 	hard: ['UU', 'OU', 'OU·Uber', 'Uber'],
 };
 const factoryGrade = (streak: number, diff: Diff = 'normal'): FGrade => { const l = FACTORY_LADDER[diff]; return l[Math.min(Math.floor(streak / 7), l.length - 1)]; };
