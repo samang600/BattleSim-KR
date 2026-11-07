@@ -1681,3 +1681,29 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle.doubles .arena .info .info-top { font-size: 14px; line-height: 18px; min-width: 0; overflow: hidden; }
 	.battle.doubles .arena .info .info-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	/* 더블·멀티 HP 상자 (v2.42.1): 싱글과 같은 폭·배율, 두 줄(이름 / HP 바), 작은 글자·얇은 상자 — 포켓몬을 가리지 않게 */
+	.battle.doubles .arena .panels { zoom: 1.35; gap: 2px; }
+	.battle.doubles .arena .panels.foe { width: min(46%, 220px); }
+	.battle.doubles .arena .panels.own { width: min(48%, 230px); }
+	.battle.doubles .arena .info { display: block; min-height: 0; padding-top: 0; padding-bottom: 1px; }
+	.battle.doubles .arena .info .info-top { font-size: 10px; line-height: 12px; gap: 2px; }
+	.battle.doubles .arena .info .info-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.battle.doubles .arena .info .hpbar { height: 4px; margin: 1px 0 1px 13px; }
+	.battle.doubles .arena .info .hpbar::before { left: -13px; top: -4px; font-size: 7px; }
+	.battle.doubles .arena .info .info-bottom { display: none; }
+}
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	/* 길이는 싱글 상자(220px×1.35)와 같게, 배율은 1 → 상자가 얇아짐 */
+	.battle.doubles .arena .panels { zoom: 1; gap: 2px; }
+	.battle.doubles .arena .panels.foe { width: min(62%, 297px); }
+	.battle.doubles .arena .panels.own { width: min(64%, 311px); }
+	.battle.doubles .arena .info { padding-top: 2px; padding-bottom: 2px; }
+	.battle.doubles .arena .info .info-top { font-size: 12px; line-height: 14px; }
+	.battle.doubles .arena .info .hpbar { height: 5px; margin: 2px 0 0 16px; }
+	.battle.doubles .arena .info .hpbar::before { left: -16px; top: -4px; font-size: 9px; }
+}
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	/* 더블: 내 포켓몬 둘을 조금 왼쪽으로 (오른쪽 아래 HP 상자와 겹치지 않게) */
+	.battle.doubles .slot.own.s0 { left: 14%; top: 96%; } .battle.doubles .slot.own.s1 { left: 29%; top: 99%; }
+}
