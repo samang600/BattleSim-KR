@@ -1696,8 +1696,8 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 @media (min-width: 960px) and (min-aspect-ratio: 5/4) {
 	/* 길이는 싱글 상자(220px×1.35)와 같게, 배율은 1 → 상자가 얇아짐 */
 	.battle.doubles .arena .panels { zoom: 1; gap: 2px; }
-	.battle.doubles .arena .panels.foe { width: min(62%, 297px); }
-	.battle.doubles .arena .panels.own { width: min(64%, 311px); }
+	.battle.doubles .arena .panels.foe { width: min(46%, 297px); }
+	.battle.doubles .arena .panels.own { width: min(48%, 311px); }
 	.battle.doubles .arena .info { padding-top: 2px; padding-bottom: 2px; }
 	.battle.doubles .arena .info .info-top { font-size: 12px; line-height: 14px; }
 	.battle.doubles .arena .info .hpbar { height: 5px; margin: 2px 0 0 16px; }
