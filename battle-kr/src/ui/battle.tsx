@@ -1258,7 +1258,6 @@ function typeTint(type: string) {
 				{back}
 			</div>
 			{combined && <div class="sd-panel">
-				<div class="sd-label">공격</div>
 				{renderMoves()}
 				<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>기권</button></div>
 				{renderSwitch()}

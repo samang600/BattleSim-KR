@@ -1611,3 +1611,23 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle .sd-panel .mvb .mvb-name { font-size: 17px; line-height: 20px; }
 	.battle .sd-panel .mvb .mvb-name.l { font-size: 15px; } .battle .sd-panel .mvb .mvb-name.xl { font-size: 13.5px; }
 }
+
+/* ═════ v2.40.2: 넓은 화면 다듬기 ═════ */
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	/* 양옆 파티 칸: 도트 계단 둥근 모서리 (나와 있는 포켓몬은 밝은 테두리) */
+	.sp-mon { border: 6px solid transparent; border-image: var(--ring-i2) 3 / 6px stretch; clip-path: var(--clip2); background-origin: border-box; box-shadow: none; }
+	.sp-mon.act { border-image-source: var(--ring2-hi); box-shadow: none; }
+	.si-party { grid-template-columns: repeat(3, 68px); grid-auto-rows: 68px; gap: 6px; }
+	.sp-mon { width: 68px; height: 68px; padding: 0 0 2px; }
+	/* 기믹 버튼과 기술 사이 간격 줄이고, 기술 칸은 더 두껍게 (글자 안 잘리게) */
+	.battle .controls > .gm-bar { margin-bottom: -2px; }
+	.battle .controls .move-panel > .move-grid { grid-auto-rows: 70px; }
+	.battle .sd-panel .mvb { padding: 8px 12px 6px !important; row-gap: 4px; }
+	.battle .sd-panel .mvb .mvb-name { font-size: 18px; line-height: 22px; }
+	.battle .sd-panel .mvb .mvb-name.l { font-size: 16px; } .battle .sd-panel .mvb .mvb-name.xl { font-size: 14px; }
+	.battle { --botH: clamp(340px, 35dvh, 360px); }
+	/* 더블·멀티: HP 상자를 낮고 길게 — 이름 칸 고정, HP 바가 나머지 폭 */
+	.battle.doubles .arena .panels { zoom: 1.15; width: min(48%, 330px); }
+	.battle.doubles .arena .info { grid-template-columns: 112px 1fr; padding-top: 0; padding-bottom: 0; }
+	.battle.doubles .arena .info .info-top { font-size: 13px; line-height: 16px; }
+}
