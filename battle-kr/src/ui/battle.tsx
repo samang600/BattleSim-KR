@@ -63,7 +63,7 @@ const SIDE_KO: { [id: string]: string } = {
 	stealthrock: '스텔스록', spikes: '압정뿌리기', toxicspikes: '독압정', reflect: '리플렉터', lightscreen: '빛의장막',
 	tailwind: '순풍', safeguard: '신비의부적', mist: '흰안개', luckychant: '주술', wideguard: '와이드가드', quickguard: '퍼스트가드',
 };
-const WEATHER_KO: { [id: string]: string } = { raindance: '비', sunnyday: '쾌청', sandstorm: '모래바람', hail: '설경', snowscape: '설경', primordialsea: '강한 비', desolateland: '강한 햇살', deltastream: '난기류' };
+const WEATHER_KO: { [id: string]: string } = { raindance: '비', sunnyday: '쾌청', sandstorm: '모래바람', hail: '싸라기눈', snowscape: '설경', primordialsea: '강한 비', desolateland: '강한 햇살', deltastream: '난기류' };
 const PSEUDO_KO: { [id: string]: string } = { trickroom: '트릭룸', gravity: '중력', wonderroom: '원더룸', magicroom: '매직룸', mudsport: '흙놀이', watersport: '물놀이' };
 
 function parseDetails(details: string) {

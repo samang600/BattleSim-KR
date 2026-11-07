@@ -96,28 +96,43 @@ const champConditions = cloneTable((base_conditions as any).Conditions); applyCh
 const champAbilities = cloneTable((base_abilities as any).Abilities); applyChampionsMod(champAbilities, CHAMP_MOD_ABILITIES as any);
 
 const ABIL = (base_abilities as any).Abilities as { [id: string]: { name: string } };
-/** 세대마다 배틀 성능이 다른 특성: 쇼다운의 그 세대 모드 동작을 가져옴 (설명은 data.ts ABIL_ERA_DESC)
- *  값 = 그 동작이 쓰인 마지막 세대 → 그 세대 이하 룰에 적용. 무제한(max)은 MAX_ABIL 의 더 강한 쪽 */
-const ABIL_ERA: { [id: string]: 8 | 7 | 6 } = {
-	intrepidsword: 8, dauntlessshield: 8, protean: 8, libero: 8,          // 8세대: 나올 때마다 / 기술마다
-	innerfocus: 7, oblivious: 7, owntempo: 7, scrappy: 7, rattled: 7,     // 7세대: 위협 무효·발동 없음
-	disguise: 7, moody: 7,                                                // 7세대: 탈 데미지 없음, 명중·회피도 오름
-	galewings: 6, aerilate: 6, pixilate: 6, refrigerate: 6,               // 6세대: HP 조건 없음, 1.3배 (노말스킨은 6세대 동작이 Z기술·다이맥스까지 노말로 바꿔서 제외)
-};
-const MAX_ABIL = ['intrepidsword', 'dauntlessshield', 'protean', 'libero', 'disguise', 'galewings', 'aerilate', 'pixilate', 'refrigerate'];
+/** 세대마다 배틀 성능이 다른 특성: 쇼다운의 gen8·gen7·gen6 모드에서 동작(이벤트 함수)을 바꾼 특성을 모두 가져와
+ *  그 세대 이하 룰에 세대 순서대로 겹쳐 적용 (쇼다운의 gen6 ← gen7 ← gen8 상속과 같음). 설명은 data.ts ABIL_ERA_DESC */
 const GEN_ABIL: { [g: number]: { [id: string]: any } } = { 8: GEN8_ABILITIES as any, 7: GEN7_ABILITIES as any, 6: GEN6_ABILITIES as any };
+const NOT_BEHAVIOR = new Set(['inherit', 'rating', 'flags', 'isNonstandard', 'num', 'name', 'desc', 'shortDesc', 'isBreakable', 'isPermanent', 'suppressWeather']);
+/** 노말스킨 6세대: Z기술·다이맥스 기술까지 노말로 바꿔서 제외 */
+const ABIL_SKIP = new Set(['normalize']);
+/** 무제한(너프 없음): 이 특성은 더 강했던 세대의 동작 */
+const MAX_ABIL: { [id: string]: number } = { intrepidsword: 8, dauntlessshield: 8, protean: 8, libero: 8, transistor: 8, disguise: 7,
+	galewings: 6, aerilate: 6, pixilate: 6, refrigerate: 6, parentalbond: 6, prankster: 6 };
+/** 엔진 본체에서 세대를 보고 처리하는 6세대 동작을 특성으로 흉내 */
+const GEN6_EXTRA: { [id: string]: any } = {
+	// 부모유대: 두 번째 공격 1/4 → 1/2 (본체가 1/4 로 줄이므로 위력 2배)
+	parentalbond: { inherit: true, onBasePowerPriority: 8, onBasePower(this: any, bp: number, pokemon: any, target: any, move: any) { if (move.multihitType === 'parentalbond' && move.hit > 1) return this.chainModify(2); } },
+	// 짓궂은마음: 악타입에게도 통함 (본체의 악타입 무효는 pranksterBoosted 표시로 판단)
+	prankster: { inherit: true, onModifyPriority(priority: number, pokemon: any, target: any, move: any) { if (move?.category === 'Status') return priority + 1; } },
+};
+function abilityAt(id: string, era: number) {
+	if (ABIL_SKIP.has(id)) return null;
+	const parts = [8, 7, 6].filter(g => g >= era).map(g => GEN_ABIL[g][id]).filter(a => a && Object.keys(a).some(k => !NOT_BEHAVIOR.has(k)));
+	const extra = era <= 6 ? GEN6_EXTRA[id] : null;
+	if (!parts.length && !extra) return null;
+	const o: any = Object.assign({}, ...parts, extra || {}, { inherit: true });
+	for (const k of NOT_BEHAVIOR) if (k !== 'inherit') delete o[k];
+	return o;
+}
 function eraAbilities(era: '8' | '7' | '6' | 'max') {
 	const out: { [id: string]: any } = {};
-	for (const [id, g] of Object.entries(ABIL_ERA)) {
-		if (era === 'max' ? !MAX_ABIL.includes(id) : g < +era) continue;
-		const src = GEN_ABIL[g][id];
-		if (src) out[id] = { ...src, inherit: true };
+	const ids = new Set([...[8, 7, 6].flatMap(g => Object.keys(GEN_ABIL[g])), ...Object.keys(GEN6_EXTRA)]);
+	for (const id of ids) {
+		const a = era === 'max' ? (MAX_ABIL[id] ? abilityAt(id, MAX_ABIL[id]) : null) : abilityAt(id, +era);
+		if (a) out[id] = a;
 	}
-	// 7세대 탈: 잠꼬대로 나온 구르기·아이스볼은 기술 상태가 없을 수 있음 → 없으면 건너뜀 (9세대 엔진에서 오류 방지)
+	// 7세대 탈: 잠꼬대로 나온 구르기·아이스볼은 기술 상태가 없을 수 있음 → 만들어 줌 (9세대 엔진에서 오류 방지)
 	if (out.disguise?.onDamage) {
 		const orig = out.disguise.onDamage;
 		out.disguise.onDamage = function (this: any, damage: number, target: any, source: any, effect: any) {
-			if (effect && ['rollout', 'iceball'].includes(effect.id) && !source?.volatiles?.[effect.id]) source.volatiles[effect.id] = { contactHitCount: 1 };
+			if (effect && ['rollout', 'iceball'].includes(effect.id) && source && !source.volatiles?.[effect.id]) source.volatiles[effect.id] = { contactHitCount: 1 };
 			return orig.call(this, damage, target, source, effect);
 		};
 	}
@@ -140,7 +155,9 @@ function eraMod(era: '8' | '7' | '6' | 'max') {
 		if (!t || !(base_moves as any).Moves[id]) continue;
 		Moves[id] = { inherit: true, type: t[0], category: t[1], basePower: t[2], accuracy: t[3] === 0 ? true : t[3], pp: t[4], priority: t[5], target: t[6] };
 	}
-	return { scripts: { Scripts: { inherit: 'gen9', gen: 9 } }, pokedex: { Pokedex }, moves: { Moves }, abilities: { Abilities: eraAbilities(era) } };
+	// 무제한: 상태이상(마비 1/8·잠듦 2~3턴·얼음 최대 3턴)·날씨·필드는 챔피언스 방식 (날씨·필드는 9세대와 같음)
+	const extra = era === 'max' ? { conditions: { Conditions: champConditions } } : {};
+	return { scripts: { Scripts: { inherit: 'gen9', gen: 9 } }, pokedex: { Pokedex }, moves: { Moves }, abilities: { Abilities: eraAbilities(era) }, ...extra };
 }
 const ERA_MODS = { kr8: eraMod('8'), kr7: eraMod('7'), kr6: eraMod('6'), krmax: eraMod('max') };
 export const MODS: string[] = ['krchamp', ...Object.keys(ERA_MODS)];

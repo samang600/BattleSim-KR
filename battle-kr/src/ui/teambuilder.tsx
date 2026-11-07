@@ -170,7 +170,8 @@ export function TeamEditor({ team: initial, onBack }: { team: SavedTeam; onBack:
 	const g = team.gen;
 
 	if (adding) {
-		return <SpeciesPicker gen={g} exclude={team.sets.map(s => toID(s.species))} onBack={() => setAdding(false)}
+		// 치트 팀은 같은 포켓몬을 여러 마리 넣을 수 있음 (배틀 때 이름에 번호가 붙음)
+		return <SpeciesPicker gen={g} exclude={team.cheat ? [] : team.sets.map(s => toID(s.species))} onBack={() => setAdding(false)}
 			onPick={sid => { const t = { ...team, sets: [...team.sets, newSet(sid, g)] }; commit(t); setAdding(false); setEditing(t.sets.length - 1); }} />;
 	}
 	if (editing !== null && team.sets[editing]) {
@@ -184,7 +185,7 @@ export function TeamEditor({ team: initial, onBack }: { team: SavedTeam; onBack:
 		<label class="field-label">팀 이름
 			<input value={team.name} onInput={e => commit({ ...team, name: (e.target as HTMLInputElement).value })} />
 		</label>
-		{team.cheat ? <p class="cheat-note">🃏 치트 팀 — 기술·특성 제한 없음, 능력 포인트 능력마다 최대 32(합계 제한 없음), 레벨 자유. 배틀 모드에서 ‘치트 팀 허용’을 켜야 쓸 수 있고 전적에 남지 않습니다.</p>
+		{team.cheat ? <p class="cheat-note">🃏 치트 팀 — 같은 포켓몬 여러 마리 가능, 기술·특성 제한 없음, 능력 포인트 능력마다 최대 32(합계 제한 없음), 레벨 자유. 배틀 모드에서 ‘치트 팀 허용’을 켜야 쓸 수 있고 전적에 남지 않습니다.</p>
 			: <><p class="muted">내셔널 도감 · 레벨 50 · 같은 포켓몬은 1마리씩 · 메가스톤·Z크리스탈 사용 가능</p><TeamWarnings sets={team.sets} /></>}
 		<div class="card-list">
 			{team.sets.map((s, i) => <SetCard set={s} gen={g} onClick={() => setEditing(i)}>

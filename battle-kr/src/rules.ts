@@ -79,6 +79,8 @@ const LEGACY: { [id: string]: string } = {
 	champmc: 'm_one.champmc.no.no', champmb: 'm_one.champmb.no.no', champma: 'm_one.champma.no.no', none: '_one.natdex.yes.yes',
 };
 export const DEFAULT_RULE = 'mzdt_one.natdex.no.no';
+/** 기록·연승 도전 저장 키에 붙이는 규칙 표시: 기본 규칙은 '' (예전 기록 그대로), 그 밖은 '@규칙id' */
+export function recTag(ruleIdIn: string) { const id = ruleById(ruleIdIn).id; return id === DEFAULT_RULE ? '' : '@' + id; }
 export function ruleId(gimmick: string, pool: string, restricted: LegendMode, mythical: LegendMode) { return `${gimmick}.${pool}.${restricted}.${mythical}`; }
 const cache = new Map<string, BattleRule>();
 export function ruleById(idIn: string): BattleRule {

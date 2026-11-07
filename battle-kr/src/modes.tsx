@@ -9,7 +9,9 @@ import { NAMED, CUPS, REGIONS, regionLabel, ROLE_KO, randomTrainer, namedById, n
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { loadTeams, loadSettings, saveSettings, load, save, remove, updateRecords, loadRecords, type SavedTeam } from './store';
 import { BGM_CHOICES, playMusic, stopMusic } from './sound';
-import { ruleById } from './rules';
+import { ruleById, recTag } from './rules';
+/** 지금 규칙의 기록 표시 (규칙마다 기록·도전을 따로) */
+const rt = () => recTag(loadSettings().battleRule);
 import { rosterForRule } from './legends';
 import { aiPickEntry } from './smogon';
 import { rankerTeam, rankerCount } from './pokedb';
@@ -156,7 +158,7 @@ function multiTeam(mine: PSet[], theirs: PSet[]) {
 }
 
 // ───────────── 배틀타워 ─────────────
-const TOWER_KEY = (fmt: Fmt, o: BattleOpts) => `tower-${fmt}${optsTag(o)}`;
+const TOWER_KEY = (fmt: Fmt, o: BattleOpts) => `tower-${fmt}${optsTag(o)}${rt()}`;
 interface TowerState { fmt: Fmt; team: PSet[]; streak: number; opts?: BattleOpts; partner?: { id: string; team: PSet[] }; /** 다음 승부 상대 (쉬었다 와도 같게) */ next?: { streak: number; opp: any; rule?: string } }
 
 /** 연승 단계별 상대 제한 (언바운드 배틀 프런티어의 방식을 참고): 
@@ -265,6 +267,8 @@ export async function runTower() {
 	const fmt = await chooseFormat('배틀타워', '레벨 50 · 7연승마다 1세트 · 기믹은 설정의 배틀 규칙을 따름', true, opts, [...ALL_OPTS, 'mono'], true, true);
 	if (fmt === BACK) return;
 	let state = load<TowerState | null>(TOWER_KEY(fmt, opts), null);
+	// 예전(규칙 구분 전) 저장: 같은 규칙으로 만든 도전이면 이 규칙으로 옮김
+	if (!state && rt()) { const old = load<TowerState | null>(`tower-${fmt}${optsTag(opts)}`, null); if (old?.next?.rule === loadSettings().battleRule) { state = old; remove(`tower-${fmt}${optsTag(opts)}`); save(TOWER_KEY(fmt, opts), state); } }
 	if (state) {
 		const resume = await ask<'resume' | 'new' | typeof BACK>(r => <InfoScreen title="배틀타워" heading={`${state!.streak}연승 중인 도전이 있습니다`}
 			sprites={state!.team.map(s => s.species)} sets={state!.team} gen={9}
@@ -290,7 +294,7 @@ export async function runTower() {
 		state = { fmt, team: dedupeItems(picked.map(cloneSet)), streak: 0, opts, partner };
 		save(TOWER_KEY(fmt, opts), state);
 	}
-	const key = `tower-${fmt}${diffTag(opts)}`;
+	const key = `tower-${fmt}${diffTag(opts)}${rt()}`;
 	while (true) {
 		// 같은 승부의 상대는 저장해 둠: 쉬었다 와도(앱을 껐다 켜도) 같은 트레이너·팀
 		// (저장할 때와 배틀 규칙이 달라졌으면 새 규칙으로 다시 뽑음)
@@ -359,7 +363,7 @@ export async function runTower() {
 
 // ───────────── 배틀팩토리 ─────────────
 interface FactoryState { fmt: Fmt; level: 50 | 100; team: PSet[]; streak: number; /** 다음 승부 상대 (쉬었다 와도 같게) */ next?: { streak: number; tr: any; mt?: string; oppTeam: PSet[]; hint: string; rule?: string } }
-const FACTORY_KEY = (fmt: Fmt, lv: number, o: BattleOpts) => `factory-${fmt}-${lv}${optsTag(o)}`;
+const FACTORY_KEY = (fmt: Fmt, lv: number, o: BattleOpts) => `factory-${fmt}-${lv}${optsTag(o)}${rt()}`;
 
 /** 렌탈 등급 (약한 순). 미진화·중간 진화는 Smogon 팩토리 세트가 없어 무작위 세트(진화 전만)로 만듦 */
 const FACTORY_GRADES = ['미진화', '미진화·중간 진화', '중간 진화', 'PU', 'NU', 'RU', 'UU', 'OU', 'OU·Uber', 'Uber'] as const;
@@ -415,8 +419,9 @@ export async function runFactory() {
 	]} onPick={r} />);
 	if (level === BACK) return;
 	const n = teamSize(fmt);
-	const key = `factory-${fmt}-${level}${diffTag(opts)}`;
+	const key = `factory-${fmt}-${level}${diffTag(opts)}${rt()}`;
 	let state = load<FactoryState | null>(FACTORY_KEY(fmt, level, opts), null);
+	if (!state && rt()) { const ok = `factory-${fmt}-${level}${optsTag(opts)}`; const old = load<FactoryState | null>(ok, null); if (old?.next?.rule === loadSettings().battleRule) { state = old; remove(ok); save(FACTORY_KEY(fmt, level, opts), state); } }
 	if (state) {
 		const v = await ask<'resume' | 'new'>(r => <InfoScreen title="배틀팩토리" heading={`${state!.streak}연승 중인 도전이 있습니다`}
 			sprites={state!.team.map(s => s.species)} sets={state!.team} gen={9}
@@ -746,14 +751,14 @@ export async function runRank() {
 	const fmt = await ask<RankFmt | typeof BACK>(r => <ChoiceScreen title="모의 랭크 매치" onBack={() => r(BACK)}
 		intro={<p class="hint">포켓몬 챔피언스 방식: 6마리를 등록하고 상대 엔트리를 본 뒤 참가 포켓몬을 고릅니다. 이기면 RP가 올라 등급이 오르고, 올라갈수록 상대 포켓몬과 AI가 강해집니다.</p>}
 		options={[
-			{ value: 'singles' as RankFmt, label: '싱글 6→3', desc: '6마리 중 3마리 선택 · 1대1', icon: '③', badge: `${rankTier(loadRecords().rp?.singles || 0).name} ${loadRecords().rp?.singles || 0}RP` },
-			{ value: 'doubles' as RankFmt, label: '더블 6→4', desc: '6마리 중 4마리 선택 · 2대2', icon: '④', badge: `${rankTier(loadRecords().rp?.doubles || 0).name} ${loadRecords().rp?.doubles || 0}RP` },
+			{ value: 'singles' as RankFmt, label: '싱글 6→3', desc: '6마리 중 3마리 선택 · 1대1', icon: '③', badge: `${rankTier(loadRecords().rp?.['singles' + rt()] || 0).name} ${loadRecords().rp?.['singles' + rt()] || 0}RP` },
+			{ value: 'doubles' as RankFmt, label: '더블 6→4', desc: '6마리 중 4마리 선택 · 2대2', icon: '④', badge: `${rankTier(loadRecords().rp?.['doubles' + rt()] || 0).name} ${loadRecords().rp?.['doubles' + rt()] || 0}RP` },
 		]} footer={<OptsBox opts={opts} show={ALL_OPTS} />} onPick={r} />);
 	if (fmt === BACK) return;
 	const team = await chooseTeam(9, '랭크 매치 · 팀 등록', true, opts.cheat, lvl(opts));
 	if (team === BACK) return;
 	const n = fmt === 'doubles' ? 4 : 3;
-	const key = fmt;
+	const key = fmt + rt();
 	while (true) {
 		const rec = loadRecords();
 		const rp = rec.rp?.[key] || 0;

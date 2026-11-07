@@ -1,4 +1,5 @@
 import './ps/registry';
+import { recTag, ruleById as ruleByIdR } from './rules';
 import { h, render, type VNode } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton } from './ui/core';
@@ -40,15 +41,16 @@ function TitleScreen({ onStart }: { onStart: () => void }) {
 function Home({ go }: { go: (v: string) => void }) {
 	const rec = loadRecords();
 	const settings = loadSettings();
-	const towerBest = Math.max(...['singles', 'doubles', 'singles6', 'doubles64', 'doubles6', 'multi'].map(f => rec.best[`tower-${f}`] || 0), 0);
-	const factoryBest = Math.max(...['singles', 'doubles', 'singles6', 'doubles64', 'doubles6', 'multi'].flatMap(f => [50, 100].map(l => rec.best[`factory-${f}-${l}`] || 0)), 0);
+	const t = recTag(settings.battleRule);   // 지금 규칙의 기록
+	const towerBest = Math.max(...['singles', 'doubles', 'singles6', 'doubles64', 'doubles6', 'multi'].map(f => rec.best[`tower-${f}${t}`] || 0), 0);
+	const factoryBest = Math.max(...['singles', 'doubles', 'singles6', 'doubles64', 'doubles6', 'multi'].flatMap(f => [50, 100].map(l => rec.best[`factory-${f}-${l}${t}`] || 0)), 0);
 	const cupWins = Object.values(rec.cups).reduce((a, b) => a + b, 0);
 	const namedWins = Object.keys(rec.named).length;
-	const suspended = ['tower-singles', 'tower-doubles'].some(k => load(k, null)) || ['singles', 'doubles'].some(f => [50, 100].some(l => load(`factory-${f}-${l}`, null)));
+	const suspended = ['tower-singles', 'tower-doubles'].some(k => load(k + t, null)) || ['singles', 'doubles'].some(f => [50, 100].some(l => load(`factory-${f}-${l}${t}`, null)));
 	const badge: { [id: string]: string } = {
 		tower: towerBest ? `최고 ${towerBest}연승` : '', factory: factoryBest ? `최고 ${factoryBest}연승` : '',
 		pwt: cupWins ? `우승 ${cupWins}회` : `${CUPS.length}개 대회`, named: `${namedWins}/${NAMED.length} 격파`, free: '',
-		rank: (() => { const rp = Math.max(rec.rp?.singles || 0, rec.rp?.doubles || 0); return rp ? `${rankTier(rp).name} ${rp}RP` : ''; })(),
+		rank: (() => { const rp = Math.max(rec.rp?.['singles' + t] || 0, rec.rp?.['doubles' + t] || 0); return rp ? `${rankTier(rp).name} ${rp}RP` : ''; })(),
 	};
 	return <div class="home">
 		<div class="home-head">
@@ -95,20 +97,29 @@ function ReplayList({ onPlay }: { onPlay: (rp: SavedReplay) => void }) {
 
 function Records({ onBack, onPlay }: { onBack: () => void; onPlay: (rp: SavedReplay) => void }) {
 	const r = loadRecords();
+	// 규칙마다 기록이 따로: 지금 규칙 + 기록이 있는 다른 규칙을 골라 봄 (기본 규칙은 표시 '')
+	const cur = recTag(loadSettings().battleRule);
+	const tags = [...new Set([cur, '', ...[...Object.keys(r.best), ...Object.keys(r.rp || {})].map(k => k.includes('@') ? k.slice(k.indexOf('@')) : '')])];
+	const [t, setT] = useState(cur);
+	const tagName = (x: string) => ruleByIdR(x ? x.slice(1) : '').name;
+	const b = (k: string) => `${r.best[k + t] || 0}연승`;
 	const rows: [string, string][] = [
-		['배틀타워 싱글 3vs3', `${r.best['tower-singles'] || 0}연승`], ['배틀타워 더블 4vs4', `${r.best['tower-doubles'] || 0}연승`],
-		['배틀타워 싱글 6vs6', `${r.best['tower-singles6'] || 0}연승`], ['배틀타워 더블 6vs6', `${r.best['tower-doubles6'] || 0}연승`],
-		['배틀타워 멀티', `${r.best['tower-multi'] || 0}연승`], ['팩토리 멀티 Lv50', `${r.best['factory-multi-50'] || 0}연승`],
-		['팩토리 싱글 Lv50', `${r.best['factory-singles-50'] || 0}연승`], ['팩토리 싱글 오픈', `${r.best['factory-singles-100'] || 0}연승`],
-		['팩토리 더블 Lv50', `${r.best['factory-doubles-50'] || 0}연승`], ['팩토리 더블 오픈', `${r.best['factory-doubles-100'] || 0}연승`],
-		['팩토리 싱글 6vs6 Lv50', `${r.best['factory-singles6-50'] || 0}연승`], ['팩토리 더블 6vs6 Lv50', `${r.best['factory-doubles6-50'] || 0}연승`],
+		['배틀타워 싱글 3vs3', b('tower-singles')], ['배틀타워 더블 4vs4', b('tower-doubles')],
+		['배틀타워 싱글 6vs6', b('tower-singles6')], ['배틀타워 더블 6vs6', b('tower-doubles6')],
+		['배틀타워 멀티', b('tower-multi')], ['팩토리 멀티 Lv50', b('factory-multi-50')],
+		['팩토리 싱글 Lv50', b('factory-singles-50')], ['팩토리 싱글 오픈', b('factory-singles-100')],
+		['팩토리 더블 Lv50', b('factory-doubles-50')], ['팩토리 더블 오픈', b('factory-doubles-100')],
+		['팩토리 싱글 6vs6 Lv50', b('factory-singles6-50')], ['팩토리 더블 6vs6 Lv50', b('factory-doubles6-50')],
 	];
 	return <Screen title="기록" onBack={onBack}>
 		<div class="record-card"><b>총 전적</b><span>{r.wins}승 {r.battles - r.wins}패{r.battles ? ` · 승률 ${Math.round(r.wins / r.battles * 100)}%` : ''}</span></div>
 		<h3 class="sec">🎬 리플레이</h3>
 		<ReplayList onPlay={onPlay} />
+		<h3 class="sec">규칙별 기록</h3>
+		{tags.length > 1 && <div class="seg wrap">{tags.map(x => <button class={x === t ? 'on' : ''} onClick={() => setT(x)}>{tagName(x)}</button>)}</div>}
+		<p class="muted small">{tagName(t)}{t === cur ? ' (지금 규칙)' : ''} — 연승·랭크 기록은 배틀 규칙마다 따로 남습니다.</p>
 		<h3 class="sec">랭크 매치</h3>
-		{(['singles', 'doubles'] as const).map(f => <div class="record-row"><span>{f === 'singles' ? '싱글 6→3' : '더블 6→4'}</span><b>{rankTier(r.rp?.[f] || 0).name} {r.rp?.[f] || 0}RP{r.rpBest?.[f] ? ` (최고 ${r.rpBest[f]})` : ''}</b></div>)}
+		{(['singles', 'doubles'] as const).map(f => <div class="record-row"><span>{f === 'singles' ? '싱글 6→3' : '더블 6→4'}</span><b>{rankTier(r.rp?.[f + t] || 0).name} {r.rp?.[f + t] || 0}RP{r.rpBest?.[f + t] ? ` (최고 ${r.rpBest[f + t]})` : ''}</b></div>)}
 		<h3 class="sec">최고 연승</h3>
 		{rows.map(([k, v]) => <div class="record-row"><span>{k}</span><b>{v}</b></div>)}
 		<h3 class="sec">PWT 우승</h3>

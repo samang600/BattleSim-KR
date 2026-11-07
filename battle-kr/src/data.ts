@@ -27,6 +27,10 @@ const D = DEX as any as {
 	moveIds: string[];
 };
 export const RAW = D;
+// 싸라기눈(Hail)과 설경(Snowscape)은 다른 기술·날씨 — '설경 (싸라기눈)'처럼 섞어 쓰지 않음
+if (D.moves.hail) { D.moves.hail.n = '싸라기눈'; D.moves.hail.d = '5턴 동안 싸라기눈을 내리게 해서 얼음타입이 아닌 포켓몬 모두에게 데미지를 준다.'; }
+if (D.text.hail) Object.assign(D.text.hail, { weatherName: '싸라기눈', start: '  싸라기눈이 내리기 시작했다!', end: '  싸라기눈이 그쳤다!', upkeep: '  (싸라기눈이 계속 내리고 있다)', damage: '  싸라기눈이 {POKEMON:object} 덮쳤다!' });
+if (D.text.snowscape) D.text.snowscape.weatherName = '설경';
 
 export function toID(text: any): string {
 	if (text?.id) text = text.id;
@@ -100,6 +104,27 @@ export function moveKo(nameOrId: string) {
 	if (/^frustration\d+$/.test(id)) id = 'frustration';
 	return D.moves[id]?.n || nameOrId;
 }
+/** 8세대 이하 룰: 눈 날씨는 싸라기눈(데미지·눈퍼뜨리기·오로라베일 조건) → 설명의 '설경'을 '싸라기눈'으로 */
+export function hailEra() { return ERA === '6' || ERA === '7' || ERA === '8'; }
+export function eraText(t: string) { return t && hailEra() ? t.replace(/설경/g, '싸라기눈') : t; }
+/** 챔피언스 사양(전국도감·챔피언스 룰)에서 효과가 바뀐 기술의 설명 (위력·명중 같은 숫자는 화면에 따로 나옴) */
+const MOVE_CHAMP_DESC: { [id: string]: string } = {
+	growth: '몸을 일시에 크게 성장시켜 공격과 특수공격을 올린다. 풀타입 기술이다.',
+	ironhead: '강철과 같은 단단한 머리로 공격한다. 20% 확률로 상대를 풀죽게 만든다.',
+	moonblast: '달의 파워를 빌려서 상대를 공격한다. 10% 확률로 상대의 특수공격을 떨어뜨린다.',
+	makeitrain: '대량의 코인을 날려서 공격한다. 자신의 특수공격이 2랭크 떨어진다.',
+	doubleshock: '전신의 전기를 모두 방출해서 큰 데미지를 준다. 반드시 맞는 펀치 기술이다. 사용자의 전기 타입이 없어진다.',
+	dragoncheer: '용의 북돋움으로 사기를 높여서 같은 편의 기술이 급소에 맞기 쉬워진다. 소리 기술이다.',
+	toxicthread: '독이 섞인 실을 뿜어낸다. 상대를 독 상태로 만들고 스피드를 2랭크 떨어뜨린다.',
+	saltcure: '상대를 소금절이 상태로 만들어 매 턴 최대 체력의 1/16의 데미지를 준다. 강철타입이나 물타입에게는 매 턴 최대 체력의 1/8의 데미지를 준다.',
+	snaptrap: '강철 집게덫으로 붙잡은 뒤 4-5턴 동안 상대를 끼워서 공격한다. 강철타입 기술이다.',
+	snipeshot: '상대의 기술을 끌어모으는 특성이나 기술의 영향을 무시하고 선택한 상대를 공격할 수 있다. 급소에 맞기 쉽고 상대의 특성을 무시한다.',
+	milkdrink: '자신이나 같은 편의 최대 HP 절반을 회복한다.',
+	direclaw: '치명적인 손톱으로 공격한다. 30% 확률로 상대를 독·마비·잠듦 중 하나로 만든다.',
+	crushclaw: '단단하고 날카로운 손톱으로 찢어서 공격한다. 방어를 떨어뜨릴 때가 있다. 베기 기술이다.',
+	shadowclaw: '그림자로 만든 날카로운 손톱으로 찢어서 공격한다. 급소에 맞기 쉽다. 베기 기술이다.',
+	dragonclaw: '날카롭고 거대한 손톱으로 찢어서 공격한다. 베기 기술이다.',
+};
 export function moveData(id: string, gen: Gen) {
 	id = toID(id);
 	if (/^return\d+$/.test(id)) id = 'return';
@@ -107,7 +132,7 @@ export function moveData(id: string, gen: Gen) {
 	if (!m) return null;
 	const g = ERA === 'max' ? maxMove(m) : (ERA ? m.e?.[ERA] ?? m.e?.['9'] : undefined) || m.g[gen] || m.g[9];
 	return {
-		id, name: m.n, desc: m.d, type: g[0], category: g[1] as 'Physical' | 'Special' | 'Status', basePower: g[2],
+		id, name: m.n, desc: eraText(ERA === '' && MOVE_CHAMP_DESC[id] || m.d), type: g[0], category: g[1] as 'Physical' | 'Special' | 'Status', basePower: g[2],
 		accuracy: g[3], pp: g[4], priority: g[5], target: g[6], contact: !!g[7],
 	};
 }
@@ -130,12 +155,19 @@ const ABIL_ERA_DESC: { [id: string]: { [k: string]: string } } = {
 	aerilate: { 6: '노말 타입 기술이 비행 타입이 되고 위력이 1.3배가 된다.' },
 	pixilate: { 6: '노말 타입 기술이 페어리 타입이 되고 위력이 1.3배가 된다.' },
 	refrigerate: { 6: '노말 타입 기술이 얼음 타입이 되고 위력이 1.3배가 된다.' },
+	transistor: { 8: '전기 타입 기술의 위력이 1.5배가 된다.' },
+	battlebond: { 8: '상대를 쓰러뜨리면 유대가 깊어져 지우개굴닌자로 모습이 바뀐다. 물수리검이 위력 20으로 항상 3번 맞는다.' },
+	illuminate: { 8: '배틀에서는 효과가 없다.' },
+	snowwarning: { 8: '등장했을 때 날씨를 싸라기눈으로 만든다.' },
+	weakarmor: { 6: '물리 기술에 맞으면 방어가 1랭크 떨어지고 스피드가 1랭크 올라간다.' },
+	parentalbond: { 6: '부모와 자식 2마리가 2번 공격할 수 있다. 2번째 공격은 위력이 절반이 된다.' },
+	prankster: { 6: '변화 기술의 우선도가 1 올라간다. 악타입 포켓몬에게도 통한다.' },
 	healer: { c: '턴이 끝날 때 50% 확률로 같은 편 포켓몬의 상태이상을 회복한다.' },
 	runaway: { c: '도망칠 수 없게 하는 기술·특성의 영향을 받지 않고 언제든 교체할 수 있다.' },
 	unseenfist: { c: '접촉 기술이 방어 등으로 막히지 않고 맞지만, 그때 데미지는 1/4이 된다.' },
 };
 /** 무제한(너프 없음)에서 쓰는 쪽 (registry.ts MAX_ABIL 과 같음) */
-const MAX_ABIL_DESC = ['intrepidsword', 'dauntlessshield', 'protean', 'libero', 'disguise', 'galewings', 'aerilate', 'pixilate', 'refrigerate'];
+const MAX_ABIL_DESC = ['intrepidsword', 'dauntlessshield', 'protean', 'libero', 'transistor', 'disguise', 'galewings', 'aerilate', 'pixilate', 'refrigerate', 'parentalbond', 'prankster'];
 export function abilityDesc(id: string) {
 	const k = toID(id), e = ABIL_ERA_DESC[k];
 	if (e) {
@@ -143,10 +175,10 @@ export function abilityDesc(id: string) {
 		else if (ERA === '') { if (e.c) return e.c; }
 		else if (+ERA <= 8) { const g = Object.keys(e).filter(x => x !== 'c' && +ERA <= +x).sort()[0]; if (g) return e[g]; }
 	}
-	return D.abilities[k]?.d || '';
+	return eraText(D.abilities[k]?.d || '');
 }
 export function itemKo(nameOrId: string) { return D.items[toID(nameOrId)]?.n || nameOrId; }
-export function itemDesc(id: string) { return D.items[toID(id)]?.d || ITEM_DESC[toID(id)] || ''; }
+export function itemDesc(id: string) { return eraText(D.items[toID(id)]?.d || ITEM_DESC[toID(id)] || ''); }
 export function natureKo(nameOrId: string) { return D.natures[toID(nameOrId)]?.n || nameOrId; }
 export function natureData(id: string) { return D.natures[toID(id)]; }
 
