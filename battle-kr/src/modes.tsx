@@ -308,7 +308,7 @@ export async function runTower() {
 		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title={`배틀타워 · ${fmtLabel(fmt)}`}
 			banner={`${state!.streak + 1}번째 승부`} prep={<BgmRow />}
 			heading={opp.boss ? `⚠ 타워 타이쿤 등장! (${opp.boss}의 심볼)` : (opp as any).special ? `★ 특별 트레이너! ${whoOf(opp)}${josa(opp.name)} 나타났다!` : `${whoOf(opp)}${josa(opp.name)} 승부를 걸어왔다!${opp.monoLabel ?? monoTag(opp.mono)}`} trainer={opp.sprite}
-			lines={[`현재 ${state!.streak}연승 · 세트 ${Math.floor(state!.streak / 7) + 1} - ${state!.streak % 7 + 1}번째`, ...(partnerT ? [`파트너: ${partnerT.title} ${partnerT.name}`] : []), ...(opp.ranker ? [`★ 상위 랭커 (${opp.ranker})`] : []), ...optsLines(opts)]}
+			lines={[`현재 ${state!.streak}연승 · 세트 ${Math.floor(state!.streak / 7) + 1} - ${state!.streak % 7 + 1}번째`, ...(partnerT ? [`파트너: ${partnerT.title} ${partnerT.name}`] : []), ...(opp.ranker ? ['★ 상위 랭커'] : []), ...optsLines(opts)]}
 			sprites={state!.team.map(s => s.species)} sets={state!.team} gen={9}
 			actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '쉬기 (저장 후 나가기)', kind: 'ghost', onClick: () => r('rest') },
 				{ label: '도전 그만두기', kind: 'danger', onClick: () => r('quit') }]} />), 'quit', `지금까지의 ${state!.streak}연승 도전이 끝나고 처음부터 다시 시작해야 합니다.\n정말 그만둘까요? (‘쉬기’를 고르면 저장하고 나중에 이어서 할 수 있어요)`);
@@ -774,7 +774,7 @@ export async function runRank() {
 			heading={`${upper ? '⬆ 상위 매칭! ' : ''}${opp.title ? opp.title + ' ' : ''}${opp.name}${josa(opp.name)} 매칭되었다!`} trainer={opp.sprite}
 			lines={[`${streak ? `🔥 ${streak}연승 중 · ` : ''}승리 +${gain} RP${upper ? ` (상위 매칭 보너스 +${UPPER_BONUS} 포함)` : ''} · 패배 -${loss} RP`,
 				...(upper ? [`${rankTier(oppRp).name}(약 ${oppRp} RP) 실력의 상대입니다. 져도 연승은 끊기지 않아요.`] : []),
-				...(streak < 4 ? [`연승할수록 획득 RP 증가 (최대 +${RANK_BASE + 20 + (tier.min >= 1000 ? 5 : 0)})`] : []), ...(opp.named ? ['★ 강적 등장!'] : []), ...(opp.ranker ? [`★ 상위 랭커 (${opp.ranker})`] : []), ...optsLines(opts)]}
+				...(streak < 4 ? [`연승할수록 획득 RP 증가 (최대 +${RANK_BASE + 20 + (tier.min >= 1000 ? 5 : 0)})`] : []), ...(opp.named ? ['★ 강적 등장!'] : []), ...(opp.ranker ? ['★ 상위 랭커'] : []), ...optsLines(opts)]}
 			sprites={team.map(s => s.species)} sets={team} gen={9} prep={<BgmRow />}
 			actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '그만두기', kind: 'ghost', onClick: () => r('quit') }]} />);
 		if (go === 'quit') return;
@@ -844,7 +844,7 @@ export async function runFree() {
 		if (rematch) ({ oppTeam, oppName, oppTitle, oppSprite, oppLines } = rematch);
 		else if (oppPick === 'random') oppTeam = withLevel(randomTeam({ gen: 9, size: 6, minBst: 470, maxBst: 600, doubles: isDoubles(fmt), quality: 0.5 }), lvl(opts));
 		else if (oppPick === 'strong') oppTeam = withLevel(randomTeam({ gen: 9, size: 6, minBst: 520, allowSubLegend: true, doubles: isDoubles(fmt), quality: 0.9 }), lvl(opts));
-		else if (oppPick === 'ranker') { const rk = rankerTeam(isDoubles(fmt), lvl(opts), 0.9)!; oppTeam = withLevel(rk.team, lvl(opts)); oppTitle = `랭커`; oppName = `${tr.name} (${rk.label})`; }
+		else if (oppPick === 'ranker') { const rk = rankerTeam(isDoubles(fmt), lvl(opts), 0.9)!; oppTeam = withLevel(rk.team, lvl(opts)); oppTitle = `랭커`; oppName = tr.name; }
 		else { oppTeam = oppPick.cheat ? oppPick.sets.map(cloneSet) : withLevel(oppPick.sets.map(cloneSet), lvl(opts)); oppName = oppPick.name; oppTitle = '팀'; oppSprite = rng.pick(['acetrainer-gen4', 'acetrainerf-gen4', 'veteran-gen4']); }
 		const myTeam = my;
 		const size = await ask<number>(r => <ChoiceScreen title="참가 마릿수" options={[
