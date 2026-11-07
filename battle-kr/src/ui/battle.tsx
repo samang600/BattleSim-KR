@@ -1322,8 +1322,15 @@ function typeTint(type: string) {
 			</div>
 			{combined && <div class="sd-panel">
 				{renderMoves()}
-				<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>기권</button><button class="btn small sd-log" onClick={() => setShowLog(true)}>기록</button></div>
-				{renderSwitch()}
+				{land ? <div class="sd-cmds">
+					{/* 휴대폰 가로: 교체는 '포켓몬' 버튼으로 오른쪽 칸 전체를 써서 */}
+					<button class="cmd-sub green" onClick={() => setMenu('switch')}>포켓몬</button>
+					<button class="cmd-sub blue" onClick={forfeit}>기권</button>
+					<button class="cmd-sub yellow" onClick={() => setShowLog(true)}>기록</button>
+				</div> : <>
+					<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>기권</button><button class="btn small sd-log" onClick={() => setShowLog(true)}>기록</button></div>
+					{renderSwitch()}
+				</>}
 			</div>}
 			{menu === 'main' && !combined && <div class="cmd-menu">
 				<button class="cmd-fight" onClick={() => { setFocus(0); setMenu('moves'); }}><span>싸운다</span></button>

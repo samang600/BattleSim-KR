@@ -2017,3 +2017,38 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle > .arena { margin: 22px 0 0 22px; }
 	.battle { grid-template-columns: calc(var(--lw) + 44px) minmax(0, 1fr); }
 }
+
+/* ═════ v2.49.1 휴대폰 가로: 프레임은 얇은 선만, 기술은 한 줄에 하나, 교체는 '포켓몬' 버튼으로 넓게, 기믹 글자 1px 작게 ═════ */
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle > .arena { box-shadow: 0 0 0 2px var(--bz-k), 0 0 0 4px var(--bz-hi), 0 0 0 6px var(--bz-k); }
+	.battle > .arena::before, .battle > .arena::after { display: none; }
+	.battle { --lw: min(60vw, calc((100dvh - 34px - 58px - 12px) * 16 / 9)); grid-template-columns: calc(var(--lw) + 12px) minmax(0, 1fr); }
+	.battle > .arena { margin: 6px 0 0 6px; }
+	/* 기술: 한 줄에 하나 */
+	.battle .controls .move-panel > .move-grid, .battle .controls .move-panel > .move-grid.win-dark { grid-template-columns: 1fr; grid-auto-rows: clamp(28px, 10.5dvh, 46px); row-gap: clamp(5px, 2dvh, 8px); }
+	.battle .sd-panel .mvb .mvb-name { font-size: 15px; } .battle .sd-panel .mvb .mvb-name.l, .battle .sd-panel .mvb .mvb-name.xl { font-size: 14px; }
+	/* 아래 명령 버튼 줄: 포켓몬 · 기권 · 기록 */
+	.battle .sd-cmds { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px; }
+	.battle .sd-cmds .cmd-sub { min-height: 0; height: clamp(30px, 10dvh, 42px); font-size: 15px; }
+	/* 교체 화면(포켓몬 버튼): 오른쪽 칸 전체, 2칸씩 크게 */
+	.battle .controls > .switch-list { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: clamp(44px, 16dvh, 64px); gap: 6px; }
+	.battle .controls > .switch-list .switch-btn { border-width: 6px !important; border-image: var(--ring-i2) 3 / 6px stretch !important; clip-path: var(--clip2) !important; }
+	.battle .controls > .switch-list .sw-sprite { width: 40px; height: 40px; }
+	.battle .controls > .switch-list .sw-sprite .sprite { max-width: 40px !important; max-height: 40px !important; }
+	.battle .controls > .switch-list .sw-info b { display: block; font-size: 13px; }
+	.battle .controls > .switch-list .sw-info small { display: block; font-size: 10px; }
+	.battle .controls:not(:has(.sd-panel)) > .ctl-head { display: flex; }
+	/* 기믹 버튼 글자 1px 작게 */
+	.battle .controls > .gm-bar .gmb { font-size: 11px; }
+}
+@container (max-width: 400px) { .battle .controls > .gm-bar .gmb { font-size: 10px; } }
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle .sd-cmds .cmd-sub { border-width: 6px !important; border-image: var(--ring-i2) 3 / 6px stretch !important; clip-path: var(--clip2) !important; padding: 0; line-height: 1; font-size: 14px; }
+	.battle .controls > .switch-list .switch-btn { padding: 0 6px; gap: 6px; align-items: center; }
+	.battle .controls > .switch-list .sw-info { display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+	.battle .controls > .switch-list .sw-info small { display: none; }
+	.battle .controls > .switch-list .sw-info b { line-height: 15px; }
+}
+@media (orientation: landscape) and (min-height: 380px) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle .controls > .switch-list .sw-info small { display: block; line-height: 12px; }
+}
