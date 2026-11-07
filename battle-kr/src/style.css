@@ -1969,3 +1969,11 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .slot.dmax .sprite { filter: url(#dmax-glow); }
 /* 급소 메시지는 노란색 */
 .msgbox .msg-crit { color: var(--yellow); }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
+	/* 16:9 필드가 양옆 파티 칸을 가리지 않게: 양쪽에 파티 3칸(64px) 자리를 남기고, 칸은 남은 폭에 맞춰 줄어듦 */
+	.battle { --arenaW: min(calc(var(--arenaH) * 16 / 9), calc(100vw - var(--logw) - 480px)); }
+	.battle > .side-info { box-sizing: border-box; }
+	.si-party { grid-template-columns: repeat(3, minmax(0, 64px)); width: 100%; justify-content: center; gap: 4px; }
+	.sp-mon { min-width: 0; }
+	.sp-mon .hpbar { width: auto; align-self: stretch; margin-left: 2px; margin-right: 2px; }
+}
