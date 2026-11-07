@@ -146,6 +146,8 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	const [slotIdx, setSlotIdx] = useState(0);
 	const [parts, setParts] = useState<string[]>([]);
 	const [menu, setMenu] = useState<'main' | 'moves' | 'switch' | 'target'>('main');
+	// 화면이 바뀌면(기술 → 대상, 차례 넘어감) 떠 있던 정보 상자는 닫음 (마우스가 나가기 전에 버튼이 사라지는 경우)
+	useEffect(() => setTip(null), [menu, phase, slotIdx]);
 	const [pendingMove, setPendingMove] = useState<{ num: number; target: string; gm?: string } | null>(null);
 	const [focus, setFocus] = useState(0);
 	const [sheet, setSheet] = useState<{ idx: number; canSwitch: boolean } | null>(null);
@@ -1176,11 +1178,23 @@ function typeTint(type: string) {
 				<small>{side === 'p2' ? `${pct}%` : `${m.hp}/${m.maxhp}`}{dp && ` · ${dp}`}</small>
 			</button>;
 		};
+		// 여러 대상 기술: 맞는 포켓몬끼리 선으로 이어 보임 (위: 상대 0·1, 아래: 내 편 0·1)
+		const hit = (side: 'p1' | 'p2', i: number) => {
+			const m = (side === 'p2' ? scene.p2 : scene.p1).active[i];
+			if (!m || m.fainted) return false;
+			return side === 'p2' ? plan.foes : (side === 'p1' && i === slotIdx) ? plan.self : plan.ally;
+		};
+		const spread = plan.mode === 'all';
+		/** 이 칸에서 오른쪽(r)·아래(d) 이웃으로 이어지는 선 */
+		const linkOf = (side: 'p1' | 'p2', i: number) => !spread || !hit(side, i) ? null : <>
+			{i === 0 && hit(side, 1) && <i class="tlink r" aria-hidden="true" />}
+			{side === 'p2' && hit('p1', i) && <i class="tlink d" aria-hidden="true" />}
+		</>;
 		return <div class="target-pane">
-			<div class="thint">{plan.mode === 'pick' ? '기술을 쓸 대상을 고르세요' : `${md ? moveKo(md.id) : '기술'}: 표시된 포켓몬 모두에게 — 눌러서 확정`}</div>
-			<div class="target-grid2">
-				{[0, 1].map(i => card('p2', i, scene.p2.active[i]))}
-				{[0, 1].map(i => card('p1', i, scene.p1.active[i]))}
+			<div class="thint">{plan.mode === 'pick' ? '기술을 쓸 대상을 고르세요' : `${md ? moveKo(md.id) : '기술'}: 이어진 포켓몬 모두에게 — 눌러서 확정`}</div>
+			<div class={'target-grid2' + (spread ? ' spread' : '')}>
+				{[0, 1].map(i => <div class="tcell">{linkOf('p2', i)}{card('p2', i, scene.p2.active[i])}</div>)}
+				{[0, 1].map(i => <div class="tcell">{linkOf('p1', i)}{card('p1', i, scene.p1.active[i])}</div>)}
 			</div>
 		</div>;
 	};
