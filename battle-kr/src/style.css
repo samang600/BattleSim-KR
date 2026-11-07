@@ -1707,3 +1707,16 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	/* 더블: 내 포켓몬 둘을 조금 왼쪽으로 (오른쪽 아래 HP 상자와 겹치지 않게) */
 	.battle.doubles .slot.own.s0 { left: 14%; top: 96%; } .battle.doubles .slot.own.s1 { left: 29%; top: 99%; }
 }
+
+/* ── 더블·멀티 HP 상자 두 줄 (v2.43.0): [이름 성별] / [HP ▬▬▬], 내 쪽 볼 현황 줄은 없애고 상자를 아래에 붙임 ── */
+@media (max-width: 959px), (max-aspect-ratio: 5/4) {
+	.battle.doubles .arena .info { display: block; min-height: 0; padding-top: 1px; padding-bottom: 2px; }
+	.battle.doubles .arena .info .info-top { font-size: 11px; line-height: 13px; }
+	.battle.doubles .arena .info .info-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.battle.doubles .arena .info .hpbar { height: 4px; margin: 2px 0 0 14px; }
+	.battle.doubles .arena .info .hpbar::before { left: -14px; top: -4px; font-size: 8px; }
+	.battle.doubles .arena .info .info-bottom { display: none; }
+	.battle.doubles .arena .panels { gap: 2px; }
+}
+.battle.doubles .panels.own .balls { display: none; }
+.battle.doubles .panels.own .side-row:not(:has(.chip)) { display: none; }
