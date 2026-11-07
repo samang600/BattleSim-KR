@@ -476,73 +476,145 @@ export function ballOut(layer: HTMLElement, from: Pt, to: Pt, s: number, ballId 
 
 /* ───── 볼이 열릴 때의 도트 이펙트 ─────
  * 가운데서 번쩍(십자·대각 빛줄기가 돌며 줄어듦) → 고리 두 겹(빛 색·볼 색)이 차례로 퍼지고, 빠른·느린 입자가 꼬리를 남기며 날아감 → 주변에 작은 별이 반짝. 50ms(20fps) 한 칸씩, 도트 크기 = 배율 × 0.85.
- * 상징이 뚜렷한 볼만 모양을 바꿈: 러브러브볼=하트(pixelfx 하트 + 하트 입자), 문볼=별 입자. */
+ * 볼마다 컨셉(BALL_CONCEPT): 입자 모양·움직임·둘째 고리 색·반짝임 — 예: 다이브볼=거품이 떠오름, 퀵볼=번개가 옆으로, 헤비볼=떨어짐, 타이머볼=돌며 퍼짐, 마스터볼=M·보석. */
 const SHAPES: { [k: string]: string[] } = {
 	sq: ['11', '11'],
 	heart: ['0101', '1111', '1111', '0110'],
-	star: ['010', '111', '010'],
+	star: ['00100', '01110', '11111', '01110', '01010'],
+	plus: ['010', '111', '010'],
+	diamond: ['010', '111', '010'],
+	gem: ['00100', '01110', '11111', '01110', '00100'],
+	bolt: ['0011', '0110', '1111', '0110', '1100'],
+	leaf: ['0011', '0111', '1110', '1100'],
+	bubble: ['0110', '1001', '1001', '0110'],
+	moon: ['0111', '1100', '1100', '0111'],
+	arrow: ['010', '111', '010', '010'],
+	drop: ['010', '010', '111', '111', '010'],
+	h: ['101', '111', '101'],
+	x: ['101', '010', '101'],
+	tri: ['00100', '01110', '11111'],
+	dash: ['1111'],
+	clock: ['0110', '1011', '1001', '0110'],
+	m: ['10001', '11011', '10101', '10001'],
 };
-const BALL_SHAPE: { [id: string]: string } = { loveball: 'heart', moonball: 'star' };
+/** 볼마다 컨셉: 입자 모양(번갈아), 움직임, 둘째 고리 색, 반짝임 수, 추가 연출
+ *  move — burst: 사방으로 / rise: 퍼지며 위로 떠오름(거품·물방울) / fall: 퍼진 뒤 떨어짐(무거움) / spiral: 돌며 퍼짐(시계·반복) / streak: 옆으로 길게(속도) / float: 천천히 맴돔(꿈) */
+type BallConcept = { shapes: string[]; move?: 'burst' | 'rise' | 'fall' | 'spiral' | 'streak' | 'float'; ring2?: string; tw?: number; twShape?: string; heart?: boolean; burstN?: number };
+const BALL_CONCEPT: { [id: string]: BallConcept } = {
+	pokeball: { shapes: ['sq', 'plus'] },
+	greatball: { shapes: ['diamond', 'sq'], ring2: '#ff6060' },
+	ultraball: { shapes: ['h', 'dash'], ring2: '#f8d030', tw: 8 },
+	masterball: { shapes: ['m', 'gem'], ring2: '#ff70d0', tw: 10, twShape: 'gem', burstN: 14 },
+	premierball: { shapes: ['sq', 'dash'], ring2: '#e83030' },
+	luxuryball: { shapes: ['gem', 'diamond'], ring2: '#ffd870', tw: 10, twShape: 'gem' },
+	duskball: { shapes: ['moon', 'sq'], move: 'float', ring2: '#80ff80' },
+	healball: { shapes: ['plus', 'heart'], move: 'rise', ring2: '#ffb0d8' },
+	netball: { shapes: ['x', 'plus'], ring2: '#30a0c0' },
+	diveball: { shapes: ['bubble', 'sq'], move: 'rise', ring2: '#60b0ff' },
+	nestball: { shapes: ['leaf', 'sq'], move: 'fall', ring2: '#a0d040' },
+	repeatball: { shapes: ['arrow', 'sq'], move: 'spiral', ring2: '#f8d030' },
+	timerball: { shapes: ['clock', 'dash'], move: 'spiral', ring2: '#e03030' },
+	quickball: { shapes: ['bolt', 'dash'], move: 'streak', ring2: '#f8e040' },
+	friendball: { shapes: ['leaf', 'heart'], ring2: '#ff8040' },
+	loveball: { shapes: ['heart'], heart: true, ring2: '#ff3080' },
+	moonball: { shapes: ['moon', 'star'], move: 'float', ring2: '#f8d030', tw: 8, twShape: 'star' },
+	dreamball: { shapes: ['bubble', 'star'], move: 'float', ring2: '#c080ff', tw: 8, twShape: 'star' },
+	beastball: { shapes: ['tri', 'bolt'], ring2: '#ff9030', burstN: 14 },
+	cherishball: { shapes: ['gem', 'heart'], ring2: '#ff6060', tw: 10, twShape: 'gem' },
+	safariball: { shapes: ['leaf', 'sq'], move: 'fall', ring2: '#a0c040' },
+	sportball: { shapes: ['sq', 'diamond'], ring2: '#ff9030' },
+	fastball: { shapes: ['dash', 'bolt'], move: 'streak', ring2: '#f8e040' },
+	heavyball: { shapes: ['sq', 'h'], move: 'fall', ring2: '#8090c0', burstN: 14 },
+	levelball: { shapes: ['arrow', 'sq'], move: 'rise', ring2: '#e03030' },
+	lureball: { shapes: ['drop', 'bubble'], move: 'rise', ring2: '#f8e040' },
+	parkball: { shapes: ['star', 'sq'], ring2: '#60c0ff', tw: 8, twShape: 'star' },
+	strangeball: { shapes: ['x', 'star'], move: 'spiral', ring2: '#ff80ff', tw: 8 },
+};
 export function ballBurst(layer: HTMLElement, at: Pt, s: number, ballId = 'pokeball') {
 	const st = BALL_STYLE[ballId] || BALL_STYLE.pokeball;
-	const base = st[0] === '#f8f8f8' || st[0] === '#1a1a1a' ? st[3] : st[0];
-	ballPop(layer, at, s, base, st[2], st[3], SHAPES[BALL_SHAPE[ballId] || 'sq']);
-	if (ballId === 'loveball') pixelFx(layer, at, s, { fx: 'heartPickup', len: .5, dy: 20 });
+	// 어두운 색(더스크볼·문볼·네트볼 등)은 어두운 배경에서 안 보이므로 밝혀서 씀
+	const lum = (hex: string) => { const n = parseInt(hex.slice(1), 16); return (0.3 * (n >> 16) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255)) / 255; };
+	const lift = (hex: string) => lum(hex) < 0.35 ? shade(hex, 0.45, 255) : hex;
+	const base = lift(st[0] === '#f8f8f8' || st[0] === '#1a1a1a' ? st[3] : st[0]);
+	const c = BALL_CONCEPT[ballId] || BALL_CONCEPT.pokeball;
+	ballPop(layer, at, s, base, st[2], lift(st[3]), c);
+	if (c.heart) pixelFx(layer, at, s, { fx: 'heartPickup', len: .5, dy: 20 });
 }
-function ballPop(layer: HTMLElement, at: Pt, s: number, base: string, light: string, part: string, shape: string[]) {
-	const W = 112, C = W / 2, k = s * 0.85, FR = 16;
+function ballPop(layer: HTMLElement, at: Pt, s: number, base: string, light: string, part: string, c: BallConcept) {
+	const W = 128, C = W / 2, k = s * 0.85, FR = 18, move = c.move || 'burst';
 	const cv = document.createElement('canvas');
 	cv.width = W; cv.height = W; cv.className = 'fxp pxfx';
 	cv.style.cssText = `left:${Math.round(at.x - C * k)}px;top:${Math.round(at.y - C * k)}px;width:${Math.round(W * k)}px;height:${Math.round(W * k)}px;`;
 	const g = cv.getContext('2d'); if (!g) return;
 	const dot = (x: number, y: number, w: number, col: string) => { g.fillStyle = col; g.fillRect(Math.round(x - w / 2), Math.round(y - w / 2), w, w); };
-	const stamp = (x: number, y: number, col: string) => {
-		g.fillStyle = col; const h = shape.length, w = shape[0].length, x0 = Math.round(x - w / 2), y0 = Math.round(y - h / 2);
-		shape.forEach((row, j) => { for (let i = 0; i < w; i++) if (row[i] === '1') g.fillRect(x0 + i, y0 + j, 1, 1); });
+	/** 모양 찍기 (z = 한 칸의 크기). 바깥 한 칸은 어두운 테두리로 (밝은 배경에서도 모양이 보이게) */
+	const stamp = (x: number, y: number, col: string, name: string, z = 2) => {
+		const shape = SHAPES[name] || SHAPES.sq;
+		const h = shape.length, w = shape[0].length, x0 = Math.round(x - (w * z) / 2), y0 = Math.round(y - (h * z) / 2);
+		g.fillStyle = 'rgba(10,12,28,.55)';
+		shape.forEach((row, j) => { for (let i = 0; i < w; i++) if (row[i] === '1') g.fillRect(x0 + i * z + 1, y0 + j * z + 1, z, z); });
+		g.fillStyle = col;
+		shape.forEach((row, j) => { for (let i = 0; i < w; i++) if (row[i] === '1') g.fillRect(x0 + i * z, y0 + j * z, z, z); });
 	};
 	/** 반짝임: 가운데 점 + 십자 빛줄기 (len 칸) */
 	const glint = (x: number, y: number, len: number, col: string, diag = false) => {
 		dot(x, y, 2, '#fff');
 		for (let d = 2; d <= len; d++) {
-			const c = d > len * 0.6 ? col : '#fff';
-			if (diag) { dot(x + d, y + d, 1, c); dot(x - d, y - d, 1, c); dot(x + d, y - d, 1, c); dot(x - d, y + d, 1, c); }
-			else { dot(x + d, y, 1, c); dot(x - d, y, 1, c); dot(x, y + d, 1, c); dot(x, y - d, 1, c); }
+			const cc = d > len * 0.6 ? col : '#fff';
+			if (diag) { dot(x + d, y + d, 1, cc); dot(x - d, y - d, 1, cc); dot(x + d, y - d, 1, cc); dot(x - d, y + d, 1, cc); }
+			else { dot(x + d, y, 1, cc); dot(x - d, y, 1, cc); dot(x, y + d, 1, cc); dot(x, y - d, 1, cc); }
 		}
 	};
 	const out = (u: number) => 1 - (1 - u) * (1 - u);
-	// 입자: 빠른 것 10개(볼 모양) + 느린 것 8개(작은 점) — 지난 위치에 흐린 꼬리
-	const fast = Array.from({ length: 10 }, (_, i) => ({ a: (i / 10) * Math.PI * 2 + 0.3, v: 46 }));
+	const nF = c.burstN || 10;
+	// 입자 위치: 움직임 종류에 따라 (u: 0→1 진행)
+	const pos = (a: number, v: number, u: number): [number, number] => {
+		const d = 4 + v * out(u);
+		switch (move) {
+		case 'rise': return [C + Math.cos(a) * d * 0.8, C + Math.sin(a) * d * 0.5 - 34 * u * u];
+		case 'fall': return [C + Math.cos(a) * d, C + Math.sin(a) * d * 0.7 - 10 * u + 46 * u * u];
+		case 'spiral': { const b = a + u * 2.4; return [C + Math.cos(b) * d, C + Math.sin(b) * d * 0.9]; }
+		case 'streak': { const side = Math.cos(a) >= 0 ? 1 : -1; return [C + side * (6 + v * 1.25 * out(u)), C + Math.sin(a) * 14 * out(u)]; }
+		case 'float': { const b = a + Math.sin(u * 6) * 0.25; return [C + Math.cos(b) * d * 0.8, C + Math.sin(b) * d * 0.8 - 12 * u]; }
+		default: return [C + Math.cos(a) * d, C + Math.sin(a) * d * 0.9];
+		}
+	};
+	const fast = Array.from({ length: nF }, (_, i) => ({ a: (i / nF) * Math.PI * 2 + 0.3, v: 48 }));
 	const slow = Array.from({ length: 8 }, (_, i) => ({ a: (i / 8) * Math.PI * 2 + 0.7, v: 28 }));
-	// 마지막에 주변에서 반짝이는 별 (자리 고정)
-	const tw = Array.from({ length: 6 }, (_, i) => { const a = (i / 6) * Math.PI * 2 + 0.2, r = 22 + (i % 3) * 9; return { x: C + Math.cos(a) * r, y: C + Math.sin(a) * r * 0.85, f0: 6 + (i % 3) * 2 }; });
+	const nT = c.tw || 6;
+	const tw = Array.from({ length: nT }, (_, i) => { const a = (i / nT) * Math.PI * 2 + 0.2, r = 22 + (i % 3) * 10; return { x: C + Math.cos(a) * r, y: C + Math.sin(a) * r * 0.85 - (move === 'rise' || move === 'float' ? 10 : 0), f0: 6 + (i % 4) * 2 }; });
 	let f = 0, timer = 0;
 	const tick = () => {
 		if (f > FR) { clearInterval(timer); cv.remove(); return; }
 		g.clearRect(0, 0, W, W);
-		// 가운데 번쩍: 큰 빛 → 십자·대각 빛줄기가 돌며 줄어듦
-		if (f === 0) { dot(C, C, 12, '#fff'); dot(C, C, 6, light); g.fillStyle = '#fff'; g.fillRect(C - 18, C - 1, 36, 2); g.fillRect(C - 1, C - 18, 2, 36); }
-		else if (f <= 5) { glint(C, C, 14 - f * 2, light, f % 2 === 1); dot(C, C, f < 3 ? 6 : 4, light); }
-		// 고리 1: 볼 빛 색 점선 원 / 고리 2: 조금 늦게, 볼 색으로 더 크게
+		// 가운데 번쩍: 큰 빛 → 십자·대각 빛줄기가 돌며 줄어듦, 가운데에 그 볼의 상징 모양
+		if (f === 0) { dot(C, C, 12, '#fff'); dot(C, C, 6, light); g.fillStyle = '#fff'; g.fillRect(C - 20, C - 1, 40, 2); g.fillRect(C - 1, C - 20, 2, 40); }
+		else if (f <= 6) { glint(C, C, 15 - f * 2, light, f % 2 === 1); if (f >= 2) stamp(C, C, f % 2 ? base : light, c.shapes[0], f <= 4 ? 4 : 3); }
+		// 고리 1: 빛 색 / 고리 2: 그 볼의 둘째 색으로 더 크게
 		const ringAt = (f0: number, len: number, r0: number, r1: number, col: string, n: number) => {
 			const u = (f - f0) / len; if (u < 0 || u > 1) return;
 			const r = r0 + (r1 - r0) * out(u);
 			for (let i = 0; i < n; i++) { if (u > 0.55 && (i + f) % 2) continue; const a = (i / n) * Math.PI * 2; dot(C + Math.cos(a) * r, C + Math.sin(a) * r * 0.9, u < 0.4 ? 2 : 1, col); }
 		};
 		ringAt(1, 8, 6, 34, light, 32);
-		ringAt(3, 9, 8, 48, base, 40);
-		// 입자
-		for (const [list, life, sh] of [[fast, 12, true], [slow, 14, false]] as const) {
+		ringAt(3, 9, 8, move === 'streak' ? 40 : 50, c.ring2 || base, 40);
+		// 입자: 큰 것은 볼 상징 모양(두 가지 번갈아), 작은 것은 점 — 지난 위치에 흐린 꼬리
+		for (const [list, life, big] of [[fast, 13, true], [slow, 15, false]] as const) {
 			const u = (f - 1) / life; if (u < 0 || u > 1) continue;
 			list.forEach((pp, i) => {
-				const d = 4 + pp.v * out(u), dp = 4 + pp.v * out(Math.max(0, u - 1 / life));
-				const x = C + Math.cos(pp.a) * d, y = C + Math.sin(pp.a) * d * 0.9, col = i % 2 ? part : base;
-				if (u > 0.75 && (i + f) % 2) return;
-				g.globalAlpha = 0.45; dot(C + Math.cos(pp.a) * dp, C + Math.sin(pp.a) * dp * 0.9, 1, light); g.globalAlpha = 1;   // 꼬리
-				if (sh && u < 0.55) stamp(x, y, col); else dot(x, y, sh ? 2 : 1, col);
+				const [x, y] = pos(pp.a, pp.v, u), [px0, py0] = pos(pp.a, pp.v, Math.max(0, u - 1.5 / life));
+				const col = i % 2 ? part : base;
+				if (u > 0.78 && (i + f) % 2) return;
+				g.globalAlpha = 0.45; dot(px0, py0, 1, light); if (move === 'streak') dot((px0 + x) / 2, (py0 + y) / 2, 1, light); g.globalAlpha = 1;
+				if (big && u < 0.65) stamp(x, y, col, c.shapes[i % c.shapes.length]); else dot(x, y, big ? 2 : 1, col);
 			});
 		}
-		// 주변 반짝임: 하나씩 켜졌다 꺼짐
-		for (const t of tw) { const d = f - t.f0; if (d >= 0 && d < 5) glint(t.x, t.y, d < 2 ? 3 + d : 5 - d, light, d % 2 === 1); }
+		// 주변 반짝임: 하나씩 켜졌다 꺼짐 (보석·별 볼은 그 모양으로)
+		for (const t of tw) {
+			const d = f - t.f0; if (d < 0 || d >= 5) continue;
+			if (c.twShape && d >= 1 && d <= 3) stamp(t.x, t.y, d === 2 ? '#fff' : light, c.twShape, d === 2 ? 2 : 1);
+			else glint(t.x, t.y, d < 2 ? 3 + d : 5 - d, light, d % 2 === 1);
+		}
 		f++;
 	};
 	later(() => { layer.appendChild(cv); tick(); timer = window.setInterval(tick, 50 / SPEED); }, 0);
