@@ -1109,15 +1109,12 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 }
 .cmd-fight:active::after, .cmd-sub:active::after, .gmb:active::after, .mvb:active:not(.off)::after, .tcard.on:active::after,
 .controls .switch-list .switch-btn:active:not(.off)::after { box-shadow: inset 2px 2px 0 rgba(0,0,0,.32), inset -2px -2px 0 rgba(255,255,255,.18); }
-/* 가리킴: 왼쪽에 도트 삼각형 커서 ▶ (마우스가 있는 기기의 :hover, 키보드 :focus-visible) */
+/* 가리킴: 왼쪽에 도트 삼각형 커서 ▶ (키보드 :focus-visible 만 — 마우스 올림에는 안 보임, v2.45) */
 .cmd-fight::before, .cmd-sub::before, .mvb::before, .tcard::before, .controls .switch-list .switch-btn::before {
 	/* 앱 글꼴(갈무리, 도트 글꼴)의 ▶ 글자 — 흐림 없는 흰 외곽선 */
 	content: '▶'; position: absolute; left: -8px; top: 50%; transform: translateY(-50%); display: none; z-index: 2;
 	font-size: 16px; line-height: 1; color: #181818; letter-spacing: 0;
 	text-shadow: 2px 0 0 #fff, -2px 0 0 #fff, 0 2px 0 #fff, 0 -2px 0 #fff, 2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff;
-}
-@media (hover: hover) {
-	.cmd-fight:hover::before, .cmd-sub:hover::before, .mvb:hover:not(.off)::before, .tcard.on:hover::before, .controls .switch-list .switch-btn:hover:not(.off)::before { display: block; }
 }
 .cmd-fight:focus-visible::before, .cmd-sub:focus-visible::before, .mvb:focus-visible::before, .tcard:focus-visible::before, .controls .switch-list .switch-btn:focus-visible::before { display: block; }
 .cmd-fight:focus-visible, .cmd-sub:focus-visible, .mvb:focus-visible, .tcard:focus-visible, .controls .switch-list .switch-btn:focus-visible { outline: none; }
@@ -1193,7 +1190,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 @keyframes popOut { to { transform: scale(.85); } }
 
 /* ═════ PC 화면 (가로로 넓은 창): 왼쪽 큰 배틀 필드 + 오른쪽 조작 패널 ═════ */
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	body:has(.battle) #app { max-width: none; }
 	.battle { display: grid; grid-template-columns: minmax(0, 1fr) clamp(380px, 30vw, 460px); grid-template-rows: auto minmax(0, 1fr);
 		grid-template-areas: "hud hud" "arena side"; }
@@ -1423,7 +1420,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .avatar-panel .av-side { position: relative; z-index: 1; height: 44px; image-rendering: pixelated; opacity: .4; cursor: pointer; flex: none; }
 
 /* ═════ v2.38: PC(넓은 화면) 레이아웃 다듬기 ═════ */
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 1) 기술 버튼: 패널 세로를 다 채우지 않게 높이 상한 (기술 2개여도 92px) — 앞의 '낮은 화면' 규칙보다 뒤에 둠 */
 	.move-panel > .move-grid, .move-panel > .move-grid.win-dark { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: minmax(56px, 92px); align-content: start; overflow-y: auto; }
 	/* 2) 배틀 상단 바: 제목 칸이 끝까지 늘어나지 않게 (버튼은 제목 바로 옆) */
@@ -1443,7 +1440,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 
 /* ═════ 시안: 넓은 화면 배틀 — 쇼다운식 배치 (도트 스타일 유지) ═════
    왼쪽: 위 필드 · 아래 메시지와 '공격'(기술 4칸 한 줄)·'교체'(포켓몬 6칸 한 줄)를 함께 / 오른쪽: 배틀 기록 (턴마다 제목) */
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	body:has(.battle) #app { max-width: none; }
 	.battle { display: grid; height: 100dvh; overflow: hidden; grid-template-columns: minmax(0, 1fr) clamp(300px, 24vw, 440px);
 		grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "hud log" "arena log" "bottom log"; background: #0a0e18; }
@@ -1459,7 +1456,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	/* 공격·교체 함께 */
 	.battle .sd-panel { display: flex; flex-direction: column; gap: 4px; }
 	.battle .sd-label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--yellow); text-shadow: 1px 1px 0 #000; }
-	.battle .sd-label .sd-forfeit { margin-left: auto; }
+	.battle .sd-label .sd-forfeit { margin-left: auto; } .battle .sd-label .sd-log { display: none; }
 	.battle .controls .move-panel { flex: none; min-height: auto; }
 	.battle .controls .move-panel > .move-grid, .battle .controls .move-panel > .move-grid.win-dark { flex: none; min-height: auto; overflow: visible;
 		grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 74px; gap: 6px; padding: 0; }
@@ -1479,7 +1476,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.side-log .log-turn { margin: 12px 0 4px; padding: 2px 8px; background: #26304a; color: #fff; font-size: 16px; box-shadow: 0 2px 0 #0a0f18; }
 	.side-log .log-line { padding: 1px 0; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 쇼다운식 기술 버튼: [타입] 이름(상성) [PP] 한 칸 — 낮은 버튼용 '줄 숨김' 규칙은 쓰지 않음 */
 	.battle .sd-panel .mvb { display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: 1fr auto; grid-template-areas: "ty nm pp" "ty ef pp";
 		align-items: center; column-gap: 8px; padding: 4px 10px !important; container-type: normal; }
@@ -1497,7 +1494,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	/* 상대 HP 상자가 필드 위쪽에 잘리지 않게 */
 	.battle .arena .panels.foe { top: 6px; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 필드는 가운데 칸 높이에 딱 맞춤 (넘쳐서 위아래가 잘리지 않게) */
 	.battle > .arena { width: auto; height: 100%; max-width: 100%; aspect-ratio: 4 / 3; align-self: stretch; }
 	/* 공격·교체를 함께 보일 때는 이름·기록 줄을 숨김 (기록은 오른쪽에 항상 보임) */
@@ -1506,18 +1503,18 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle .controls .move-panel > .move-grid { grid-auto-rows: 62px; }
 	.battle .sd-panel .mvb .mvb-name { font-size: 16px; line-height: 19px; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 아래 칸 높이를 고정 → 내 차례·메시지 진행 사이에 필드 크기가 바뀌지 않게 */
 	.battle { grid-template-rows: auto minmax(0, 1fr) clamp(270px, 32dvh, 340px); }
 	.battle > .bottom { overflow-y: auto; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 더블: 두 번째 포켓몬 차례에는 '◀ 뒤로'(앞 선택 취소)가 보이게 머리줄을 다시 보임 */
 	.battle .controls:has(.sd-panel) > .ctl-head:has(.ctl-back) { display: flex; }
 	/* 낮은 화면에서도 교체 줄까지 보이게 아래 칸을 조금 높게 */
 	.battle { grid-template-rows: auto minmax(0, 1fr) clamp(304px, 34dvh, 350px); }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 아래 칸 촘촘하게 (낮은 화면·더블에서 교체 줄까지 들어가게) */
 	.battle > .bottom { padding: 4px 10px 6px; gap: 3px; }
 	.battle .msgbox, .battle .msgbox.win-dark { min-height: 34px; font-size: 15px; }
@@ -1528,18 +1525,18 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle .controls .switch-list, .battle .controls > .switch-list { grid-auto-rows: 48px; }
 	.battle .controls > .gm-bar .gmb { min-height: 26px; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	.battle { grid-template-rows: auto minmax(0, 1fr) clamp(330px, 34dvh, 350px); }
 	.battle .controls:has(.sd-panel) .ctl-log { display: none; }   /* 기록은 오른쪽에 항상 보이므로 */
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 더블 대상 고르기: 카드 폭·높이를 조금 줄임 (화면 가로 끝까지 늘어나지 않게) */
 	.battle .target-pane > .target-grid2 { grid-template-columns: repeat(2, minmax(0, 420px)); grid-template-rows: none; grid-auto-rows: 64px; justify-content: center; gap: 10px 14px; }
 	.battle .target-pane .tcard { min-height: 0; }
 }
 
 /* ═════ v2.40: 넓은 화면 — 필드 양옆 트레이너·파티 현황, 마우스 정보 상자, 기술 이름 안 잘리게, 기믹 버튼 가운데 ═════ */
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	.battle { --logw: clamp(300px, 24vw, 440px); --botH: clamp(330px, 34dvh, 350px); --arenaH: calc(100dvh - 40px - var(--botH));
 		--arenaW: min(calc(var(--arenaH) * 4 / 3), calc(100vw - var(--logw)));
 		--sideW: max(0px, calc((100vw - var(--logw) - var(--arenaW)) / 2 - 12px));
@@ -1579,10 +1576,10 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle .controls > .gm-bar .gmb { flex: 0 0 auto; min-width: 150px; min-height: 26px; padding: 0 18px; font-size: 13px; }
 }
 /* 옆 패널이 들어갈 자리가 없을 만큼 좁으면 숨김 */
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (max-aspect-ratio: 3/2) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) and (max-aspect-ratio: 3/2) {
 	.battle > .side-info { display: none; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 기술 버튼: 윗줄 이름 전체 폭, 아랫줄 [타입] 상성 … PP */
 	.battle .sd-panel .mvb { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; grid-template-areas: "nm nm nm" "ty ef pp";
 		align-content: center; row-gap: 2px; padding: 4px 12px !important; }
@@ -1598,7 +1595,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.sp-mon.unk { height: 64px; justify-content: center; }
 	.sp-mon.unk .ball { width: 20px; height: 20px; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	.battle .controls .move-panel > .move-grid { grid-auto-rows: 60px; }
 	.battle .sd-panel .mvb { padding: 6px 12px 4px !important; }
 	.battle .sd-panel .mvb .mvb-name { font-size: 15px; line-height: 18px; }
@@ -1607,13 +1604,13 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.sp-mon.act { box-shadow: 0 0 0 2px #0a0f18, 0 0 0 4px var(--yellow); }
 	.si-party { gap: 10px; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	.battle .sd-panel .mvb .mvb-name { font-size: 17px; line-height: 20px; }
 	.battle .sd-panel .mvb .mvb-name.l { font-size: 15px; } .battle .sd-panel .mvb .mvb-name.xl { font-size: 13.5px; }
 }
 
 /* ═════ v2.40.2: 넓은 화면 다듬기 ═════ */
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 양옆 파티 칸: 도트 계단 둥근 모서리 (나와 있는 포켓몬은 밝은 테두리) */
 	.sp-mon { border: 6px solid transparent; border-image: var(--ring-i2) 3 / 6px stretch; clip-path: var(--clip2); background-origin: border-box; box-shadow: none; }
 	.sp-mon.act { border-image-source: var(--ring2-hi); box-shadow: none; }
@@ -1674,14 +1671,14 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.tcard .teff { z-index: 2; }
 	.tcard.off .tspr { opacity: .5; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 더블·멀티 HP 상자 (v2.41.1): 필드 폭의 62%까지 넓고 낮게, 이름 칸은 줄어들고 HP 바가 남은 폭을 차지 (작은 화면에서도 바가 길게) */
 	.battle.doubles .arena .panels { zoom: 1; width: min(62%, 360px); }
 	.battle.doubles .arena .info { grid-template-columns: minmax(0, 38%) minmax(0, 1fr); min-height: 0; padding-top: 0; padding-bottom: 0; }
 	.battle.doubles .arena .info .info-top { font-size: 14px; line-height: 18px; min-width: 0; overflow: hidden; }
 	.battle.doubles .arena .info .info-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 더블·멀티 HP 상자 (v2.42.1): 싱글과 같은 폭·배율, 두 줄(이름 / HP 바), 작은 글자·얇은 상자 — 포켓몬을 가리지 않게 */
 	.battle.doubles .arena .panels { zoom: 1.35; gap: 2px; }
 	.battle.doubles .arena .panels.foe { width: min(46%, 220px); }
@@ -1693,7 +1690,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle.doubles .arena .info .hpbar::before { left: -13px; top: -4px; font-size: 7px; }
 	.battle.doubles .arena .info .info-bottom { display: none; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 길이는 싱글 상자(220px×1.35)와 같게, 배율은 1 → 상자가 얇아짐 */
 	.battle.doubles .arena .panels { zoom: 1; gap: 2px; }
 	.battle.doubles .arena .panels.foe { width: min(41.4%, 267px); }
@@ -1703,13 +1700,13 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.battle.doubles .arena .info .hpbar { height: 5px; margin: 2px 0 0 16px; }
 	.battle.doubles .arena .info .hpbar::before { left: -16px; top: -4px; font-size: 9px; }
 }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	/* 더블: 내 포켓몬 둘을 조금 왼쪽으로 (오른쪽 아래 HP 상자와 겹치지 않게) */
 	.battle.doubles .slot.own.s0 { left: 14%; top: 96%; } .battle.doubles .slot.own.s1 { left: 29%; top: 99%; }
 }
 
 /* ── 더블·멀티 HP 상자 두 줄 (v2.43.0): [이름 성별] / [HP ▬▬▬], 내 쪽 볼 현황 줄은 없애고 상자를 아래에 붙임 ── */
-@media (max-width: 959px), (max-aspect-ratio: 5/4) {
+@media (max-width: 959px), (max-aspect-ratio: 5/4), (max-height: 540px) {
 	.battle.doubles .arena .info { display: block; min-height: 0; padding-top: 1px; padding-bottom: 2px; }
 	.battle.doubles .arena .info .info-top { font-size: 11px; line-height: 13px; }
 	.battle.doubles .arena .info .info-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1736,7 +1733,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .battle.bg-pwt { --wg1: #3c3d3f; --wg2: #27202f; --wg3: #342037; --wg4: #422134; --wg5: #351b2b; --wgl: #874265; }
 .battle.bg-champion { --wg1: #392e13; --wg2: #3e1f12; --wg3: #331111; --wg4: #463018; --wg5: #392614; --wgl: #90602b; }
 .arena-wings { display: none; }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	.battle > .arena-wings { display: block; grid-area: arena; align-self: stretch; justify-self: stretch; pointer-events: none; image-rendering: pixelated;
 		background:
 			/* 지평선: 밝은 줄 2px + 그 아래 2px 체크 디더 */
@@ -1762,7 +1759,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 :root[data-tod="day"] .bg-factory .arena-bg { background-image: url(__IMG_arena_factory_day__); }
 :root[data-tod="day"] .bg-pwt .arena-bg { background-image: url(__IMG_arena_pwt_day__); }
 :root[data-tod="day"] .title-glow { background: radial-gradient(circle at 50% 42%, rgba(255,255,255,.22), transparent 55%); }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
 	:root[data-tod="day"]:not([data-bg]) body::before, :root[data-tod="day"][data-bg="title"] body::before, :root[data-tod="day"] .title-screen { background-image: url(__IMG_arena_title_wide_day__); }
 }
 :root[data-tod="day"] .battle.bg-tower { --wg1: #3d4354; --wg2: #5e6e88; --wg3: #7e8ea3; --wg4: #70788d; --wg5: #5f6678; --wgl: #b4c0e1; }
@@ -1772,7 +1769,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 /* ── 타이틀 로고 그림 (v2.44, scripts/gen-title.py) ── */
 .title-logo-img { position: relative; width: min(92vw, 396px); aspect-ratio: 198 / 60; background: url(__IMG_title_logo__) center / 100% 100% no-repeat; image-rendering: pixelated;
 	filter: drop-shadow(0 4px 0 rgba(0,0,0,.35)); }
-@media (min-width: 960px) and (min-aspect-ratio: 5/4) { .title-screen > .title-logo-img { width: 396px; zoom: 1.5; } }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) { .title-screen > .title-logo-img { width: 396px; zoom: 1.5; } }
 /* 타이틀 "TAP ANYWHERE" 점멸 (화면 아래) */
 .title-screen > .title-tap { position: absolute; bottom: calc(14% + var(--safe-bottom)); margin: 0; font-size: 20px; letter-spacing: 3px; color: #ffe870;
 	text-shadow: 2px 0 0 #140c1c, -2px 0 0 #140c1c, 0 2px 0 #140c1c, 0 -2px 0 #140c1c, 2px 2px 0 #140c1c, -2px -2px 0 #140c1c, 2px -2px 0 #140c1c, -2px 2px 0 #140c1c, 0 4px 0 #140c1c;
@@ -1780,3 +1777,99 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 /* 타이틀 포켓몬: 늘 2D 도트, 바닥 여백(--pad)만큼 내려 로고 윗변에 발을 딛게 */
 .title-screen > .title-mons { z-index: 1; margin-bottom: 0; gap: 0; }
 .title-screen > .title-mons .sprite { transform: translateY(calc(var(--pad, 8px) * 1.5)) scale(1.5); transform-origin: bottom center; }
+
+/* ═════ v2.45: 휴대폰 가로 — 하이브리드 (왼쪽 큰 필드 = 챔피언스식, 오른쪽 한 칸에 메시지·기술 2×2·교체 6칸 함께 = 쇼다운식) ═════ */
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	body:has(.battle) #app { max-width: none; }
+	.battle { display: grid; height: 100dvh; overflow: hidden; padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
+		grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "hud hud" "arena side"; background: #0a0e18; }
+	.battle > .hud-top { grid-area: hud; position: static; padding: 2px 4px; font-size: 11px; }
+	.battle > .hud-top .badge:first-child { flex: 0 1 auto; max-width: 40%; }
+	.battle > .arena { grid-area: arena; width: auto; height: 100%; max-width: 62vw; aspect-ratio: 4 / 3; align-self: stretch; justify-self: start; margin: 0; }
+	.battle .arena .panels, .battle .arena .ab-pop, .battle .arena .hud-cond { zoom: 1; }
+	/* 오른쪽 칸 */
+	.battle > .bottom { grid-area: side; min-height: 0; overflow-y: auto; border-top: 0; border-left: 2px solid #e8eef8; box-shadow: -2px 0 0 #0a0f18;
+		padding: 4px 6px calc(4px + var(--safe-bottom)); gap: 4px; background: #121826; }
+	.battle .msgbox, .battle .msgbox.win-dark { flex: none; min-height: 0; height: auto; margin: 0; font-size: 13px; line-height: 1.35; padding-top: 2px; padding-bottom: 2px; }
+	.battle .msgbox p { min-height: 2.7em; }
+	.battle .controls { gap: 4px; flex: 1; min-height: 0; }
+	.battle .controls > .ctl-head { order: -2; min-height: 22px; font-size: 12px; } .battle .controls > .gm-bar { order: -1; } .battle .controls > .sd-panel { order: 0; }
+	.battle .controls > .ctl-head .btn.small { min-height: 22px; padding: 0 8px; font-size: 12px; }
+	.battle .controls > .gm-bar { gap: 6px; } .battle .controls > .gm-bar .gmb { min-height: 24px; font-size: 12px; padding: 0 8px; }
+	/* 기술 2×2 (챔피언스식 큰 타입 색 버튼) */
+	.battle .sd-panel { display: flex; flex-direction: column; gap: 4px; }
+	.battle .controls .move-panel { flex: none; min-height: auto; }
+	.battle .controls .move-panel > .move-grid, .battle .controls .move-panel > .move-grid.win-dark { flex: none; min-height: auto; overflow: visible; padding: 0;
+		grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 50px; gap: 4px; }
+	.battle .move-panel .mv-hint { display: none; }
+	.battle .sd-panel .mvb { display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; grid-template-areas: "nm nm nm" "ty ef pp";
+		align-items: center; column-gap: 6px; row-gap: 1px; padding: 3px 8px !important; container-type: normal; }
+	.battle .sd-panel .mvb .mvb-top, .battle .sd-panel .mvb .mvb-bottom { display: contents !important; }
+	.battle .sd-panel .mvb .type { grid-area: ty; font-size: 10px; padding: 0 4px; line-height: 14px; } .battle .sd-panel .mvb .cat-icon { display: none; }
+	.battle .sd-panel .mvb .mvb-name { grid-area: nm; text-align: left; font-size: 14px; line-height: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.battle .sd-panel .mvb .mvb-name.l { font-size: 13px; } .battle .sd-panel .mvb .mvb-name.xl { font-size: 12px; }
+	.battle .sd-panel .mvb .mvb-eff, .battle .sd-panel .mvb .mvb-dmg { grid-area: ef; justify-self: start; font-size: 10px; }
+	.battle .sd-panel .mvb .mvb-pp { grid-area: pp; margin: 0; font-size: 10px; } .battle .sd-panel .mvb .mvb-pp b { font-size: 11px; }
+	/* 교체 6칸 (쇼다운식, 아이콘 + HP) */
+	.battle .sd-label { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 14px; color: var(--yellow); text-shadow: 1px 1px 0 #000; }
+	.battle .sd-label .sd-forfeit { margin-left: auto; min-height: 20px; padding: 0 8px; font-size: 11px; }
+	.battle .controls .switch-list, .battle .controls > .switch-list { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 38px; gap: 4px; align-content: start; }
+	.battle .controls .switch-list .switch-btn { padding: 1px 4px; gap: 2px; min-height: 0; }
+	.battle .controls .switch-list .sw-sprite { width: 30px; height: 30px; flex: none; }
+	.battle .controls .switch-list .sw-sprite .sprite { max-width: 30px !important; max-height: 30px !important; }
+	.battle .controls .switch-list .sw-info small { display: none; }
+	.battle .controls .switch-list .sw-info b { font-size: 11px; line-height: 13px; }
+	/* 공격·교체를 함께 볼 때 '싸운다' 메뉴·대상 고르기도 오른쪽 칸 크기에 맞춤 */
+	.battle .controls > .cmd-menu { max-height: 220px; }
+	.battle .target-pane > .target-grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 60px; gap: 4px; }
+	.battle .target-pane .tcard { min-height: 0; }
+	.battle .play-hint, .battle .speed-row { font-size: 11px; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	/* 이름·기록 줄은 숨기고(기록은 '교체' 줄로), 더블 두 번째 차례의 '◀ 뒤로'가 있을 때만 보임 */
+	.battle .controls:has(.sd-panel) > .ctl-head { display: none; }
+	.battle .controls:has(.sd-panel) > .ctl-head:has(.ctl-back) { display: flex; }
+	.battle .controls:has(.sd-panel) > .ctl-head:has(.ctl-back) .ctl-log { display: none; }
+	.battle .sd-label .sd-log { display: inline-flex; min-height: 20px; padding: 0 8px; font-size: 11px; margin-left: 4px; }
+	.battle .msgbox p { min-height: 0; }
+	.battle .msgbox, .battle .msgbox.win-dark { min-height: 40px; }
+	.battle .sd-panel .mvb { grid-template-rows: 17px 14px !important; align-content: center; }
+	.battle .controls .move-panel > .move-grid, .battle .controls .move-panel > .move-grid.win-dark { grid-auto-rows: 44px; }
+	.battle .controls .switch-list, .battle .controls > .switch-list { grid-auto-rows: 34px; }
+	.battle .controls .switch-list .sw-sprite { width: 26px; height: 26px; }
+	.battle .controls .switch-list .sw-sprite .sprite { max-width: 26px !important; max-height: 26px !important; }
+	.battle .controls > .gm-bar .gmb { min-height: 24px; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	/* 기술 버튼 한 줄: [타입] 이름 (상성) PP — 버튼 테두리 안 높이가 낮아 두 줄은 겹침 */
+	.battle .sd-panel .mvb { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-rows: 1fr !important; grid-template-areas: "ty nm ef pp"; padding: 0 8px !important; column-gap: 5px; }
+	.battle .sd-panel .mvb .mvb-name { align-self: center; }
+	.battle .sd-panel .mvb .mvb-eff, .battle .sd-panel .mvb .mvb-dmg { align-self: center; }
+	.battle .sd-panel .mvb .mvb-dmg { display: none; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle .controls > .gm-bar .gmb { height: 26px; min-height: 0; }
+	.battle .sd-panel .mvb .mvb-pp, .battle .sd-panel .mvb .mvb-eff { font-size: 9px; }
+	.battle .sd-panel .mvb .mvb-eff { padding: 0 3px; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle .controls > .gm-bar .gmb { height: 34px; }
+	/* 상성 표시는 버튼 위 테두리에 걸친 작은 띠로 → 기술 이름 칸을 넓게 */
+	.battle .sd-panel .mvb { position: relative; overflow: visible; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "ty nm pp"; }
+	.battle .sd-panel .mvb .mvb-eff { position: absolute; top: -5px; right: 10px; z-index: 1; line-height: 12px; }
+	.battle .controls .move-panel > .move-grid, .battle .controls .move-panel > .move-grid.win-dark { row-gap: 8px; padding-top: 4px; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	/* 기믹 버튼: 도트 테두리(14px) 안에 글자 한 줄이 들어가게 */
+	.battle .controls > .gm-bar .gmb { height: 40px; line-height: 12px; }
+	.battle .controls > .gm-bar .gmb-dot { width: 10px; height: 10px; }
+	/* 상성 띠: 버튼 테두리 바깥 위로 */
+	.battle .sd-panel .mvb .mvb-eff { top: -12px; right: 14px; }
+}
+/* 휴대폰 가로: 타이틀·메뉴 배경은 가로 그림, TAP ANYWHERE 는 로고와 겹치지 않게 아래로 */
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	:root:not([data-bg]) body::before, :root[data-bg="title"] body::before, .title-screen { background-image: url(__IMG_arena_title_wide__); }
+	:root[data-tod="day"]:not([data-bg]) body::before, :root[data-tod="day"][data-bg="title"] body::before, :root[data-tod="day"] .title-screen { background-image: url(__IMG_arena_title_wide_day__); }
+	.title-screen > .title-tap { bottom: calc(8% + var(--safe-bottom)); font-size: 16px; }
+	.title-screen > .title-logo-img { width: min(60vw, 330px); }
+}

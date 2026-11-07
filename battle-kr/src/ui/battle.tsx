@@ -93,11 +93,13 @@ const SPEED_LABEL: { [k: number]: string } = { 1: '▶ ×0.5', 2: '▶ ×1', 3: 
 const ANIM_SPEED: { [k: number]: number } = { 1: 0.7, 2: 1, 3: 2, 4: 3 };
 
 /** 넓은 화면(PC 등): 쇼다운식 배치 — 필드 아래에 공격·교체를 함께, 오른쪽에 배틀 기록 */
-const WIDE_Q = '(min-width: 960px) and (min-aspect-ratio: 5/4)';
-function useWide() {
-	const [w, setW] = useState(() => typeof matchMedia !== 'undefined' && matchMedia(WIDE_Q).matches);
+const WIDE_Q = '(min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px)';
+/** 휴대폰 가로: 필드 왼쪽 + 오른쪽 한 칸에 메시지·기술·교체 (쇼다운식으로 함께, 챔피언스식 큰 버튼) */
+const LAND_Q = '(orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2)';
+function useWide(q = WIDE_Q) {
+	const [w, setW] = useState(() => typeof matchMedia !== 'undefined' && matchMedia(q).matches);
 	useEffect(() => {
-		const m = matchMedia(WIDE_Q), f = () => setW(m.matches);
+		const m = matchMedia(q), f = () => setW(m.matches);
 		m.addEventListener?.('change', f);
 		return () => m.removeEventListener?.('change', f);
 	}, []);
@@ -132,6 +134,7 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	const wakeRelease = useRef<(() => void) | null>(null);
 	const logRef = useRef<string[]>([]);
 	const wide = useWide();
+	const land = useWide(LAND_Q);
 	/** 마우스를 올리면 뜨는 정보 상자 (넓은 화면) */
 	const [tip, setTip] = useState<{ x: number; y: number; body: any } | null>(null);
 	const hov = (body: () => any) => wide ? {
@@ -1224,7 +1227,7 @@ function typeTint(type: string) {
 				const theirs = !!setup.partner && partnerOf(sessionRef.current!.battle.p1.pokemon[i]);
 				const disabled = theirs || (reviving ? (!fainted || chosen.has(i + 1)) : (isActive || fainted || trapped || chosen.has(i + 1)));
 				return <button key={i} class={'switch-btn' + (isActive ? ' active' : '') + (disabled ? ' off' : '')}
-					onClick={() => setSheet({ idx: i, canSwitch: !disabled })}>
+					{...hov(() => ownTip(i))} onClick={() => setSheet({ idx: i, canSwitch: !disabled })}>
 					<span class="sw-sprite"><Sprite species={species} gen={gen} size={40} anim={false} shiny={/, shiny/.test(p.details)} /></span>
 					<span class="sw-info">
 						<b>{nick}</b>
@@ -1260,7 +1263,7 @@ function typeTint(type: string) {
 		const usedG = parts.join(' ');
 		const g: [string, string, string][] = [];
 		// 넓은 화면: 처음부터 공격·교체를 함께 보여 줌 (쇼다운식)
-		const combined = wide && menu === 'main' && !req.forceSwitch;
+		const combined = (wide || land) && menu === 'main' && !req.forceSwitch;
 		if (activeReq && (menu === 'moves' || combined)) {
 			if (!/ mega| ultra/.test(usedG)) {
 				if (activeReq.canMegaEvo) g.push(['mega', '메가진화', '#e070e0']);
@@ -1281,7 +1284,7 @@ function typeTint(type: string) {
 			</div>
 			{combined && <div class="sd-panel">
 				{renderMoves()}
-				<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>기권</button></div>
+				<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>기권</button><button class="btn small sd-log" onClick={() => setShowLog(true)}>기록</button></div>
 				{renderSwitch()}
 			</div>}
 			{menu === 'main' && !combined && <div class="cmd-menu">
@@ -1523,7 +1526,7 @@ function typeTint(type: string) {
 			const d = liveOf(sheet.idx);
 			if (!d) return null;
 			const reason = !sheet.canSwitch ? (d.live.hp <= 0 ? '쓰러져서 낼 수 없다.' : reqMon?.[sheet.idx]?.active ? '지금 배틀에 나와 있다.' : activeReq?.trapped ? '도망칠 수 없어서 교체할 수 없다!' : '') : '';
-			return <MonSheet set={d.set} gen={gen} live={d.live} note={reason} onClose={() => setSheet(null)} actions={phase === 'input' && (menu === 'switch' || (wide && menu === 'main')) ? [
+			return <MonSheet set={d.set} gen={gen} live={d.live} note={reason} onClose={() => setSheet(null)} actions={phase === 'input' && (menu === 'switch' || ((wide || land) && menu === 'main')) ? [
 				{ label: req?.forceSwitch ? '내보낸다' : '교체한다', disabled: !sheet.canSwitch, onClick: () => { const i = sheet.idx; setSheet(null); pushChoice(`switch ${i + 1}`); } },
 				{ label: '닫기', kind: 'ghost', onClick: () => setSheet(null) },
 			] : [{ label: '닫기', kind: 'ghost', onClick: () => setSheet(null) }]} />;
