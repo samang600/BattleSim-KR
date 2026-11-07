@@ -36,7 +36,7 @@ import { KoreanText, parseLine } from '../src/text';
 		if (o.swap) { if (k % 2 === 1 && prevTeams) { ta = prevTeams[1]; tb = prevTeams[0]; } else prevTeams = [ta, tb]; }
 		if (o.pick) {
 			setSmogon(true); const pa = aiPickEntry(ta, tb, o.pick, doubles, 1);
-			setSmogon(false); const pb = aiPickEntry(tb, ta, o.pick, doubles, 1);
+			setSmogon(true); const pb = aiPickEntry(tb, ta, o.pick, doubles, 1); // 양쪽 같은 방식으로 (예전엔 B 만 통계 없이 골라 A 가 약 58% 유리했음)
 			ta = pa; tb = pb;
 		}
 		setSmogon(true);

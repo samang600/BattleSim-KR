@@ -93,16 +93,22 @@ export function rosterForRule(t: NamedTrainer, ruleIn: BattleRule): string[] {
 		if (!roster.some(isSub)) pick(lore.sub?.length ? lore.sub : SUB_BY_TYPE[type] || [], 1);
 	}
 	// 3) 자리 만들기: 에이스를 뺀 나머지 중 종족값이 낮은 순으로 뺌
-	const ace = roster.includes(t.ace) ? t.ace : roster[roster.length - 1];
+	// 원래 팀이 규칙상 모두 빠졌으면(예: 챔피언스 풀의 올림·투로 박사 — 패러독스뿐) 같은 타입의 강한 포켓몬으로 에이스를 세움
+	if (!roster.length && !adds.length) {
+		const fill = rng.shuffle(speciesPool({ gen: 9, minBst: 520, types: [type], exclude: new Set(t.team) }));
+		const pool2 = fill.length ? fill : rng.shuffle(speciesPool({ gen: 9, minBst: 500, exclude: new Set(t.team) }));
+		if (pool2.length) roster = [pool2.sort((a, b) => bst(b, 9) - bst(a, 9))[0]];
+	}
+	const ace = roster.includes(t.ace) ? t.ace : roster.length ? roster[roster.length - 1] : adds[adds.length - 1];
 	const others = roster.filter(id => id !== ace).sort((a, b) => bst(b, 9) - bst(a, 9));
 	const keep = Math.max(0, 5 - adds.length);
-	roster = [...others.slice(0, keep), ...adds];
+	roster = [...others.slice(0, keep), ...adds.filter(id => id !== ace)];
 	// 4) 모자라면(금지된 전설을 뺀 경우) 같은 타입의 강한 포켓몬으로 채움
 	if (roster.length < 5) {
 		const pool = rng.shuffle(speciesPool({ gen: 9, minBst: 500, types: [type], exclude: new Set([...roster, ace, t.ace]) }));
 		for (const id of pool) { if (roster.length >= 5) break; roster.push(id); }
 	}
-	return [...roster.slice(0, 5), ace];
+	return [...roster.filter(id => id !== ace).slice(0, 5), ace].filter(Boolean);
 }
 
 export const _legendUtil = { isLegend, isSub, toID };

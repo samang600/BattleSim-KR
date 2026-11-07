@@ -9,7 +9,7 @@ import { CalcScreen } from './ui/calc';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier } from './modes';
 import { exportBackup, inspectBackup, importBackup } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
-import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, applyRuleData, type LegendMode } from './rules';
+import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, applyRuleData, poolSubPar, type LegendMode } from './rules';
 import { packStatus, refreshPack, onPackProgress, startPackDownload, deletePack, hasNative, fmtBytes, BUNDLED, type PackProgress } from './offline';
 import { CUPS, NAMED } from './trainers';
 import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, setMoveSfxVolume } from './sound';
@@ -209,24 +209,26 @@ function AvatarPicker({ value, onChange }: { value: string; onChange: (id: strin
 function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }) {
 	const cur = ruleById(s.battleRule);
 	const gim = parseGimmick(cur.gimmick)!;
-	const set = (p: { gimmick?: string; pool?: string; restricted?: LegendMode; mythical?: LegendMode }) => {
-		const n = { gimmick: cur.gimmick, pool: cur.pool, restricted: cur.restricted, mythical: cur.mythical, ...p };
-		const id = ruleId(n.gimmick, n.pool, n.restricted, n.mythical);
+	const set = (p: { gimmick?: string; pool?: string; restricted?: LegendMode; mythical?: LegendMode; sub?: LegendMode; paradox?: LegendMode }) => {
+		const n = { gimmick: cur.gimmick, pool: cur.pool, restricted: cur.restricted, mythical: cur.mythical, sub: cur.sub, paradox: cur.paradox, ...p };
+		const id = ruleId(n.gimmick, n.pool, n.restricted, n.mythical, n.sub, n.paradox);
 		applyRuleData(ruleById(id));
 		up({ battleRule: id });
 	};
 	const toggle = (k: typeof gim.kinds[number]) => set({ gimmick: gimmickId(gim.kinds.includes(k) ? gim.kinds.filter(x => x !== k) : [...gim.kinds, k], gim.mode) });
-	const legRow = (label: string, v: LegendMode, key: 'restricted' | 'mythical') => <div class="set-row rule-row"><span>{label}</span><div class="seg">
+	const legRow = (label: string, v: LegendMode, key: 'restricted' | 'mythical' | 'sub' | 'paradox') => <div class="set-row rule-row"><span>{label}</span><div class="seg">
 		{LEGEND_MODES.map(m => <button class={v === m.id ? 'on' : ''} onClick={() => set({ [key]: m.id as LegendMode })}>{m.name}</button>)}</div></div>;
 	return <>
 		<div class="set-row rule-row"><span>포켓몬</span><div class="seg wrap">{POOLS.map(p => <button class={cur.pool === p.id ? 'on' : ''}
-			onClick={() => set({ pool: p.id, gimmick: p.gimmick, ...(p.legends ? { restricted: p.legends[0], mythical: p.legends[1] } : {}) })}>{p.name}</button>)}</div></div>
+			onClick={() => { const [sd, pd] = poolSubPar(p.id); set({ pool: p.id, gimmick: p.gimmick, sub: sd, paradox: pd, ...(p.legends ? { restricted: p.legends[0], mythical: p.legends[1] } : {}) }); }}>{p.name}</button>)}</div></div>
 		<div class="set-row rule-row"><span>기믹</span><div class="seg wrap">{GIMMICK_KINDS.map(g => <button class={gim.kinds.includes(g.k) ? 'on' : ''} aria-pressed={gim.kinds.includes(g.k)} onClick={() => toggle(g.k)}>{g.name}</button>)}</div></div>
 		{gim.kinds.length > 1 && <div class="set-row rule-row"><span>기믹 사용</span><div class="seg wrap">{GIMMICK_MODES.map(m => <button class={gim.mode === m.id ? 'on' : ''} onClick={() => set({ gimmick: gimmickId(gim.kinds, m.id) })}>{m.name}</button>)}</div></div>}
 		{legRow('초전설', cur.restricted, 'restricted')}
 		{legRow('환상', cur.mythical, 'mythical')}
+		{legRow('준전설', cur.sub, 'sub')}
+		{legRow('패러독스', cur.paradox, 'paradox')}
 		<p class="muted small"><b>{cur.name}</b> — {cur.desc}</p>
-		<p class="muted small">기믹은 여러 개를 함께 켤 수 있고, 하나도 안 켜면 기믹 없이 배틀합니다. 포켓몬을 고르면 그 게임의 기믹으로 맞춰지고 따로 바꿀 수 있어요. 초전설·환상은 포켓몬 풀과 상관없이 정하며, 가능이면 나도 쓰고 상대도 데려옵니다. 모든 모드의 나와 상대에게 적용됩니다.</p>
+		<p class="muted small">기믹은 여러 개를 함께 켤 수 있고, 하나도 안 켜면 기믹 없이 배틀합니다. 포켓몬을 고르면 그 게임의 기믹으로 맞춰지고 따로 바꿀 수 있어요. 초전설·환상·준전설·패러독스는 포켓몬 풀과 상관없이 정하며, 가능이면 나도 쓰고 상대도 데려옵니다(포켓몬을 고르면 그 게임 기준으로 맞춰짐 — 챔피언스는 준전설·패러독스 불가). 그 세대에 아직 없던 포켓몬(예: 소드·실드의 패러독스)은 가능이어도 나오지 않아요. 모든 모드의 나와 상대에게 적용됩니다.</p>
 	</>;
 }
 

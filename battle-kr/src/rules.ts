@@ -12,6 +12,8 @@ export type LegendMode = 'no' | 'yes';
 export interface BattleRule {
 	id: string; name: string; desc: string;
 	gimmick: string; pool: string; restricted: LegendMode; mythical: LegendMode;
+	/** 준전설·패러독스: 초전설·환상처럼 포켓몬 풀과 상관없이 따로 정함 (기본: 챔피언스 풀은 불가, 그 밖은 가능) */
+	sub: LegendMode; paradox: LegendMode;
 	kinds: GimmickKind[]; oneKind: boolean;
 	/** 세대 상한(도감 번호) / 레전즈 Z-A 추가 메가 제외 / 게임 등장 표시(dex.json av) / 허용 메가 모습 / 준전설 제외 */
 	maxNum?: number; noFuture?: boolean; avail?: string; megaOnly?: Set<string>; noSub?: boolean;
@@ -52,16 +54,16 @@ export function parseGimmick(g: string): { kinds: GimmickKind[]; mode: GimmickMo
 }
 export function gimmickId(kinds: GimmickKind[], mode: GimmickMode) { return GIMMICK_KINDS.filter(x => kinds.includes(x.k)).map(x => x.c).join('') + '_' + mode; }
 /** 2) 포켓몬 풀 (게임·레귤레이션) — gimmick: 고를 때 맞춰 주는 그 게임의 기믹 */
-export const POOLS: (Choice & { gimmick: string; maxNum?: number; noFuture?: boolean; avail?: string; megaOnly?: Set<string>; noSub?: boolean; legends?: [LegendMode, LegendMode]; era: string; mod: string; lsMode: 'all' | 'champ' | 'era'; itemAv: string })[] = [
+export const POOLS: (Choice & { gimmick: string; maxNum?: number; noFuture?: boolean; avail?: string; megaOnly?: Set<string>; noSub?: boolean; legends?: [LegendMode, LegendMode]; subPar?: [LegendMode, LegendMode]; era: string; mod: string; lsMode: 'all' | 'champ' | 'era'; itemAv: string })[] = [
 	{ id: 'natdex', name: '전국도감', gimmick: 'mzdt_one', era: '', mod: 'krchamp', lsMode: 'all', itemAv: '', desc: '모든 포켓몬·도구, 최신 사양(포켓몬 챔피언스 기술·상태이상), 모든 세대의 기술과 메가진화(레전즈 Z-A 메가 포함)' },
 	{ id: 'max', name: '무제한 (너프 없음)', gimmick: 'mzdt_stack', legends: ['yes', 'yes'], era: 'max', mod: 'krmax', lsMode: 'all', itemAv: '', desc: '모든 포켓몬·도구·기술, 너프 전 사양: 종족값은 가장 높았던 세대, 특성은 모든 세대의 특성 중에서, 기술 위력·명중·PP는 가장 높았던 값 (예: 킬가르도 블레이드폼 공격 150, 팬텀 부유)' },
 	{ id: 'sv', name: '스칼렛·바이올렛', gimmick: 't_one', avail: 's', era: '9', mod: 'gen9', lsMode: 'era', itemAv: 's', desc: '스칼렛·바이올렛(DLC 포함)의 포켓몬·도구·기술 사양' },
 	{ id: 'swsh', name: '소드·실드', gimmick: 'd_one', avail: 'w', maxNum: 905, era: '8', mod: 'kr8', lsMode: 'era', itemAv: 'w', desc: '소드·실드(DLC 포함)의 포켓몬·도구, 그때의 종족값·특성·기술' },
 	{ id: 'usum', name: '7세대까지', gimmick: 'mz_each', avail: '7', maxNum: 809, noFuture: true, era: '7', mod: 'kr7', lsMode: 'era', itemAv: '7', desc: '울트라썬·문까지의 포켓몬(1~7세대)·도구, 그때의 종족값·특성·기술' },
 	{ id: 'xy', name: '6세대까지', gimmick: 'm_one', avail: '6', maxNum: 721, noFuture: true, era: '6', mod: 'kr6', lsMode: 'era', itemAv: '6', desc: 'X·Y/오메가루비·알파사파이어까지의 포켓몬(1~6세대)·도구, 그때의 종족값·특성·기술' },
-	{ id: 'champmc', name: '챔피언스 M-C', gimmick: 'm_one', avail: 'c', legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'c', desc: '포켓몬 챔피언스 레귤레이션 M-C(2026.9~12)에 나오는 포켓몬과 메가진화' },
-	{ id: 'champmb', name: '챔피언스 M-B', gimmick: 'm_one', avail: 'b', legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'b', desc: '레귤레이션 M-B(2026.6~9)에 나오는 포켓몬과 메가진화' },
-	{ id: 'champma', name: '챔피언스 M-A', gimmick: 'm_one', avail: 'b', megaOnly: megaIds(MEGA_MA), legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'b', desc: '레귤레이션 M-A(2026.4~6, 출시 규칙) — 포켓몬은 M-B 기준, 메가진화 59종' },
+	{ id: 'champmc', subPar: ['no', 'no'], name: '챔피언스 M-C', gimmick: 'm_one', avail: 'c', legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'c', desc: '포켓몬 챔피언스 레귤레이션 M-C(2026.9~12)에 나오는 포켓몬과 메가진화' },
+	{ id: 'champmb', subPar: ['no', 'no'], name: '챔피언스 M-B', gimmick: 'm_one', avail: 'b', legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'b', desc: '레귤레이션 M-B(2026.6~9)에 나오는 포켓몬과 메가진화' },
+	{ id: 'champma', subPar: ['no', 'no'], name: '챔피언스 M-A', gimmick: 'm_one', avail: 'b', megaOnly: megaIds(MEGA_MA), legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'b', desc: '레귤레이션 M-A(2026.4~6, 출시 규칙) — 포켓몬은 M-B 기준, 메가진화 59종' },
 ];
 /** 3·4) 초전설·환상 */
 export const LEGEND_MODES: Choice[] = [
@@ -81,28 +83,39 @@ const LEGACY: { [id: string]: string } = {
 export const DEFAULT_RULE = 'mzdt_one.natdex.no.no';
 /** 기록·연승 도전 저장 키에 붙이는 규칙 표시: 기본 규칙은 '' (예전 기록 그대로), 그 밖은 '@규칙id' */
 export function recTag(ruleIdIn: string) { const id = ruleById(ruleIdIn).id; return id === DEFAULT_RULE ? '' : '@' + id; }
-export function ruleId(gimmick: string, pool: string, restricted: LegendMode, mythical: LegendMode) { return `${gimmick}.${pool}.${restricted}.${mythical}`; }
+/** 풀의 준전설·패러독스 기본값 (챔피언스는 게임에 없어 불가) */
+export function poolSubPar(pool: string): [LegendMode, LegendMode] { return POOLS.find(x => x.id === pool)?.subPar ?? ['yes', 'yes']; }
+/** 규칙 id: 기믹.풀.초전설.환상[.준전설.패러독스] — 준전설·패러독스가 풀 기본값과 같으면 붙이지 않음 (예전 기록·연승 저장 키를 그대로 쓰려고) */
+export function ruleId(gimmick: string, pool: string, restricted: LegendMode, mythical: LegendMode, sub?: LegendMode, paradox?: LegendMode) {
+	const [ds, dp] = poolSubPar(pool);
+	const tail = (sub ?? ds) === ds && (paradox ?? dp) === dp ? '' : `.${sub ?? ds}.${paradox ?? dp}`;
+	return `${gimmick}.${pool}.${restricted}.${mythical}${tail}`;
+}
 const cache = new Map<string, BattleRule>();
 export function ruleById(idIn: string): BattleRule {
 	const id0 = LEGACY[idIn] || idIn || DEFAULT_RULE;
 	const hit = cache.get(id0); if (hit) return hit;
-	const [g0, p, r0, m0] = id0.split('.');
+	const [g0, p, r0, m0, s0, x0] = id0.split('.');
 	const gim = parseGimmick(g0), pool = POOLS.find(x => x.id === p);
 	// 예전 3단계(no/yes/foe) 값은 foe → 가능
 	const leg = (v: string): LegendMode | null => v === 'no' ? 'no' : v === 'yes' || v === 'foe' ? 'yes' : null;
 	const restricted = leg(r0), mythical = leg(m0);
 	if (!gim || !pool || !restricted || !mythical) return ruleById(DEFAULT_RULE);
-	const g = gimmickId(gim.kinds, gim.mode), id = ruleId(g, p, restricted, mythical);
+	const [ds, dp] = poolSubPar(p);
+	const sub = (s0 ? leg(s0) : null) ?? ds, paradox = (x0 ? leg(x0) : null) ?? dp;
+	const g = gimmickId(gim.kinds, gim.mode), id = ruleId(g, p, restricted, mythical, sub, paradox);
 	const names = GIMMICK_KINDS.filter(x => gim.kinds.includes(x.k)).map(x => x.name);
 	const modeOn = gim.kinds.length > 1;
 	const gName = !names.length ? '기믹 없음' : names.join('·') + (modeOn ? ` (${GIMMICK_MODES.find(x => x.id === gim.mode)!.name})` : '');
-	const legTxt = restricted === mythical ? `초전설·환상 ${restricted === 'yes' ? '가능' : '불가'}` : `초전설 ${restricted === 'yes' ? '가능' : '불가'} · 환상 ${mythical === 'yes' ? '가능' : '불가'}`;
+	const ok = (v: LegendMode) => v === 'yes' ? '가능' : '불가';
+	const legTxt = (restricted === mythical ? `초전설·환상 ${ok(restricted)}` : `초전설 ${ok(restricted)} · 환상 ${ok(mythical)}`)
+		+ ' · ' + (sub === paradox ? `준전설·패러독스 ${ok(sub)}` : `준전설 ${ok(sub)} · 패러독스 ${ok(paradox)}`);
 	const rule: BattleRule = {
-		id, gimmick: g, pool: p, restricted, mythical,
+		id, gimmick: g, pool: p, restricted, mythical, sub, paradox,
 		name: `${pool.name} · ${gName}`,
 		desc: `${pool.desc}. 기믹: ${!names.length ? '없음' : modeOn ? `${names.join('·')} — ${GIMMICK_MODES.find(x => x.id === gim.mode)!.desc}` : `${names[0]}만`}. ${legTxt}.`,
 		kinds: gim.kinds, oneKind: !modeOn || gim.mode === 'one', stack: modeOn && gim.mode === 'stack',
-		maxNum: pool.maxNum, noFuture: pool.noFuture, avail: pool.avail, megaOnly: pool.megaOnly, noSub: pool.noSub,
+		maxNum: pool.maxNum, noFuture: pool.noFuture, avail: pool.avail, megaOnly: pool.megaOnly, noSub: pool.noSub || sub === 'no',
 		era: pool.era, mod: pool.mod, lsMode: pool.lsMode, itemAv: pool.itemAv,
 		legendTeams: restricted === 'yes' || mythical === 'yes',
 	};
@@ -131,10 +144,13 @@ export function speciesAllowed(rule: BattleRule, speciesId: string): boolean {
 	if (rule.noFuture && s.fut) return false;
 	const tags = s.tags || [];
 	const restricted = tags.includes('Restricted Legendary'), mythical = tags.includes('Mythical');
+	const sub = tags.includes('Sub-Legendary'), paradox = tags.includes('Paradox');
 	if (restricted && rule.restricted === 'no') return false;
 	if (mythical && rule.mythical === 'no') return false;
-	// 게임 등장 여부는 초전설·환상이 아닌 포켓몬에만 (초전설·환상은 3·4번 설정으로 따로 정함)
-	if (rule.avail && !restricted && !mythical) {
+	if (sub && rule.sub === 'no') return false;
+	if (paradox && rule.paradox === 'no') return false;
+	// 게임 등장 여부는 초전설·환상·준전설·패러독스가 아닌 포켓몬에만 (이들은 설정으로 따로 정함)
+	if (rule.avail && !restricted && !mythical && !sub && !paradox) {
 		const av = s.av ?? (s.base ? RAW.species[s.base]?.av : undefined);
 		if (!av?.includes(rule.avail)) return false;
 	}

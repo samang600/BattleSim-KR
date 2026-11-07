@@ -1036,6 +1036,10 @@ function lookahead(battle: Battle, side: any, user: Pokemon, opts: Option[], req
 	dbg.calls++;
 	let ser: any;
 	try { ser = State.serializeBattle(battle); } catch (e: any) { dbg.serFail++; dbg.err = String(e?.stack || e).slice(0, 400); return null; }
+	if (aiVer(me) >= 4) {
+		const r = lookaheadGame(battle, side, user, foe, reqActive, ser, myOpts, foeMoves, foePicked, depth, skill);
+		if (r) return r;
+	}
 	const results: { choice: string; v: number }[] = [];
 	const t0 = now();
 	const cfg = searchCfg(me, skill);
@@ -1121,4 +1125,113 @@ function secondTurn(c: any, battle: Battle, me: 'p1' | 'p2', skill: number, over
 		best = Math.max(best, exp * 0.75 + Math.min(...vs) * 0.25);
 	}
 	return best === -Infinity ? null : best;
+}
+
+// ───────── (v4) 동시 선택을 게임으로 풀기 ─────────
+// 내 후보(기술·기믹·교체 2) × 상대 후보(쓸 수 있는 기술 전부·교체 2)를 한 턴씩 실제로 돌려 표(보수 행렬)를 만들고,
+// 가위바위보처럼 서로 상대 수를 모른 채 고른다고 보고 상대의 최적 섞기(내시 균형)를 후회 최소화로 구함.
+// 최종 선택 = 상대 최적 섞기 기준 기대값과, 이 배틀에서 본 상대 습관 기준 기대값(기존 예측)을 반씩.
+
+/** 0합 행렬 게임 (행 = 나: 최대화, 열 = 상대: 최소화) 을 후회 매칭으로 풀기. 평균 전략과 게임값 */
+export function solveMatrixGame(M: number[][], iters = 600): { x: number[]; y: number[]; v: number } {
+	const n = M.length, m = M[0]?.length || 0;
+	if (!n || !m) return { x: [], y: [], v: 0 };
+	const rx = new Array(n).fill(0), ry = new Array(m).fill(0), sx = new Array(n).fill(0), sy = new Array(m).fill(0);
+	const norm = (r: number[]) => { const pos = r.map(v => Math.max(0, v)); const t = pos.reduce((a, b) => a + b, 0); return t > 0 ? pos.map(v => v / t) : r.map(() => 1 / r.length); };
+	for (let t = 0; t < iters; t++) {
+		const x = norm(rx), y = norm(ry);
+		// 각 순수 수의 보수
+		const ux = M.map(row => row.reduce((a, v, j) => a + v * y[j], 0));
+		const uy = M[0].map((_, j) => M.reduce((a, row, i) => a + row[j] * x[i], 0));
+		const vx = ux.reduce((a, u, i) => a + u * x[i], 0);
+		for (let i = 0; i < n; i++) { rx[i] = Math.max(0, rx[i] + ux[i] - vx); sx[i] += x[i] * (t + 1); }     // 후회 매칭+ (가중 평균)
+		for (let j = 0; j < m; j++) { ry[j] = Math.max(0, ry[j] + vx - uy[j]); sy[j] += y[j] * (t + 1); }
+	}
+	const tx = sx.reduce((a, b) => a + b, 0), ty = sy.reduce((a, b) => a + b, 0);
+	const x = sx.map(v => v / tx), y = sy.map(v => v / ty);
+	const v = M.reduce((a, row, i) => a + x[i] * row.reduce((b, w, j) => b + w * y[j], 0), 0);
+	return { x, y, v };
+}
+
+function lookaheadGame(battle: Battle, side: any, user: Pokemon, foe: Pokemon, reqActive: any, ser: any,
+	myOpts: { choice: string; base: number }[], prior: { choice: string; w: number }[], foePicked: boolean, depth: number, skill: number): string | null {
+	const me = side.id as 'p1' | 'p2';
+	const foeSideId = me === 'p1' ? 'p2' : 'p1';
+	const g = ((globalThis as any).__game ||= { calls: 0, cells: 0, ms: 0, mixed: 0 });
+	const t0 = now(), cfg = searchCfg(me, skill), over = () => now() - t0 > cfg.budget;
+	// 내 후보: 기존 후보 + 두 번째로 좋은 교체
+	const rows = myOpts.slice();
+	if (!reqActive.trapped && !reqActive.maybeTrapped && !(globalThis as any).__laNoSwitch) {
+		const first = rows.find(o => o.choice.startsWith('switch '));
+		const ex = new Set<number>(first ? [Number(first.choice.slice(7)) - 1] : []);
+		const sw2 = bestSwitchIn(battle, side, [foe], ex);
+		if (sw2 && !rows.some(o => o.choice === `switch ${sw2.i + 1}`)) rows.push({ choice: `switch ${sw2.i + 1}`, base: 99 });
+	}
+	// 상대 후보: 이미 골랐으면 그 하나, 아니면 쓸 수 있는 기술 전부 + 좋은 교체 2개 (+ 기존 예측에 있던 수)
+	let cols: string[];
+	if (foePicked) cols = ['default'];
+	else {
+		const set = new Set<string>(prior.map(p => p.choice));
+		foe.moveSlots.forEach((m: any, i: number) => { if (m.pp > 0 && !m.disabled) set.add(`move ${i + 1}`); });
+		try {
+			const fs = battle[foeSideId];
+			if (!foe.volatiles['partiallytrapped'] && !(foe as any).trapped) {
+				const s1 = bestSwitchIn(battle, fs, [user], new Set());
+				if (s1) { set.add(`switch ${s1.i + 1}`); const s2 = bestSwitchIn(battle, fs, [user], new Set([s1.i])); if (s2) set.add(`switch ${s2.i + 1}`); }
+			}
+		} catch {}
+		set.delete('default');
+		cols = [...set];
+		if (!cols.length) cols = ['default'];
+	}
+	// 보수 행렬 (같은 난수로 모든 칸을 돌려 운의 차이를 줄임)
+	searchSeed = PRNG.generateSeed();
+	const M: (number | null)[][] = [], keep: any[][] = [];
+	try {
+		for (let i = 0; i < rows.length; i++) {
+			M.push([]); keep.push([]);
+			for (let j = 0; j < cols.length; j++) {
+				if (i >= 2 && over()) { M[i].push(null); keep[i].push(null); continue; }
+				const r = simulateTurn(ser, battle, me, rows[i].choice, cols[j], true);
+				g.cells++;
+				M[i].push(r ? r.v : null); keep[i].push(r ? r.c : null);
+			}
+		}
+	} finally { searchSeed = null; }
+	// 다 채우지 못한 행·열은 버림
+	let ri = rows.map((_, i) => i).filter(i => M[i].every(v => v !== null));
+	if (!ri.length) return null;
+	let ci = cols.map((_, j) => j).filter(j => ri.every(i => M[i][j] !== null));
+	if (!ci.length) return null;
+	const sub = () => ri.map(i => ci.map(j => M[i][j] as number));
+	let sol = solveMatrixGame(sub());
+	// 강한 AI: 실제로 일어날 법한 칸(내 섞기·상대 섞기·습관 예측에서 비중 있는 것)만 한 턴 더 내다봐서 다시 풂
+	const pw = (j: number) => prior.find(p => p.choice === cols[j])?.w ?? 0;
+	if (depth >= 2 && !over()) {
+		const hot = (a: number, b: number) => (sol.x[a] > 0.05 || ri.length <= 2) && (sol.y[b] > 0.05 || pw(ci[b]) > 0.1);
+		for (let a = 0; a < ri.length && !over(); a++) for (let b = 0; b < ci.length && !over(); b++) {
+			if (!hot(a, b)) continue;
+			const c = keep[ri[a]][ci[b]];
+			if (!c) continue;
+			const v2 = secondTurn(c, battle, me, skill, over);
+			if (v2 !== null) M[ri[a]][ci[b]] = (M[ri[a]][ci[b]] as number) * 0.35 + v2 * 0.65;
+		}
+		sol = solveMatrixGame(sub());
+	}
+	// 습관 예측 분포 (없으면 균등)
+	let py = ci.map(j => pw(j));
+	const tp = py.reduce((a, b) => a + b, 0);
+	py = tp > 0 ? py.map(v => v / tp) : ci.map(() => 1 / ci.length);
+	const lam = (globalThis as any).__gameLambda ?? 0.5;
+	const S = sub();
+	const score = ri.map((i, a) => {
+		const vsNash = S[a].reduce((t, v, b) => t + v * sol.y[b], 0);
+		const vsHabit = S[a].reduce((t, v, b) => t + v * py[b], 0);
+		return lam * vsNash + (1 - lam) * vsHabit + (rows[i].base - 100) * 0.01;
+	});
+	let best = 0;
+	for (let a = 1; a < ri.length; a++) if (score[a] > score[best]) best = a;
+	if (sol.x.filter(v => v > 0.15).length > 1) g.mixed++;
+	g.calls++; g.ms += now() - t0;
+	return rows[ri[best]].choice;
 }
