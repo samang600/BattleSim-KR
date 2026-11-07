@@ -11,12 +11,12 @@ W, H = 256, 144
 OUT = os.path.join(os.path.dirname(__file__), '..', 'src', 'ui-assets')
 
 
-def bands(d, y0, y1, colors):
+def bands(d, y0, y1, colors, w=None):
     n = len(colors)
     for i, c in enumerate(colors):
         a = y0 + (y1 - y0) * i // n
         b = y0 + (y1 - y0) * (i + 1) // n
-        d.rectangle([0, a, W, b], fill=c)
+        d.rectangle([0, a, w or W, b], fill=c)
 
 
 def dither_line(d, y, c1, c2):
@@ -184,6 +184,45 @@ def title():
     d.polygon([(W // 2 - 18, 70), (W // 2, 44), (W // 2 + 18, 70)], fill='#100c22')
     for y in range(80, H * 2, 12):
         d.rectangle([W // 2 - 3, y, W // 2 + 2, y + 4], fill='#f0c050')
+    return im
+
+
+def title_wide():
+    """PC 넓은 화면용 타이틀·메뉴 배경 (512x288): 같은 밤하늘·산·탑, 양옆에 낮은 시설 건물 실루엣"""
+    WW, HH = W * 2, H * 2
+    im = Image.new('RGB', (WW, HH))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, HH, ['#0c0a1e', '#120f2a', '#181436', '#1e1a42', '#26204e', '#2e265a', '#3a2c62', '#4a3268'], WW)
+    rnd = random.Random(5)
+    for _ in range(180):
+        x, y = rnd.randint(0, WW), rnd.randint(0, H)
+        d.point((x, y), fill=rnd.choice(['#ffffff', '#c8d0ff', '#ffe8a0']))
+    # 먼 산 (두 겹)
+    pts = [(0, HH)]
+    for x in range(0, WW + 6, 6):
+        pts.append((x, int(H * 1.30 - 30 * abs(math.sin(x / 57)) - 8 * abs(math.sin(x / 17)))))
+    pts.append((WW, HH))
+    d.polygon(pts, fill='#211938')
+    pts = [(0, HH)]
+    for x in range(0, WW + 6, 6):
+        pts.append((x, int(H * 1.45 - 26 * abs(math.sin(x / 41)) - 10 * abs(math.sin(x / 13)))))
+    pts.append((WW, HH))
+    d.polygon(pts, fill='#1a1430')
+    # 양옆 낮은 시설 건물 (창문 불빛)
+    for bx, bw, bh in [(70, 40, 58), (124, 26, 40), (356, 30, 44), (402, 44, 62)]:
+        top = HH - bh
+        d.rectangle([bx, top, bx + bw, HH], fill='#130e26')
+        d.rectangle([bx + bw // 2 - 4, top - 6, bx + bw // 2 + 4, top], fill='#130e26')
+        for y in range(top + 6, HH - 4, 8):
+            for x in range(bx + 4, bx + bw - 4, 8):
+                if rnd.random() < 0.55:
+                    d.rectangle([x, y, x + 2, y + 2], fill=rnd.choice(['#f0c050', '#d89a30', '#f8e08a']))
+    # 가운데 탑 (세로 화면판과 같은 크기)
+    cx = WW // 2
+    d.rectangle([cx - 14, 70, cx + 14, HH], fill='#100c22')
+    d.polygon([(cx - 18, 70), (cx, 44), (cx + 18, 70)], fill='#100c22')
+    for y in range(80, HH, 12):
+        d.rectangle([cx - 3, y, cx + 2, y + 4], fill='#f0c050')
     return im
 
 
@@ -361,3 +400,5 @@ if __name__ == '__main__':
             im = extend_top(im, 48, stars=name not in ('cave', 'gym'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림
         im.save(os.path.join(OUT, f'arena_{name}.png'), optimize=True)
         print('arena_' + name)
+    title_wide().save(os.path.join(OUT, 'arena_title_wide.png'), optimize=True)
+    print('arena_title_wide')

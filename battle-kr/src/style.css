@@ -1421,3 +1421,22 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .avatar-panel .av-mid .ap-name { font-size: 14px; line-height: 18px; }
 .avatar-panel .av-count { font-size: 10px; color: var(--muted, #9aa); }
 .avatar-panel .av-side { position: relative; z-index: 1; height: 44px; image-rendering: pixelated; opacity: .4; cursor: pointer; flex: none; }
+
+/* ═════ v2.38: PC(넓은 화면) 레이아웃 다듬기 ═════ */
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	/* 1) 기술 버튼: 패널 세로를 다 채우지 않게 높이 상한 (기술 2개여도 92px) — 앞의 '낮은 화면' 규칙보다 뒤에 둠 */
+	.move-panel > .move-grid, .move-panel > .move-grid.win-dark { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: minmax(56px, 92px); align-content: start; overflow-y: auto; }
+	/* 2) 배틀 상단 바: 제목 칸이 끝까지 늘어나지 않게 (버튼은 제목 바로 옆) */
+	.battle > .hud-top { justify-content: flex-start; }
+	.battle > .hud-top .badge:first-child { flex: 0 1 auto; max-width: 40%; }
+	/* 3) 타이틀·메뉴 배경: 넓은 화면용 그림 (가운데 탑만 세로 띠처럼 보이지 않게) */
+	:root:not([data-bg]) body::before, :root[data-bg="title"] body::before, .title-screen { background-image: url(__IMG_arena_title_wide__); }
+	.title-screen > .title-mons, .title-screen > .title-logo, .title-screen > .title-tap { zoom: 1.5; }
+}
+/* 4) 메뉴 화면(배틀 밖)은 화면 높이에 맞춰 크게 — 가운데 좁은 기둥과 작은 글자가 되지 않게 */
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 860px) {
+	body:not(:has(.battle)) #app { zoom: 1.25; }
+}
+@media (min-width: 1500px) and (min-aspect-ratio: 5/4) and (min-height: 1040px) {
+	body:not(:has(.battle)) #app { zoom: 1.4; }
+}
