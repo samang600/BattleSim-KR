@@ -8,7 +8,7 @@ import { CalcScreen } from './ui/calc';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier } from './modes';
 import { exportBackup, inspectBackup, importBackup } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
-import { RULES, ruleById } from './rules';
+import { GIMMICKS, POOLS, LEGEND_MODES, ruleById, ruleId, type LegendMode } from './rules';
 import { packStatus, refreshPack, onPackProgress, startPackDownload, deletePack, hasNative, fmtBytes, BUNDLED, type PackProgress } from './offline';
 import { CUPS, NAMED } from './trainers';
 import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, setMoveSfxVolume } from './sound';
@@ -185,6 +185,24 @@ function backupLoad() {
 	inp.click();
 }
 
+/** 배틀 규칙: 포켓몬 풀(게임·레귤레이션) · 기믹 · 초전설 · 환상 을 따로 고름 */
+function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }) {
+	const cur = ruleById(s.battleRule);
+	const set = (p: { gimmick?: string; pool?: string; restricted?: LegendMode; mythical?: LegendMode }) => {
+		const n = { gimmick: cur.gimmick, pool: cur.pool, restricted: cur.restricted, mythical: cur.mythical, ...p };
+		up({ battleRule: ruleId(n.gimmick, n.pool, n.restricted, n.mythical) });
+	};
+	return <>
+		<div class="set-row rule-row"><span>포켓몬</span><div class="seg wrap">{POOLS.map(p => <button class={cur.pool === p.id ? 'on' : ''}
+			onClick={() => set({ pool: p.id, gimmick: p.gimmick, ...(p.legends ? { restricted: p.legends[0], mythical: p.legends[1] } : {}) })}>{p.name}</button>)}</div></div>
+		<div class="set-row rule-row"><span>기믹</span><div class="seg wrap">{GIMMICKS.map(g => <button class={cur.gimmick === g.id ? 'on' : ''} onClick={() => set({ gimmick: g.id })}>{g.name}</button>)}</div></div>
+		<div class="set-row rule-row"><span>초전설</span><div class="seg">{LEGEND_MODES.map(m => <button class={cur.restricted === m.id ? 'on' : ''} onClick={() => set({ restricted: m.id as LegendMode })}>{m.name}</button>)}</div></div>
+		<div class="set-row rule-row"><span>환상</span><div class="seg">{LEGEND_MODES.map(m => <button class={cur.mythical === m.id ? 'on' : ''} onClick={() => set({ mythical: m.id as LegendMode })}>{m.name}</button>)}</div></div>
+		<p class="muted small"><b>{cur.name}</b> — {cur.desc}</p>
+		<p class="muted small">포켓몬을 고르면 그 게임의 기믹으로 맞춰지고, 따로 바꿀 수 있어요. 초전설·환상은 포켓몬 풀과 상관없이 정합니다(‘내 팀만’은 내 팀에만, ‘상대도’는 상대 팀에도 나옴). 모든 모드의 나와 상대에게 적용되고, 무작위·렌탈 팀과 상대 팀도 이 규칙에 맞게 만들어집니다.</p>
+	</>;
+}
+
 function SettingsScreen({ onBack }: { onBack: () => void }) {
 	const [s, setS] = useState<Settings>(loadSettings());
 	const up = (p: Partial<Settings>) => { const n = { ...s, ...p }; setS(n); saveSettings(n); };
@@ -222,9 +240,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		<div class="seg wrap">{([['title', '밤하늘'], ['field', '초원'], ['tower', '타워'], ['factory', '팩토리'], ['pwt', '경기장'], ['champion', '챔피언']] as const).map(([k, l]) => <button class={s.homeBg === k ? 'on' : ''} onClick={() => { up({ homeBg: k }); applyTheme({ ...s, homeBg: k }); }}>{l}</button>)}</div>
 		<p class="muted small">효과음·배경음악은 이 앱에서 합성한 칩튠, 기술 효과음은 Pokémon Reborn 제작. 울음소리는 인터넷에서 받아 옵니다.</p>
 		<h3 class="sec">배틀 규칙</h3>
-		{[...new Set(RULES.map(r => r.group))].map(g => <div class="set-row rule-row"><span>{g}</span><div class="seg wrap">
-			{RULES.filter(r => r.group === g).map(r => <button class={s.battleRule === r.id ? 'on' : ''} onClick={() => up({ battleRule: r.id })}>{r.name.replace(/^(룰|전국도감|챔피언스 레귤레이션)\s*·?\s*/, '')}</button>)}</div></div>)}
-		<p class="muted small"><b>{ruleById(s.battleRule).name}</b>: {ruleById(s.battleRule).desc} 모든 모드의 나와 상대에게 적용되고, 무작위·렌탈 팀과 상대 팀도 이 규칙에 맞게 만들어집니다.</p>
+		<RuleRows s={s} up={up} />
 		<div class="set-row"><span>노력치 표시</span><div class="seg">{([['sp', '32 (66)'], ['ev', '252 (510)']] as const).map(([k, l]) => <button class={(s.evDisplay || 'sp') === k ? 'on' : ''} onClick={() => up({ evDisplay: k })}>{l}</button>)}</div></div>
 		<p class="muted small">팀 편집·포켓몬 정보에서 능력 포인트(능력마다 32, 합계 66)로 볼지, 본가 노력치(252, 합계 510)로 볼지 고릅니다. 규칙은 그대로 66포인트라 노력치로 보면 본가보다 1포인트(노력치 8) 더 쓸 수 있습니다. 노력치 방식으로 내보낸 텍스트는 합계 510에 맞춰집니다.</p>
 		<h3 class="sec">배틀 화면</h3>

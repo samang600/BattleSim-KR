@@ -687,7 +687,7 @@ function rankOpponent(rp: number, fmt: RankFmt, level: number) {
 		const rk = rankerTeam(doubles, level, 0.6 + 0.4 * s);
 		if (rk) { const tr = randomTrainer(); return { name: tr.name, title: '랭커', sprite: tr.sprite, lines: tr.lines, line: tr.lines.intro, skill, team: withLevel(rk.team, level), named: false, ranker: `시즌 ${rk.season} 상위 구축 · 레이트 ${rk.rating}` }; }
 	}
-	const nLeg = rule.legend === 'all' ? (rp >= 1000 ? 2 : rp >= 600 ? 1 : 0) : 0;
+	const nLeg = rule.legendTeams ? (rp >= 1000 ? 2 : rp >= 600 ? 1 : 0) : 0;   // 초전설·환상을 '상대도' 로 고른 규칙에서만
 	const ivs = rp < 100 ? 18 : rp < 300 ? 26 : 31;
 	const quality = 0.2 + 0.8 * s; // RP 가 오를수록 Smogon 상위 세트·동료 조합
 	const base = randomTeam({ gen: 9, size: 6 - nLeg, minBst: 420 + Math.round(140 * s), maxBst: rp < 300 ? 580 : undefined, allowSubLegend: rp >= 300, doubles, ivs, gimmicks: false, quality });

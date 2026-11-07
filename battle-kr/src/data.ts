@@ -8,7 +8,7 @@ export type StatID = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe';
 export const STATS: StatID[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 
 interface SpeciesGen { t: string[]; bs: number[]; ab: string[]; fe: number; bo?: number; gr?: string; req?: string; wt: number; ls?: number[] }
-export interface SpeciesEntry { n: string; en: string; num: number; base?: string; tags?: string[]; tier?: string; fut?: 1; /** 거다이맥스 가능 */ gx?: 1; g: { [gen: string]: SpeciesGen } }
+export interface SpeciesEntry { n: string; en: string; num: number; base?: string; tags?: string[]; tier?: string; fut?: 1; /** 게임별 등장: s=스칼렛·바이올렛 w=소드·실드 c=챔피언스 M-C b=챔피언스 M-B */ av?: string; /** 거다이맥스 가능 */ gx?: 1; g: { [gen: string]: SpeciesGen } }
 interface MoveEntry { n: string; d: string; z?: number; x?: number; g: { [gen: string]: [string, string, number, number, number, number, string, number] } }
 
 const D = DEX as any as {

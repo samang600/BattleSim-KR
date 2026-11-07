@@ -14,7 +14,7 @@ interface Entry { u: number; m?: Pair[]; i?: Pair[]; a?: Pair[]; s?: Pair[]; t?:
 const DB = SMOGON as any as { _month: string; s: { [id: string]: Entry }; d: { [id: string]: Entry }; cs: { [id: string]: Entry }; cd: { [id: string]: Entry } };
 export const SMOGON_MONTH = DB._month;
 
-const isChampions = (rule: BattleRule) => rule.id.startsWith('champ');
+const isChampions = (rule: BattleRule) => rule.pool.startsWith('champ');
 /** 통계 사용 여부 (자체 대전 비교용으로 끌 수 있음) */
 export let smogonEnabled = true;
 export function setSmogon(on: boolean) { smogonEnabled = on; }

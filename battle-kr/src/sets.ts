@@ -274,8 +274,10 @@ export function speciesPool(o: PoolOptions): string[] {
 		if (!s || !RAW.species[id].g[o.gen]) continue;
 		// stage 'nfe': 진화 전·중간 진화만 (쉬움 난이도 초반), 아니면 최종 진화만
 		if ((o.stage === 'nfe' ? s.fe : !s.fe) || s.bo || BANNED_POOL.has(id) || o.exclude?.has(id)) continue;
-		const legend = !!s.tags?.some(t => t === 'Restricted Legendary' || t === 'Mythical');
-		if (o.legendOnly ? !legend : (legend && !o.allowLegend && !rule.legendTeams)) continue;
+		const isR = !!s.tags?.includes('Restricted Legendary'), isM = !!s.tags?.includes('Mythical'), legend = isR || isM;
+		// 상대 무작위 팀의 초전설·환상: 그 종류를 '상대도'로 고른 규칙에서만
+		const foeOk = (isR && rule.restricted === 'foe') || (isM && rule.mythical === 'foe');
+		if (o.legendOnly ? !(legend && (foeOk || o.allowLegend)) : (legend && !o.allowLegend && !foeOk)) continue;
 		if (!speciesAllowed(rule, id)) continue;
 		if (!o.allowSubLegend && s.tags?.includes('Sub-Legendary')) continue;
 		if (s.base && s.req && !/^(rotom|ogerpon)/.test(id)) continue; // 아르세우스·실버디 타입폼 등은 제외

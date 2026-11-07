@@ -246,6 +246,9 @@ function learnable(dex, species, gen) {
 		.map(id => moveIndex[id]).sort((a, b) => a - b);
 }
 
+// 게임·레귤레이션별 등장 여부 (규칙의 '포켓몬 풀'): s=스칼렛·바이올렛, w=소드·실드, c=챔피언스 M-C, b=챔피언스 M-B
+const AVAIL = [['s', Dex.forGen(9)], ['w', Dex.forGen(8)], ['c', Dex.mod('champions')], ['b', Dex.mod('championsregmb')]];
+const availOf = id => AVAIL.map(([k, d]) => { const x = d.species.get(id); return x.exists && !x.isNonstandard ? k : ''; }).join('') || undefined;
 const BATTLE_ONLY = new Set(['Castform', 'Cherrim', 'Darmanitan', 'Meloetta', 'Aegislash', 'Wishiwashi', 'Minior', 'Mimikyu',
 	'Cramorant', 'Eiscue', 'Morpeko', 'Palafin', 'Terapagos']);
 for (const s of dex9.species.all()) {
@@ -259,7 +262,7 @@ for (const s of dex9.species.all()) {
 		/^Mega|^Primal/.test(s.forme) || s.name === 'Necrozma-Ultra' || s.forme === 'Crowned' && false;
 	result.species[s.id] = {
 		n: speciesName(s, dex9), en: s.name, num: s.num, base: s.baseSpecies !== s.name ? Dex.species.get(s.baseSpecies).id : undefined,
-		tags: s.tags.length ? s.tags : undefined, tier: s.natDexTier || s.tier, fut: s.isNonstandard === 'Future' ? 1 : undefined, gx: s.canGigantamax ? 1 : undefined,
+		tags: s.tags.length ? s.tags : undefined, tier: s.natDexTier || s.tier, fut: s.isNonstandard === 'Future' ? 1 : undefined, av: availOf(s.id), gx: s.canGigantamax ? 1 : undefined,
 		g: { [GEN]: {
 			t: s.types, bs: [s.baseStats.hp, s.baseStats.atk, s.baseStats.def, s.baseStats.spa, s.baseStats.spd, s.baseStats.spe],
 			ab: Object.values(s.abilities).map(a => dex9.abilities.get(a).id),
@@ -269,7 +272,7 @@ for (const s of dex9.species.all()) {
 			req: s.requiredItem ? dex9.items.get(s.requiredItem).id : (s.requiredItems ? dex9.items.get(s.requiredItems[0]).id : undefined),
 			wt: s.weightkg,
 			ls: isBattleOnly ? undefined : learnable(dex9, s, GEN),
-			cls: isBattleOnly || !CHAMP_LS[s.id]?.learnset ? undefined : Object.keys(CHAMP_LS[s.id].learnset).filter(id => moveIndex[id] !== undefined).map(id => moveIndex[id]),
+			cls: isBattleOnly || !CHAMP_LS[s.id]?.learnset || !/[cb]/.test(availOf(s.id) || '') ? undefined : Object.keys(CHAMP_LS[s.id].learnset).filter(id => moveIndex[id] !== undefined).map(id => moveIndex[id]),
 		} },
 	};
 }
