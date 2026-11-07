@@ -1,7 +1,7 @@
 {
   "name": "battlesim-kr",
   "private": true,
-  "version": "2.41.0",
+  "version": "2.41.1",
   "description": "한국어 포켓몬 배틀 시뮬레이터 앱 (Pokémon Showdown 배틀 엔진 기반)",
   "license": "MIT",
   "engines": {

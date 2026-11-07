@@ -1674,3 +1674,10 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.tcard .teff { z-index: 2; }
 	.tcard.off .tspr { opacity: .5; }
 }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	/* 더블·멀티 HP 상자 (v2.41.1): 필드 폭의 62%까지 넓고 낮게, 이름 칸은 줄어들고 HP 바가 남은 폭을 차지 (작은 화면에서도 바가 길게) */
+	.battle.doubles .arena .panels { zoom: 1; width: min(62%, 360px); }
+	.battle.doubles .arena .info { grid-template-columns: minmax(0, 38%) minmax(0, 1fr); min-height: 0; padding-top: 0; padding-bottom: 0; }
+	.battle.doubles .arena .info .info-top { font-size: 14px; line-height: 18px; min-width: 0; overflow: hidden; }
+	.battle.doubles .arena .info .info-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+}
