@@ -1720,3 +1720,31 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 }
 .battle.doubles .panels.own .balls { display: none; }
 .battle.doubles .panels.own .side-row:not(:has(.chip)) { display: none; }
+.battle.doubles .panels.foe .balls { display: none; }
+.battle.doubles .panels.foe .side-row:not(:has(.chip)) { display: none; }
+
+/* ── 넓은 화면 필드 양옆 (v2.43.0): 검은 빈칸 대신 배틀 배경의 색을 어둡게 가져와 하늘·지평선·바닥 띠로 채움 ── */
+.battle { --wg1: #0b0e1a; --wg2: #121828; --wg3: #182034; --wg4: #1c2236; --wg5: #151a2a; --wgl: #3a4570; }
+.battle.bg-field { --wg1: #16293a; --wg2: #304a5f; --wg3: #3b5359; --wg4: #2c4623; --wg5: #23381d; --wgl: #598e41; }
+.battle.bg-gym { --wg1: #080b13; --wg2: #221a21; --wg3: #201f2e; --wg4: #4d483b; --wg5: #3e3a30; --wgl: #9e9374; }
+.battle.bg-cave { --wg1: #070708; --wg2: #110f10; --wg3: #1f1c1a; --wg4: #26201a; --wg5: #1f1a16; --wgl: #4d3f2f; }
+.battle.bg-beach { --wg1: #10263a; --wg2: #28465f; --wg3: #2a4b65; --wg4: #564d35; --wg5: #453e2c; --wgl: #b29d68; }
+.battle.bg-snow { --wg1: #252c36; --wg2: #424c58; --wg3: #454f5b; --wg4: #575b61; --wg5: #46494f; --wgl: #b4bbc4; }
+.battle.bg-volcano { --wg1: #0a0407; --wg2: #160809; --wg3: #230f0c; --wg4: #170f0f; --wg5: #120c0d; --wgl: #2d1c17; }
+.battle.bg-tower { --wg1: #060811; --wg2: #0c1023; --wg3: #131833; --wg4: #202642; --wg5: #1a1f36; --wgl: #404c82; }
+.battle.bg-factory { --wg1: #0a0b0f; --wg2: #181a1e; --wg3: #22211f; --wg4: #2c2e35; --wg5: #23252b; --wgl: #585d67; }
+.battle.bg-pwt { --wg1: #3c3d3f; --wg2: #27202f; --wg3: #342037; --wg4: #422134; --wg5: #351b2b; --wgl: #874265; }
+.battle.bg-champion { --wg1: #392e13; --wg2: #3e1f12; --wg3: #331111; --wg4: #463018; --wg5: #392614; --wgl: #90602b; }
+.arena-wings { display: none; }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+	.battle > .arena-wings { display: block; grid-area: arena; align-self: stretch; justify-self: stretch; pointer-events: none; image-rendering: pixelated;
+		background:
+			/* 지평선: 밝은 줄 2px + 그 아래 2px 체크 디더 */
+			linear-gradient(var(--wgl), var(--wgl)) 0 64% / 100% 2px no-repeat,
+			repeating-conic-gradient(var(--wgl) 0 25%, transparent 0 50%) 0 calc(64% + 4px) / 4px 4px repeat-x,
+			/* 바닥: 16px마다 옅은 줄 */
+			repeating-linear-gradient(180deg, transparent 0 14px, rgba(255,255,255,.035) 14px 16px) 0 100% / 100% 34% no-repeat,
+			/* 하늘~바닥 계단 띠 */
+			linear-gradient(180deg, var(--wg1) 0 18%, var(--wg2) 18% 40%, var(--wg3) 40% 64%, var(--wg4) 64% 82%, var(--wg5) 82%); }
+	.battle > .arena, .battle > .side-info { position: relative; z-index: 1; }
+}

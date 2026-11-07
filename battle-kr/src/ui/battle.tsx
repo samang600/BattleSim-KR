@@ -1456,6 +1456,7 @@ function typeTint(type: string) {
 			<button class="badge field-btn" onClick={e => { e.stopPropagation(); setFieldOpen(true); }}>필드 ▸</button>
 			<button class="badge menu-btn" onClick={e => { e.stopPropagation(); setMenuOpen(true); }} aria-label="메뉴">☰ 메뉴</button>
 		</div>
+		<div class="arena-wings" aria-hidden="true" />
 		<div class={'arena' + (trainerVis.foe ? ' t-foe' : '')} ref={arenaRef} style={{ '--s': scale } as any} onClick={() => skipRef.current?.()}>
 			<div class="arena-bg" />
 			{/* 날씨와 필드(테라인)는 다른 레이어: 한 요소에 두면 필드의 '입자 없음' 규칙이 비·모래 줄기(가상 요소)까지 지움 */}
