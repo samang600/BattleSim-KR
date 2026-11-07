@@ -3,7 +3,7 @@
 스마트폰에서 바로 하는 한국어 포켓몬 배틀 앱. 배틀 계산은 이 저장소의 **Pokémon Showdown 시뮬레이터(`sim/`)를 그대로** 브라우저에서 돌립니다.
 
 ## 받기
-- **안드로이드**: [`release/BattleSimKR-v2.49.9.apk`](release/BattleSimKR-v2.49.9.apk) (약 2MB, 칩튠 배경음악 포함) 를 받아 설치 (출처를 알 수 없는 앱 허용 필요, 안드로이드 7.0 이상)
+- **안드로이드**: [`release/BattleSimKR-v2.50.0.apk`](release/BattleSimKR-v2.50.0.apk) (약 2MB, 칩튠 배경음악 포함) 를 받아 설치 (출처를 알 수 없는 앱 허용 필요, 안드로이드 7.0 이상)
 - 그림·울음소리·기술 애니메이션은 기본적으로 인터넷에서 그때그때 받습니다. **설정 → 오프라인 데이터 → 한 번에 받기**(약 24MB 내려받기, 풀면 약 60MB)를 누르면 앱 저장소에 받아 두어 인터넷 없이도 모두 나옵니다.
 - **웹 (설치 없이)**: **https://samang600.github.io/BattleSim-KR/** — 아이폰·PC·안드로이드 브라우저에서 바로 실행 (홈 화면에 추가 → 앱처럼 실행). `main` 에 푸시하면 GitHub Actions(`.github/workflows/pages.yml`)가 빌드해 자동으로 다시 올립니다.
   - 방문자 수는 GoatCounter(쿠키 없음)로 집계합니다: https://samang600.goatcounter.com — 웹 배포 주소에서만 세고 안드로이드 앱은 세지 않습니다.
@@ -119,6 +119,12 @@
   숙고 시간 상한은 5초입니다. 남는 시간에 같은 수를 다른 난수로 최대 8번 돌려 평균 내는 방식도 시험했지만, 이전 탐색 상대로 360판 51.1%(3vs3 50.0%, 6vs6 53.3%)로 차이가 없고 5배 느려서 기본으로는 끕니다(`searchCfg` 의 seeds).
 - 상위 랭커 팀: [PokéDB](https://sv.pokedb.tokyo/guide/opendata) 가 공개하는 스칼렛·바이올렛 랭크배틀 상위 구축(6마리·도구·테라타입, 시즌 1~40 중 1,020팀)을
   `scripts/fetch-pokedb.cjs` 로 빌드 때 받아 넣고(`src/gen/pokedb-teams.json`), 기술·성격·능력 포인트는 Smogon 통계로 채웁니다.
+  - **챔피언스 더블 실제 팀 1,200개**: [Limitless](https://play.limitlesstcg.com) 공개 API(키 없이 5분에 50번)로 Reg M-A·M-B·M-C 참가자 많은 대회 135개의 상위 1/8 입상 팀,
+    [VGCPastes 저장소](https://docs.google.com/spreadsheets/d/1axlwmzPA49rYkqXh7zHvAtSP-TKbM0ijGYBPRflLSWw)(공개 시트 → pokepast.es)의 팀. 6마리 모두 도구·특성·기술·성격, VGCPastes 팀은 능력 포인트까지 그대로 씁니다.
+    입상 순위·대회 크기(Limitless)와 입상 기록(VGCPastes)으로 점수를 매겨 높은 팀부터 남깁니다.
+  - **챔피언스 싱글 200팀**: Smogon 통계(BSS Reg M-C·Champions OU)의 '같이 쓰는 포켓몬'으로 조립.
+  - **무제한(초전설 가능) 싱글 200팀·더블 150팀**: Smogon Anything Goes·전국도감 Ubers·Ubers / Doubles Ubers 통계로 조립. 세트 통계에도 Anything Goes 를 더했습니다.
+  - 데이터: `scripts/fetch-ranker-teams.py` → `src/gen/ranker-teams.json` (받은 응답은 캐시해 다시 받지 않음). 고른 룰의 포켓몬 풀·초전설 설정에 맞는 팀만 쓰고, 프리 배틀 '상위 랭커 팀'에 룰별 팀 수와 출처가 나옵니다.
   배틀타워 29번째 승부부터, 랭크 매치 하이퍼볼급부터 가끔 '랭커'로 등장하고, 프리 배틀 상대로 고를 수도 있습니다. 룰에 맞는 팀만 나옵니다.
   자체 대전에서는 통계로 만든 가장 강한 무작위 팀과 비슷한 세기(싱글 6vs6 50.5%, 200판)였습니다. 실제 대전에서 쓰인 팀 구성이라 상대가 더 다양하고 실전다워지는 효과가 주입니다.
 

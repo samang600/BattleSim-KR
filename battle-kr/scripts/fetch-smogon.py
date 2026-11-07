@@ -2,7 +2,7 @@
 """Smogon 사용률 통계(chaos JSON)를 받아 src/gen/smogon.json 으로 줄인다.
 AI 팀(세트·동료 구성)과 6→3/6→4 참가 선택에 쓰임.
 
-묶음: s=내셔널 도감 싱글, d=내셔널 도감 더블, cs=챔피언스 싱글(BSS Reg M-C), cd=챔피언스 더블(VGC Reg M-C)
+묶음: s=내셔널 도감 싱글(무제한 AG 포함), d=내셔널 도감 더블, cs=챔피언스 싱글(BSS Reg M-C), cd=챔피언스 더블(VGC Reg M-C)
 포켓몬마다: m 기술 / i 도구 / a 특성 / s 성격·노력치 / t 테라 / tm 같이 쓰는 포켓몬 / cc 이 포켓몬을 잘 잡는 포켓몬 / u 사용 비중
 비율은 0~100 정수. 사용: python3 scripts/fetch-smogon.py [YYYY-MM]  (기본: 가장 최근 달)
 """
@@ -16,7 +16,7 @@ UA = {'User-Agent': 'battle-kr stats fetcher'}
 # 묶음별 (포맷, 가중치). 앞에 있을수록 이 앱 규칙에 가까워 가중치를 높게
 GROUPS = {
 	's': [('gen9nationaldex-1630', 3), ('gen9nationaldexubers-1630', 3), ('gen9nationaldexuu-1630', 2), ('gen9ou-1695', 1),
-		('gen9ubers-1630', 1), ('gen9uu-1630', 1), ('gen9ru-1630', 1), ('gen9nu-1630', 1)],
+		('gen9ubers-1630', 1), ('gen9anythinggoes-1630', 1), ('gen9uu-1630', 1), ('gen9ru-1630', 1), ('gen9nu-1630', 1)],
 	'd': [('gen9nationaldexdoubles-1630', 3), ('gen9doublesou-1695', 2), ('gen9doublesubers-1630', 2), ('gen9vgc2024regg-1630', 1)],
 	'cs': [('gen9championsbssregmc-1630', 3), ('gen9championsou-1630', 1)],
 	'cd': [('gen9championsvgc2026regmc-1630', 3)],
