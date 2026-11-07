@@ -5,7 +5,7 @@
  *  3) 초전설 / 4) 환상: 불가 · 가능(나도 쓰고 상대도 데려옴) — 포켓몬 풀과 상관없이 따로 정함 (세대 상한만 따름)
  * 규칙 id 는 '기믹.풀.초전설.환상' (예: 't_one.sv.no.no' — 기믹 m·z·d·t 글자 + _one/_each/_stack). 예전 id(natdexflat·gen9·champmc·tera.sv… )도 읽음.
  */
-import { RAW, toID } from './data';
+import { RAW, toID, setDataSpec, itemInPool, learnset, speciesData, GEN } from './data';
 
 export type GimmickKind = 'mega' | 'zmove' | 'dynamax' | 'tera' | 'ultra';
 export type LegendMode = 'no' | 'yes';
@@ -15,6 +15,8 @@ export interface BattleRule {
 	kinds: GimmickKind[]; oneKind: boolean;
 	/** 세대 상한(도감 번호) / 레전즈 Z-A 추가 메가 제외 / 게임 등장 표시(dex.json av) / 허용 메가 모습 / 준전설 제외 */
 	maxNum?: number; noFuture?: boolean; avail?: string; megaOnly?: Set<string>; noSub?: boolean;
+	/** 데이터 사양: 세대('' 최신) · 배틀 엔진 모드 · 기술 목록 방식 · 도구 등장 글자 */
+	era: string; mod: string; lsMode: 'all' | 'champ' | 'era'; itemAv: string;
 	/** 한 포켓몬이 기믹을 겹쳐 쓸 수 있음 / 상대 무작위 팀에도 초전설·환상이 섞임 */
 	stack?: boolean; legendTeams?: boolean;
 }
@@ -50,15 +52,15 @@ export function parseGimmick(g: string): { kinds: GimmickKind[]; mode: GimmickMo
 }
 export function gimmickId(kinds: GimmickKind[], mode: GimmickMode) { return GIMMICK_KINDS.filter(x => kinds.includes(x.k)).map(x => x.c).join('') + '_' + mode; }
 /** 2) 포켓몬 풀 (게임·레귤레이션) — gimmick: 고를 때 맞춰 주는 그 게임의 기믹 */
-export const POOLS: (Choice & { gimmick: string; maxNum?: number; noFuture?: boolean; avail?: string; megaOnly?: Set<string>; noSub?: boolean; legends?: [LegendMode, LegendMode] })[] = [
-	{ id: 'natdex', name: '전국도감', gimmick: 'mzdt_one', desc: '모든 포켓몬과 모든 메가진화(레전즈 Z-A 메가 포함)' },
-	{ id: 'sv', name: '스칼렛·바이올렛', gimmick: 't_one', avail: 's', desc: '스칼렛·바이올렛(DLC 포함)에 나오는 포켓몬' },
-	{ id: 'swsh', name: '소드·실드', gimmick: 'd_one', avail: 'w', maxNum: 905, desc: '소드·실드(DLC 포함)에 나오는 포켓몬' },
-	{ id: 'usum', name: '7세대까지', gimmick: 'mz_each', maxNum: 809, noFuture: true, desc: '울트라썬·문까지의 포켓몬(1~7세대), 원래 메가진화만' },
-	{ id: 'xy', name: '6세대까지', gimmick: 'm_one', maxNum: 721, noFuture: true, desc: 'X·Y/오메가루비·알파사파이어까지의 포켓몬(1~6세대), 원래 메가진화만' },
-	{ id: 'champmc', name: '챔피언스 M-C', gimmick: 'm_one', avail: 'c', legends: ['no', 'no'], desc: '포켓몬 챔피언스 레귤레이션 M-C(2026.9~12)에 나오는 포켓몬과 메가진화' },
-	{ id: 'champmb', name: '챔피언스 M-B', gimmick: 'm_one', avail: 'b', legends: ['no', 'no'], desc: '레귤레이션 M-B(2026.6~9)에 나오는 포켓몬과 메가진화' },
-	{ id: 'champma', name: '챔피언스 M-A', gimmick: 'm_one', avail: 'b', megaOnly: megaIds(MEGA_MA), legends: ['no', 'no'], desc: '레귤레이션 M-A(2026.4~6, 출시 규칙) — 포켓몬은 M-B 기준, 메가진화 59종' },
+export const POOLS: (Choice & { gimmick: string; maxNum?: number; noFuture?: boolean; avail?: string; megaOnly?: Set<string>; noSub?: boolean; legends?: [LegendMode, LegendMode]; era: string; mod: string; lsMode: 'all' | 'champ' | 'era'; itemAv: string })[] = [
+	{ id: 'natdex', name: '전국도감', gimmick: 'mzdt_one', era: '', mod: 'krchamp', lsMode: 'all', itemAv: '', desc: '모든 포켓몬·도구, 최신 사양(포켓몬 챔피언스 기술·상태이상), 모든 세대의 기술과 메가진화(레전즈 Z-A 메가 포함)' },
+	{ id: 'sv', name: '스칼렛·바이올렛', gimmick: 't_one', avail: 's', era: '9', mod: 'gen9', lsMode: 'era', itemAv: 's', desc: '스칼렛·바이올렛(DLC 포함)의 포켓몬·도구·기술 사양' },
+	{ id: 'swsh', name: '소드·실드', gimmick: 'd_one', avail: 'w', maxNum: 905, era: '8', mod: 'kr8', lsMode: 'era', itemAv: 'w', desc: '소드·실드(DLC 포함)의 포켓몬·도구, 그때의 종족값·특성·기술' },
+	{ id: 'usum', name: '7세대까지', gimmick: 'mz_each', avail: '7', maxNum: 809, noFuture: true, era: '7', mod: 'kr7', lsMode: 'era', itemAv: '7', desc: '울트라썬·문까지의 포켓몬(1~7세대)·도구, 그때의 종족값·특성·기술' },
+	{ id: 'xy', name: '6세대까지', gimmick: 'm_one', avail: '6', maxNum: 721, noFuture: true, era: '6', mod: 'kr6', lsMode: 'era', itemAv: '6', desc: 'X·Y/오메가루비·알파사파이어까지의 포켓몬(1~6세대)·도구, 그때의 종족값·특성·기술' },
+	{ id: 'champmc', name: '챔피언스 M-C', gimmick: 'm_one', avail: 'c', legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'c', desc: '포켓몬 챔피언스 레귤레이션 M-C(2026.9~12)에 나오는 포켓몬과 메가진화' },
+	{ id: 'champmb', name: '챔피언스 M-B', gimmick: 'm_one', avail: 'b', legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'b', desc: '레귤레이션 M-B(2026.6~9)에 나오는 포켓몬과 메가진화' },
+	{ id: 'champma', name: '챔피언스 M-A', gimmick: 'm_one', avail: 'b', megaOnly: megaIds(MEGA_MA), legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'b', desc: '레귤레이션 M-A(2026.4~6, 출시 규칙) — 포켓몬은 M-B 기준, 메가진화 59종' },
 ];
 /** 3·4) 초전설·환상 */
 export const LEGEND_MODES: Choice[] = [
@@ -98,10 +100,24 @@ export function ruleById(idIn: string): BattleRule {
 		desc: `${pool.desc}. 기믹: ${!names.length ? '없음' : modeOn ? `${names.join('·')} — ${GIMMICK_MODES.find(x => x.id === gim.mode)!.desc}` : `${names[0]}만`}. ${legTxt}.`,
 		kinds: gim.kinds, oneKind: !modeOn || gim.mode === 'one', stack: modeOn && gim.mode === 'stack',
 		maxNum: pool.maxNum, noFuture: pool.noFuture, avail: pool.avail, megaOnly: pool.megaOnly, noSub: pool.noSub,
+		era: pool.era, mod: pool.mod, lsMode: pool.lsMode, itemAv: pool.itemAv,
 		legendTeams: restricted === 'yes' || mythical === 'yes',
 	};
 	cache.set(id0, rule); cache.set(id, rule);
 	return rule;
+}
+
+/** 앱 데이터(종족값·특성·기술 목록·도구 목록)를 이 규칙의 포켓몬 풀 사양으로 */
+export function applyRuleData(rule: BattleRule) { setDataSpec(rule.era, rule.lsMode, rule.itemAv); }
+/** 이 규칙에서 쓸 수 있는 도구인가 (풀에 있는 도구 + 메가스톤·Z크리스탈은 기믹 규칙) */
+export function itemAllowed(rule: BattleRule, itemId: string): boolean {
+	const id = toID(itemId), it = RAW.items[id];
+	if (!id) return true;
+	if (!it) return false;
+	if (it.mega) return megaStoneAllowed(rule, id);
+	if (it.zt || it.zf) return rule.kinds.includes('zmove');
+	if (!rule.itemAv) return true;
+	return !!it.av?.includes(rule.itemAv);
 }
 
 /** 이 규칙에서 쓸 수 있는 포켓몬인가 (메가 모습 등 아이템으로 바뀌는 모습은 기본 모습으로 판단) */
@@ -140,7 +156,7 @@ export function megaStoneAllowed(rule: BattleRule, itemId: string): boolean {
 	return true;
 }
 /** 팀 하나의 규칙 위반 사항 */
-export function teamRuleWarnings(rule: BattleRule, sets: { species: string; item: string }[]): string[] {
+export function teamRuleWarnings(rule: BattleRule, sets: { species: string; item: string; ability?: string; moves?: string[] }[]): string[] {
 	const w: string[] = [];
 	const bad = sets.filter(s => !speciesAllowed(rule, s.species)).map(s => RAW.species[toID(s.species)]?.n || s.species);
 	if (bad.length) w.push(`이 규칙(${rule.name})에서 쓸 수 없는 포켓몬: ${bad.join(', ')}`);
@@ -148,5 +164,19 @@ export function teamRuleWarnings(rule: BattleRule, sets: { species: string; item
 	if (badStone.length) w.push(`이 규칙에서 쓸 수 없는 메가스톤: ${badStone.join(', ')}${rule.kinds.includes('mega') ? '' : ' (메가진화 불가 규칙)'}`);
 	const badZ = rule.kinds.includes('zmove') ? [] : sets.filter(s => RAW.items[toID(s.item)]?.zt).map(s => RAW.items[toID(s.item)]!.n);
 	if (badZ.length) w.push(`이 규칙에서는 Z크리스탈을 쓸 수 없어요: ${badZ.join(', ')}`);
+	const badItem = sets.filter(s => s.item && !RAW.items[toID(s.item)]?.mega && !RAW.items[toID(s.item)]?.zt && !itemAllowed(rule, s.item)).map(s => RAW.items[toID(s.item)]?.n || s.item);
+	if (badItem.length) w.push(`이 포켓몬 풀(${POOLS.find(p => p.id === rule.pool)?.name})에 없는 도구: ${[...new Set(badItem)].join(', ')}`);
+	// 그 세대에 없는 특성·기술 (치트 팀은 따로 검사하지 않음)
+	for (const st of sets) {
+		const sp = speciesData(st.species, GEN);
+		if (!sp) continue;
+		const name = sp.n;
+		if (st.ability && sp.ab && !sp.ab.includes(toID(st.ability))) w.push(`${name}: 이 풀에서는 특성 ${RAW.abilities[toID(st.ability)]?.n || st.ability}을(를) 가질 수 없어요`);
+		if (st.moves?.length) {
+			const ls = new Set(learnset(st.species, GEN));
+			const badM = st.moves.filter(m => m && !/^hiddenpower/.test(toID(m)) && !ls.has(toID(m))).map(m => RAW.moves[toID(m)]?.n || m);
+			if (badM.length) w.push(`${name}: 이 풀에서 배울 수 없는 기술 — ${badM.join(', ')}`);
+		}
+	}
 	return w;
 }

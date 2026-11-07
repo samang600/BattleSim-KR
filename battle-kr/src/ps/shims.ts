@@ -1,5 +1,5 @@
 /** 브라우저용 `fs` / `path` 대체 모듈 (esbuild 플러그인이 연결) */
-const MODS: string[] = []; // 9세대 기본 데이터만 사용 (내셔널 도감)
+import { MODS } from './registry'; // 규칙의 포켓몬 풀별 데이터 모드 (krchamp·kr8·kr7·kr6)
 
 export function readdirSync(dir: string) {
 	if (dir.replace(/\/$/, '').endsWith('/data/mods')) return MODS.slice();

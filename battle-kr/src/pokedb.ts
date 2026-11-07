@@ -3,10 +3,10 @@
  *  데이터: scripts/fetch-pokedb.cjs → src/gen/pokedb-teams.json */
 import TEAMS from './gen/pokedb-teams.json';
 import { RAW, speciesData, nickKo, type Gen } from './data';
-import { ruleById, speciesAllowed, megaStoneAllowed } from './rules';
+import { ruleById, speciesAllowed, itemAllowed } from './rules';
 import { loadSettings } from './store';
 import { smogonSet } from './smogon';
-import { randomSetFor, dedupeItems, assignGimmicks, type PSet } from './sets';
+import { randomSetFor, dedupeItems, assignGimmicks, conformSet, type PSet } from './sets';
 
 type Mon = [string, string, string]; // [종족 id, 도구 id, 테라타입]
 type Row = [number, number, Mon[]]; // [레이트, 시즌, 6마리]
@@ -17,8 +17,7 @@ export interface RankerTeam { team: PSet[]; rating: number; season: number }
 function itemOk(id: string): boolean {
 	const it = RAW.items[id];
 	if (!it) return false;
-	if (it.mega) return megaStoneAllowed(ruleById(loadSettings().battleRule), id);
-	return true;
+	return itemAllowed(ruleById(loadSettings().battleRule), id);   // 메가스톤·Z크리스탈은 기믹, 나머지는 포켓몬 풀(게임)에 있는 도구
 }
 
 /** 지금 규칙에서 쓸 수 있는 상위 팀 수 */
@@ -43,7 +42,7 @@ export function rankerTeam(doubles: boolean, level = 50, quality = 0.8, gen: Gen
 		set.name = nickKo(sid);
 		if (item && itemOk(item)) set.item = item; // 실제로 쓴 도구
 		if (tera && tera !== 'Stellar' && speciesData(sid, gen)) set.teraType = tera;
-		return set;
+		return conformSet(set, gen);
 	});
 	return { team: dedupeItems(assignGimmicks(team)), rating: row[0], season: row[1] };
 }

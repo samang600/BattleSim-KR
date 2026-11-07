@@ -383,8 +383,8 @@ export async function runFactory() {
 	}
 	const rentalRound = async (streak: number) => {
 		const rentals = factoryPool(gradeAt(streak), level, n === 6 ? 8 : 6, undefined, undefined, diff);
-		return ask<PSet[]>(r => <PickScreen title={`렌탈 포켓몬 선택 · ${GRADE_LABEL[gradeAt(streak)]} 등급`} team={rentals} gen={9} count={n}
-			hint={`빌릴 포켓몬 ${n}마리를 고르세요. 처음 고른 포켓몬이 먼저 나갑니다. (세트가 오를수록 더 강한 등급에서 빌려 줍니다)`} onDone={r} />);
+		return ask<PSet[]>(r => <PickScreen title="렌탈 포켓몬 선택" team={rentals} gen={9} count={n}
+			hint={`빌릴 포켓몬 ${n}마리를 고르세요. 처음 고른 포켓몬이 먼저 나갑니다.`} onDone={r} />);
 	};
 	if (!state) {
 		const team = await rentalRound(0);

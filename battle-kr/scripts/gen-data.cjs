@@ -167,6 +167,27 @@ function koName(cat, id, own) {
 	for (const t of [own, KO_NAMU[cat]?.[id]?.n, KO_API[cat]?.[id]?.n]) if (t && HANGUL.test(t)) return t;
 	return own;
 }
+// 게임·레귤레이션별 등장 여부 (규칙의 '포켓몬 풀'): s=스칼렛·바이올렛, w=소드·실드, 7=7세대, 6=6세대, c=챔피언스 M-C, b=챔피언스 M-B
+const AVAIL = [['s', Dex.forGen(9)], ['w', Dex.forGen(8)], ['7', Dex.forGen(7)], ['6', Dex.forGen(6)], ['c', Dex.mod('champions')], ['b', Dex.mod('championsregmb')]];
+const availOf = id => AVAIL.map(([k, d]) => { const x = d.species.get(id); return x.exists && !x.isNonstandard ? k : ''; }).join('') || undefined;
+const itemAvailOf = id => AVAIL.map(([k, d]) => { const x = d.items.get(id); return x.exists && !x.isNonstandard ? k : ''; }).join('') || undefined;
+/** 그 세대 사양 (종족값·타입·특성): 9세대와 다른 것만 */
+const ERA_DEX = [['8', Dex.forGen(8)], ['7', Dex.forGen(7)], ['6', Dex.forGen(6)]];
+function speciesEra(s, d9) {
+	const out = {};
+	for (const [k, d] of ERA_DEX) {
+		const x = d.species.get(s.id);
+		if (!x.exists || x.isNonstandard === 'Future') continue;
+		const bs = [x.baseStats.hp, x.baseStats.atk, x.baseStats.def, x.baseStats.spa, x.baseStats.spd, x.baseStats.spe];
+		const ab = Object.values(x.abilities).map(a => d.abilities.get(a).id);
+		const e = {};
+		if (bs.join() !== d9.bs.join()) e.bs = bs;
+		if (x.types.join() !== d9.t.join()) e.t = x.types;
+		if (ab.join() !== d9.ab.join()) e.ab = ab;
+		if (Object.keys(e).length) out[k] = e;
+	}
+	return Object.keys(out).length ? out : undefined;
+}
 const moveIds = [];
 const moveIndex = {};
 for (const m of dex9.moves.all()) {
@@ -180,6 +201,17 @@ for (const m of dex9.moves.all()) {
 		g: { [GEN]: [champ(m.id).type || m.type, m.category, champ(m.id).basePower ?? m.basePower, (champ(m.id).accuracy ?? m.accuracy) === true ? 0 : (champ(m.id).accuracy ?? m.accuracy), championsPP(champ(m.id).pp ?? m.pp), m.priority, champ(m.id).target || m.target, m.flags.contact ? 1 : 0] },
 		z: m.isZ ? 1 : undefined, x: m.isMax ? 1 : undefined,
 	};
+	// 세대 사양: '9' = 챔피언스 변경 전 9세대(스칼렛·바이올렛), '8'·'7'·'6' = 그 세대 — 기본(챔피언스 사양)과 다른 것만
+	const tup = x => [x.type, x.category, x.basePower, x.accuracy === true ? 0 : x.accuracy, x.pp, x.priority, x.target, x.flags.contact ? 1 : 0];
+	const e = {}, def = result.moves[m.id].g[GEN], t9 = tup(m);
+	if (t9.join() !== def.join()) e['9'] = t9;
+	for (const [k, d] of ERA_DEX) {
+		const x = d.moves.get(m.id);
+		if (!x.exists || x.isNonstandard === 'Future' || x.num <= 0) continue;
+		const t = tup(x);
+		if (t.join() !== t9.join()) e[k] = t;
+	}
+	if (Object.keys(e).length) result.moves[m.id].e = e;
 }
 
 // ── 특성 ──
@@ -211,12 +243,17 @@ for (const it of dex9.items.all()) {
 		sp: it.spritenum || 0,
 		fut: it.isNonstandard === 'Future' ? 1 : undefined,
 		ball: it.isPokeball ? 1 : undefined,
+		av: itemAvailOf(it.id),
 	};
 }
 
 // ── 포켓몬 ──
+/** 기술 출처('9M','7L1','6E'…) → 배울 수 있는 세대 표시: 1=6세대까지, 2=7세대까지, 4=8세대, 8=9세대 */
+const srcMask = srcs => { let m = 0; for (const x of srcs || []) { const g = +x[0]; if (g <= 6) m |= 1; if (g <= 7) m |= 2; if (g === 8) m |= 4; if (g === 9) m |= 8; } return m; };
+let LAST_MASK = {};
 function learnable(dex, species, gen) {
 	const out = new Set();
+	const mask = LAST_MASK = {};
 	let s = species;
 	const seen = new Set();
 	while (s && s.exists && !seen.has(s.id)) {
@@ -228,27 +265,25 @@ function learnable(dex, species, gen) {
 		if (ls) {
 			for (const moveid in ls) {
 				out.add(moveid); // 내셔널 도감: 모든 세대에서 배운 기술 허용
+				mask[moveid] = (mask[moveid] || 0) | srcMask(ls[moveid]);
 			}
 		}
 		s = s.prevo ? dex.species.get(s.prevo) : null;
 	}
 	if (species.id.startsWith('rotom') && species.forme) {
 		const extra = { rotomheat: 'overheat', rotomwash: 'hydropump', rotomfrost: 'blizzard', rotomfan: 'airslash', rotommow: 'leafstorm' }[species.id];
-		if (extra) out.add(extra);
+		if (extra) { out.add(extra); mask[extra] = 15; }
 	}
 	if (out.has('hiddenpower')) {
 		for (const t of Object.keys(TYPE_KO)) {
 			const id = 'hiddenpower' + t.toLowerCase();
-			if (moveIndex[id] !== undefined) out.add(id);
+			if (moveIndex[id] !== undefined) { out.add(id); mask[id] = mask.hiddenpower; }
 		}
 	}
 	return [...out].filter(id => moveIndex[id] !== undefined && !result.moves[id].z && !result.moves[id].x)
 		.map(id => moveIndex[id]).sort((a, b) => a - b);
 }
 
-// 게임·레귤레이션별 등장 여부 (규칙의 '포켓몬 풀'): s=스칼렛·바이올렛, w=소드·실드, c=챔피언스 M-C, b=챔피언스 M-B
-const AVAIL = [['s', Dex.forGen(9)], ['w', Dex.forGen(8)], ['c', Dex.mod('champions')], ['b', Dex.mod('championsregmb')]];
-const availOf = id => AVAIL.map(([k, d]) => { const x = d.species.get(id); return x.exists && !x.isNonstandard ? k : ''; }).join('') || undefined;
 const BATTLE_ONLY = new Set(['Castform', 'Cherrim', 'Darmanitan', 'Meloetta', 'Aegislash', 'Wishiwashi', 'Minior', 'Mimikyu',
 	'Cramorant', 'Eiscue', 'Morpeko', 'Palafin', 'Terapagos']);
 for (const s of dex9.species.all()) {
@@ -272,9 +307,12 @@ for (const s of dex9.species.all()) {
 			req: s.requiredItem ? dex9.items.get(s.requiredItem).id : (s.requiredItems ? dex9.items.get(s.requiredItems[0]).id : undefined),
 			wt: s.weightkg,
 			ls: isBattleOnly ? undefined : learnable(dex9, s, GEN),
+			lg: isBattleOnly ? undefined : String.fromCharCode(...learnable(dex9, s, GEN).map(i => 48 + (LAST_MASK[moveIds[i]] || 0))),
 			cls: isBattleOnly || !CHAMP_LS[s.id]?.learnset || !/[cb]/.test(availOf(s.id) || '') ? undefined : Object.keys(CHAMP_LS[s.id].learnset).filter(id => moveIndex[id] !== undefined).map(id => moveIndex[id]),
 		} },
 	};
+	const sp = result.species[s.id], era = speciesEra(s, sp.g[GEN]);
+	if (era) sp.e = era;
 }
 
 // ── 성격·타입 ──

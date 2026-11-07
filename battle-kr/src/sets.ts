@@ -1,6 +1,6 @@
 /** 포켓몬 세트(기술·도구·노력치) 만들기 */
 import { loadSettings } from './store';
-import { ruleById, speciesAllowed, megaStoneAllowed } from './rules';
+import { ruleById, speciesAllowed, megaStoneAllowed, itemAllowed } from './rules';
 import { Teams } from '../../sim/teams';
 import { RAW, speciesData, learnset, moveData, toID, bst, speciesKo, nickKo, megaStonesFor, zCrystalForType, type Gen, type StatID } from './data';
 import FACTORY_SETS from '../../data/random-battles/gen9/factory-sets.json';
@@ -249,6 +249,28 @@ export function randomSetFor(speciesId: string, gen: Gen, level = 50, doubles = 
 		set = buildSet(id, gen);
 	}
 	set.level = level;
+	return conformSet(set, gen);
+}
+
+/** 세트를 지금 규칙의 포켓몬 풀 사양에 맞춤: 그 세대에 없는 기술·특성·도구를 바꿈 (랭크배틀·팩토리·무작위 상대 등) */
+const SAFE_ITEMS = ['leftovers', 'sitrusberry', 'lifeorb', 'focussash', 'choicescarf', 'lumberry', 'expertbelt', 'choiceband', 'choicespecs', 'blacksludge', 'rockyhelmet'];
+export function conformSet<T extends PSet>(set: T, gen: Gen = 9): T {
+	const rule = ruleById(loadSettings().battleRule);
+	const id = toID(set.species), sd = speciesData(id, gen);
+	if (!sd) return set;
+	// 특성
+	if (set.ability && !sd.ab.includes(toID(set.ability))) set.ability = sd.ab[0];
+	// 기술: 배울 수 없는 것은 빼고, 모자라면 자동 세트의 기술로 채움
+	const legal = new Set(learnset(id, gen));
+	const keep = set.moves.filter(m => legal.has(toID(m)) || (toID(m).startsWith('hiddenpower') && legal.has('hiddenpower')));
+	if (keep.length < set.moves.length || !keep.length) {
+		for (const m of buildSet(id, gen).moves) { if (keep.length >= 4) break; if (!keep.includes(m)) keep.push(m); }
+		set.moves = keep.slice(0, 4);
+	}
+	// 도구: 풀에 없으면 흔한 도구로
+	if (set.item && !itemAllowed(rule, set.item)) set.item = SAFE_ITEMS.find(i => itemAllowed(rule, i) && RAW.items[i]) || '';
+	// 모습에 꼭 필요한 도구(오거폰 가면·아르세우스 플레이트 등)는 항상
+	if (sd.req && !RAW.items[sd.req]?.mega) set.item = sd.req;
 	return set;
 }
 
@@ -298,7 +320,8 @@ export function dedupeItems(team: PSet[]) {
 	const used = new Set<string>();
 	for (const set of team) {
 		if (used.has(set.item)) {
-			const alt = ITEM_ALTS.find(i => !used.has(i) && RAW.items[i]);
+			const rule = ruleById(loadSettings().battleRule);
+			const alt = ITEM_ALTS.find(i => !used.has(i) && RAW.items[i] && itemAllowed(rule, i));
 			set.item = alt || '';
 		}
 		if (set.item) used.add(set.item);
@@ -402,10 +425,10 @@ export function factoryTeam(tier: string, size: number, level: number, exclude =
 		nums.add(num);
 		const evs = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0, ...(fs.evs || {}) };
 		const ivs = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31, ...(fs.ivs || {}) };
-		out.push({
+		out.push(conformSet({
 			name: nickKo(sid), species: sd.en, item: toID(pick(fs.item) || ''), ability: toID(pick(fs.ability) || sd.ab[0]),
 			moves: [...new Set(moves)] as string[], nature: toID(pick(fs.nature) || 'serious'), evs, ivs, level, teraType: pick(fs.teraType) || sd.t[0],
-		});
+		}));
 	}
 	return out;
 }

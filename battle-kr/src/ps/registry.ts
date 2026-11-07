@@ -18,6 +18,7 @@ import * as base_typechart from '../../../data/typechart';
 import * as rb_gen9 from '../../../data/random-battles/gen9/teams';
 
 import * as formats from './formats';
+import { RAW } from '../data';
 import CHAMP from './champions-moves.json';
 import { Conditions as CHAMP_CONDITIONS } from '../../../data/mods/champions/conditions';
 import { Moves as CHAMP_MOD_MOVES } from '../../../data/mods/champions/moves';
@@ -71,7 +72,6 @@ export function applyChampionsMoves(Moves: { [id: string]: any }) {
 		};
 	}
 }
-applyChampionsMoves((base_moves as any).Moves);
 
 /** 포켓몬 챔피언스 상태이상 (Showdown 의 champions 모드와 같음):
  *  마비 — 행동 불능 1/8 (본가 1/4) / 잠듦 — 2~3턴 (2턴째에 깰 확률 1/3, 본가 1~3턴) / 얼음 — 최대 3턴, 매 턴 1/4 로 녹음 (본가 1/5, 상한 없음)
@@ -83,11 +83,44 @@ export function applyChampionsConditions(Conditions: { [id: string]: any }) {
 		Object.assign(Conditions[id], rest);
 	}
 }
-applyChampionsConditions((base_conditions as any).Conditions);
-/** 포켓몬 챔피언스 특성 (재생력·자연회복·치유의마음·보이지않는주먹·도주·분노의껍질·발끈·위기회피·도망태세) */
-applyChampionsMod((base_abilities as any).Abilities, CHAMP_MOD_ABILITIES as any);
 
-export const MODS: string[] = [];
+// ── 규칙의 포켓몬 풀에 따른 데이터 모드 ──
+// 기본(gen9) = 스칼렛·바이올렛 사양 그대로. krchamp = 포켓몬 챔피언스 사양(전국도감 '최신'·챔피언스 풀),
+// kr8·kr7·kr6 = 그 세대의 종족값·타입·특성·기술 수치 (배틀 처리 방식은 9세대 그대로)
+const cloneTable = (t: { [id: string]: any }) => Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v && typeof v === 'object' ? { ...v, ...(v.condition ? { condition: { ...v.condition } } : {}) } : v]));
+const champMoves = cloneTable((base_moves as any).Moves); applyChampionsMoves(champMoves);
+const champConditions = cloneTable((base_conditions as any).Conditions); applyChampionsConditions(champConditions);
+const champAbilities = cloneTable((base_abilities as any).Abilities); applyChampionsMod(champAbilities, CHAMP_MOD_ABILITIES as any);
+
+const ABIL = (base_abilities as any).Abilities as { [id: string]: { name: string } };
+/** 세대 모드: dex.json 의 세대 차이(e)로 종족·기술을 덮어씀 */
+function eraMod(era: '8' | '7' | '6') {
+	const Pokedex: { [id: string]: any } = {}, Moves: { [id: string]: any } = {};
+	for (const [id, sp] of Object.entries(RAW.species)) {
+		const e = sp.e?.[era];
+		if (!e || !(base_pokedex as any).Pokedex[id]) continue;
+		const patch: any = { inherit: true };
+		if (e.bs) patch.baseStats = { hp: e.bs[0], atk: e.bs[1], def: e.bs[2], spa: e.bs[3], spd: e.bs[4], spe: e.bs[5] };
+		if (e.t) patch.types = e.t;
+		if (e.ab) { const keys = ['0', '1', 'H', 'S']; patch.abilities = Object.fromEntries(e.ab.map((a, i) => [keys[i], ABIL[a]?.name || a])); }
+		Pokedex[id] = patch;
+	}
+	for (const [id, mv] of Object.entries(RAW.moves)) {
+		const t = mv.e?.[era];
+		if (!t || !(base_moves as any).Moves[id]) continue;
+		Moves[id] = { inherit: true, type: t[0], category: t[1], basePower: t[2], accuracy: t[3] === 0 ? true : t[3], pp: t[4], priority: t[5], target: t[6] };
+	}
+	return { scripts: { Scripts: { inherit: 'gen9', gen: 9 } }, pokedex: { Pokedex }, moves: { Moves } };
+}
+const ERA_MODS = { kr8: eraMod('8'), kr7: eraMod('7'), kr6: eraMod('6') };
+export const MODS: string[] = ['krchamp', ...Object.keys(ERA_MODS)];
+const MOD_FILES: { [path: string]: any } = {
+	'/ps/data/mods/krchamp/scripts': { Scripts: { inherit: 'gen9', gen: 9 } },
+	'/ps/data/mods/krchamp/moves': { Moves: champMoves },
+	'/ps/data/mods/krchamp/conditions': { Conditions: champConditions },
+	'/ps/data/mods/krchamp/abilities': { Abilities: champAbilities },
+	...Object.fromEntries(Object.entries(ERA_MODS).flatMap(([m, files]) => Object.entries(files).map(([f, v]) => [`/ps/data/mods/${m}/${f}`, v]))),
+};
 
 const REGISTRY: { [path: string]: any } = {
 	'/ps/data/abilities': base_abilities,
@@ -105,6 +138,7 @@ const REGISTRY: { [path: string]: any } = {
 	'/ps/data/random-battles/gen9/teams': rb_gen9,
 
 	'/ps/config/formats': formats,
+	...MOD_FILES,
 };
 
 function normalize(p: string, from = '/ps/sim') {

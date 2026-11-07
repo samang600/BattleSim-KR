@@ -51,7 +51,8 @@ export class Session {
 
 	constructor(public cfg: SessionConfig) {
 		this.rule = ruleById(cfg.ruleId || loadSettings().battleRule);
-		const formatid = `gen${cfg.gen}kr${cfg.doubles ? 'doubles' : 'singles'}${cfg.inverse ? 'inverse' : ''}`;
+		// 포켓몬 풀에 맞는 데이터 모드 (종족값·특성·기술 수치·챔피언스 사양)
+		const formatid = `gen${cfg.gen}kr${cfg.doubles ? 'doubles' : 'singles'}${cfg.inverse ? 'inverse' : ''}${this.rule.mod === 'gen9' ? '' : this.rule.mod}`;
 		this.seed = cfg.seed || [0, 0, 0, 0].map(() => Math.floor(Math.random() * 0x10000)) as [number, number, number, number];
 		this.battle = new Battle({
 			formatid: formatid as any,

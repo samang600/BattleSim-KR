@@ -13,12 +13,19 @@ const common = {
 	},
 };
 
+/** 규칙의 포켓몬 풀별 데이터 모드: gen9 = 스칼렛·바이올렛, krchamp = 최신(챔피언스), kr8·kr7·kr6 = 그 세대 사양 */
+const MODS = ['gen9', 'krchamp', 'kr8', 'kr7', 'kr6'];
 export const Formats = [
-	{ name: "[Gen 9] KR Singles", mod: 'gen9', gameType: 'singles', ...common },
-	{ name: "[Gen 9] KR Doubles", mod: 'gen9', gameType: 'doubles', ...common },
-	// 거꾸로 배틀: 약점은 반감, 반감·무효는 약점
-	{ name: "[Gen 9] KR Singles Inverse", mod: 'gen9', gameType: 'singles', ...common, ruleset: [...common.ruleset, 'Inverse Mod'] },
-	{ name: "[Gen 9] KR Doubles Inverse", mod: 'gen9', gameType: 'doubles', ...common, ruleset: [...common.ruleset, 'Inverse Mod'] },
+	...MODS.flatMap(mod => {
+		const sfx = mod === 'gen9' ? '' : ' ' + mod;
+		return [
+			{ name: `[Gen 9] KR Singles${sfx}`, mod, gameType: 'singles', ...common },
+			{ name: `[Gen 9] KR Doubles${sfx}`, mod, gameType: 'doubles', ...common },
+			// 거꾸로 배틀: 약점은 반감, 반감·무효는 약점
+			{ name: `[Gen 9] KR Singles Inverse${sfx}`, mod, gameType: 'singles', ...common, ruleset: [...common.ruleset, 'Inverse Mod'] },
+			{ name: `[Gen 9] KR Doubles Inverse${sfx}`, mod, gameType: 'doubles', ...common, ruleset: [...common.ruleset, 'Inverse Mod'] },
+		];
+	}),
 	{ name: "[Gen 9] Random Battle", mod: 'gen9', team: 'random', ...common },
 	{ name: "[Gen 9] Random Doubles Battle", mod: 'gen9', gameType: 'doubles', team: 'random', ...common },
 ];

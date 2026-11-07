@@ -4,7 +4,7 @@
  *  - 6→3/6→4 참가 선택에서 상대 팀을 보고 유리한 포켓몬을 고른다. */
 import SMOGON from './gen/smogon.json';
 import { RAW, speciesData, learnset, moveData, toID, type Gen } from './data';
-import { ruleById, megaStoneAllowed, type BattleRule } from './rules';
+import { ruleById, megaStoneAllowed, itemAllowed, type BattleRule } from './rules';
 import { loadSettings } from './store';
 import { evToSp, spToEv, fillSP, type PSet } from './sets';
 import { Dex } from '../../sim/dex';
@@ -49,7 +49,7 @@ function itemOk(itemId: string, speciesId: string, rule: BattleRule): boolean {
 	if (!it) return false;
 	if (it.mega) return megaStoneAllowed(rule, itemId) && (it.megaFrom || []).map(toID).includes(toID(RAW.species[toID(speciesId)]?.base || speciesId));
 	if (it.zt || it.zu) return rule.kinds.includes('zmove');
-	return true;
+	return itemAllowed(rule, itemId);   // 포켓몬 풀(게임)에 있는 도구만
 }
 
 /** 통계로 세트를 만든다. 통계가 없으면 null (호출한 쪽이 기존 방식으로) */
@@ -74,7 +74,7 @@ export function smogonSet(speciesId: string, gen: Gen, level: number, doubles: b
 		const atk = pool.find(p => moveData(p[0], gen)!.category !== 'Status');
 		if (atk) moves[moves.length - 1] = atk[0];
 	}
-	const item = weightedPick(e.i || [], quality, k => !itemOk(k, id, rule))?.[0] || 'leftovers';
+	const item = weightedPick(e.i || [], quality, k => !itemOk(k, id, rule))?.[0] || (itemAllowed(rule, 'leftovers') ? 'leftovers' : '');
 	const abil = sd.ab.map(toID);
 	const ability = weightedPick(e.a || [], quality, k => !abil.includes(k))?.[0] || abil[0];
 	// 성격·능력 포인트: "Jolly:0/252/0/0/4/252" (EV) 또는 챔피언스 "Jolly:2/32/0/0/0/32" (SP)

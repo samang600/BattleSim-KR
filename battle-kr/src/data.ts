@@ -7,15 +7,18 @@ export const GEN: Gen = 9;
 export type StatID = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe';
 export const STATS: StatID[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 
-interface SpeciesGen { t: string[]; bs: number[]; ab: string[]; fe: number; bo?: number; gr?: string; req?: string; wt: number; ls?: number[] }
-export interface SpeciesEntry { n: string; en: string; num: number; base?: string; tags?: string[]; tier?: string; fut?: 1; /** 게임별 등장: s=스칼렛·바이올렛 w=소드·실드 c=챔피언스 M-C b=챔피언스 M-B */ av?: string; /** 거다이맥스 가능 */ gx?: 1; g: { [gen: string]: SpeciesGen } }
-interface MoveEntry { n: string; d: string; z?: number; x?: number; g: { [gen: string]: [string, string, number, number, number, number, string, number] } }
+interface SpeciesGen { t: string[]; bs: number[]; ab: string[]; fe: number; bo?: number; gr?: string; req?: string; wt: number; ls?: number[]; /** ls 와 같은 순서로, 배울 수 있는 세대 표시 글자(48+비트: 1=6세대까지 2=7세대까지 4=8세대 8=9세대) */ lg?: string; cls?: number[] }
+/** 세대 사양(종족값·타입·특성) 차이 */
+interface SpeciesEra { bs?: number[]; t?: string[]; ab?: string[] }
+type MoveTuple = [string, string, number, number, number, number, string, number];
+export interface SpeciesEntry { n: string; en: string; num: number; base?: string; tags?: string[]; tier?: string; fut?: 1; /** 게임별 등장: s=스칼렛·바이올렛 w=소드·실드 c=챔피언스 M-C b=챔피언스 M-B */ av?: string; /** 거다이맥스 가능 */ gx?: 1; g: { [gen: string]: SpeciesGen }; /** 세대별 사양 차이 ('8'·'7'·'6') */ e?: { [era: string]: SpeciesEra } }
+interface MoveEntry { n: string; d: string; z?: number; x?: number; g: { [gen: string]: MoveTuple }; /** 세대 사양: '9'=챔피언스 변경 전 9세대, '8'·'7'·'6' */ e?: { [era: string]: MoveTuple } }
 
 const D = DEX as any as {
 	species: { [id: string]: SpeciesEntry };
 	moves: { [id: string]: MoveEntry };
 	abilities: { [id: string]: { n: string; d: string; gen: number } };
-	items: { [id: string]: { n: string; d: string; gens: number[]; mega?: string; megaFrom?: string[]; zt?: string; zf?: string[]; zu?: string[]; sp?: number; fut?: 1; ball?: 1 } };
+	items: { [id: string]: { n: string; d: string; gens: number[]; mega?: string; megaFrom?: string[]; zt?: string; zf?: string[]; zu?: string[]; sp?: number; fut?: 1; ball?: 1; /** 게임별 등장 (포켓몬과 같은 글자) */ av?: string } };
 	natures: { [id: string]: { n: string; en: string; p: string; m: string } };
 	types: { [en: string]: string };
 	stats: { [id: string]: string };
@@ -39,11 +42,22 @@ export const STAT_SHORT: { [k: string]: string } = { hp: 'HP', atk: '공격', de
 
 export function typeKo(t: string) { return D.types[t] || t; }
 
+/** 규칙의 포켓몬 풀에 따른 데이터 사양 (rules.ts applyRuleData 가 정함)
+ *  era: '' 최신(챔피언스 사양) / '9' 스칼렛·바이올렛 / '8'·'7'·'6' 그 세대 — 종족값·타입·특성·기술 수치
+ *  lsMode: 'all' 전 세대+챔피언스 기술 / 'champ' 챔피언스 목록 / 'era' 그 세대에 배울 수 있는 기술
+ *  itemAv: 도구 등장 글자 ('' = 전부) */
+let ERA = '', LS_MODE: 'all' | 'champ' | 'era' = 'all', ITEM_AV = '';
+export function setDataSpec(era: string, lsMode: 'all' | 'champ' | 'era', itemAv: string) { ERA = era; LS_MODE = lsMode; ITEM_AV = itemAv; }
+export function dataEra() { return ERA; }
+/** 지금 풀에 있는 도구인가 */
+export function itemInPool(id: string) { if (!ITEM_AV) return true; const it = D.items[toID(id)]; return !!it?.av?.includes(ITEM_AV); }
+
 export function speciesData(id: string, gen: Gen) {
 	const s = D.species[toID(id)];
 	if (!s) return null;
 	const g = s.g[gen] || s.g[9];
-	return { id: toID(id), ...s, ...g };
+	const e = ERA && ERA !== '9' ? s.e?.[ERA] : undefined;
+	return { id: toID(id), ...s, ...g, ...(e ? { bs: e.bs ?? g.bs, t: e.t ?? g.t, ab: e.ab ?? g.ab } : {}) };
 }
 export function speciesKo(nameOrId: string) {
 	const id = toID(nameOrId);
@@ -74,7 +88,7 @@ export function moveData(id: string, gen: Gen) {
 	if (/^return\d+$/.test(id)) id = 'return';
 	const m = D.moves[id];
 	if (!m) return null;
-	const g = m.g[gen] || m.g[9];
+	const g = (ERA ? m.e?.[ERA] ?? m.e?.['9'] : undefined) || m.g[gen] || m.g[9];
 	return {
 		id, name: m.n, desc: m.d, type: g[0], category: g[1] as 'Physical' | 'Special' | 'Status', basePower: g[2],
 		accuracy: g[3], pp: g[4], priority: g[5], target: g[6], contact: !!g[7],
@@ -115,18 +129,24 @@ export function floats(speciesId: string): boolean {
 	const b: any = s.base ? speciesData(s.base, 9) : s;
 	return !!(s.ab?.includes('levitate') || b?.ab?.includes('levitate'));
 }
-/** 기술 배우기 목록: 본가 전 세대 목록(ls) + 포켓몬 챔피언스 목록(cls, 예: 아쿠스타 아쿠아제트)을 합침 — 모든 규칙에서 같음.
+/** 기술 배우기 목록: 전국도감은 본가 전 세대 목록(ls) + 포켓몬 챔피언스 목록(cls)을 합침, 챔피언스 풀은 cls, 게임 풀은 그 세대에 배울 수 있는 기술.
  * 배틀 중 모습(메가 등)은 기본 모습의 목록 */
 export function learnset(id: string, gen: Gen): string[] {
 	const s: any = speciesData(id, gen);
 	if (!s) return [];
 	const own = s.ls || s.cls ? s : s.base ? speciesData(s.base, gen) : null;
 	if (!own) return [];
+	if (LS_MODE === 'champ' && own.cls) return own.cls.map((i: number) => D.moveIds[i]);
+	if (LS_MODE !== 'all') {
+		// 그 세대에 배울 수 있는 기술만 (챔피언스 목록에 없는 포켓몬은 스칼렛·바이올렛 기준)
+		const bit = ({ '9': 8, '8': 4, '7': 2, '6': 1 } as { [k: string]: number })[ERA] || 8;
+		return (own.ls || []).filter((_: number, k: number) => ((own.lg?.charCodeAt(k) ?? 63) - 48) & bit).map((i: number) => D.moveIds[i]);
+	}
 	const out = new Set<number>([...(own.ls || []), ...(own.cls || [])]);
 	return [...out].map(i => D.moveIds[i]);
 }
 export function allItems(gen: Gen) {
-	return Object.entries(D.items).filter(([, it]) => it.gens.includes(gen) && !it.ball).map(([id, it]) => ({ id, ...it }));
+	return Object.entries(D.items).filter(([id, it]) => it.gens.includes(gen) && !it.ball && (itemInPool(id) || !!it.mega || !!it.zt))   // 메가스톤·Z크리스탈은 기믹 규칙이 정함.map(([id, it]) => ({ id, ...it }));
 }
 /** 몬스터볼 종류 (겉모습용) */
 export function allBalls() {
