@@ -74,8 +74,8 @@ function valid(ids: string[] | undefined, rule: BattleRule, used: Set<string>): 
 /** 규칙에 맞춘 6마리 종족 id (에이스는 유지). 룰 · 무제한이면 초전설·환상 + 준전설, 그 밖에 준전설을 허용하면 준전설 하나를 넣고,
  *  금지된 전설이 원래 팀에 있으면 같은 타입의 강한 포켓몬으로 바꾼다. */
 export function rosterForRule(t: NamedTrainer, ruleIn: BattleRule): string[] {
-	// 초전설·환상은 그 종류를 '상대도'로 고른 규칙에서만 데려옴 ('내 팀만'이면 상대에게는 불가와 같음)
-	const rule: BattleRule = { ...ruleIn, restricted: ruleIn.restricted === 'foe' ? 'yes' : 'no', mythical: ruleIn.mythical === 'foe' ? 'yes' : 'no' };
+	// 초전설·환상은 그 종류가 가능한 규칙에서 데려옴
+	const rule: BattleRule = ruleIn;
 	const subOk = !rule.noSub;
 	const strong = ['champion', 'hero', 'boss'].includes(t.role);
 	const type = dominantType(t.team);

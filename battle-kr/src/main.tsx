@@ -8,7 +8,7 @@ import { CalcScreen } from './ui/calc';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier } from './modes';
 import { exportBackup, inspectBackup, importBackup } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
-import { GIMMICKS, POOLS, LEGEND_MODES, ruleById, ruleId, type LegendMode } from './rules';
+import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, type LegendMode } from './rules';
 import { packStatus, refreshPack, onPackProgress, startPackDownload, deletePack, hasNative, fmtBytes, BUNDLED, type PackProgress } from './offline';
 import { CUPS, NAMED } from './trainers';
 import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, setMoveSfxVolume } from './sound';
@@ -185,21 +185,26 @@ function backupLoad() {
 	inp.click();
 }
 
-/** 배틀 규칙: 포켓몬 풀(게임·레귤레이션) · 기믹 · 초전설 · 환상 을 따로 고름 */
+/** 배틀 규칙: 포켓몬 풀(게임·레귤레이션) · 기믹(복수 선택) · 초전설 · 환상 을 따로 고름 */
 function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }) {
 	const cur = ruleById(s.battleRule);
+	const gim = parseGimmick(cur.gimmick)!;
 	const set = (p: { gimmick?: string; pool?: string; restricted?: LegendMode; mythical?: LegendMode }) => {
 		const n = { gimmick: cur.gimmick, pool: cur.pool, restricted: cur.restricted, mythical: cur.mythical, ...p };
 		up({ battleRule: ruleId(n.gimmick, n.pool, n.restricted, n.mythical) });
 	};
+	const toggle = (k: typeof gim.kinds[number]) => set({ gimmick: gimmickId(gim.kinds.includes(k) ? gim.kinds.filter(x => x !== k) : [...gim.kinds, k], gim.mode) });
+	const legRow = (label: string, v: LegendMode, key: 'restricted' | 'mythical') => <div class="set-row rule-row"><span>{label}</span><div class="seg">
+		{LEGEND_MODES.map(m => <button class={v === m.id ? 'on' : ''} onClick={() => set({ [key]: m.id as LegendMode })}>{m.name}</button>)}</div></div>;
 	return <>
 		<div class="set-row rule-row"><span>포켓몬</span><div class="seg wrap">{POOLS.map(p => <button class={cur.pool === p.id ? 'on' : ''}
 			onClick={() => set({ pool: p.id, gimmick: p.gimmick, ...(p.legends ? { restricted: p.legends[0], mythical: p.legends[1] } : {}) })}>{p.name}</button>)}</div></div>
-		<div class="set-row rule-row"><span>기믹</span><div class="seg wrap">{GIMMICKS.map(g => <button class={cur.gimmick === g.id ? 'on' : ''} onClick={() => set({ gimmick: g.id })}>{g.name}</button>)}</div></div>
-		<div class="set-row rule-row"><span>초전설</span><div class="seg">{LEGEND_MODES.map(m => <button class={cur.restricted === m.id ? 'on' : ''} onClick={() => set({ restricted: m.id as LegendMode })}>{m.name}</button>)}</div></div>
-		<div class="set-row rule-row"><span>환상</span><div class="seg">{LEGEND_MODES.map(m => <button class={cur.mythical === m.id ? 'on' : ''} onClick={() => set({ mythical: m.id as LegendMode })}>{m.name}</button>)}</div></div>
+		<div class="set-row rule-row"><span>기믹</span><div class="seg wrap">{GIMMICK_KINDS.map(g => <button class={gim.kinds.includes(g.k) ? 'on' : ''} aria-pressed={gim.kinds.includes(g.k)} onClick={() => toggle(g.k)}>{g.name}</button>)}</div></div>
+		{gim.kinds.length > 1 && <div class="set-row rule-row"><span>기믹 사용</span><div class="seg wrap">{GIMMICK_MODES.map(m => <button class={gim.mode === m.id ? 'on' : ''} onClick={() => set({ gimmick: gimmickId(gim.kinds, m.id) })}>{m.name}</button>)}</div></div>}
+		{legRow('초전설', cur.restricted, 'restricted')}
+		{legRow('환상', cur.mythical, 'mythical')}
 		<p class="muted small"><b>{cur.name}</b> — {cur.desc}</p>
-		<p class="muted small">포켓몬을 고르면 그 게임의 기믹으로 맞춰지고, 따로 바꿀 수 있어요. 초전설·환상은 포켓몬 풀과 상관없이 정합니다(‘내 팀만’은 내 팀에만, ‘상대도’는 상대 팀에도 나옴). 모든 모드의 나와 상대에게 적용되고, 무작위·렌탈 팀과 상대 팀도 이 규칙에 맞게 만들어집니다.</p>
+		<p class="muted small">기믹은 여러 개를 함께 켤 수 있고, 하나도 안 켜면 기믹 없이 배틀합니다. 포켓몬을 고르면 그 게임의 기믹으로 맞춰지고 따로 바꿀 수 있어요. 초전설·환상은 포켓몬 풀과 상관없이 정하며, 가능이면 나도 쓰고 상대도 데려옵니다. 모든 모드의 나와 상대에게 적용됩니다.</p>
 	</>;
 }
 

@@ -1,14 +1,14 @@
 /**
  * 배틀 규칙 — 네 가지를 따로 골라 조합함 (설정 → 배틀 규칙)
- *  1) 기믹: 메가진화·Z기술·다이맥스·테라스탈을 어떻게 쓰는지
+ *  1) 기믹: 메가진화·Z기술·다이맥스·테라스탈 중 쓸 것(복수 선택) + 둘 이상이면 쓰는 방식(한 배틀에 하나 / 종류마다 1회 / 겹쳐 쓰기)
  *  2) 포켓몬 풀: 게임·레귤레이션에 나오는 포켓몬 (스칼렛·바이올렛, 소드·실드, 7·6세대까지, 챔피언스 M-A/B/C, 전국도감)
- *  3) 초전설 / 4) 환상: 불가 · 내 팀만 · 상대도 데려옴 — 포켓몬 풀과 상관없이 따로 정함 (세대 상한만 따름)
- * 규칙 id 는 '기믹.풀.초전설.환상' (예: 'tera.sv.no.no'). 예전 id(natdexflat·gen9·champmc …)도 읽음.
+ *  3) 초전설 / 4) 환상: 불가 · 가능(나도 쓰고 상대도 데려옴) — 포켓몬 풀과 상관없이 따로 정함 (세대 상한만 따름)
+ * 규칙 id 는 '기믹.풀.초전설.환상' (예: 't_one.sv.no.no' — 기믹 m·z·d·t 글자 + _one/_each/_stack). 예전 id(natdexflat·gen9·champmc·tera.sv… )도 읽음.
  */
 import { RAW, toID } from './data';
 
 export type GimmickKind = 'mega' | 'zmove' | 'dynamax' | 'tera' | 'ultra';
-export type LegendMode = 'no' | 'yes' | 'foe';
+export type LegendMode = 'no' | 'yes';
 export interface BattleRule {
 	id: string; name: string; desc: string;
 	gimmick: string; pool: string; restricted: LegendMode; mythical: LegendMode;
@@ -31,36 +31,39 @@ const megaIds = (list: string[]) => new Set(list.map(n => {
 	return cand.find(c => RAW.species[c]) || cand[0];
 }));
 
-const ALL4: GimmickKind[] = ['mega', 'zmove', 'dynamax', 'tera'];
 export interface Choice { id: string; name: string; desc: string }
-/** 1) 기믹 */
-export const GIMMICKS: (Choice & { kinds: GimmickKind[]; oneKind: boolean; stack?: boolean })[] = [
-	{ id: 'one', name: '넷 중 하나', kinds: ALL4, oneKind: true, desc: '메가진화·Z기술·다이맥스·테라스탈 중 한 배틀에 한 종류만' },
-	{ id: 'each', name: '넷 다 (각 1회)', kinds: ALL4, oneKind: false, desc: '네 가지 기믹을 종류마다 한 번씩' },
-	{ id: 'stack', name: '넷 다 (겹쳐 쓰기)', kinds: ALL4, oneKind: false, stack: true, desc: '종류마다 한 번씩, 한 포켓몬이 겹쳐 쓸 수도 있음 (메가진화·원시회귀한 포켓몬의 테라스탈만 불가)' },
-	{ id: 'tera', name: '테라스탈', kinds: ['tera'], oneKind: true, desc: '테라스탈만' },
-	{ id: 'dynamax', name: '다이맥스', kinds: ['dynamax'], oneKind: true, desc: '다이맥스만' },
-	{ id: 'megaz', name: '메가+Z', kinds: ['mega', 'zmove'], oneKind: false, desc: '메가진화와 Z기술 (각 1회, 7세대식)' },
-	{ id: 'zmove', name: 'Z기술', kinds: ['zmove'], oneKind: true, desc: 'Z기술만' },
-	{ id: 'mega', name: '메가진화', kinds: ['mega'], oneKind: true, desc: '메가진화만' },
-	{ id: 'none', name: '없음', kinds: [], oneKind: true, desc: '기믹 없음' },
+/** 1) 기믹: 종류(복수 선택)와 둘 이상일 때 쓰는 방식 */
+export const GIMMICK_KINDS: { k: GimmickKind; c: string; name: string }[] = [
+	{ k: 'mega', c: 'm', name: '메가진화' }, { k: 'zmove', c: 'z', name: 'Z기술' }, { k: 'dynamax', c: 'd', name: '다이맥스' }, { k: 'tera', c: 't', name: '테라스탈' }];
+export type GimmickMode = 'one' | 'each' | 'stack';
+export const GIMMICK_MODES: (Choice & { id: GimmickMode })[] = [
+	{ id: 'one', name: '한 배틀에 하나', desc: '고른 기믹 중 한 배틀에 한 종류만' },
+	{ id: 'each', name: '종류마다 1회', desc: '고른 기믹을 종류마다 한 번씩' },
+	{ id: 'stack', name: '겹쳐 쓰기', desc: '종류마다 한 번씩, 한 포켓몬이 겹쳐 쓸 수도 있음 (메가진화·원시회귀한 포켓몬의 테라스탈만 불가)' },
 ];
+/** 기믹 칸 글자: 'mzdt_one' → 종류·방식 */
+export function parseGimmick(g: string): { kinds: GimmickKind[]; mode: GimmickMode } | null {
+	const OLD: { [k: string]: string } = { one: 'mzdt_one', each: 'mzdt_each', stack: 'mzdt_stack', tera: 't_one', dynamax: 'd_one', megaz: 'mz_each', zmove: 'z_one', mega: 'm_one', none: '_one' };
+	const [letters, mode] = (OLD[g] || g).split('_');
+	if (!['one', 'each', 'stack'].includes(mode) || /[^mzdt]/.test(letters)) return null;
+	return { kinds: GIMMICK_KINDS.filter(x => letters.includes(x.c)).map(x => x.k), mode: mode as GimmickMode };
+}
+export function gimmickId(kinds: GimmickKind[], mode: GimmickMode) { return GIMMICK_KINDS.filter(x => kinds.includes(x.k)).map(x => x.c).join('') + '_' + mode; }
 /** 2) 포켓몬 풀 (게임·레귤레이션) — gimmick: 고를 때 맞춰 주는 그 게임의 기믹 */
 export const POOLS: (Choice & { gimmick: string; maxNum?: number; noFuture?: boolean; avail?: string; megaOnly?: Set<string>; noSub?: boolean; legends?: [LegendMode, LegendMode] })[] = [
-	{ id: 'natdex', name: '전국도감', gimmick: 'one', desc: '모든 포켓몬과 모든 메가진화(레전즈 Z-A 메가 포함)' },
-	{ id: 'sv', name: '스칼렛·바이올렛', gimmick: 'tera', avail: 's', desc: '스칼렛·바이올렛(DLC 포함)에 나오는 포켓몬' },
-	{ id: 'swsh', name: '소드·실드', gimmick: 'dynamax', avail: 'w', maxNum: 905, desc: '소드·실드(DLC 포함)에 나오는 포켓몬' },
-	{ id: 'usum', name: '7세대까지', gimmick: 'megaz', maxNum: 809, noFuture: true, desc: '울트라썬·문까지의 포켓몬(1~7세대), 원래 메가진화만' },
-	{ id: 'xy', name: '6세대까지', gimmick: 'mega', maxNum: 721, noFuture: true, desc: 'X·Y/오메가루비·알파사파이어까지의 포켓몬(1~6세대), 원래 메가진화만' },
-	{ id: 'champmc', name: '챔피언스 M-C', gimmick: 'mega', avail: 'c', legends: ['no', 'no'], desc: '포켓몬 챔피언스 레귤레이션 M-C(2026.9~12)에 나오는 포켓몬과 메가진화' },
-	{ id: 'champmb', name: '챔피언스 M-B', gimmick: 'mega', avail: 'b', legends: ['no', 'no'], desc: '레귤레이션 M-B(2026.6~9)에 나오는 포켓몬과 메가진화' },
-	{ id: 'champma', name: '챔피언스 M-A', gimmick: 'mega', avail: 'b', megaOnly: megaIds(MEGA_MA), legends: ['no', 'no'], desc: '레귤레이션 M-A(2026.4~6, 출시 규칙) — 포켓몬은 M-B 기준, 메가진화 59종' },
+	{ id: 'natdex', name: '전국도감', gimmick: 'mzdt_one', desc: '모든 포켓몬과 모든 메가진화(레전즈 Z-A 메가 포함)' },
+	{ id: 'sv', name: '스칼렛·바이올렛', gimmick: 't_one', avail: 's', desc: '스칼렛·바이올렛(DLC 포함)에 나오는 포켓몬' },
+	{ id: 'swsh', name: '소드·실드', gimmick: 'd_one', avail: 'w', maxNum: 905, desc: '소드·실드(DLC 포함)에 나오는 포켓몬' },
+	{ id: 'usum', name: '7세대까지', gimmick: 'mz_each', maxNum: 809, noFuture: true, desc: '울트라썬·문까지의 포켓몬(1~7세대), 원래 메가진화만' },
+	{ id: 'xy', name: '6세대까지', gimmick: 'm_one', maxNum: 721, noFuture: true, desc: 'X·Y/오메가루비·알파사파이어까지의 포켓몬(1~6세대), 원래 메가진화만' },
+	{ id: 'champmc', name: '챔피언스 M-C', gimmick: 'm_one', avail: 'c', legends: ['no', 'no'], desc: '포켓몬 챔피언스 레귤레이션 M-C(2026.9~12)에 나오는 포켓몬과 메가진화' },
+	{ id: 'champmb', name: '챔피언스 M-B', gimmick: 'm_one', avail: 'b', legends: ['no', 'no'], desc: '레귤레이션 M-B(2026.6~9)에 나오는 포켓몬과 메가진화' },
+	{ id: 'champma', name: '챔피언스 M-A', gimmick: 'm_one', avail: 'b', megaOnly: megaIds(MEGA_MA), legends: ['no', 'no'], desc: '레귤레이션 M-A(2026.4~6, 출시 규칙) — 포켓몬은 M-B 기준, 메가진화 59종' },
 ];
 /** 3·4) 초전설·환상 */
 export const LEGEND_MODES: Choice[] = [
 	{ id: 'no', name: '불가', desc: '쓸 수 없음' },
-	{ id: 'yes', name: '내 팀만', desc: '내 팀에 넣을 수 있음 (상대 무작위 팀에는 안 나옴)' },
-	{ id: 'foe', name: '상대도', desc: '나도 쓰고 상대도 데려옴' },
+	{ id: 'yes', name: '가능', desc: '나도 쓰고 상대도 데려옴' },
 ];
 /** 챔피언스 풀의 메가: 그 레귤레이션에 나오는 메가 모습 */
 const champMegas = (flag: string) => new Set(Object.keys(RAW.species).filter(id => RAW.species[id].av?.includes(flag) && /mega/.test(id) && RAW.species[id].base));
@@ -68,31 +71,36 @@ for (const p of POOLS) if (p.id === 'champmc') p.megaOnly = champMegas('c'); els
 
 /** 예전 규칙 id → 새 조합 */
 const LEGACY: { [id: string]: string } = {
-	natdexflat: 'one.natdex.no.no', natdex: 'one.natdex.yes.yes', natdexfree: 'each.natdex.yes.yes', unlimited: 'stack.natdex.foe.foe',
-	gen9: 'tera.sv.yes.yes', gen8: 'dynamax.swsh.yes.yes', gen7: 'megaz.usum.yes.yes', gen6: 'mega.xy.yes.yes',
-	champmc: 'mega.champmc.no.no', champmb: 'mega.champmb.no.no', champma: 'mega.champma.no.no', none: 'none.natdex.yes.yes',
+	natdexflat: 'mzdt_one.natdex.no.no', natdex: 'mzdt_one.natdex.yes.yes', natdexfree: 'mzdt_each.natdex.yes.yes', unlimited: 'mzdt_stack.natdex.yes.yes',
+	gen9: 't_one.sv.yes.yes', gen8: 'd_one.swsh.yes.yes', gen7: 'mz_each.usum.yes.yes', gen6: 'm_one.xy.yes.yes',
+	champmc: 'm_one.champmc.no.no', champmb: 'm_one.champmb.no.no', champma: 'm_one.champma.no.no', none: '_one.natdex.yes.yes',
 };
-export const DEFAULT_RULE = 'one.natdex.no.no';
+export const DEFAULT_RULE = 'mzdt_one.natdex.no.no';
 export function ruleId(gimmick: string, pool: string, restricted: LegendMode, mythical: LegendMode) { return `${gimmick}.${pool}.${restricted}.${mythical}`; }
-const LEG_KO = { no: '불가', yes: '내 팀만', foe: '상대도' };
 const cache = new Map<string, BattleRule>();
 export function ruleById(idIn: string): BattleRule {
-	const id = LEGACY[idIn] || idIn || DEFAULT_RULE;
-	const hit = cache.get(id); if (hit) return hit;
-	const [g, p, r, m] = id.split('.');
-	const gim = GIMMICKS.find(x => x.id === g), pool = POOLS.find(x => x.id === p);
-	if (!gim || !pool || !['no', 'yes', 'foe'].includes(r) || !['no', 'yes', 'foe'].includes(m)) return ruleById(DEFAULT_RULE);
-	const restricted = r as LegendMode, mythical = m as LegendMode;
-	const legTxt = restricted === mythical ? `초전설·환상 ${LEG_KO[restricted]}` : `초전설 ${LEG_KO[restricted]} · 환상 ${LEG_KO[mythical]}`;
+	const id0 = LEGACY[idIn] || idIn || DEFAULT_RULE;
+	const hit = cache.get(id0); if (hit) return hit;
+	const [g0, p, r0, m0] = id0.split('.');
+	const gim = parseGimmick(g0), pool = POOLS.find(x => x.id === p);
+	// 예전 3단계(no/yes/foe) 값은 foe → 가능
+	const leg = (v: string): LegendMode | null => v === 'no' ? 'no' : v === 'yes' || v === 'foe' ? 'yes' : null;
+	const restricted = leg(r0), mythical = leg(m0);
+	if (!gim || !pool || !restricted || !mythical) return ruleById(DEFAULT_RULE);
+	const g = gimmickId(gim.kinds, gim.mode), id = ruleId(g, p, restricted, mythical);
+	const names = GIMMICK_KINDS.filter(x => gim.kinds.includes(x.k)).map(x => x.name);
+	const modeOn = gim.kinds.length > 1;
+	const gName = !names.length ? '기믹 없음' : names.join('·') + (modeOn ? ` (${GIMMICK_MODES.find(x => x.id === gim.mode)!.name})` : '');
+	const legTxt = restricted === mythical ? `초전설·환상 ${restricted === 'yes' ? '가능' : '불가'}` : `초전설 ${restricted === 'yes' ? '가능' : '불가'} · 환상 ${mythical === 'yes' ? '가능' : '불가'}`;
 	const rule: BattleRule = {
 		id, gimmick: g, pool: p, restricted, mythical,
-		name: `${pool.name} · ${gim.name}`,
-		desc: `${pool.desc}. 기믹: ${gim.desc}. ${legTxt}.`,
-		kinds: gim.kinds, oneKind: gim.oneKind, stack: gim.stack,
+		name: `${pool.name} · ${gName}`,
+		desc: `${pool.desc}. 기믹: ${!names.length ? '없음' : modeOn ? `${names.join('·')} — ${GIMMICK_MODES.find(x => x.id === gim.mode)!.desc}` : `${names[0]}만`}. ${legTxt}.`,
+		kinds: gim.kinds, oneKind: !modeOn || gim.mode === 'one', stack: modeOn && gim.mode === 'stack',
 		maxNum: pool.maxNum, noFuture: pool.noFuture, avail: pool.avail, megaOnly: pool.megaOnly, noSub: pool.noSub,
-		legendTeams: restricted === 'foe' || mythical === 'foe',
+		legendTeams: restricted === 'yes' || mythical === 'yes',
 	};
-	cache.set(id, rule);
+	cache.set(id0, rule); cache.set(id, rule);
 	return rule;
 }
 
