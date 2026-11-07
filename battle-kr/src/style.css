@@ -1977,3 +1977,43 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.sp-mon { min-width: 0; }
 	.sp-mon .hpbar { width: auto; align-self: stretch; margin-left: 2px; margin-right: 2px; }
 }
+
+/* ═════ v2.49 배틀 필드 프레임 (넓은 화면·휴대폰 가로): 흐림 없는 그림자 겹으로 그린 도트 베젤
+ *  안쪽부터 진한 선 1칸 · 밝은 선 1칸 · 금속 띠 3칸(위·왼쪽 밝게 / 아래·오른쪽 어둡게) · 진한 외곽선 1칸. 창틀 테마 색을 따름 ═════ */
+:root { --bz-l: #6a86c8; --bz-m: #3c5596; --bz-d: #1e2c5a; --bz-k: #0a0f18; --bz-hi: #e8eef8; --bz-led: #ffd84a; }
+:root[data-frame="silver"] { --bz-l: #c86a6a; --bz-m: #963c3c; --bz-d: #5a1e22; --bz-k: #1a0608; --bz-hi: #fff1f1; }
+:root[data-frame="dark"] { --bz-l: #6c7280; --bz-m: #464b56; --bz-d: #24272e; --bz-k: #050608; --bz-hi: #d8dce4; }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px), (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle > .arena { overflow: visible; z-index: 1;
+		box-shadow:
+			0 0 0 2px var(--bz-k),            /* 안쪽 진한 선 */
+			0 0 0 4px var(--bz-hi),           /* 밝은 선 */
+			0 0 0 6px var(--bz-k),
+			0 0 0 12px var(--bz-m),           /* 금속 띠 가운데 (3칸) */
+			-2px -2px 0 14px var(--bz-l),     /* 바깥 모서리: 위·왼쪽 밝게 */
+			2px 2px 0 14px var(--bz-d),       /*            아래·오른쪽 어둡게 */
+			0 0 0 18px var(--bz-k),           /* 바깥 외곽선 */
+			4px 4px 0 18px rgba(0,0,0,.4);    /* 흐림 없는 그림자 */
+	}
+	.battle > .arena > .arena-bg, .battle > .arena > canvas { clip-path: inset(0); }
+	/* 위 가운데 이름표 + 네 모서리 나사 (그림 위 장식 — 필드 바깥에 걸침) */
+	/* 네 모서리 나사 (밝은 점 + 진한 그림자 1칸) */
+	.battle > .arena::before { content: ''; position: absolute; z-index: 5; pointer-events: none; inset: -10px;
+		--sc: linear-gradient(var(--bz-hi), var(--bz-hi)); --ss: linear-gradient(var(--bz-k), var(--bz-k));
+		background: var(--sc) 0 0 / 4px 4px no-repeat, var(--sc) 100% 0 / 4px 4px no-repeat, var(--sc) 0 100% / 4px 4px no-repeat, var(--sc) 100% 100% / 4px 4px no-repeat,
+			var(--ss) 2px 2px / 4px 4px no-repeat, var(--ss) calc(100% + 2px) 2px / 4px 4px no-repeat, var(--ss) 2px calc(100% + 2px) / 4px 4px no-repeat, var(--ss) calc(100% + 2px) calc(100% + 2px) / 4px 4px no-repeat; }
+	/* 위 가운데 표시등 */
+	.battle > .arena::after { content: ''; position: absolute; z-index: 5; pointer-events: none; left: 50%; top: -10px; width: 64px; height: 4px; transform: translateX(-50%);
+		background: linear-gradient(90deg, var(--bz-led) 0 8px, transparent 8px 12px, var(--bz-d) 12px 52px, transparent 52px 56px, var(--bz-led) 56px);
+		box-shadow: 0 0 0 2px var(--bz-k); }
+}
+/* 넓은 화면: 프레임이 들어갈 여백 */
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
+	.battle { --arenaH: calc(100dvh - 40px - var(--botH) - 48px); }
+	.battle > .arena { margin: 24px 0; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle { --lw: min(58vw, calc((100dvh - 34px - 58px - 44px) * 16 / 9)); }
+	.battle > .arena { margin: 22px 0 0 22px; }
+	.battle { grid-template-columns: calc(var(--lw) + 44px) minmax(0, 1fr); }
+}
