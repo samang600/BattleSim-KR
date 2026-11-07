@@ -475,7 +475,7 @@ export function ballOut(layer: HTMLElement, from: Pt, to: Pt, s: number, ballId 
 }
 
 /* ───── 볼이 열릴 때의 도트 이펙트 ─────
- * 가운데서 번쩍 → 고리 하나와 입자들이 가장자리로 퍼지며 사라짐 (볼 색). 50ms(20fps) 한 칸씩, 도트 크기 = 배율 × 0.85.
+ * 가운데서 번쩍(십자·대각 빛줄기가 돌며 줄어듦) → 고리 두 겹(빛 색·볼 색)이 차례로 퍼지고, 빠른·느린 입자가 꼬리를 남기며 날아감 → 주변에 작은 별이 반짝. 50ms(20fps) 한 칸씩, 도트 크기 = 배율 × 0.85.
  * 상징이 뚜렷한 볼만 모양을 바꿈: 러브러브볼=하트(pixelfx 하트 + 하트 입자), 문볼=별 입자. */
 const SHAPES: { [k: string]: string[] } = {
 	sq: ['11', '11'],
@@ -490,7 +490,7 @@ export function ballBurst(layer: HTMLElement, at: Pt, s: number, ballId = 'pokeb
 	if (ballId === 'loveball') pixelFx(layer, at, s, { fx: 'heartPickup', len: .5, dy: 20 });
 }
 function ballPop(layer: HTMLElement, at: Pt, s: number, base: string, light: string, part: string, shape: string[]) {
-	const W = 96, C = W / 2, k = s * 0.85, FR = 11;
+	const W = 112, C = W / 2, k = s * 0.85, FR = 16;
 	const cv = document.createElement('canvas');
 	cv.width = W; cv.height = W; cv.className = 'fxp pxfx';
 	cv.style.cssText = `left:${Math.round(at.x - C * k)}px;top:${Math.round(at.y - C * k)}px;width:${Math.round(W * k)}px;height:${Math.round(W * k)}px;`;
@@ -500,31 +500,49 @@ function ballPop(layer: HTMLElement, at: Pt, s: number, base: string, light: str
 		g.fillStyle = col; const h = shape.length, w = shape[0].length, x0 = Math.round(x - w / 2), y0 = Math.round(y - h / 2);
 		shape.forEach((row, j) => { for (let i = 0; i < w; i++) if (row[i] === '1') g.fillRect(x0 + i, y0 + j, 1, 1); });
 	};
-	const N = 10, out = (u: number) => 1 - (1 - u) * (1 - u);
+	/** 반짝임: 가운데 점 + 십자 빛줄기 (len 칸) */
+	const glint = (x: number, y: number, len: number, col: string, diag = false) => {
+		dot(x, y, 2, '#fff');
+		for (let d = 2; d <= len; d++) {
+			const c = d > len * 0.6 ? col : '#fff';
+			if (diag) { dot(x + d, y + d, 1, c); dot(x - d, y - d, 1, c); dot(x + d, y - d, 1, c); dot(x - d, y + d, 1, c); }
+			else { dot(x + d, y, 1, c); dot(x - d, y, 1, c); dot(x, y + d, 1, c); dot(x, y - d, 1, c); }
+		}
+	};
+	const out = (u: number) => 1 - (1 - u) * (1 - u);
+	// 입자: 빠른 것 10개(볼 모양) + 느린 것 8개(작은 점) — 지난 위치에 흐린 꼬리
+	const fast = Array.from({ length: 10 }, (_, i) => ({ a: (i / 10) * Math.PI * 2 + 0.3, v: 46 }));
+	const slow = Array.from({ length: 8 }, (_, i) => ({ a: (i / 8) * Math.PI * 2 + 0.7, v: 28 }));
+	// 마지막에 주변에서 반짝이는 별 (자리 고정)
+	const tw = Array.from({ length: 6 }, (_, i) => { const a = (i / 6) * Math.PI * 2 + 0.2, r = 22 + (i % 3) * 9; return { x: C + Math.cos(a) * r, y: C + Math.sin(a) * r * 0.85, f0: 6 + (i % 3) * 2 }; });
 	let f = 0, timer = 0;
 	const tick = () => {
 		if (f > FR) { clearInterval(timer); cv.remove(); return; }
-		const u = f / FR;
 		g.clearRect(0, 0, W, W);
-		// 가운데 번쩍 (처음 두 칸)
-		if (f === 0) { dot(C, C, 8, '#fff'); dot(C, C, 2, light); g.fillStyle = '#fff'; g.fillRect(C - 12, C - 1, 24, 2); g.fillRect(C - 1, C - 12, 2, 24); }
-		else if (f === 1) dot(C, C, 4, light);
-		// 고리: 점선 원이 퍼지며 옅어짐
-		if (f >= 1 && f <= 8) {
-			const r = 6 + 30 * out(u), n = 28;
-			g.globalAlpha = f > 5 ? 0.5 : 1;
-			for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; if (f > 5 && i % 2) continue; dot(C + Math.cos(a) * r, C + Math.sin(a) * r, 2, f < 4 ? light : base); }
-			g.globalAlpha = 1;
+		// 가운데 번쩍: 큰 빛 → 십자·대각 빛줄기가 돌며 줄어듦
+		if (f === 0) { dot(C, C, 12, '#fff'); dot(C, C, 6, light); g.fillStyle = '#fff'; g.fillRect(C - 18, C - 1, 36, 2); g.fillRect(C - 1, C - 18, 2, 36); }
+		else if (f <= 5) { glint(C, C, 14 - f * 2, light, f % 2 === 1); dot(C, C, f < 3 ? 6 : 4, light); }
+		// 고리 1: 볼 빛 색 점선 원 / 고리 2: 조금 늦게, 볼 색으로 더 크게
+		const ringAt = (f0: number, len: number, r0: number, r1: number, col: string, n: number) => {
+			const u = (f - f0) / len; if (u < 0 || u > 1) return;
+			const r = r0 + (r1 - r0) * out(u);
+			for (let i = 0; i < n; i++) { if (u > 0.55 && (i + f) % 2) continue; const a = (i / n) * Math.PI * 2; dot(C + Math.cos(a) * r, C + Math.sin(a) * r * 0.9, u < 0.4 ? 2 : 1, col); }
+		};
+		ringAt(1, 8, 6, 34, light, 32);
+		ringAt(3, 9, 8, 48, base, 40);
+		// 입자
+		for (const [list, life, sh] of [[fast, 12, true], [slow, 14, false]] as const) {
+			const u = (f - 1) / life; if (u < 0 || u > 1) continue;
+			list.forEach((pp, i) => {
+				const d = 4 + pp.v * out(u), dp = 4 + pp.v * out(Math.max(0, u - 1 / life));
+				const x = C + Math.cos(pp.a) * d, y = C + Math.sin(pp.a) * d * 0.9, col = i % 2 ? part : base;
+				if (u > 0.75 && (i + f) % 2) return;
+				g.globalAlpha = 0.45; dot(C + Math.cos(pp.a) * dp, C + Math.sin(pp.a) * dp * 0.9, 1, light); g.globalAlpha = 1;   // 꼬리
+				if (sh && u < 0.55) stamp(x, y, col); else dot(x, y, sh ? 2 : 1, col);
+			});
 		}
-		// 입자: 가장자리로 날아가며 작아지고 사라짐
-		if (f >= 1 && f <= 10) {
-			const d = 4 + 40 * out(u);
-			for (let i = 0; i < N; i++) {
-				const a = (i / N) * Math.PI * 2 + 0.3, x = C + Math.cos(a) * d, y = C + Math.sin(a) * d, col = i % 2 ? part : base;
-				if (u > 0.75 && (i + f) % 2) continue;
-				if (u < 0.6) stamp(x, y, col); else dot(x, y, 1, col);
-			}
-		}
+		// 주변 반짝임: 하나씩 켜졌다 꺼짐
+		for (const t of tw) { const d = f - t.f0; if (d >= 0 && d < 5) glint(t.x, t.y, d < 2 ? 3 + d : 5 - d, light, d % 2 === 1); }
 		f++;
 	};
 	later(() => { layer.appendChild(cv); tick(); timer = window.setInterval(tick, 50 / SPEED); }, 0);
