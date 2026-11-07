@@ -148,6 +148,13 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	const [menu, setMenu] = useState<'main' | 'moves' | 'switch' | 'target'>('main');
 	// 화면이 바뀌면(기술 → 대상, 차례 넘어감) 떠 있던 정보 상자는 닫음 (마우스가 나가기 전에 버튼이 사라지는 경우)
 	useEffect(() => setTip(null), [menu, phase, slotIdx]);
+	// 클릭(누름)하면 정보 상자를 닫음 — 다음에 마우스를 다시 올릴 때만 뜸
+	useEffect(() => {
+		if (!wide) return;
+		const close = () => setTip(null);
+		addEventListener('pointerdown', close, true);
+		return () => removeEventListener('pointerdown', close, true);
+	}, [wide]);
 	const [pendingMove, setPendingMove] = useState<{ num: number; target: string; gm?: string } | null>(null);
 	const [focus, setFocus] = useState(0);
 	const [sheet, setSheet] = useState<{ idx: number; canSwitch: boolean } | null>(null);
@@ -1487,7 +1494,7 @@ function typeTint(type: string) {
 		</div>
 		{wide && sidePanel(true)}
 		{wide && sidePanel(false)}
-		{tip && <div class="hover-tip" style={{ left: Math.min(tip.x + 16, innerWidth - 300) + 'px', top: Math.min(tip.y + 16, innerHeight - 260) + 'px' }}>{tip.body}</div>}
+		{tip && !sheet && !detail && !menuOpen && !showLog && !fieldOpen && <div class="hover-tip" style={{ left: Math.min(tip.x + 16, innerWidth - 300) + 'px', top: Math.min(tip.y + 16, innerHeight - 260) + 'px' }}>{tip.body}</div>}
 		{wide && <div class="side-log" ref={sideLogRef}>
 			<div class="side-log-title">배틀 기록</div>
 			{log.map((l, i) => <div key={i} class={l.startsWith('──') ? 'log-turn' : 'log-line'}>{l}</div>)}
