@@ -1873,3 +1873,33 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.title-screen > .title-tap { bottom: calc(8% + var(--safe-bottom)); font-size: 16px; }
 	.title-screen > .title-logo-img { width: min(60vw, 330px); }
 }
+/* ── v2.45.1 휴대폰 가로: 필드 위쪽 빈 하늘 띠를 잘라 16:9 로 → 상대 HP 창이 배경(기둥·창) 위에 겹침, 필드 아래 왼쪽에 대화창 ── */
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle { --lw: min(62vw, calc((100dvh - 34px - 58px) * 16 / 9));
+		grid-template-columns: var(--lw) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "hud hud" "arena side" "msg side"; }
+	.battle > .arena { width: var(--lw); height: auto; max-width: none; aspect-ratio: 16 / 9; align-self: start; }
+	.battle .arena .arena-bg { background-size: 100% auto; background-position: center bottom; }
+	/* 잘린 만큼 포켓몬 위치를 다시 맞춤 (4:3 의 위 25% 를 뺀 높이 기준) */
+	.battle .slot.foe.s0 { top: 63.3%; }
+	.battle.doubles .slot.foe.s0 { top: 60.7%; } .battle.doubles .slot.foe.s1 { top: 62.7%; }
+	/* 대화창은 필드 아래(왼쪽 칸), 조작은 오른쪽 칸 */
+	.battle > .bottom { display: contents; }
+	.battle > .bottom > .msgbox { grid-area: msg; margin: 4px; align-self: stretch; min-height: 0; overflow: hidden; }
+	.battle > .bottom > .controls { grid-area: side; min-height: 0; overflow-y: auto; border-left: 2px solid #e8eef8; box-shadow: -2px 0 0 #0a0f18;
+		padding: 4px 6px calc(4px + var(--safe-bottom)); background: #121826; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	/* 오른쪽 칸이 대화창만큼 비었으니 버튼을 크게 */
+	.battle .controls .move-panel > .move-grid, .battle .controls .move-panel > .move-grid.win-dark { grid-auto-rows: 56px; row-gap: 10px; }
+	.battle .sd-panel .mvb .mvb-name { font-size: 15px; } .battle .sd-panel .mvb .mvb-name.l { font-size: 14px; } .battle .sd-panel .mvb .mvb-name.xl { font-size: 13px; }
+	.battle .controls .switch-list, .battle .controls > .switch-list { grid-auto-rows: 42px; gap: 6px; }
+	.battle .controls .switch-list .sw-sprite { width: 32px; height: 32px; }
+	.battle .controls .switch-list .sw-sprite .sprite { max-width: 32px !important; max-height: 32px !important; }
+	.battle .controls .switch-list .sw-info b { font-size: 12px; }
+	.battle .sd-panel { gap: 6px; } .battle .controls { gap: 6px; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) {
+	.battle .controls .switch-list .sw-info b { font-size: 11px; letter-spacing: -0.3px; }
+	.battle .controls .switch-list .sw-sprite { width: 28px; height: 28px; }
+	.battle .controls .switch-list .sw-sprite .sprite { max-width: 28px !important; max-height: 28px !important; }
+}
