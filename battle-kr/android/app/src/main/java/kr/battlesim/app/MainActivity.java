@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
 import android.widget.FrameLayout;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -29,7 +30,9 @@ public class MainActivity extends Activity {
     private volatile boolean downloading = false;
 
     // ── 데이터 백업: 시스템의 파일 저장·열기 화면(저장소 접근 프레임워크, 권한 불필요) ──
-    private static final int REQ_SAVE = 41, REQ_OPEN = 42;
+    private static final int REQ_SAVE = 41, REQ_OPEN = 42, REQ_FILE = 43;
+    /** 웹의 파일 고르기(<input type=file>) 결과를 돌려줄 콜백 (포켓몬 그림 바꾸기 등) */
+    private ValueCallback<Uri[]> fileCallback;
     private String pendingBackup = null;
 
     private void backupCallback(String fn, String arg) {
@@ -40,6 +43,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_FILE) {
+            Uri u = data != null ? data.getData() : null;
+            if (fileCallback != null) fileCallback.onReceiveValue(resultCode == RESULT_OK && u != null ? new Uri[]{u} : null);
+            fileCallback = null;
+            return;
+        }
         if (requestCode != REQ_SAVE && requestCode != REQ_OPEN) return;
         Uri uri = data != null ? data.getData() : null;
         if (resultCode != RESULT_OK || uri == null) { backupCallback(requestCode == REQ_SAVE ? "__backupSaved" : "__backupLoaded", requestCode == REQ_SAVE ? "cancel" : ""); return; }
@@ -201,7 +210,22 @@ public class MainActivity extends Activity {
         s.setTextZoom(100);
         s.setCacheMode(WebSettings.LOAD_DEFAULT); // 포켓몬 그림은 한 번 받으면 캐시에서 사용
         web.setWebViewClient(new WebViewClient());
-        web.setWebChromeClient(new WebChromeClient());
+        web.setWebChromeClient(new WebChromeClient() {
+            // 웹의 <input type=file> → 안드로이드 파일 고르기 (기본 WebChromeClient 는 아무것도 열지 않음)
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (fileCallback != null) fileCallback.onReceiveValue(null);
+                fileCallback = callback;
+                Intent it;
+                try { it = params.createIntent(); } catch (Exception e) { it = new Intent(Intent.ACTION_GET_CONTENT); it.setType("*/*"); }
+                it.addCategory(Intent.CATEGORY_OPENABLE);
+                String[] types = params.getAcceptTypes();
+                boolean image = types != null && types.length > 0 && types[0].startsWith("image");
+                if (image) it.setType("image/*");
+                try { startActivityForResult(it, REQ_FILE); } catch (Exception e) { fileCallback = null; callback.onReceiveValue(null); return false; }
+                return true;
+            }
+        });
         web.setBackgroundColor(0xFF12130F);
         web.addJavascriptInterface(new Native(), "BattleSimNative");
         // 상태 표시줄·내비게이션 바 영역은 앱 밖으로 (안드로이드 15 의 화면 끝까지 그리기 대응)

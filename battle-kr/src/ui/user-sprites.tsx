@@ -32,9 +32,12 @@ export function UserSpritesModal({ onClose }: { onClose: () => void }) {
 	if (sel) {
 		const sid = spriteId(sel);
 		const pick = (back: boolean, shiny: boolean) => {
-			const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/png,image/gif,image/webp,image/*';
+			// 안드로이드 WebView 에서도 열리도록 문서에 잠깐 붙였다가 뗌 (앱은 MainActivity.onShowFileChooser 가 파일 고르기를 엶)
+			const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+			inp.style.cssText = 'position:fixed;left:-9999px;opacity:0';
+			document.body.appendChild(inp);
 			inp.onchange = async () => {
-				const f = inp.files?.[0]; if (!f) return;
+				const f = inp.files?.[0]; inp.remove(); if (!f) return;
 				try { await setUserSprite(userSpriteKey(sid, back, shiny), f); toast('그림을 바꿨습니다'); force(x => x + 1); }
 				catch (e: any) { toast(e?.message || '그림을 읽지 못했습니다'); }
 			};
