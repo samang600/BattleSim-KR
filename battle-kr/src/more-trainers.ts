@@ -67,6 +67,9 @@ export const MORE_ANIME: ExtraTrainer[] = [
 ];
 
 export const MORE_NAMED: ExtraTrainer[] = [
+	// 오박사: 1세대 데이터에 남아 있는 '오박사와의 배틀' 팀(켄타로스·나시·윈디·갸라도스 + 스타터) 기준, 6번째(망나뇽)는 보충. 그림은 쇼다운 'oak'
+	{ id: "oak", name: "오박사", title: "오박사 포켓몬 연구소", region: "관동", role: "hero", team: ["tauros", "exeggutor", "arcanine", "gyarados", "dragonite", "venusaur"], sprite: "oak",
+		line: "포켓몬의 세계에 온 것을 환영한다! 자, 그 실력을 한번 보여 주겠니?", ace: "연구를 시작할 때부터 함께한 파트너란다. 가거라!", lose: "훌륭하구나! 포켓몬과 마음이 잘 통하고 있어.", win: "아직이구나. 포켓몬을 더 이해해 주거라.", src: "written" },
 	// ── 관동 / 성도 ──
 	{ id: "janine", name: "도희", title: "관동 체육관 관장 · 독 (금·은)", region: "관동", role: "leader", team: ["venomoth", "weezing", "tentacruel", "roserade", "nidoqueen", "crobat"], sprite: "janine",
 		line: "아버지의 뒤를 이은 닌자 도희! 독술의 무서움을 알려 주마!", ace: "크로뱃, 나가라! 닌자의 비술이다!", lose: "윽… 아직 수행이 부족한가 봐.", win: "후후, 닌자를 얕봤구나!", src: "written" },

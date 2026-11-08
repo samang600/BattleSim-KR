@@ -17,17 +17,8 @@ export function Medal({ tier, size = 20 }: { tier: number; size?: number }) {
 	const cols = ['', '#141a26', c, tier ? '#ffffff' : c];
 	return <svg width={size} height={size} viewBox="0 0 7 7" shape-rendering="crispEdges" class="pix-medal">{m.flatMap((r, y) => [...r].map((ch, x) => ch !== '0' ? <rect x={x} y={y} width="1" height="1" fill={cols[+ch]} opacity={!tier && ch === '3' ? 0.4 : 1} /> : null))}</svg>;
 }
-/** 프런티어 심볼 (도트): 0 없음 · 1 은 · 2 금 */
-export function SymbolIcon({ kind, lv, size = 32 }: { kind: SymbolKind; lv: number; size?: number }) {
-	const shapes: { [k in SymbolKind]: string[] } = {
-		tower: ['0001000', '0012100', '0122210', '1222221', '0122210', '0122210', '1111111'],
-		factory: ['1110111', '1210121', '1222221', '1233321', '1222221', '1222221', '1111111'],
-		rank: ['1010101', '1212121', '1222221', '1233321', '1222221', '1222221', '1111111'],
-	};
-	const base = lv === 2 ? '#f0c020' : lv === 1 ? '#c8d0dc' : '#3a4256';
-	const cols = ['', '#141a26', base, lv ? SYMBOL_INFO[kind].color : '#2a3040'];
-	return <svg width={size} height={size} viewBox="0 0 7 7" shape-rendering="crispEdges" class="pix-symbol">{shapes[kind].flatMap((r, y) => [...r].map((ch, x) => ch !== '0' ? <rect x={x} y={y} width="1" height="1" fill={cols[+ch]} /> : null))}</svg>;
-}
+export { SymbolIcon } from './pixel-icons';
+import { SymbolIcon } from './pixel-icons';
 
 export function TrainerBook({ onBack, initial = 'card' }: { onBack: () => void; initial?: string }) {
 	const [tab, setTab] = useState(initial);
@@ -58,7 +49,7 @@ function Card({ st, rec, set }: any) {
 			</div>
 		</div>
 		<h3 class="sec">심볼</h3>
-		<div class="sym-row">{(['tower', 'factory', 'rank'] as SymbolKind[]).map(k => <div class="sym-cell"><SymbolIcon kind={k} lv={st.sym[k] || 0} size={42} /><b>{SYMBOL_INFO[k].name}</b><small>{SYMBOL_INFO[k].facility} · {st.sym[k] === 2 ? '금' : st.sym[k] ? '은' : '미획득'}</small><small class="sym-how">{k === 'rank' ? '은: 챔피언급 도달 · 금: 시즌을 챔피언급으로 마감' : '은: 21번째 · 금: 49번째 브레인 격파'}</small></div>)}</div>
+		<div class="sym-row">{(['tower', 'factory', 'rank'] as SymbolKind[]).map(k => <div class="sym-cell"><SymbolIcon kind={k} lv={st.sym[k] || 0} size={48} /><b>{SYMBOL_INFO[k].name}</b><small>{SYMBOL_INFO[k].facility} · {st.sym[k] === 2 ? '금' : st.sym[k] ? '은' : '미획득'}</small><small class="sym-how">{k === 'rank' ? '은: 챔피언급 도달 · 금: 시즌을 챔피언급으로 마감' : '은: 21번째 · 금: 49번째 브레인 격파'}</small></div>)}</div>
 		<h3 class="sec">랭크 시즌 <small class="muted">시즌 {season.no} · {seasonLeft()}</small></h3>
 		<div class="kv"><span>싱글</span><b>{rankLabel(rp('singles'))} · {rp('singles')} RP</b></div>
 		<div class="kv"><span>더블</span><b>{rankLabel(rp('doubles'))} · {rp('doubles')} RP</b></div>
