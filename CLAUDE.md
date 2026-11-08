@@ -10,7 +10,7 @@
 - 저장 데이터는 localStorage `pkbkr:*` (settings, teams, tower-*, factory-*, records …).
 
 ## 릴리스 루틴 (작업 묶음 하나 끝날 때마다)
-1. `battle-kr/android/app/build.gradle` 의 `versionCode` +1, `versionName` 올림(`package.json`·`package-lock.json` 버전도), `battle-kr/README.md` 의 APK 파일명·버전 문구 갱신, 바뀐 기능을 README 에 적기, `battle-kr/src/changelog.ts` 맨 위에 짧은 업데이트 소식 추가(웹에서 새 버전 첫 실행 때 보여 줌).
+1. `battle-kr/android/app/build.gradle` 의 `versionCode` +1, `versionName` 올림(`package.json`·`package-lock.json` 버전도), `battle-kr/README.md` 의 APK 파일명·버전 문구 갱신, 바뀐 기능을 README 에 적기, `battle-kr/src/changelog.ts` 맨 위에 짧은 업데이트 소식 추가(웹에서 새 버전 첫 실행 때 보여 줌 — 작은 데이터 조정처럼 알릴 필요 없는 변경은 생략, 항목이 없으면 창이 뜨지 않음).
 2. `node battle-kr/build.mjs --android`
 3. 서명 빌드 (`battle-kr/android` 에서):
    `BATTLESIM_KEYSTORE=<키스토어 경로> BATTLESIM_KEY_PASSWORD=<비밀번호> ./gradlew assembleRelease`
