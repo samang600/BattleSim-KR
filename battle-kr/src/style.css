@@ -1387,9 +1387,14 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .move-panel .mvb { container-type: size; }
 .mvb-name { flex-shrink: 0; }
 .mvb-top, .mvb-bottom { flex-shrink: 1; min-height: 0; overflow: hidden; }
+/* 기술 이름을 칸 가운데에: 아래 줄(상성·데미지)이 비어도 위 줄(타입·분류)과 같은 높이를 차지 */
+.mvb-bottom { min-height: 20px; }
+/* 위·아래 줄이 줄거나 숨겨져도 이름은 남는 공간의 가운데에 (컨테이너 쿼리는 .mvb 자신에는 안 걸려서 이름 쪽에서 맞춤) */
+.move-panel .mvb-name { margin-top: auto; margin-bottom: auto; }
 @container (max-height: 60px) {
 	.mvb { justify-content: center; gap: 1px; }
 	.mvb-top, .mvb-bottom { margin: 0 !important; }
+	.mvb-bottom { min-height: 0; }
 	.mvb-name, .mvb-name.l { font-size: 15px; line-height: 18px; }
 	.mvb-name.xl { font-size: 12px; line-height: 18px; }
 	.mvb-bottom:not(:has(.mvb-eff, .mvb-dmg)) { display: none; }

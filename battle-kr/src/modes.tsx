@@ -717,23 +717,23 @@ export async function runNamed() {
 /** 등급: 비기너 → 몬스터볼급·슈퍼볼급·하이퍼볼급·마스터볼급(각 5 → 1 단계) → 챔피언급(가상 순위 100위 이내, 단계 없음) */
 const RANK_CLASSES = [
 	{ name: '몬스터볼급', min: 120, max: 360, ball: 'pokeball' }, { name: '슈퍼볼급', min: 360, max: 720, ball: 'greatball' },
-	{ name: '하이퍼볼급', min: 720, max: 2000, ball: 'ultraball' }, { name: '마스터볼급', min: 2000, max: 3000, ball: 'masterball' },
+	{ name: '하이퍼볼급', min: 720, max: 1200, ball: 'ultraball' }, { name: '마스터볼급', min: 1200, max: 1800, ball: 'masterball' },
 ];
-export const MASTER_MIN = 2000;
+export const MASTER_MIN = 1200;
 type RankTierT = { name: string; min: number; ball: string; cls: string; step: number; rank?: number };
 export const RANK_TIERS: RankTierT[] = [{ name: '비기너', min: 0, ball: 'pokeball', cls: '비기너', step: 0 },
 	...RANK_CLASSES.flatMap(c => [5, 4, 3, 2, 1].map((n, i) => ({ name: `${c.name} ${n}`, min: Math.round(c.min + (c.max - c.min) * i / 5), ball: c.ball, cls: c.name, step: n })))];
 /** 기본 획득 RP · 연승 보너스(단계당·최대 단계) · 상위 매칭(확률·실력 차이·승리 보너스) */
 const RANK_BASE = 25, STREAK_STEP = 4, STREAK_MAX = 4, UPPER_RATE = 0.2, UPPER_GAP = 480, UPPER_BONUS = 25;
-/** 가상 순위: 마스터볼급(2000 RP)부터. 가상의 다른 트레이너들도 날마다 올라가서(시즌=달) 가만히 있으면 순위가 내려가고, 날마다 조금씩 흔들림.
- *  대략 3,000 RP 안팎에서 100위 안(챔피언급) */
+/** 가상 순위: 마스터볼급(1200 RP)부터. 가상의 다른 트레이너들도 날마다 올라가서(시즌=달) 가만히 있으면 순위가 내려가고, 날마다 조금씩 흔들림.
+ *  대략 2,400 RP 안팎에서 100위 안(챔피언급) */
 export function virtualRank(rp: number, now = new Date()): number | null {
 	if (rp < MASTER_MIN) return null;
 	const day = now.getDate() - 1;                       // 이번 시즌(달)에 지난 날
 	const drift = day * 3;                               // 다른 트레이너들이 올라간 만큼
 	const seed = now.getFullYear() * 400 + now.getMonth() * 32 + now.getDate();
 	const jitter = 1 + 0.08 * Math.sin(seed * 12.9898 + rp * 0.0137);   // 날마다·RP 마다 조금씩 다름
-	const above = 60000 * Math.exp(-(rp - MASTER_MIN - drift) / 150) * jitter;
+	const above = 60000 * Math.exp(-(rp - MASTER_MIN - drift) / 185) * jitter;
 	return Math.max(1, Math.ceil(above));
 }
 export function rankTier(rp: number): RankTierT {
@@ -753,8 +753,7 @@ type RankFmt = 'singles' | 'doubles';
 function rankOpponent(rpNew: number, fmt: RankFmt, level: number) {
 	const rule = ruleById(loadSettings().battleRule);
 	const champ = rankTier(rpNew).cls === '챔피언급';
-	// 아래 기준값은 예전 척도(슈퍼볼급 300·하이퍼볼급 600·마스터볼급 1000)로 적혀 있어 새 척도(360·720·2000)를 그쪽으로 옮김
-	const rp = Math.min(1400, rpNew <= 720 ? rpNew / 1.2 : rpNew <= MASTER_MIN ? 600 + (rpNew - 720) * 400 / (MASTER_MIN - 720) : 1000 + (rpNew - MASTER_MIN) / 3);
+	const rp = Math.min(rpNew / 1.2, 1400);   // 아래 기준값은 예전 척도(마스터볼급 1000) — 새 척도는 1.2배
 	const trLevel = rpNew >= MASTER_MIN ? 'expert' : rpNew >= 360 ? 'grown' : 'any';   // 등급에 어울리는 트레이너군
 	const s = Math.min(1, rp / 1200);
 	const skill = Math.min(0.97, 0.5 + 0.5 * s);
