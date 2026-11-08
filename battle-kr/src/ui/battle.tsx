@@ -11,6 +11,7 @@ import { emitBattleEnd } from '../battle-hooks';
 import { TeraFilters, Sprite, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
 import { MonSheet, type LiveInfo } from './screens';
 import { estimateDamage, typeEffOf, chooseAI } from '../ai';
+import { State } from '../../../sim/state';
 import * as FX from '../fx';
 import { sfx, moveSound, playMusic, stopMusic, cry, preloadCries, pickBattleMusic, animSfxVolume, vibrate } from '../sound';
 import { saveSettings, loadSettings as loadSettings2 } from '../store';
@@ -222,6 +223,14 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 
 	/** 메시지 길이에 맞춘 읽기 시간 (짧은 문장은 빨리 넘어감) */
 	const readMs = (m: string) => SPEED_MS[settings.speed] * (0.65 + Math.min(0.75, m.length / 45));
+	/** 메시지 다음으로: 자동이면 읽기 시간만큼, 수동이면 화면을 누를 때까지 */
+	const msgWait = (m: string) => settings.textManual && !setup.replay ? new Promise<void>(resolve => { if (deadRef.current) return; skipRef.current = () => { skipRef.current = null; resolve(); }; }) : wait(readMs(m));
+	const toggleManual = () => {
+		settings.textManual = !settings.textManual;
+		const st = loadSettings2(); st.textManual = settings.textManual; saveSettings(st);
+		skipRef.current?.();
+		rerender();
+	};
 	/** 화면을 떠남(리플레이 그만 보기·뒤로): 진행 중인 재생 루프가 더는 효과음·연출을 내지 않게 */
 	const deadRef = useRef(false);
 	const wait = (ms: number) => deadRef.current ? new Promise<void>(() => {}) : new Promise<void>(resolve => {
@@ -764,7 +773,7 @@ function typeTint(type: string) {
 					const d = apply(p) / FX.fxSpeed(); rerender();
 					await wait(Math.max(d, SPEED_MS[settings.speed] * 0.6));
 				} else { pendingHitRef.current = { at: 0, sound: '' }; await wait(120); }
-				for (const m of msgs) { showMsg(m); await wait(readMs(m)); }
+				for (const m of msgs) { showMsg(m); await msgWait(m); }
 				continue;
 			}
 			const delay = apply(p) / FX.fxSpeed();
@@ -772,7 +781,7 @@ function typeTint(type: string) {
 			if (p.cmd === 'turn') { pushLog(text); continue; }
 			for (const m of msgs) {
 				showMsg(m);
-				await wait(readMs(m));
+				await msgWait(m);
 			}
 			if (!msgs.length && delay) await wait(Math.min(delay, SPEED_MS[settings.speed]));
 		}
@@ -1068,6 +1077,51 @@ function typeTint(type: string) {
 		if (!p?.illusion) return p;
 		return p.terastallized ? [p.terastallized] : p.illusion.species.types;
 	};
+	/** 정확한 예상 데미지: 배틀을 복제해 고른 기믹(메가진화·테라스탈·다이맥스·Z기술)을 적용한 뒤 엔진의 데미지 계산(날씨·필드·특성·도구·벽·랭크 모두 반영)으로 최소~최대.
+	 *  원래 배틀의 난수는 건드리지 않음. 같은 턴·기믹이면 결과를 기억해 둠 */
+	const dmgCacheRef = useRef<{ key: string; ser: any; res: Map<string, string> }>({ key: '', ser: null, res: new Map() });
+	const exactDamage = (b: any, moveId: string, moveIdx: number, targetSide: 'p1' | 'p2', tslot: number, nTargets: number): string | null => {
+		const key = `${b.turn}|${b.p1.activeRequest?.rqid ?? ''}|${slotIdx}|${gimmick}`;
+		const cache = dmgCacheRef.current;
+		if (cache.key !== key) { cache.key = key; cache.res = new Map(); try { cache.ser = State.serializeBattle(b); } catch { cache.ser = null; } }
+		const k2 = `${moveId}|${targetSide}|${tslot}|${nTargets}`;
+		if (cache.res.has(k2)) return cache.res.get(k2)!;
+		if (!cache.ser) return null;
+		let out: string | null = null;
+		try {
+			const c: any = State.deserializeBattle(cache.ser);
+			c.send = () => {}; c.add = () => {}; c.hint = () => {};
+			const cu = c.p1.active[slotIdx], ct = c[targetSide].active[tslot];
+			if (!cu || !ct || ct.fainted) return null;
+			if (gimmick === 'megax' && cu.canMegaEvoX) cu.canMegaEvo = cu.canMegaEvoX;
+			if (gimmick === 'megay' && cu.canMegaEvoY) cu.canMegaEvo = cu.canMegaEvoY;
+			if (['mega', 'megax', 'megay', 'ultra'].includes(gimmick) && (cu.canMegaEvo || cu.canUltraBurst)) c.actions.runMegaEvo(cu);
+			if (gimmick === 'terastallize' && cu.canTerastallize) c.actions.terastallize(cu);
+			if (gimmick === 'dynamax' && !cu.volatiles['dynamax']) cu.addVolatile('dynamax');
+			let am: any = c.dex.getActiveMove(moveId);
+			if (cu.volatiles['dynamax']) am = c.actions.getActiveMaxMove(am, cu);
+			else if (gimmick === 'zmove' && activeReq?.canZMove?.[moveIdx]) am = c.actions.getActiveZMove(am, cu) || am;
+			am.willCrit = false;
+			c.activeMove = am; c.activePokemon = cu; c.activeTarget = ct;
+			c.singleEvent('ModifyType', am, null, cu, ct, am, am);
+			c.singleEvent('ModifyMove', am, null, cu, ct, am, am);
+			am = c.runEvent('ModifyType', cu, ct, am, am) || am;
+			am = c.runEvent('ModifyMove', cu, ct, am, am) || am;
+			if (am.category === 'Status') { cache.res.set(k2, ''); return ''; }
+			if (nTargets > 1 && ['allAdjacent', 'allAdjacentFoes'].includes(am.target)) am.spreadHit = true;
+			c.randomizer = (d: number) => d;   // 난수 없이 최대값 (최소값은 85%)
+			const r = c.actions.getDamage(cu, ct, am, true);
+			let max = typeof r === 'number' ? r : 0;
+			if (!max) { cache.res.set(k2, ''); return ''; }
+			let min = Math.floor(max * 0.85);
+			const mh = am.multihit; if (mh) { const [a, z] = Array.isArray(mh) ? mh : [mh, mh]; min *= a; max *= z; }
+			const hp = ct.hp, mhp = ct.maxhp || 1;
+			const p0 = Math.max(1, Math.floor(min / mhp * 100)), p1 = Math.max(1, Math.floor(max / mhp * 100));
+			out = min >= hp ? 'KO 확정' : max >= hp ? `${p0}%~KO` : p0 === p1 ? `약 ${p0}%` : `${p0}~${p1}%`;
+		} catch (e) { out = null; }
+		cache.res.set(k2, out ?? '');
+		return out;
+	};
 	/** 예상 데미지 비율 문자열 (설정 켜짐 때) */
 	const dmgPreview = (m: any, targetSide: 'p1' | 'p2' = 'p2', slot?: number): string => {
 		if (!settings.damagePreview) return '';
@@ -1075,7 +1129,14 @@ function typeTint(type: string) {
 		const user = b.p1.active[slotIdx]; if (!user) return '';
 		const targets = slot !== undefined ? [b[targetSide].active[slot]] : b.p2.active.filter((x: any) => x && !x.fainted);
 		const mv = b.dex.moves.get(m.id);
-		if (!mv || mv.category === 'Status' || !targets.length || !targets[0]) return '';
+		if (!mv || (mv.category === 'Status' && gimmick !== 'zmove' && gimmick !== 'dynamax') || !targets.length || !targets[0]) return '';
+		// 일루전으로 둔갑한 상대는 정체가 드러나지 않게 예전 방식(보이는 모습 기준)으로
+		if (!targets[0].illusion) {
+			const tslot = slot !== undefined ? slot : b.p2.active.indexOf(targets[0]);
+			const idx = (activeReq?.moves || []).findIndex((x: any) => x.id === m.id);
+			const ex = exactDamage(b, m.id, idx, targetSide, tslot, b[targetSide].active.filter((x: any) => x && !x.fainted).length);
+			if (ex !== null) return ex;
+		}
 		try {
 			const d = estimateDamage(b, user, targets[0].illusion && !targets[0].terastallized ? targets[0].illusion : targets[0], mv);
 			if (d <= 0) return '';
@@ -1334,7 +1395,7 @@ function typeTint(type: string) {
 			return <div class="controls waiting">
 				<button class="btn small" onClick={() => cycleSpeed()}>배속 {SPEED_LABEL[settings.speed]}</button>
 				{setup.replay && <button class="btn small ghost" onClick={() => { deadRef.current = true; skipRef.current?.(); cancelAnims(); stopMusic(); onEnd({ win: false, forfeit: false, turns: 0, p1Left: 0, p2Left: 0, quit: true }); }}>■ 그만 보기</button>}
-				<p class="muted small">{setup.replay ? '🎬 리플레이 재생 중 · 화면을 누르면 메시지를 넘깁니다' : '화면을 누르면 메시지를 넘깁니다'}</p>
+				<p class="muted small">{setup.replay ? '🎬 리플레이 재생 중 · 화면을 누르면 메시지를 넘깁니다' : settings.textManual ? '수동 진행 · 화면을 누르면 다음 메시지' : '화면을 누르면 메시지를 넘깁니다'}</p>
 			</div>;
 		}
 		const back = (parts.length || menu !== 'main') && !(req.forceSwitch && !parts.length) ?
@@ -1548,6 +1609,7 @@ function typeTint(type: string) {
 			<span class="badge">{setup.label || ''}</span>
 			<span class="badge">{scene.turn ? `${scene.turn}턴` : ''}</span>
 			<button class="badge speed-btn" onClick={e => { e.stopPropagation(); cycleSpeed(); }}>{SPEED_LABEL[settings.speed]}</button>
+			<button class="badge text-btn" onClick={e => { e.stopPropagation(); toggleManual(); }} aria-label="메시지 진행">{settings.textManual ? '✋ 수동' : '▶ 자동'}</button>
 			<button class="badge field-btn" onClick={e => { e.stopPropagation(); setFieldOpen(true); }}>필드 ▸</button>
 			<button class="badge menu-btn" onClick={e => { e.stopPropagation(); setMenuOpen(true); }} aria-label="메뉴">☰ 메뉴</button>
 		</div>
@@ -1603,6 +1665,7 @@ function typeTint(type: string) {
 				<button class="btn big" onClick={() => { setMenuOpen(false); setShowLog(true); }}>배틀 기록</button>
 				<button class="btn big" onClick={() => { setMenuOpen(false); setFieldOpen(true); }}>필드 상황</button>
 				<button class="btn big" onClick={() => cycleSpeed()}>배속 {SPEED_LABEL[settings.speed]}</button>
+				<button class="btn big" onClick={() => toggleManual()}>메시지 진행: {settings.textManual ? '수동 (화면을 눌러 넘김)' : '자동'}</button>
 				{canFullscreen() && <button class="btn big" onClick={() => { setMenuOpen(false); toggleFullscreen(); }}>{fullscreen ? '전체화면 끄기' : '전체화면'}</button>}
 				{phase === 'input' && <button class="btn big" onClick={() => { setMenuOpen(false); forfeit(); }}>기권</button>}
 				<button class="btn big danger" onClick={quitToMenu}>메인 메뉴로</button>
@@ -1657,6 +1720,17 @@ const SIDE_COND_KO: { [id: string]: string } = { ...SIDE_KO, auroraveil: '오로
 function FieldModal({ session, scene, onClose }: { session: Session; scene: any; onClose: () => void }) {
 	const b = session.battle;
 	const turns = (st: any) => st?.duration ? `${st.duration}턴 남음` : st?.id ? '지속' : '';
+	// 상대가 연장 도구(뜨거운바위·젖은바위·빛의점토·그라운드코트 등)로 늘린 날씨·필드·벽: 도구가 드러나기 전까지는 보통(5턴) 기준으로 보여 줌
+	const EXT: { [id: string]: string } = { sunnyday: 'heatrock', desolateland: '', raindance: 'damprock', sandstorm: 'smoothrock', hail: 'icyrock', snowscape: 'icyrock', snow: 'icyrock',
+		electricterrain: 'terrainextender', grassyterrain: 'terrainextender', mistyterrain: 'terrainextender', psychicterrain: 'terrainextender', reflect: 'lightclay', lightscreen: 'lightclay', auroraveil: 'lightclay' };
+	const shown = (id: string, st: any) => {
+		const src = st?.source, ext = EXT[id];
+		if (!st?.duration || !ext || src?.side?.id !== 'p2' || src.getItem?.()?.id !== ext) return turns(st);
+		const revealed = (scene?.p2?.team || []).some((m: any) => m.nick === src.name && toID(m.item || '') === ext);
+		if (revealed) return turns(st);
+		const d = st.duration - 3;   // 연장 8턴 → 보통 5턴처럼
+		return d > 0 ? `${d}턴 남음` : '지속';
+	};
 	const w = b.field.weatherState, t = b.field.terrainState;
 	const pw = Object.entries(b.field.pseudoWeather || {}) as [string, any][];
 	const sideInfo = (side: any, label: string) => {
@@ -1664,22 +1738,23 @@ function FieldModal({ session, scene, onClose }: { session: Session; scene: any;
 		return <div class="field-side">
 			<b>{label}</b>
 			{!conds.length && <span class="muted"> 없음</span>}
-			{conds.map(([id, st]) => <div class="field-row"><span>{SIDE_COND_KO[id] || (id.startsWith('gmax') ? moveKo(id) : id)}{st.layers > 1 ? ` ×${st.layers}` : ''}</span><span class="muted">{turns(st)}</span></div>)}
+			{conds.map(([id, st]) => <div class="field-row"><span>{SIDE_COND_KO[id] || (id.startsWith('gmax') ? moveKo(id) : id)}{st.layers > 1 ? ` ×${st.layers}` : ''}</span><span class="muted">{shown(id, st)}</span></div>)}
 			{(scene?.[side.id]?.active || []).filter((m: any) => m && !m.fainted && !m.hidden).map((m: any) => {
 				const own = side.id === 'p1';
-				// 남은 턴 수는 내 편만 (엔진에서 같은 포켓몬을 찾아서)
-				const ep = own ? side.active.find((p: any) => p && p.name === m.nick) : null;
-				const vols = [...(m.vol || [])].filter((id: string) => VOLATILE_KO[id]).map((id: string) => `${VOLATILE_KO[id]}${ep?.volatiles?.[id]?.duration ? `(${ep.volatiles[id].duration}턴)` : ''}`);
+				// 남은 턴 수는 내 편만 (엔진에서 같은 포켓몬을 찾아서). 다이맥스 남은 턴은 상대 것도 보임(본가에서도 보이는 정보)
+				const ep = side.active.find((p: any) => p && p.name === m.nick);
+				const vols = [...(m.vol || [])].filter((id: string) => VOLATILE_KO[id]).map((id: string) => `${VOLATILE_KO[id]}${(own || id === 'dynamax') && ep?.volatiles?.[id]?.duration ? `(${ep.volatiles[id].duration}턴 남음)` : ''}`);
 				const st = m.status && m.status !== 'fnt' ? STATUS_LABEL_KO[m.status] || m.status : '';
+				const tera = m.tera ? `테라 ${typeKo(m.tera)}` : '';
 				const bs = Object.entries(m.boosts || {}).filter(([, v]) => v).map(([k, v]: any) => `${STAT_SHORT[k] || STAT_KO[k] || k}${v > 0 ? '+' : ''}${v}`);
-				return (vols.length || st || bs.length) ? <div class="field-row"><span>{m.nick}</span><span class="muted">{[st, ...bs, ...vols].filter(Boolean).join(' · ')}</span></div> : null;
+				return (vols.length || st || bs.length || tera) ? <div class="field-row"><span>{m.nick}</span><span class="muted">{[tera, st, ...bs, ...vols].filter(Boolean).join(' · ')}</span></div> : null;
 			})}
 		</div>;
 	};
 	return <Modal title={`필드 상황 · ${b.turn}턴`} onClose={onClose}>
 		<div class="field-info">
-			<div class="field-row"><span>날씨</span><b>{w?.id ? `${WEATHER_KO[w.id] || w.id} · ${turns(w)}` : '없음'}</b></div>
-			<div class="field-row"><span>필드</span><b>{t?.id ? `${TERRAIN_KO[t.id] || t.id} · ${turns(t)}` : '없음'}</b></div>
+			<div class="field-row"><span>날씨</span><b>{w?.id ? `${WEATHER_KO[w.id] || w.id} · ${shown(w.id, w)}` : '없음'}</b></div>
+			<div class="field-row"><span>필드</span><b>{t?.id ? `${TERRAIN_KO[t.id] || t.id} · ${shown(t.id, t)}` : '없음'}</b></div>
 			{pw.map(([id, st]) => <div class="field-row"><span>{PSEUDO_KO[id] || TERRAIN_KO[id] || id}</span><b>{turns(st)}</b></div>)}
 			{sideInfo(b.p1, '우리 편')}
 			{sideInfo(b.p2, '상대 편')}

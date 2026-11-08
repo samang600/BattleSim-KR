@@ -54,6 +54,9 @@ export function analyze(setup: any, battle: any, win: boolean): BattleFacts & { 
 	const mine: { [sid: string]: { ko: number; f: number } } = {};
 	const oppSeen = new Set<string>(), oppFainted: string[] = [], gim: string[] = [], weathers: string[] = [], terrains: string[] = [];
 	const nameOf = (id: string) => id.replace(/^(p\d)[a-d]?:\s*/, '$1: ');
+	// 멀티배틀: 파트너(AI)의 포켓몬은 내 기록·업적에 넣지 않음 (엔진에서 kPartner 표시)
+	const partner = new Set<string>(((battle.p1?.pokemon || []) as any[]).filter(p => p.kPartner).map(p => 'p1: ' + p.name));
+	const mineId = (id: string) => id.startsWith('p1') && !partner.has(nameOf(id));
 	const hp: { [ident: string]: number } = {};
 	let lastMover = '', turn = 0, faintTurn = -1, faintsThisTurn = 0, dko = false, comeback = false;
 	let myAlive = battle.p1?.pokemon?.length || 0, oppAlive = battle.p2?.pokemon?.length || 0;
@@ -75,31 +78,31 @@ export function analyze(setup: any, battle: any, win: boolean): BattleFacts & { 
 		if (cmd === '-damage') { const id = nameOf(p[2]); const m = /^(\d+)\/(\d+)/.exec(p[3] || ''); const before = hp[id] ?? 1; const after = p[3]?.startsWith('0') ? 0 : m ? +m[1] / +m[2] : before;
 			void before; hp[id] = after; continue; }
 		if (cmd === '-heal') { const id = nameOf(p[2]); const m = /^(\d+)\/(\d+)/.exec(p[3] || ''); if (m) hp[id] = +m[1] / +m[2]; continue; }
-		if (cmd === '-crit' && p[2]?.startsWith('p2')) { crits++; continue; }
-		if (cmd === '-supereffective' && p[2]?.startsWith('p2')) { se++; continue; }
-		if (cmd === '-ohko' && p[2]?.startsWith('p2')) { ohko++; continue; }
-		if ((cmd === '-activate' && p[2]?.startsWith('p1') && /Sturdy/.test(p[3] || '')) || (cmd === '-enditem' && p[2]?.startsWith('p1') && /Focus Sash|Focus Band/.test(p[3] || ''))) { endure++; continue; }
-		if (p[2]?.startsWith('p1')) {
+		if (cmd === '-crit' && p[2]?.startsWith('p2') && mineId(lastMover)) { crits++; continue; }
+		if (cmd === '-supereffective' && p[2]?.startsWith('p2') && mineId(lastMover)) { se++; continue; }
+		if (cmd === '-ohko' && p[2]?.startsWith('p2') && mineId(lastMover)) { ohko++; continue; }
+		if ((cmd === '-activate' && mineId(p[2] || '') && /Sturdy/.test(p[3] || '')) || (cmd === '-enditem' && mineId(p[2] || '') && /Focus Sash|Focus Band/.test(p[3] || ''))) { endure++; continue; }
+		if (mineId(p[2] || '')) {
 			if (cmd === '-mega' || cmd === '-primal') { gim.push('mega'); continue; }
 			if (cmd === '-zpower') { gim.push('z'); continue; }
 			if (cmd === '-terastallize') { gim.push('tera'); continue; }
 			if (cmd === '-start' && /Dynamax/.test(p[3] || '')) { gim.push('dmax'); continue; }
 		}
-		if (cmd === '-weather' && WEATHERS.includes(p[2]) && !line.includes('[upkeep]')) { const of = /\[of\] (p\d)/.exec(line)?.[1] || lastMover.slice(0, 2); if (of === 'p1') weathers.push(p[2]); continue; }
-		if (cmd === '-fieldstart') { const t = TERRAINS.find(x => (p[2] || '').includes(x)); const of = /\[of\] (p\d)/.exec(line)?.[1] || lastMover.slice(0, 2); if (t && of === 'p1') terrains.push(t); continue; }
+		if (cmd === '-weather' && WEATHERS.includes(p[2]) && !line.includes('[upkeep]')) { const of = /\[of\] ([^|]+)/.exec(line)?.[1] || lastMover; if (mineId(of)) weathers.push(p[2]); continue; }
+		if (cmd === '-fieldstart') { const t = TERRAINS.find(x => (p[2] || '').includes(x)); const of = /\[of\] ([^|]+)/.exec(line)?.[1] || lastMover; if (t && mineId(of)) terrains.push(t); continue; }
 		if (cmd === 'faint') {
 			const id = nameOf(p[2]); const sp = who[id] || '';
 			if (turn !== faintTurn) { faintTurn = turn; faintsThisTurn = 0; }
 			if (id.startsWith('p2')) {
 				oppAlive--; oppFainted.push(sp); faintsThisTurn++; if (faintsThisTurn >= 2) dko = true;
-				if (lastMover.startsWith('p1')) { const ms = who[lastMover] || ''; if (ms) (mine[ms] ||= { ko: 0, f: 0 }).ko++; }
-			} else { myAlive--; if (sp) (mine[sp] ||= { ko: 0, f: 0 }).f++; }
+				if (mineId(lastMover)) { const ms = who[lastMover] || ''; if (ms) (mine[ms] ||= { ko: 0, f: 0 }).ko++; }
+			} else { myAlive--; if (sp && mineId(id)) (mine[sp] ||= { ko: 0, f: 0 }).f++; }
 			if (myAlive === 1 && oppAlive >= 3) comeback = true;
 		}
 	}
 	// 내보낸 내 포켓몬
-	for (const id in who) if (id.startsWith('p1')) mine[who[id]] ||= { ko: 0, f: 0 };
-	const myMons = (battle.p1?.pokemon || []) as any[];
+	for (const id in who) if (mineId(id)) mine[who[id]] ||= { ko: 0, f: 0 };
+	const myMons = ((battle.p1?.pokemon || []) as any[]).filter(x => !x.kPartner);
 	const myFaint = myMons.filter(x => x.fainted).length;
 	const alive = myMons.filter(x => !x.fainted);
 	const oneHp = win && alive.length === 1 && alive[0].hp === 1;

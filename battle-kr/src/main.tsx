@@ -232,6 +232,7 @@ function AvatarPicker({ value, onChange }: { value: string; onChange: (id: strin
 	</div>;
 }
 
+let ruleNoticeShown = false;
 /** 배틀 규칙: 포켓몬 풀(게임·레귤레이션) · 기믹(복수 선택) · 초전설 · 환상 을 따로 고름 */
 function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }) {
 	const cur = ruleById(s.battleRule);
@@ -239,8 +240,14 @@ function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }
 	const set = (p: { gimmick?: string; pool?: string; restricted?: LegendMode; mythical?: LegendMode; sub?: LegendMode }) => {
 		const n = { gimmick: cur.gimmick, pool: cur.pool, restricted: cur.restricted, mythical: cur.mythical, sub: cur.sub, ...p };
 		const id = ruleId(n.gimmick, n.pool, n.restricted, n.mythical, n.sub);
+		if (id === cur.id) return;
 		applyRuleData(ruleById(id));
 		up({ battleRule: id });
+		// 규칙을 바꾸면 기록이 규칙마다 따로라는 안내 (설정 화면에 들어올 때마다 처음 한 번)
+		if (!ruleNoticeShown) {
+			ruleNoticeShown = true;
+			confirmBox('규칙별 기록 안내', '배틀 규칙을 바꾸면 연승·최고 기록·랭크 RP·쉬는 중인 도전이 규칙마다 따로 집계돼요.\n원래 규칙으로 돌아오면 그 규칙의 기록이 그대로 이어집니다.', '확인', '');
+		}
 	};
 	const toggle = (k: typeof gim.kinds[number]) => set({ gimmick: gimmickId(gim.kinds.includes(k) ? gim.kinds.filter(x => x !== k) : [...gim.kinds, k], gim.mode) });
 	const legRow = (label: string, v: LegendMode, key: 'restricted' | 'mythical' | 'sub') => <div class="set-row rule-row"><span>{label}</span><div class="seg">
@@ -259,6 +266,7 @@ function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }
 }
 
 function SettingsScreen({ onBack }: { onBack: () => void }) {
+	useEffect(() => { ruleNoticeShown = false; }, []);
 	const [newsAll, setNewsAll] = useState(false);
 	const [s, setS] = useState<Settings>(loadSettings());
 	const [userSpr, setUserSpr] = useState(false);

@@ -2256,3 +2256,9 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .battle:not(.doubles) .info .mon-tags { display: none; }
 .doubles .info .info-top { display: flex; align-items: center; min-width: 0; }
 .doubles .info .info-top .info-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 배틀 위 띠: 메시지 자동/수동 버튼 — 휴대폰 세로에서는 필드 버튼 자리를 대신(필드는 명령의 '필드'·메뉴에서), 가로·웹에서는 둘 다 */
+.text-btn { pointer-events: auto; cursor: pointer; color: #b8f0a0 !important; }
+.hud-top .field-btn { display: none; }
+@media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) { .hud-top .field-btn { display: block; } }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) { .hud-top .field-btn { display: block; } }
