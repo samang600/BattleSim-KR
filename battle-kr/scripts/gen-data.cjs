@@ -270,6 +270,21 @@ function learnable(dex, species, gen) {
 		}
 		s = s.prevo ? dex.species.get(s.prevo) : null;
 	}
+	// 테라버스트: 스칼렛·바이올렛에 나오지 않는 포켓몬도 배울 수 있게 (그 세대 표시 9).
+	// 단, 어느 세대에서도 기술머신(출처 'M')을 하나도 못 배우는 포켓몬(뿔충이·딱충이·개무소·실쿤·카스쿤·두루지벌레 등 — 설정상 기술머신 불가)은 뺌
+	// 소드·실드 기술레코드로만 한두 개 배우던 캐터피·단데기, 잠재파워뿐인 안농도 설정상 기술머신을 못 배우는 쪽으로 봄
+	const NO_TM_CONCEPT = new Set(['caterpie', 'metapod', 'unown']);
+	if (species.isNonstandard && !out.has('terablast') && !NO_TM_CONCEPT.has(species.id)) {
+		let hasTM = false;
+		const chk = ls => { for (const m in ls || {}) if (ls[m].some(x => x.includes('M'))) { hasTM = true; return; } };
+		const seen2 = new Set();
+		for (let x = species; x && x.exists && !seen2.has(x.id); x = x.prevo ? dex.species.get(x.prevo) : null) {
+			seen2.add(x.id);
+			chk(dex.species.getLearnsetData(x.id).learnset);
+			if (x.baseSpecies !== x.name) chk(dex.species.getLearnsetData(dex.species.get(x.baseSpecies).id).learnset);
+		}
+		if (hasTM) { out.add('terablast'); mask.terablast = (mask.terablast || 0) | 8; }
+	}
 	if (species.id.startsWith('rotom') && species.forme) {
 		const extra = { rotomheat: 'overheat', rotomwash: 'hydropump', rotomfrost: 'blizzard', rotomfan: 'airslash', rotommow: 'leafstorm' }[species.id];
 		if (extra) { out.add(extra); mask[extra] = 15; }

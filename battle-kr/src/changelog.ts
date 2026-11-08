@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.54.7', date: '2026-11-08', title: '테라버스트', items: [
+		['up', '9세대에 나오지 않는 포켓몬도 테라버스트를 배울 수 있어요 (설정상 기술머신을 못 배우는 캐터피·뿔충이·안농 등은 제외)'],
+	] },
 	// v2.53.7 이후 바뀐 점을 한 번에 (버전별로 나누지 않음)
 	{ ver: '2.54.6', date: '2026-11-08', title: '이번 업데이트', items: [
 		['new', '배틀팰리스: 포켓몬이 성격대로 스스로 싸워요'],
