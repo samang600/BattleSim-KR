@@ -21,6 +21,8 @@ export interface SessionConfig {
 	replayP2?: string[];
 	/** 멀티배틀: p1 팀 중 파트너 포켓몬 표시 (팀 순서대로). 기믹 사용 횟수를 나와 파트너가 따로 셈 */
 	partnerFlags?: boolean[];
+	/** 상대 선택을 AI 대신 정함 (배틀팰리스: 성격대로). null 이면 평소 AI */
+	p2Auto?: (battle: any, req: any) => string | null;
 }
 
 export class Session {
@@ -136,7 +138,7 @@ export class Session {
 			if (this.cfg.replayP2 && this.replayIdx < this.cfg.replayP2.length) choice = this.cfg.replayP2[this.replayIdx++];
 			else {
 				try {
-					choice = chooseAI(this.battle, req, 'p2', this.cfg.aiSkill);
+					choice = this.cfg.p2Auto?.(this.battle, req) || chooseAI(this.battle, req, 'p2', this.cfg.aiSkill);
 				} catch (e) {
 					console.error('AI 오류', e);
 				}

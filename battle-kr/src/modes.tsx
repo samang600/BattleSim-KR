@@ -5,10 +5,11 @@ import { ask, abortMode, gen5Icon, confirmBox, ArrowPicker } from './ui/core';
 import { BattleView, type BattleSetup, type BattleResult } from './ui/battle';
 import { PickScreen, InfoScreen, SwapScreen, ChoiceScreen, BracketView } from './ui/screens';
 import { randomTeam, randomSetFor, cloneSet, dedupeItems, rng, factoryTeam, assignGimmicks, fitSetToMega, FACTORY_TIERS, type PSet } from './sets';
-import { NAMED, CUPS, REGIONS, regionLabel, ROLE_KO, randomTrainer, namedById, namedSprite, namedLines, namedTitle, type NamedTrainer } from './trainers';
+import { NAMED, CUPS, REGIONS, REGION_COLOR, regionLabel, ROLE_KO, randomTrainer, namedById, namedSprite, namedLines, namedTitle, type NamedTrainer } from './trainers';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { loadTeams, loadSettings, saveSettings, load, save, remove, updateRecords, loadRecords, type SavedTeam } from './store';
 import { BGM_CHOICES, playMusic, stopMusic } from './sound';
+import { awardSymbol, SYMBOL_INFO, updateStats, type SymbolKind } from './stats';
 import { ruleById, recTag } from './rules';
 /** 지금 규칙의 기록 표시 (규칙마다 기록·도전을 따로) */
 const rt = () => recTag(loadSettings().battleRule);
@@ -17,13 +18,13 @@ import { aiPickEntry } from './smogon';
 import { rankerTeam, rankerCount, rankerSources } from './pokedb';
 import { speciesKo, spriteId, megaStonesFor, moveKo, typeKo, speciesData, toID, ALL_TYPES, bst, RAW, type Gen } from './data';
 
-type Fmt = 'singles' | 'doubles' | 'singles6' | 'doubles64' | 'doubles6' | 'multi';
-const isDoubles = (f: Fmt) => f === 'doubles' || f === 'doubles64' || f === 'doubles6' || f === 'multi';
+export type Fmt = 'singles' | 'doubles' | 'singles6' | 'doubles64' | 'doubles6' | 'multi';
+export const isDoubles = (f: Fmt) => f === 'doubles' || f === 'doubles64' || f === 'doubles6' || f === 'multi';
 /** 팀(엔트리) 크기 / 배틀에 내보내는 수 (멀티: 나 2 + 파트너 2 vs 상대 2명 × 2) */
 const teamSize = (f: Fmt) => f === 'multi' ? 2 : f === 'singles' ? 3 : f === 'doubles' ? 4 : 6;
 const battleSize = (f: Fmt) => f === 'singles' ? 3 : f === 'doubles' ? 4 : f === 'doubles64' ? 4 : f === 'multi' ? 4 : 6;
 const fmtLabel = (f: Fmt) => ({ singles: '싱글 3vs3', doubles: '더블 4vs4', singles6: '싱글 6vs6', doubles64: '더블 6→4', doubles6: '더블 6vs6', multi: '멀티 2+2' } as any)[f];
-const BACK = Symbol('back');
+export const BACK = Symbol('back');
 
 /** 모드마다 고르는 추가 옵션 (체크박스) */
 export interface BattleOpts { cheat: boolean; level100: boolean; inverse: boolean; mono?: boolean; /** 타워·팩토리 난이도 (없으면 보통) */ diff?: Diff }
@@ -63,7 +64,7 @@ function OptsBox({ opts, show, diff }: { opts: BattleOpts; show: OptKey[]; diff?
 const ALL_OPTS: OptKey[] = ['cheat', 'level100', 'inverse'];
 
 /** '도전 그만두기'를 누르면 정말 끝낼지 한 번 더 묻는다 (취소하면 같은 화면으로) */
-async function confirmQuit<T>(show: () => Promise<T>, quitValue: T, msg: string): Promise<T> {
+export async function confirmQuit<T>(show: () => Promise<T>, quitValue: T, msg: string): Promise<T> {
 	while (true) {
 		const v = await show();
 		if (v !== quitValue || await confirmBox('도전 그만두기', msg, '그만두기', '계속 도전')) return v;
@@ -72,10 +73,10 @@ async function confirmQuit<T>(show: () => Promise<T>, quitValue: T, msg: string)
 
 /** 배틀 배경 (설정 battleBg) — 'auto' 는 모드마다 정해진 배경 */
 export const ARENA_CHOICES: [string, string][] = [['auto', '기본'], ['random', '무작위'], ['field', '들판'], ['gym', '체육관'], ['cave', '동굴'], ['beach', '해변'],
-	['snow', '설원'], ['volcano', '화산'], ['tower', '배틀타워'], ['factory', '배틀팩토리'], ['pwt', 'PWT 경기장'], ['champion', '챔피언 리그']];
+	['snow', '설원'], ['volcano', '화산'], ['tower', '배틀타워'], ['factory', '배틀팩토리'], ['pwt', 'PWT 경기장'], ['champion', '챔피언 리그'], ['palace', '배틀팰리스'], ['rank', '랭크 경기장'], ['rush', '악의 아지트'], ['daily', '축제 광장']];
 /** 배틀 전 화면(‘승부한다’ 화면, 네임드·프리는 엔트리 고르기 화면) 아래 버튼 바로 위의 음악·배경 고르기.
  *  ◀ ▶ 로 넘기며, 음악은 곡 이름이 바뀔 때마다 바로 들려주고 배경은 상자 뒤에 장소 그림을 깔아 미리 보여 줌 */
-function BgmRow() {
+export function BgmRow() {
 	const [v, setV] = useState(loadSettings().battleBgm || 'random');
 	const [bg, setBg] = useState(loadSettings().battleBg || 'auto');
 	return <div class="prep-pickers">
@@ -90,12 +91,18 @@ function BgmRow() {
 	</div>;
 }
 
-function battle(setup: BattleSetup): Promise<BattleResult> {
+export function battle(setup: BattleSetup): Promise<BattleResult> {
 	return ask<BattleResult>(resolve => <BattleView key={Math.random()} setup={setup} onEnd={r => { if (r.quit) abortMode(); resolve(r); }} />);
 }
-function playerName() { return loadSettings().playerName || '플레이어'; }
-function playerSprite() { return loadSettings().playerSprite || 'lucas'; }
-function withLevel(team: PSet[], level: number) { return team.map(s => ({ ...cloneSet(s), level })); }
+/** 프런티어 심볼 획득 화면 */
+export function symbolScreen(kind: SymbolKind, gold: boolean) {
+	const info = SYMBOL_INFO[kind];
+	return ask<void>(r => <InfoScreen title={info.facility} banner={gold ? '🥇 금 심볼 획득!' : '🥈 은 심볼 획득!'} heading={`${info.name}${gold ? '(금)' : '(은)'}을 손에 넣었다!`}
+		lines={[kind === 'rank' ? (gold ? '시즌을 챔피언급으로 마쳤습니다!' : '랭크 매치 챔피언급에 도달했습니다!') : `${info.facility}의 프런티어 브레인을 이겼습니다.`, '트레이너 수첩 › 카드에서 볼 수 있어요.']} actions={[{ label: '확인', onClick: () => r() }]} />);
+}
+export function playerName() { return loadSettings().playerName || '플레이어'; }
+export function playerSprite() { return loadSettings().playerSprite || 'lucas'; }
+export function withLevel(team: PSet[], level: number) { return team.map(s => ({ ...cloneSet(s), level })); }
 
 async function chooseFormat(title: string, desc?: string, extended = false, opts?: BattleOpts, show: OptKey[] = ALL_OPTS, multi = false, diff = false): Promise<Fmt | typeof BACK> {
 	return ask<Fmt | typeof BACK>(r => <ChoiceScreen title={title} onBack={() => r(BACK)}
@@ -112,7 +119,7 @@ async function chooseFormat(title: string, desc?: string, extended = false, opts
 }
 
 /** 내 팀 고르기: 저장된 팀 또는 렌탈. 일반 팀·렌탈은 level 로 맞추고, 치트 팀(cheat 허용 시)은 만든 레벨 그대로 */
-async function chooseTeam(gen: Gen, title: string, allowRental = true, cheat = false, level = 50): Promise<PSet[] | typeof BACK> {
+export async function chooseTeam(gen: Gen, title: string, allowRental = true, cheat = false, level = 50): Promise<PSet[] | typeof BACK> {
 	const lastId = load<string>('lastTeam', '');
 	// 치트 팀은 '치트 팀 허용'을 켰을 때만
 	const teams = loadTeams().filter(t => (cheat || !t.cheat) && t.sets.length >= (t.cheat ? 1 : 3)).sort((a, b) => (b.id === lastId ? 1 : 0) - (a.id === lastId ? 1 : 0));
@@ -330,6 +337,7 @@ export async function runTower() {
 			const s = state.streak;
 			if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 			save(TOWER_KEY(fmt, opts), state);
+			if (opp.boss && !noRec(opts) && awardSymbol('tower', opp.boss === '금')) await symbolScreen('tower', opp.boss === '금');
 			if (s % 7 === 0) {
 				// 7연승(세트 클리어)마다 팀을 바꿀 수 있음 — 연승은 그대로 이어짐
 				const next = await ask<'keep' | 'change' | 'rest'>(r => <InfoScreen title="배틀타워" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`}
@@ -488,7 +496,7 @@ export async function runFactory() {
 			hint={`${hint} 6마리 중 이번 배틀에 낼 4마리를 순서대로 고르세요.`} onDone={r} />) : state.team;
 		const oppEntry = fmt === 'doubles64' ? aiPickEntry(oppTeam, state.team, 4, true, opp.skill) : oppTeam;
 		const res = await battle({
-			gen: 9, doubles: isDoubles(fmt), aiSkill: opp.skill, bg: isHead ? 'champion' : 'factory', label: `배틀팩토리 ${no}번째`, noRecord: noRec(opts), inverse: opts.inverse,
+			gen: 9, doubles: isDoubles(fmt), aiSkill: opp.skill, bg: isHead ? 'champion' : 'factory', music: isHead ? 'boss' : 'factory' as any, label: `배틀팩토리 ${no}번째`, noRecord: noRec(opts), inverse: opts.inverse,
 			p1: { name: playerName(), team: myEntry, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppEntry, line: opp.line, sprite: opp.sprite, sprite2: opp.sprite2, lines: { intro: opp.line, ...opp.lines } },
 		});
 		state.next = undefined;
@@ -503,6 +511,7 @@ export async function runFactory() {
 		state.streak++;
 		const s = state.streak;
 		if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
+		if (isHead && !noRec(opts) && awardSymbol('factory', no === 49)) await symbolScreen('factory', no === 49);
 		// 이긴 결과를 바로 저장 (교환·렌탈 화면에서 앱을 꺼도 같은 승부를 다시 하지 않게)
 		save(FACTORY_KEY(fmt, level, opts), state);
 		if (s % 7 === 0) {
@@ -523,7 +532,7 @@ export async function runFactory() {
 
 // ───────────── PWT ─────────────
 /** 팀의 주력 타입에 어울리는 배틀 배경 (물 → 바닷가, 얼음 → 설원, 불꽃 → 화산, 땅·바위·강철 → 동굴, 그 밖 → 체육관) */
-function bgForTeam(team: PSet[]): 'beach' | 'snow' | 'volcano' | 'cave' | 'gym' {
+export function bgForTeam(team: PSet[]): 'beach' | 'snow' | 'volcano' | 'cave' | 'gym' {
 	const c: { [t: string]: number } = {};
 	for (const s of team) for (const t of speciesData(toID(s.species), 9)?.t || []) c[t] = (c[t] || 0) + 1;
 	const top = Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
@@ -532,7 +541,7 @@ function bgForTeam(team: PSet[]): 'beach' | 'snow' | 'volcano' | 'cave' | 'gym' 
 /** 프리 배틀 등: 바깥 배경 중 무작위 */
 const OUTDOOR_BGS = ['field', 'beach', 'snow', 'cave', 'volcano', 'gym'] as const;
 
-function namedTeam(t: NamedTrainer, size: number, gen: Gen = 9): PSet[] {
+export function namedTeam(t: NamedTrainer, size: number, gen: Gen = 9): PSet[] {
 	// 배틀 규칙에 맞춘 엔트리(전설·환상 허용이면 설정상 어울리는 전설을 넣어 강하게). 에이스는 항상 포함, 나머지 무작위
 	const roster = rosterForRule(t, ruleById(loadSettings().battleRule));
 	const aceId = roster[roster.length - 1];
@@ -547,7 +556,7 @@ function namedTeam(t: NamedTrainer, size: number, gen: Gen = 9): PSet[] {
 	// 에이스에게 메가스톤이 있으면 우선 메가진화 담당
 	const ace = team[team.length - 1];
 	const stones = megaStonesFor(ace.species);
-	if (stones.length) fitSetToMega(ace, rng.pick(stones), gen);
+	if (stones.length) fitSetToMega(ace, t.id === 'alain' && stones.includes('charizarditex') ? 'charizarditex' : rng.pick(stones), gen);   // 알랭은 메가리자몽 X
 	return dedupeItems(assignGimmicks(team, { mega: ['leader', 'admin'].includes(t.role) ? 0.5 : 0.9, z: 0.6 }));
 }
 
@@ -661,10 +670,13 @@ export async function runPWT() {
 export const namedMusic = (t: NamedTrainer) => ['admin', 'boss'].includes(t.role) ? 'evil' as const : ['champion', 'hero'].includes(t.role) ? 'champion' as const : ['leader', 'elite'].includes(t.role) ? 'boss' as const : 'battle' as const;
 
 // ───────────── 네임드 트레이너 ─────────────
-const ROLE_ORDER = ['leader', 'elite', 'champion', 'hero', 'rival', 'admin', 'boss'];
+export const ROLE_ORDER = ['leader', 'elite', 'champion', 'hero', 'rival', 'admin', 'boss'];
+const ROLE_GROUP: { [r: string]: string } = { leader: '체육관 관장', elite: '사천왕', champion: '챔피언', hero: '주인공 · 라이벌 · 주요 인물', rival: '주인공 · 라이벌 · 주요 인물', admin: '악의 조직', boss: '악의 조직' };
+const ROLE_COLOR: { [r: string]: string } = { leader: '#2a8ad0', elite: '#7a4ad8', champion: '#d8a018', hero: '#23a05a', rival: '#23a05a', admin: '#a8323a', boss: '#a8323a' };
 function regionSummary(reg: string) {
 	const list = NAMED.filter(t => t.region === reg);
 	const n = (roles: string[]) => list.filter(t => roles.includes(t.role)).length;
+	if (reg === '애니메이션') return `애니메이션 오리지널 트레이너 ${list.length}명`;
 	if (reg === '미르시티') return [`ZA로열 랭크전·보상 배틀 ${n(['leader', 'elite', 'champion', 'boss'])}`, `라이벌·주요 인물 ${n(['hero', 'rival', 'admin'])}`].join(' · ');
 	return [`관장·사천왕·챔피언 ${n(['leader', 'elite', 'champion'])}`, n(['hero', 'rival']) ? `주인공·라이벌·주요 인물 ${n(['hero', 'rival'])}` : '',
 		n(['admin', 'boss']) ? `악의 조직·보스 ${n(['admin', 'boss'])}` : ''].filter(Boolean).join(' · ');
@@ -673,13 +685,17 @@ export async function runNamed() {
 	while (true) {
 		const region = await ask<NamedTrainer['region'] | typeof BACK>(r => <ChoiceScreen title="네임드 트레이너" onBack={() => r(BACK)}
 			intro={<p class="hint">역대 체육관 관장·사천왕·챔피언, 주인공·라이벌·주요 인물, 악의 조직 간부·보스, 레전즈 Z-A(미르시티) 인물과 대전합니다. (레벨 50)</p>}
-			options={REGIONS.map(reg => ({ value: reg, label: regionLabel(reg), desc: regionSummary(reg), icon: '🗺' }))}
+			options={REGIONS.filter(reg => NAMED.some(t => t.region === reg)).map(reg => { const champ = NAMED.filter(t => t.region === reg).sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)).find(t => t.role === 'champion') || NAMED.find(t => t.region === reg)!;
+				return { value: reg, label: regionLabel(reg), desc: regionSummary(reg), color: REGION_COLOR[reg], group: reg === '애니메이션' ? '애니메이션' : '게임 지방',
+					badge: `${NAMED.filter(t => t.region === reg && loadRecords().named[t.id]).length}/${NAMED.filter(t => t.region === reg).length}`,
+					icon: <img class="trainer-icon" src={SPRITE_URL(namedSprite(champ))} onError={trainerImgError} /> }; })}
 			onPick={r} />);
 		if (region === BACK) return;
 		while (true) {
 			const t = await ask<NamedTrainer | typeof BACK>(r => <ChoiceScreen title={regionLabel(region)} onBack={() => r(BACK)}
 				options={NAMED.filter(x => x.region === region).sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)).map(x => ({
 					value: x, label: x.name, desc: x.title, badge: loadRecords().named[x.id] ? `✓${loadRecords().named[x.id]}` : undefined,
+					group: ROLE_GROUP[x.role], color: ROLE_COLOR[x.role],
 					icon: <img class="trainer-icon" src={SPRITE_URL(namedSprite(x))} onError={trainerImgError} />,
 				}))} onPick={r} />);
 			if (t === BACK) break;
@@ -729,16 +745,16 @@ const RANK_BASE = 25, STREAK_STEP = 4, STREAK_MAX = 4, UPPER_STREAK = 10, UPPER_
  *  대략 2,400 RP 안팎에서 100위 안(챔피언급) */
 export function virtualRank(rp: number, now = new Date()): number | null {
 	if (rp < MASTER_MIN) return null;
-	const day = now.getDate() - 1;                       // 이번 시즌(달)에 지난 날
-	const drift = day * 3;                               // 다른 트레이너들이 올라간 만큼
+	const day = (now.getDay() + 6) % 7;                  // 이번 시즌(월요일에 시작하는 1주)에 지난 날
+	const drift = day * 12;                              // 다른 트레이너들이 올라간 만큼
 	const seed = now.getFullYear() * 400 + now.getMonth() * 32 + now.getDate();
 	const jitter = 1 + 0.08 * Math.sin(seed * 12.9898 + rp * 0.0137);   // 날마다·RP 마다 조금씩 다름
 	const above = 60000 * Math.exp(-(rp - MASTER_MIN - drift) / 185) * jitter;
 	return Math.max(1, Math.ceil(above));
 }
-export function rankTier(rp: number): RankTierT {
+export function rankTier(rp: number, now = new Date()): RankTierT {
 	let t = RANK_TIERS[0]; for (const x of RANK_TIERS) if (rp >= x.min) t = x;
-	const rank = virtualRank(rp);
+	const rank = virtualRank(rp, now);
 	if (rank !== null && rank <= 100) return { name: '챔피언급', min: MASTER_MIN, ball: 'masterball', cls: '챔피언급', step: 0, rank };
 	return rank !== null ? { ...t, rank } : t;
 }
@@ -778,6 +794,43 @@ function rankOpponent(rpNew: number, fmt: RankFmt, level: number) {
 	return { name: tr.name, title: tr.className, sprite: tr.sprite, lines: tr.lines, line: tr.lines.intro, skill, team: withLevel(team, level), named: false, ranker: '' };
 }
 /** 끝나지 않은 랭크 매치(배틀 중 앱 종료·새로고침)를 패배로 처리. 앱 시작·랭크 매치 진입 때 부름. 처리했으면 그 형식 키를 돌려줌 */
+// ── 랭크 시즌: 1주 단위 (월요일 0시 시작). 시즌이 바뀌면 지난 시즌 등급을 기록하고 RP 를 60% 로 줄여 새로 시작 ──
+const SEASON0 = new Date(2026, 0, 5).getTime();   // 2026-01-05 (월) = 시즌 1
+export function seasonOf(now = new Date()) {
+	const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
+	const no = Math.floor((mon.getTime() - SEASON0) / (7 * 864e5)) + 1;
+	const end = new Date(mon.getTime() + 7 * 864e5);
+	return { id: `S${no}`, no, start: mon, end };
+}
+/** 시즌 끝까지 남은 시간 문구 */
+export function seasonLeft(now = new Date()) {
+	const ms = seasonOf(now).end.getTime() - now.getTime(); const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5);
+	return d ? `${d}일 ${h}시간 남음` : `${h}시간 남음`;
+}
+/** 시즌이 바뀌었으면 마감 처리. 처리 결과 문구(없으면 null) */
+export function settleSeason(): string | null {
+	const cur = seasonOf().id;
+	const rec = loadRecords();
+	const last = (rec as any).season as string | undefined;
+	if (last === cur) return null;
+	const msgs: string[] = [];
+	if (last) {
+		const ended: { id: string; fmt: string; rp: number; tier: string }[] = [];
+		const rp2: { [k: string]: number } = {};
+		const lastEnd = new Date(seasonOf().start.getTime() - 60000);   // 지난 시즌 마지막 순간 기준 등급
+		for (const [k, v] of Object.entries(rec.rp || {})) {
+			if (!v) continue;
+			const tt = rankTier(v, lastEnd), t = tt.name;
+			if (tt.cls === '챔피언급') awardSymbol('rank', true);   // 시즌을 챔피언급으로 마감 → 챔피언 심볼(금)
+			ended.push({ id: last, fmt: k, rp: v, tier: t });
+			rp2[k] = Math.round(v * 0.6);
+			msgs.push(`${k.startsWith('doubles') ? '더블' : '싱글'} ${t} (${v} RP) → 새 시즌 ${rp2[k]} RP`);
+		}
+		if (ended.length) updateStats(s => { s.seasons.push(...ended); });
+		updateRecords(r => { r.rp = { ...(r.rp || {}), ...rp2 }; r.rankStreak = {}; (r as any).season = cur; });
+	} else updateRecords(r => { (r as any).season = cur; });
+	return msgs.length ? `시즌 ${last!.slice(1)} 종료! ${msgs.join(' · ')}` : null;
+}
 export function settleRankPending(): string | null {
 	const p = loadRecords().rankPending;
 	if (!p) return null;
@@ -786,11 +839,13 @@ export function settleRankPending(): string | null {
 }
 export async function runRank() {
 	settleRankPending();
+	const seasonMsg = settleSeason();
+	const season = seasonOf();
 	const settled = !!loadRecords().rankNotice;   // 앱 시작 때 처리했어도 랭크 매치에 들어오면 한 번 알림
 	if (settled) updateRecords(r => { r.rankNotice = undefined; });
 	const opts = defaultOpts();
 	const fmt = await ask<RankFmt | typeof BACK>(r => <ChoiceScreen title="모의 랭크 매치" onBack={() => r(BACK)}
-		intro={<>{settled && <p class="hint warn">⚠ 지난 랭크 매치가 끝나기 전에 앱이 꺼져서 패배로 처리했어요.</p>}<p class="hint">포켓몬 챔피언스 방식: 6마리를 등록하고 상대 엔트리를 본 뒤 참가 포켓몬을 고릅니다. 이기면 RP가 올라 등급이 오르고, 올라갈수록 상대 포켓몬과 AI가 강해집니다.</p></>}
+		intro={<>{seasonMsg && <p class="hint warn">🏁 {seasonMsg}</p>}<p class="hint">📅 시즌 {season.no} · {seasonLeft()} (매주 월요일 0시에 새 시즌, RP 는 60%로 줄어듦)</p>{settled && <p class="hint warn">⚠ 지난 랭크 매치가 끝나기 전에 앱이 꺼져서 패배로 처리했어요.</p>}<p class="hint">포켓몬 챔피언스 방식: 6마리를 등록하고 상대 엔트리를 본 뒤 참가 포켓몬을 고릅니다. 이기면 RP가 올라 등급이 오르고, 올라갈수록 상대 포켓몬과 AI가 강해집니다.</p></>}
 		options={[
 			{ value: 'singles' as RankFmt, label: '싱글 6→3', desc: '6마리 중 3마리 선택 · 1대1', icon: '③', badge: `${rankLabel(loadRecords().rp?.['singles' + rt()] || 0)} ${loadRecords().rp?.['singles' + rt()] || 0}RP` },
 			{ value: 'doubles' as RankFmt, label: '더블 6→4', desc: '6마리 중 4마리 선택 · 2대2', icon: '④', badge: `${rankLabel(loadRecords().rp?.['doubles' + rt()] || 0)} ${loadRecords().rp?.['doubles' + rt()] || 0}RP` },
@@ -826,7 +881,7 @@ export async function runRank() {
 		// 배틀 도중 앱을 끄거나 새로고침해도 패배를 피할 수 없게: 진 것으로 칠 결과를 먼저 저장해 두고, 결과가 나면 지움 (settleRankPending)
 		if (!noRec(opts)) updateRecords(r => { r.rankPending = { key, rp: Math.max(0, rp - loss), streak: 0 }; });
 		const res = await battle({
-			gen: 9, doubles: fmt === 'doubles', aiSkill: opp.skill, bg: oppRp >= MASTER_MIN ? 'champion' : 'pwt', label: `랭크 매치 · ${tier.name}${upper ? ' · 상위 매칭' : ''}`, music: (opp as any).music ?? (oppRp >= MASTER_MIN ? 'champion' : 'tower'),
+			gen: 9, doubles: fmt === 'doubles', aiSkill: opp.skill, bg: 'rank' as any, label: `랭크 매치 · ${tier.name}${upper ? ' · 상위 매칭' : ''}`, music: (opp as any).music ?? 'rank' as any,
 			noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse,
 			p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppPick, line: opp.line, sprite: opp.sprite, lines: opp.lines },
 		});
@@ -836,6 +891,7 @@ export async function runRank() {
 			updateRecords(r => { r.rp = { ...(r.rp || {}), [key]: newRp }; r.rpBest = { ...(r.rpBest || {}), [key]: Math.max(r.rpBest?.[key] || 0, newRp) };
 				r.rankStreak = { ...(r.rankStreak || {}), [key]: res.win ? streak + 1 : 0 }; r.rankPending = undefined; });
 			const nt = rankTier(newRp);
+			if (nt.cls === '챔피언급' && awardSymbol('rank', false)) await symbolScreen('rank', false);   // 챔피언급 도달 → 챔피언 심볼(은)
 			if (tierOrder(nt) > tierOrder(tier)) msg = `🎉 ${nt.name}(으)로 승급!`;
 			else if (tierOrder(nt) < tierOrder(tier)) msg = `${nt.name}(으)로 강등…`;
 		}
@@ -908,7 +964,7 @@ export async function runFree() {
 	}
 }
 
-function josa(name: string) {
+export function josa(name: string) {
 	const ch = name.charCodeAt(name.length - 1);
 	return ch >= 0xAC00 && ch <= 0xD7A3 && (ch - 0xAC00) % 28 ? '이' : '가';
 }

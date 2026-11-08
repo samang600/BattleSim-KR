@@ -389,16 +389,18 @@ const bgmFileMissing: { [k: string]: boolean } = {};
 export const BGM_CHOICES: [string, string][] = [['random', '기본'], ['shuffle', '무작위'], ['none', '없음'], ['battle', '트레이너 배틀'], ['tower', '배틀 시설'], ['boss', '중요 배틀'], ['champion', '챔피언 결전'], ['pwt', 'PWT 토너먼트'], ['evil', '악의 조직'],
 	['g3battle', '트레이너 배틀 2'], ['g3gym', '관장전'], ['g3frontier', '배틀 프런티어'],
 	['g3rival', '라이벌 배틀'], ['g3evil', '악의 조직 2'], ['g3brain', '프런티어 브레인'], ['g3champion', '챔피언 결전 2'],
+	['g3palace', '배틀팰리스'], ['g3factory', '배틀팩토리'], ['g3rank', '랭크 매치'], ['g3rush', '보스 러시'], ['g3daily', '오늘의 도전'],
 	['battle2', '옛 칩튠 1'], ['battle3', '옛 칩튠 2']];
 /** 배틀 음악 선택: 설정이 '기본'(random)이면 상황별 곡 (작곡한 곡 우선) */
-export function pickBattleMusic(situation: 'battle' | 'tower' | 'pwt' | 'boss' | 'evil' | 'champion') {
+export function pickBattleMusic(situation: 'battle' | 'tower' | 'pwt' | 'boss' | 'evil' | 'champion' | 'palace' | 'factory' | 'rank' | 'rush' | 'daily') {
 	const pref = loadSettings().battleBgm || 'random';
 	if (pref === 'none') return '';
 	const real = (n: string) => !!(TRACKS[n] || BGM_LOOPS[n] || CHIP[n]);
 	if (pref === 'shuffle') { const all = BGM_CHOICES.map(c => c[0]).filter(real); return all[Math.floor(Math.random() * all.length)]; }
 	if (pref !== 'random' && real(pref)) return pref;
 	const has = (n: string) => !!(BGM_LOOPS[n] || CHIP[n]);   // 작곡한 곡(칩튠판 포함)이 없으면 비슷한 곡으로
-	const pool = situation === 'champion' ? [has('champion') ? 'champion' : 'boss', 'g3champion'] : situation === 'boss' ? ['boss', 'g3gym', 'g3brain'] : situation === 'evil' ? ['evil', 'g3evil'] : situation === 'tower' ? ['tower', 'g3frontier']
+	const MODE_POOL: { [k: string]: string[] } = { palace: ['g3palace'], factory: ['g3factory', 'tower'], rank: ['g3rank'], rush: ['g3rush', 'g3evil'], daily: ['g3daily', 'g3battle'] };
+	const pool = MODE_POOL[situation] ? MODE_POOL[situation] : situation === 'champion' ? [has('champion') ? 'champion' : 'boss', 'g3champion'] : situation === 'boss' ? ['boss', 'g3gym', 'g3brain'] : situation === 'evil' ? ['evil', 'g3evil'] : situation === 'tower' ? ['tower', 'g3frontier']
 		: situation === 'pwt' ? (has('pwt') ? ['pwt'] : ['battle', 'tower']) : ['battle', 'g3battle', 'g3rival'];
 	return pool[Math.floor(Math.random() * pool.length)];
 }

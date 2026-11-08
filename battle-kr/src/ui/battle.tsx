@@ -7,6 +7,7 @@ import { moveData, moveKo, speciesData, speciesKo, toID, abilityKo, itemKo, natu
 	itemDesc, RAW, floats, type Gen } from '../data';
 import { toSimTeam, conceptBall, type PSet } from '../sets';
 import { loadSettings, updateRecords, saveReplay, newId } from '../store';
+import { emitBattleEnd } from '../battle-hooks';
 import { TeraFilters, Sprite, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
 import { MonSheet, type LiveInfo } from './screens';
 import { estimateDamage, typeEffOf, chooseAI } from '../ai';
@@ -36,6 +37,13 @@ export interface BattleSetup {
 	music?: 'battle' | 'tower' | 'pwt' | 'boss' | 'evil' | 'champion';
 	/** 멀티배틀: p1.team 중 theirs[i] 가 true 인 포켓몬은 파트너(AI)의 것. 포켓몬 주인이 지시함 */
 	partner?: { name: string; theirs: boolean[]; skill?: number; /** 파트너 트레이너 그림 (내 트레이너 옆에 나옴) */ sprite?: string };
+	/** 배틀 규칙을 이 배틀만 바꿈 (배틀팰리스·스토리 등) */
+	ruleId?: string;
+	/** 내 선택·상대 선택을 대신 정함 (배틀팰리스: 포켓몬이 성격대로 스스로 싸움). null 이면 평소대로 */
+	auto?: (battle: any, req: any) => string | null;
+	p2Auto?: (battle: any, req: any) => string | null;
+	/** 화면 위 안내 (예: '포켓몬이 스스로 싸우고 있다') */
+	autoMsg?: string;
 }
 export interface BattleResult { win: boolean; forfeit: boolean; turns: number; p1Left: number; p2Left: number; quit?: boolean }
 
@@ -755,6 +763,7 @@ function typeTint(type: string) {
 			setPhase('ended');
 			const win = s.winner === setup.p1.name;
 			if (!setup.noRecord) updateRecords(r => { r.battles++; if (win) r.wins++; });
+			emitBattleEnd(setup, s.battle, win);
 			if (win) playMusic('victory'); else stopMusic();
 			const left = s.battle.p1.pokemon.filter((x: any) => !x.fainted).length;
 			showMsg(win ? `${setup.p2.title ? setup.p2.title + ' ' : ''}${setup.p2.name}에게 이겼다! (${s.battle.turn}턴 · 남은 포켓몬 ${left}마리)` : `눈앞이 깜깜해졌다… (${s.battle.turn}턴)`);
@@ -801,6 +810,12 @@ function typeTint(type: string) {
 		const req = sessionRef.current!.p1Request;
 		if (!req || req.wait) { setPhase('playing'); return; }
 		if (setup.replay) { void replayStep(); return; }
+		const autoC = setup.auto?.(sessionRef.current!.battle, req);
+		if (autoC) {   // 배틀팰리스: 포켓몬이 스스로 고름
+			setPhase('playing'); if (setup.autoMsg) setMessage(setup.autoMsg);
+			void (async () => { await wait(Math.max(300, SPEED_MS[settings.speed] * 0.7)); const lines = sessionRef.current!.choose(autoC); if (lines) await play(lines); })();
+			return;
+		}
 		const first = firstSlot(req, 0);
 		if (first < 0 && setup.partner) { void submit([]); return; }
 		setSlotIdx(first);
@@ -953,6 +968,7 @@ function typeTint(type: string) {
 	useEffect(() => {
 		const s = new Session({
 			gen: setup.gen, doubles: setup.doubles, aiSkill: setup.aiSkill, inverse: !!setup.inverse,
+			...(setup.ruleId ? { ruleId: setup.ruleId } : {}), p2Auto: setup.p2Auto,
 			...(setup.replay ? { seed: setup.replay.seed, ruleId: setup.replay.ruleId, replayP2: setup.replay.p2 } : {}),
 			partnerFlags: setup.partner?.theirs,
 			p1: { name: setup.p1.name, team: toSimTeam(setup.p1.team, !!setup.cheat) as any },

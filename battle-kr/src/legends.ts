@@ -82,6 +82,13 @@ export function rosterForRule(t: NamedTrainer, ruleIn: BattleRule): string[] {
 	const lore = LORE[t.id] || {};
 	// 1) 규칙상 못 쓰는 포켓몬 제거
 	let roster = t.team.filter(id => speciesAllowed(rule, id));
+	// 애니메이션 오리지널 트레이너는 작중 팀 그대로 (전설을 더 넣지 않음).
+	// 지우·진철·슈티 같은 주인공·라이벌은 초전설(Restricted Legendary)을 쓰지 않음
+	if (t.region === '애니메이션') {
+		const noRestricted = /^ash|^paul$|^trip$/.test(t.id) || t.role === 'hero' || t.role === 'rival';
+		const r = noRestricted ? roster.filter(id => !RAW.species[id]?.tags?.includes('Restricted Legendary')) : roster;
+		return r.length ? r : t.team;
+	}
 	const used = new Set(roster);
 	// 2) 넣을 전설·준전설 고르기
 	const adds: string[] = [];

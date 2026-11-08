@@ -4,6 +4,8 @@
   g3gym      관장전 (C단조 168): 영웅적인 단조, B 구간 끝에 나폴리 화음(Db)
   g3frontier 배틀 프런티어풍 (F장조 160): 금관 팡파르 느낌의 장조, 믹솔리디안 Bb·C7
   pwthall    PWT 대진표 대기 (Bb장조 132): 경기장 행진풍 (NEW 의 song2 형식)
+  g3palace 배틀팰리스 (D도리안 138) · g3factory 배틀팩토리 (E단조 158) · g3rank 랭크 매치 (B단조 170)
+  g3rush 보스 러시 (F단조 182) · g3daily 오늘의 도전 (G장조 150)
 형식: 인트로 → A(8마디) → B(8마디) → A 로 반복 (intro 칸부터)
 출력: <앱>/src/gen/chip-gen3.json (chip-tracks.json 과 같은 형식: 16분음표 한 칸에 한 글자, ' ' 쉼, '!' 지속, 그 밖 chr(MIDI+14))
 사용: python3 gen3.py [출력 경로]"""
@@ -277,6 +279,68 @@ NEW = {
          'g5.4 bb5.4 eb6.6 d6.2|c6.4 a5.4 f5.8|f5.4 a5.4 d6.6 c6.2|bb5.8 g5.4 d5.4|'
          'eb6.4 c6.4 g5.4 c6.4|a5.2 bb5.2 c6.2 d6.2 f6.8|d6.6 c6.2 bb5.4 f5.4|a5.2 c6.2 eb6.2 f6.2 a6.8', {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
     ], {'main': 'k...s...k.k.s...', 'b': 'k...s.k.k.k.s.ss', 'intro': 's.s.s.s.s.s.ssss'}, 'k.s.k.s.s.ssssss'),
+    # 배틀팰리스 (D도리안 138): 조용하지만 팽팽한 — 5음계 느낌의 리드, Dm→G(도리안 IV) 진행, 가벼운 드럼, B 에서 Bb·C 로 열렸다가 A7 로 돌아옴
+    'g3palace': (138, [
+        ('intro', ['Dm', 'Dm'],
+         'd5.2 a4.2 d5.2 f5.2 a5.4 g5.4|d6.2 c6.2 a5.2 g5.2 a5.8', {'harm': 'none', 'bass': 'half', 'drum': 'intro'}),
+        ('A', ['Dm', 'G', 'Dm', 'C', 'F', 'G', 'Am', 'Am'],
+         'a5.4 g5.2 a5.2 d6.4 c6.2 a5.2|g5.6 a5.2 b5.4 d6.4|f5.4 d5.2 f5.2 a5.4 g5.2 f5.2|e5.6 g5.2 c6.8|'
+         'c6.4 a5.2 c6.2 f6.4 d6.2 c6.2|d6.6 c6.2 b5.4 g5.4|a5.2 c6.2 d6.4 e6.2 d6.2 c6.4|a5.12 r.4', {'harm': 'third', 'bass': 'walk'}),
+        ('B', ['Bb', 'C', 'Am', 'Dm', 'Bb', 'C', 'Em', 'A7'],
+         'd6.4 f6.4 d6.2 c6.2 bb5.4|c6.6 d6.2 e6.4 g6.4|e6.4 c6.4 a5.4 c6.4|d6.8 a5.4 f5.4|'
+         'f5.4 bb5.4 d6.4 f6.4|g6.6 f6.2 e6.4 c6.4|b5.4 g5.2 a5.2 b5.4 d6.4|c#6.2 e6.2 a6.4 g6.2 e6.2 c#6.4', {'harm': 'pad', 'bass': 'half', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k.......s...h.h.', 'b': 'k...h...s...h.h.', 'intro': 'h...h...h...h...'}, 'k...s...s.s.s.ss'),
+    # 배틀팩토리 (E단조 158): 기계가 도는 듯한 16분 반복 리드, 엇박 옥타브 베이스, B 는 16분 연타 베이스와 화음 찌르기
+    'g3factory': (158, [
+        ('intro', ['Em', 'Em'],
+         'e5.1 e5.1 r.1 e5.1 r.1 e5.1 b4.1 r.1 e5.1 e5.1 r.1 e5.1 g5.2 f#5.2|e5.1 e5.1 r.1 e5.1 r.1 e5.1 b4.1 r.1 b5.2 a5.2 g5.2 f#5.2',
+         {'harm': 'none', 'bass': 'drive', 'drum': 'intro'}),
+        ('A', ['Em', 'C', 'D', 'B', 'Em', 'C', 'Am', 'B7'],
+         'e5.2 g5.1 e5.1 b5.2 e5.2 g5.2 b5.2 e6.4|e6.2 d6.1 c6.1 g5.2 c6.2 e6.2 g5.2 c6.4|d6.2 c6.1 a5.1 f#5.2 a5.2 d6.2 a5.2 f#5.4|d#6.4 b5.2 f#5.2 b5.8|'
+         'g5.2 b5.1 g5.1 e5.2 g5.2 b5.2 e6.2 g6.4|g6.2 e6.1 c6.1 g5.2 e6.2 c6.4 g5.4|a5.2 c6.1 a5.1 e6.2 c6.2 a5.2 c6.2 e6.4|f#6.4 d#6.4 b5.4 a5.4', {'harm': 'third', 'bass': 'synco'}),
+        ('B', ['Am', 'D', 'G', 'C', 'Am', 'B7', 'Em', 'B7'],
+         'c6.6 b5.2 a5.4 e5.4|f#5.6 a5.2 d6.8|b5.4 d6.4 g6.4 d6.4|e6.8 c6.4 g5.4|'
+         'a5.2 b5.2 c6.2 e6.2 a6.4 e6.4|f#6.4 d#6.2 b5.2 a5.4 f#5.4|g5.2 f#5.2 e5.2 g5.2 b5.4 e6.4|d#6.2 r.2 d#6.2 r.2 f#6.2 r.2 b5.4',
+         {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k.hhs.hhk.hhs.hh', 'b': 'k.hks.hkk.hks.hs', 'intro': 'k.h.k.h.k.h.k.hs'}, 'k.s.k.s.k.s.ssss'),
+    # 랭크 매치 (B단조 170): 현대적인 경기장 — 분산화음 인트로, 엇박 화음 찌르기, B 는 갤럽 베이스로 G-A-F#m 을 밀어 올림
+    'g3rank': (170, [
+        ('intro', ['Bm', 'G', 'D', 'F#7'],
+         'b4.2 d5.2 f#5.2 b5.2 d6.2 b5.2 f#5.4|g5.2 b5.2 d6.2 g6.2 d6.2 b5.2 g5.4|a5.2 d6.2 f#6.4 a6.2 f#6.2 d6.4|f#6.2 r.2 f#6.2 r.2 e6.2 c#6.2 a#5.4',
+         {'harm': 'stab', 'bass': 'drive', 'drum': 'intro'}),
+        ('A', ['Bm', 'G', 'D', 'A', 'Bm', 'G', 'Em', 'F#7'],
+         'f#5.3 b5.1 d6.4 f#6.2 e6.2 d6.4|b5.6 a5.2 g5.4 d5.4|a5.3 d6.1 f#6.4 a6.4 f#6.4|e6.6 c#6.2 a5.8|'
+         'd6.2 c#6.2 b5.2 d6.2 f#6.4 b6.4|g6.4 f#6.2 d6.2 b5.4 d6.4|e6.2 f#6.2 g6.2 b6.2 g6.4 e6.4|f#6.8 c#6.4 a#5.4', {'harm': 'stab', 'bass': 'synco'}),
+        ('B', ['G', 'A', 'F#m', 'Bm', 'G', 'A', 'D', 'F#7'],
+         'd6.4 g6.4 b6.6 a6.2|a6.4 e6.4 c#6.8|c#6.4 f#6.4 a6.6 g#6.2|f#6.8 d6.4 b5.4|'
+         'b5.2 d6.2 g6.2 d6.2 b6.4 a6.4|a6.2 e6.2 c#6.2 e6.2 a6.4 c#7.4|d7.6 c#7.2 a6.4 f#6.4|e6.2 f#6.2 a#6.2 c#7.2 e7.8',
+         {'harm': 'third', 'bass': 'gallop', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k.h.s.hkk.hks.hk', 'b': 'k.hhs.hkkkhhs.hs', 'intro': 'k...s...k.k.s.ss'}, 'k.s.k.s.s.ssssss'),
+    # 보스 러시 (F단조 182): 끊어 치는 옥타브 인트로, 반음 하강 베이스, ♭II(Gb) 로 조이는 A, Db·Eb 로 치솟는 B
+    'g3rush': (182, [
+        ('intro', ['Fm', 'Fm', 'Db', 'C7'],
+         'f4.1 f4.1 r.2 f5.1 f5.1 r.2 ab5.2 r.2 c6.4|f4.1 f4.1 r.2 f5.1 f5.1 r.2 c6.2 db6.2 c6.4|db6.4 ab5.4 f5.4 db5.4|c5.2 e5.2 g5.2 bb5.2 c6.8',
+         {'harm': 'none', 'bass': 'menace', 'drum': 'intro'}),
+        ('A', ['Fm', 'Fm', 'Db', 'C7', 'Fm', 'Bbm', 'Gb', 'C7'],
+         'f5.2 r.1 f5.1 ab5.2 c6.2 f6.4 e6.2 f6.2|ab6.4 g6.2 f6.2 c6.4 ab5.4|f5.2 r.1 f5.1 ab5.2 db6.2 f6.4 eb6.2 db6.2|e6.6 db6.2 c6.4 g5.4|'
+         'c6.2 db6.2 c6.2 ab5.2 f5.4 c6.4|db6.2 eb6.2 f6.2 db6.2 bb5.4 f5.4|gb5.2 bb5.2 db6.2 f6.2 gb6.4 db6.4|c6.2 bb5.2 g5.2 e5.2 c5.8', {'harm': 'third', 'bass': 'menace'}),
+        ('B', ['Db', 'Eb', 'Cm', 'Fm', 'Db', 'Eb', 'Bbm', 'C7'],
+         'ab5.6 db6.2 f6.8|g6.6 f6.2 eb6.4 bb5.4|c6.4 eb6.4 g6.4 eb6.4|f6.12 c6.4|'
+         'db6.2 f6.2 ab6.2 f6.2 db7.4 ab6.4|bb6.2 g6.2 eb6.2 g6.2 bb6.4 g6.4|f6.4 db6.4 bb5.4 db6.4|e6.2 r.2 e6.2 r.2 g6.2 bb6.2 c7.4',
+         {'harm': 'stab', 'bass': 'gallop', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'kkh.s.hkk.hks.hs', 'b': 'k.k.s.kkk.k.s.ss', 'intro': 'k.k.k.k.s.s.ssss'}, 'k.s.k.s.ssssssss'),
+    # 오늘의 도전 (G장조 150): 밝고 경쾌한 축제풍 — 도약하는 분산화음 선율, 워킹 베이스, B 는 C-D-Bm-Em 으로 펼쳐지고 D7 로 돌아옴
+    'g3daily': (150, [
+        ('intro', ['G', 'D'],
+         'd5.2 g5.2 b5.2 d6.2 g6.4 d6.4|f#6.2 e6.2 d6.2 a5.2 f#5.4 a5.4', {'harm': 'third', 'bass': 'walk', 'drum': 'intro'}),
+        ('A', ['G', 'C', 'G', 'D', 'Em', 'C', 'Am', 'D7'],
+         'b5.4 d6.2 b5.2 g5.4 b5.4|c6.4 e6.2 c6.2 g5.4 e5.4|d5.2 g5.2 b5.2 d6.2 g6.6 f#6.2|f#6.4 e6.2 d6.2 a5.8|'
+         'g6.4 e6.2 g6.2 b6.4 g6.4|e6.2 f#6.2 g6.2 e6.2 c6.4 g5.4|a5.2 b5.2 c6.2 e6.2 a6.4 g6.2 f#6.2|f#6.8 d6.4 c6.4', {'harm': 'third', 'bass': 'walk'}),
+        ('B', ['C', 'D', 'Bm', 'Em', 'Am', 'D', 'G', 'D7'],
+         'e6.6 d6.2 c6.4 g5.4|f#6.6 e6.2 d6.4 a5.4|b5.4 d6.4 f#6.4 d6.4|e6.8 b5.4 g5.4|'
+         'c6.2 b5.2 a5.2 c6.2 e6.4 a6.4|a6.2 g6.2 f#6.2 e6.2 d6.4 f#6.4|g6.6 f#6.2 g6.4 b6.4|a6.2 r.2 a6.2 r.2 f#6.2 d6.2 c6.4',
+         {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k.h.s.hhk.h.s.h.', 'b': 'k.hhs.h.k.hhs.hs', 'intro': 'k...s...k.k.s.ss'}, 'k.s.k.s.s.ssssss'),
 }
 for k, (bpm, secs, *dr) in NEW.items():
     print(consonance(k, secs))

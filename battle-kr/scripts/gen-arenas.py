@@ -421,12 +421,270 @@ def stadium_day():
     return im
 
 
+# ───────── 시설·모드 배경 (팰리스·랭크·보스 러시·오늘의 도전) ─────────
+def palace():
+    """배틀팰리스: 정원 속 사당 — 비취색 벽·격자 창호·처마 등롱, 비취 돌바닥과 가운데 참배길"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#0e2420', '#122c26', '#16342c', '#1a3c32', '#1e4438', '#224c3e'])
+    # 격자 창호 (안쪽에서 은은히 빛나는 종이)
+    for wx in range(12, W, 64):
+        d.rectangle([wx, 14, wx + 40, 58], fill='#3a2a1c')
+        d.rectangle([wx + 2, 16, wx + 38, 56], fill='#cfe8c8')
+        for i, c in enumerate(['#b8dcb0', '#c4e2bc', '#cfe8c8']):
+            d.rectangle([wx + 2, 16 + i * 2, wx + 38, 17 + i * 2], fill=c)
+        for gx in range(wx + 2, wx + 39, 6):
+            d.line([(gx, 16), (gx, 56)], fill='#5a3e26')
+        for gy in range(16, 57, 8):
+            d.line([(wx + 2, gy), (wx + 38, gy)], fill='#5a3e26')
+        d.rectangle([wx + 19, 16, wx + 21, 56], fill='#3a2a1c')
+    # 붉은 옻칠 기둥
+    for px in range(4, W, 64):
+        d.rectangle([px - 4, 0, px + 3, 76], fill='#8a2a20')
+        d.rectangle([px - 4, 0, px - 3, 76], fill='#b84a34')
+        d.rectangle([px + 2, 0, px + 3, 76], fill='#5a1810')
+        d.rectangle([px - 6, 70, px + 5, 76], fill='#2a1c12')
+    # 처마: 기와 줄 + 서까래 끝
+    d.rectangle([0, 0, W, 9], fill='#1a3a30')
+    for x in range(0, W, 8):
+        d.rectangle([x, 0, x + 5, 7], fill='#2e6a54'); d.rectangle([x, 0, x + 5, 1], fill='#5aa888')
+    d.rectangle([0, 9, W, 11], fill='#3a2a1c')
+    for x in range(2, W, 6):
+        d.rectangle([x, 9, x + 2, 11], fill='#d8b050')
+    # 처마 등롱
+    for lx in range(36, W, 64):
+        d.line([(lx, 11), (lx, 17)], fill='#2a1c12')
+        d.rectangle([lx - 4, 17, lx + 4, 18], fill='#d8b050')
+        d.ellipse([lx - 6, 18, lx + 6, 32], fill='#d84a2a')
+        d.ellipse([lx - 4, 20, lx + 4, 30], fill='#f08a3a')
+        d.rectangle([lx - 1, 20, lx + 1, 30], fill='#ffd070')
+        for yy in (22, 25, 28):
+            d.line([(lx - 5, yy), (lx + 5, yy)], fill='#a8301c')
+        d.rectangle([lx - 4, 32, lx + 4, 33], fill='#d8b050')
+        d.line([(lx, 34), (lx, 38)], fill='#d8b050')
+    # 난간과 정원 수풀
+    d.rectangle([0, 60, W, 76], fill='#1a2c1e')
+    rnd = random.Random(31)
+    for x in range(-4, W, 10):
+        h = 4 + rnd.randint(0, 5)
+        d.ellipse([x, 66 - h, x + 14, 72], fill='#2a5a36')
+        d.ellipse([x + 3, 66 - h, x + 9, 68 - h + 3], fill='#3e7a48')
+    d.rectangle([0, 64, W, 65], fill='#6a2018')
+    for x in range(0, W, 12):
+        d.rectangle([x, 64, x + 1, 74], fill='#6a2018')
+    d.rectangle([0, 73, W, 75], fill='#8a2a20')
+    # 비취 돌바닥 + 이음매, 가운데 참배길
+    bands(d, 76, H, ['#6aa888', '#62a080', '#5a9878', '#529070', '#4a8868', '#428060'])
+    for y in range(80, H, 8):
+        d.line([(0, y), (W, y)], fill='#3a7056')
+        off = (y // 8 % 2) * 12
+        for x in range(off, W, 24):
+            d.line([(x, y), (x, y + 7)], fill='#3a7056')
+    for y in range(76, H, 2):
+        k = (y - 76) / (H - 76)
+        hw = int(14 + 26 * k)
+        c = '#d8ccb0' if (y // 6) % 2 else '#cfc2a4'
+        d.line([(W // 2 - hw, y), (W // 2 + hw, y)], fill=c)
+    for y in range(80, H, 5):
+        for x in range((y * 7) % 13, W, 13):
+            d.point((x, y), fill='#8ac8a4')
+    ellipse_platform(d, 196, 82, 46, 9, '#b8e0c8', '#78b494', '#2e6a50')
+    ellipse_platform(d, 62, 132, 62, 11, '#b8e0c8', '#78b494', '#2e6a50')
+    return im
 
 
+def rank():
+    """랭크 매치: e스포츠 경기장 — 대형 전광판·좌우 화면·네온 LED 띠, 네온 격자 바닥"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#06080e', '#080c16', '#0a101c', '#0c1424', '#0e182c', '#101c34'])
+    # 천장 트러스와 조명
+    d.rectangle([0, 0, W, 5], fill='#1a2030')
+    for x in range(0, W, 8):
+        d.line([(x, 0), (x + 4, 5)], fill='#2c3448'); d.line([(x + 8, 0), (x + 4, 5)], fill='#2c3448')
+    for x in range(12, W, 24):
+        d.rectangle([x, 5, x + 4, 7], fill='#e8f4ff')
+    # 관중 (어두운 실루엣 + 응원봉)
+    rnd = random.Random(41)
+    for row in range(3):
+        y = 50 + row * 4
+        d.rectangle([0, y, W, y + 3], fill=['#121a2a', '#161f32', '#1a243a'][row])
+        for x in range((row % 2) * 3, W, 6):
+            d.rectangle([x, y, x + 2, y + 1], fill='#0a0e18')
+            if rnd.random() < 0.18:
+                d.point((x + 1, y - 1), fill=rnd.choice(['#30f0ff', '#ff3ad0', '#f8f060']))
+    # 가운데 대형 전광판
+    d.rectangle([84, 10, 172, 46], fill='#1c2434')
+    d.rectangle([86, 12, 170, 44], fill='#0a1838')
+    for y in range(12, 45, 2):
+        d.line([(86, y), (170, y)], fill='#0c1e44')
+    d.rectangle([90, 16, 124, 26], fill='#1e9ad8'); d.rectangle([90, 16, 124, 17], fill='#7ad8ff')
+    d.rectangle([132, 16, 166, 26], fill='#d8306a'); d.rectangle([132, 16, 166, 17], fill='#ff8ab0')
+    d.polygon([(124, 16), (132, 16), (132, 26), (124, 26)], fill='#f8f060')
+    for i in range(6):  # 점수 막대
+        d.rectangle([92 + i * 5, 32, 95 + i * 5, 40], fill='#30f0ff' if i < 4 else '#18405a')
+        d.rectangle([161 - i * 5, 32, 164 - i * 5, 40], fill='#ff3ad0' if i < 3 else '#5a1840')
+    d.rectangle([122, 30, 134, 42], fill='#f8f060'); d.rectangle([124, 32, 132, 40], fill='#0a1838')
+    d.rectangle([127, 33, 129, 39], fill='#f8f060')
+    d.rectangle([126, 46, 130, 50], fill='#2a3244')
+    # 좌우 세로 화면
+    for sx, c, hi in [(14, '#1e9ad8', '#7ad8ff'), (214, '#d8306a', '#ff8ab0')]:
+        d.rectangle([sx, 14, sx + 28, 42], fill='#1c2434')
+        d.rectangle([sx + 2, 16, sx + 26, 40], fill='#0a1430')
+        for k in range(4):
+            d.rectangle([sx + 5, 19 + k * 5, sx + 5 + 16 - k * 3, 21 + k * 5], fill=c if k else hi)
+    # 네온 LED 띠
+    d.rectangle([0, 62, W, 76], fill='#0a0c14')
+    for x in range(0, W, 2):
+        t = (x // 16) % 3
+        d.point((x, 64), fill=['#30f0ff', '#ff3ad0', '#f8f060'][t])
+    for x in range(0, W, 32):
+        d.rectangle([x + 2, 67, x + 29, 72], fill='#102a48' if (x // 32) % 2 else '#3a1240')
+        d.rectangle([x + 4, 69, x + 4 + 6 + (x * 3) % 16, 70], fill='#30f0ff' if (x // 32) % 2 else '#ff3ad0')
+    d.line([(0, 75), (W, 75)], fill='#30f0ff')
+    # 바닥: 짙은 남색 + 네온 원근 격자
+    bands(d, 76, H, ['#141a34', '#12182e', '#101628', '#0e1424', '#0c1220', '#0a101c'])
+    for y in [78, 81, 85, 90, 96, 103, 111, 120, 130, 141]:
+        d.line([(0, y), (W, y)], fill='#1a4a78')
+    for i in range(-12, 14):
+        d.line([(W // 2 + i * 8, 76), (W // 2 + i * 28, H)], fill='#1a4a78')
+    # 가운데 육각 로고
+    cx, cy = 128, 108
+    hexp = [(cx - 30, cy), (cx - 16, cy - 10), (cx + 16, cy - 10), (cx + 30, cy), (cx + 16, cy + 10), (cx - 16, cy + 10)]
+    d.polygon(hexp, outline='#30f0ff')
+    d.polygon([(x + (2 if x < cx else -2), y) for x, y in [(cx - 22, cy), (cx - 12, cy - 6), (cx + 12, cy - 6), (cx + 22, cy), (cx + 12, cy + 6), (cx - 12, cy + 6)]], outline='#ff3ad0')
+    ellipse_platform(d, 196, 82, 46, 9, '#3a4a78', '#30c0e8', '#103050')
+    ellipse_platform(d, 62, 132, 62, 11, '#3a4a78', '#30c0e8', '#103050')
+    return im
 
 
+def rush():
+    """보스 러시: 어둠의 대전당 — 붉은 문장 깃발·화톳불·가시 기둥, 붉게 갈라진 보라 석판 바닥"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#0a0610', '#100818', '#160a20', '#1c0c28', '#220e30', '#281038'])
+    # 벽돌 결
+    for y in range(8, 70, 8):
+        d.line([(0, y), (W, y)], fill='#1a0a22')
+        for x in range((y // 8 % 2) * 10, W, 20):
+            d.line([(x, y), (x, y + 7)], fill='#1a0a22')
+    # 가운데 큰 문장 깃발
+    d.polygon([(100, 4), (156, 4), (156, 52), (128, 64), (100, 52)], fill='#5a0a14')
+    d.polygon([(102, 6), (154, 6), (154, 51), (128, 62), (102, 51)], fill='#8a1020')
+    d.rectangle([98, 2, 158, 5], fill='#3a2a3a'); d.rectangle([98, 2, 158, 2], fill='#8a7a90')
+    # 문장: 뿔 달린 눈
+    d.polygon([(112, 18), (118, 26), (114, 26)], fill='#1a0408'); d.polygon([(144, 18), (138, 26), (142, 26)], fill='#1a0408')
+    d.ellipse([110, 24, 146, 44], fill='#1a0408')
+    d.ellipse([114, 27, 142, 41], fill='#e02a2a')
+    d.ellipse([122, 28, 134, 40], fill='#ffb030')
+    d.rectangle([127, 28, 129, 40], fill='#1a0408')
+    d.polygon([(128, 46), (122, 54), (134, 54)], fill='#1a0408')
+    # 옆 깃발 (보라)
+    for bx in (26, 206):
+        d.polygon([(bx, 6), (bx + 24, 6), (bx + 24, 44), (bx + 12, 38), (bx, 44)], fill='#3a1450')
+        d.polygon([(bx + 2, 8), (bx + 22, 8), (bx + 22, 41), (bx + 12, 36), (bx + 2, 41)], fill='#5a1e7a')
+        d.polygon([(bx + 12, 14), (bx + 18, 24), (bx + 12, 32), (bx + 6, 24)], fill='#c03050')
+        d.rectangle([bx - 2, 4, bx + 26, 6], fill='#3a2a3a')
+    # 가시 기둥
+    for px in (70, 186):
+        d.rectangle([px - 6, 0, px + 6, 76], fill='#1e1426')
+        d.rectangle([px - 6, 0, px - 5, 76], fill='#4a3458')
+        d.rectangle([px + 5, 0, px + 6, 76], fill='#0c0810')
+        for yy in range(10, 70, 14):
+            d.polygon([(px - 6, yy), (px - 12, yy + 3), (px - 6, yy + 6)], fill='#3a2a46')
+            d.polygon([(px + 6, yy), (px + 12, yy + 3), (px + 6, yy + 6)], fill='#3a2a46')
+        d.rectangle([px - 4, 30, px + 4, 32], fill='#c02030')
+    # 화톳불
+    for fx in (10, 88, 168, 246):
+        d.rectangle([fx - 5, 56, fx + 5, 60], fill='#3a2a3a'); d.rectangle([fx - 2, 60, fx + 2, 72], fill='#2a1e2e')
+        d.polygon([(fx - 5, 56), (fx - 3, 46), (fx, 50), (fx + 2, 42), (fx + 5, 56)], fill='#e0401a')
+        d.polygon([(fx - 3, 56), (fx - 1, 49), (fx + 1, 52), (fx + 2, 47), (fx + 3, 56)], fill='#ffa030')
+        d.rectangle([fx - 1, 53, fx + 1, 56], fill='#fff0a0')
+    rnd = random.Random(51)
+    for _ in range(28):  # 불티
+        d.point((rnd.randint(0, W - 1), rnd.randint(4, 60)), fill=rnd.choice(['#ff6a30', '#c02a40', '#ffb040']))
+    d.rectangle([0, 72, W, 76], fill='#140a1a'); d.line([(0, 72), (W, 72)], fill='#6a1a2a')
+    # 바닥: 보라 석판 + 붉은 균열 + 마법진
+    bands(d, 76, H, ['#2a1a34', '#26162e', '#22142a', '#1e1226', '#1a1022', '#160e1e'])
+    for y in range(80, H, 10):
+        d.line([(0, y), (W, y)], fill='#120a18')
+        for x in range((y // 10 % 2) * 16, W, 32):
+            d.line([(x, y), (x, y + 9)], fill='#120a18')
+    for _ in range(9):
+        x, y = rnd.randint(0, W - 20), rnd.randint(84, H - 4)
+        pts = [(x, y)]
+        for k in range(4):
+            x += rnd.randint(3, 7); y += rnd.randint(-2, 2); pts.append((x, y))
+        d.line(pts, fill='#a01828')
+    d.ellipse([70, 92, 186, 130], outline='#8a1830')
+    d.ellipse([84, 97, 172, 125], outline='#5a1450')
+    for k in range(12):  # 룬 눈금
+        a = k * math.pi / 6
+        d.line([(128 + 50 * math.cos(a), 111 + 16 * math.sin(a)), (128 + 56 * math.cos(a), 111 + 18 * math.sin(a))], fill='#a01828')
+    d.polygon([(128, 100), (160, 111), (128, 122), (96, 111)], outline='#7a1430')  # 마름모 문양
+    d.polygon([(128, 105), (144, 111), (128, 117), (112, 111)], fill='#3a0e22', outline='#a01828')
+    ellipse_platform(d, 196, 82, 46, 9, '#4a3058', '#7a2038', '#1a0a14')
+    ellipse_platform(d, 62, 132, 62, 11, '#4a3058', '#7a2038', '#1a0a14')
+    return im
 
 
+def daily():
+    """오늘의 도전: 노을 진 축제 광장 — 삼각 깃발 줄·줄무늬 차양 노점·등불, 따뜻한 벽돌 광장"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 60, ['#f08a5a', '#f49a5e', '#f6aa62', '#f8ba68', '#f8ca72', '#f8d880'])
+    d.ellipse([110, 34, 146, 70], fill='#ffe8a0'); d.ellipse([116, 40, 140, 64], fill='#fff6d0')
+    clouds(d, random.Random(61), 4, 6, 26, c1='#ffd2b0', c2='#f8b090')
+    # 먼 지붕 실루엣
+    pts = [(0, 76)]
+    for x in range(0, W + 16, 16):
+        hh = 48 + (x * 7) % 9
+        pts += [(x, hh + 4), (x + 8, hh), (x + 16, hh + 4)]
+    pts.append((W, 76))
+    d.polygon(pts, fill='#b8604a')
+    d.rectangle([60, 36, 70, 60], fill='#a8503e'); d.polygon([(58, 36), (65, 28), (72, 36)], fill='#a8503e')  # 시계탑
+    d.ellipse([62, 40, 68, 46], fill='#ffe8a0')
+    # 노점 차양
+    for i, sx in enumerate(range(4, W, 52)):
+        c = ['#e83a4a', '#3a8ae0', '#2aa86a', '#9a5ad8', '#f0a020'][i % 5]
+        d.rectangle([sx, 54, sx + 40, 72], fill='#7a4a32')
+        d.rectangle([sx + 4, 60, sx + 36, 70], fill='#4a2a1c')
+        d.rectangle([sx + 6, 64, sx + 34, 66], fill='#f8d880')
+        for k in range(5):
+            d.rectangle([sx + k * 8, 48, sx + k * 8 + 7, 56], fill=c if k % 2 == 0 else '#fff4e8')
+        for k in range(5):
+            d.pieslice([sx + k * 8, 53, sx + k * 8 + 7, 60], 0, 180, fill=c if k % 2 == 0 else '#fff4e8')
+    # 깃발 줄 (두 줄로 늘어진 삼각기)
+    cols = ['#e83a4a', '#f8d040', '#3a8ae0', '#2aa86a', '#ffffff', '#9a5ad8']
+    for row, (y0, sag) in enumerate([(6, 10), (20, 8)]):
+        prev = None
+        for x in range(0, W + 1, 4):
+            y = y0 + sag * math.sin(math.pi * (x % 128) / 128)
+            if prev: d.line([prev, (x, y)], fill='#5a3a2a')
+            prev = (x, y)
+        for j, x in enumerate(range(4 + row * 5, W, 10)):
+            y = int(y0 + sag * math.sin(math.pi * (x % 128) / 128))
+            d.polygon([(x - 3, y), (x + 3, y), (x, y + 6)], fill=cols[(j + row * 2) % len(cols)])
+    # 등불
+    for lx in range(30, W, 52):
+        d.ellipse([lx - 3, 40, lx + 3, 47], fill='#f86a2a'); d.rectangle([lx - 1, 42, lx + 1, 45], fill='#ffe080')
+    d.rectangle([0, 72, W, 76], fill='#a8604a'); d.line([(0, 72), (W, 72)], fill='#d88a68')
+    # 벽돌 광장 (노을빛)
+    bands(d, 76, H, ['#e8b088', '#e2a880', '#dca078', '#d69870', '#d09068', '#ca8860'])
+    for y in range(80, H, 6):
+        d.line([(0, y), (W, y)], fill='#b87050')
+        for x in range((y // 6 % 2) * 6, W, 12):
+            d.line([(x, y), (x, y + 5)], fill='#b87050')
+    for y in range(78, H, 6):
+        for x in range((y * 5) % 12 + 2, W, 24):
+            d.rectangle([x, y + 1, x + 2, y + 2], fill='#f0c49c')
+    rnd = random.Random(62)
+    for _ in range(14):  # 꽃종이
+        x, y = rnd.randint(2, W - 3), rnd.randint(84, H - 3)
+        d.rectangle([x, y, x + 1, y], fill=rnd.choice(cols))
+    ellipse_platform(d, 196, 82, 46, 9, '#f8dcc0', '#e0a078', '#8a4a30')
+    ellipse_platform(d, 62, 132, 62, 11, '#f8dcc0', '#e0a078', '#8a4a30')
+    return im
 
 
 def extend_top(im, extra, stars=True):
@@ -448,10 +706,11 @@ def extend_top(im, extra, stars=True):
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [('field', field), ('tower', tower), ('factory', factory), ('pwt', stadium), ('champion', champion),
-                     ('cave', cave), ('beach', beach), ('snow', snow), ('volcano', volcano), ('gym', gym)]:
+                     ('cave', cave), ('beach', beach), ('snow', snow), ('volcano', volcano), ('gym', gym),
+                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily)]:
         im = fn()
         if name != 'title':
-            im = extend_top(im, 48, stars=name not in ('cave', 'gym'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림
+            im = extend_top(im, 48, stars=name not in ('cave', 'gym', 'palace', 'rush'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림
         im.save(os.path.join(OUT, f'arena_{name}.png'), optimize=True)
         print('arena_' + name)
     # 타이틀·메뉴 배경(arena_title*) 은 scripts/gen-title.py 가 만든다

@@ -115,17 +115,18 @@ export function SwapScreen({ mine, theirs, gen, onDone }: {
 /** 선택지 목록 */
 export function ChoiceScreen<T>({ title, intro, footer, options, onPick, onBack }: {
 	title: string; intro?: ComponentChildren; footer?: ComponentChildren; onBack?: () => void;
-	options: { value: T; label: string; desc?: string; badge?: string; disabled?: boolean; icon?: ComponentChildren }[];
+	options: { value: T; label: string; desc?: string; badge?: string; disabled?: boolean; icon?: ComponentChildren; /** 묶음 제목 (바뀔 때마다 머리글) */ group?: string; /** 왼쪽 색 띠 */ color?: string }[];
 	onPick: (v: T) => void;
 }) {
 	return <Screen title={title} onBack={onBack}>
 		{intro}
 		<div class="option-list">
-			{options.map(o => <button class="option" disabled={o.disabled} onClick={() => onPick(o.value)}>
+			{options.map((o, i) => [o.group && o.group !== options[i - 1]?.group ? <h3 class="sec opt-group">{o.group}</h3> : null,
+				<button class={'option' + (o.color ? ' opt-color' : '')} style={o.color ? { '--oc': o.color } as any : undefined} disabled={o.disabled} onClick={() => onPick(o.value)}>
 				{o.icon && <span class="opt-icon">{o.icon}</span>}
 				<span class="opt-body"><b>{o.label}</b>{o.desc && <small>{o.desc}</small>}</span>
 				{o.badge && <span class="opt-badge">{o.badge}</span>}
-			</button>)}
+			</button>])}
 		</div>
 		{footer}
 	</Screen>;

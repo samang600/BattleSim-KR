@@ -6,25 +6,33 @@ import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, as
 import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
-import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel, settleRankPending } from './modes';
+import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
+import { runPalace, runDaily, runBossRush, todayDaily } from './frontier';
+import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
+import { TrainerBook, SymbolIcon } from './ui/book';
 import { exportBackup, inspectBackup, importBackup } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
 import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, applyRuleData, poolSub, type LegendMode } from './rules';
 import { packStatus, refreshPack, onPackProgress, startPackDownload, deletePack, hasNative, fmtBytes, BUNDLED, type PackProgress } from './offline';
 import { CUPS, NAMED } from './trainers';
 import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, setMoveSfxVolume } from './sound';
-import { PLAYER_SPRITES, SPRITE_URL } from './trainer-lines';
+import { PLAYER_SPRITES, SPRITE_URL, trainerImgError } from './trainer-lines';
 import { UserSpritesModal } from './ui/user-sprites';
 import { onUserSpritesChange } from './user-sprites';
 
 const MODES = [
-	{ id: 'tower', name: '배틀타워', sub: '연승 도전', run: runTower, color: '#3a6df0', icon: '🗼', mon: 'garchomp' },
-	{ id: 'factory', name: '배틀팩토리', sub: '렌탈 배틀', run: runFactory, color: '#e0812b', icon: '🏭', mon: 'metagross' },
-	{ id: 'pwt', name: 'PWT', sub: '월드 토너먼트', run: runPWT, color: '#d23a6a', icon: '🏆', mon: 'hydreigon' },
-	{ id: 'named', name: '네임드 트레이너', sub: '관장 · 챔피언 · 라이벌 · 악당', run: runNamed, color: '#7a4ad8', icon: '⭐', mon: 'dragonite' },
-	{ id: 'rank', name: '랭크 매치', sub: '챔피언스식 6→3 · 6→4', run: runRank, color: '#c08a20', icon: '🏅', mon: 'incineroar' },
-	{ id: 'free', name: '프리 배틀', sub: '싱글 · 더블 바로 대전', run: () => runFree(), color: '#2a9d6a', icon: '⚔', mon: 'lucario' },
+	{ id: 'tower', name: '배틀타워', sub: '7연승 세트 · 타워 타이쿤', run: runTower, color: '#2f6fe8', mon: 'garchomp' },
+	{ id: 'factory', name: '배틀팩토리', sub: '렌탈 · 교환 · 팩토리 헤드', run: runFactory, color: '#e07a1c', mon: 'metagross' },
+	{ id: 'rank', name: '랭크 매치', sub: '1주 시즌 · 6→3 · 6→4', run: runRank, color: '#c0283c', mon: 'incineroar' },
+	{ id: 'palace', name: '배틀팰리스', sub: '성격대로 스스로', run: runPalace, color: '#23a05a', mon: 'blissey' },
+	{ id: 'pwt', name: 'PWT', sub: '월드 토너먼트', run: runPWT, color: '#c03aa8', mon: 'hydreigon' },
+	{ id: 'boss', name: '보스 러시', sub: '지방 정복 · 악의 조직 · 챔피언', run: runBossRush, color: '#6a30b8', mon: 'mewtwo' },
+	{ id: 'named', name: '네임드', sub: '관장 · 챔피언 · 애니메이션', run: runNamed, color: '#14968c', mon: 'dragonite' },
+	{ id: 'free', name: '프리 배틀', sub: '싱글 · 더블 바로 대전', run: () => runFree(), color: '#56708e', mon: 'lucario' },
+	{ id: 'daily', name: '오늘의 도전', sub: '', run: runDaily, color: '#d8a018', mon: 'pikachu' },
 ];
+const FEATURED = ['tower', 'factory', 'rank'];
+const MORE = ['palace', 'pwt', 'boss', 'named', 'free', 'daily'];
 
 function TitleScreen({ onStart }: { onStart: () => void }) {
 	return <div class="title-screen" onClick={onStart}>
@@ -43,40 +51,55 @@ function TitleScreen({ onStart }: { onStart: () => void }) {
 function Home({ go }: { go: (v: string) => void }) {
 	const rec = loadRecords();
 	const settings = loadSettings();
+	const st = loadStats();
 	const t = recTag(settings.battleRule);   // 지금 규칙의 기록
-	const towerBest = Math.max(...['singles', 'doubles', 'singles6', 'doubles64', 'doubles6', 'multi'].map(f => rec.best[`tower-${f}${t}`] || 0), 0);
-	const factoryBest = Math.max(...['singles', 'doubles', 'singles6', 'doubles64', 'doubles6', 'multi'].flatMap(f => [50, 100].map(l => rec.best[`factory-${f}-${l}${t}`] || 0)), 0);
+	const best = (p: string) => Math.max(0, ...Object.entries(rec.best).filter(([k]) => k.startsWith(p) && (t ? k.endsWith(t) : !k.includes('@'))).map(([, v]) => v));
 	const cupWins = Object.values(rec.cups).reduce((a, b) => a + b, 0);
 	const namedWins = Object.keys(rec.named).length;
-	const suspended = ['tower-singles', 'tower-doubles'].some(k => load(k + t, null)) || ['singles', 'doubles'].some(f => [50, 100].some(l => load(`factory-${f}-${l}${t}`, null)));
+	const suspended = ['tower-singles', 'tower-doubles'].some(k => load(k + t, null)) || ['singles', 'doubles'].some(f => [50, 100].some(l => load(`factory-${f}-${l}${t}`, null))) || !!load('rush-run', null);
+	const rp = Math.max(rec.rp?.['singles' + t] || 0, rec.rp?.['doubles' + t] || 0);
+	const season = seasonOf();
+	const daily = todayDaily();
+	const today = st.daily[daily.date];
+	const conq = Object.keys(st.conquest).length;
 	const badge: { [id: string]: string } = {
-		tower: towerBest ? `최고 ${towerBest}연승` : '', factory: factoryBest ? `최고 ${factoryBest}연승` : '',
-		pwt: cupWins ? `우승 ${cupWins}회` : `${CUPS.length}개 대회`, named: `${namedWins}/${NAMED.length} 격파`, free: '',
-		rank: (() => { const rp = Math.max(rec.rp?.['singles' + t] || 0, rec.rp?.['doubles' + t] || 0); return rp ? `${rankLabel(rp)} ${rp}RP` : ''; })(),
+		tower: best('tower-') ? `최고 ${best('tower-')}연승` : '', factory: best('factory-') ? `최고 ${best('factory-')}연승` : '', palace: best('palace-') ? `최고 ${best('palace-')}연승` : '',
+		pwt: cupWins ? `우승 ${cupWins}회` : `${CUPS.length}개 대회`, named: `${namedWins}/${NAMED.length}`, free: '',
+		boss: conq || Object.values(st.boss).some(Boolean) ? `정복 ${conq}지방` : '',
+		rank: `시즌 ${season.no} · ${rp ? rankLabel(rp) : '참가 전'}`,
+		daily: `${daily.theme}${today !== undefined ? ` · ${today}/7` : ''}`,
 	};
-	return <div class="home">
-		<div class="home-head">
-			<div>
-				<div class="hello">{settings.playerName}, 어서 와!</div>
-				<div class="stats-line">전적 {rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · 승률 ${Math.round(rec.wins / rec.battles * 100)}%` : ''}</div>
-			</div>
+	const achDone = ACHIEVEMENTS.filter(a => (st.ach[a.id] || 0) > 0).length;
+	const tile = (id: string, big: boolean) => { const m = MODES.find(x => x.id === id)!;
+		return <button class={'mode-tile hm-tile' + (big ? ' hm-big' : '')} style={{ '--mc': m.color } as any} onClick={() => go('mode:' + m.id)}>
+			<span class="hm-mon"><Sprite species={m.mon} gen={9} size={big ? 96 : 48} anim={false} /></span>
+			<span class="hm-text"><b>{m.name}</b>{(big || id !== 'daily') && m.sub && <small>{m.sub}</small>}{badge[m.id] && <em>{badge[m.id]}</em>}</span>
+		</button>; };
+	return <div class="home hm">
+		<div class="hm-top">
+			<button class="home-head hm-card" onClick={() => go('book')} aria-label="트레이너 수첩">
+				<img class="hm-face" src={SPRITE_URL(settings.playerSprite || 'lucas')} onError={trainerImgError} alt="" />
+				<span class="hm-who">
+					<b>{settings.playerName}</b>
+					<small>{rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · ${Math.round(rec.wins / rec.battles * 100)}%` : ''} · 업적 {achDone}/{ACHIEVEMENTS.length}</small>
+					<span class="hm-syms">{(['tower', 'factory', 'rank'] as const).map(k => <SymbolIcon kind={k} lv={st.sym[k] || 0} size={18} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
+				</span>
+			</button>
 			<div class="head-btns">
 				<FullscreenButton />
 				<button class="icon-btn pix-btn" onClick={() => go('settings')} aria-label="설정"><span class="pix-ico gear" aria-hidden="true" /></button>
 			</div>
 		</div>
-		{suspended && <div class="notice">쉬는 중인 도전이 있어요. 해당 시설에 들어가면 이어서 할 수 있습니다.</div>}
-		<div class="mode-grid">
-			{MODES.map((m, i) => <button class={'mode-tile' + (i < 2 ? ' wide' : '')} style={{ '--mc': m.color } as any} onClick={() => go('mode:' + m.id)}>
-				<span class="mode-icon">{m.icon}</span>
-				<span class="mode-text"><b>{m.name}</b><small>{m.sub}</small>{badge[m.id] && <em>{badge[m.id]}</em>}</span>
-				<span class="mode-mon"><Sprite species={m.mon} gen={9} size={64} anim={false} /></span>
-			</button>)}
+		{suspended && <div class="notice hm-notice">쉬는 중인 도전이 있어요. 해당 모드에 들어가면 이어서 할 수 있습니다.</div>}
+		<div class="hm-main">
+			<div class="hm-featured">{FEATURED.map(id => tile(id, true))}</div>
+			<div class="hm-more">{MORE.map(id => tile(id, false))}</div>
 		</div>
-		<div class="home-bottom three">
-			<button class="btn big menu" onClick={() => go('teams')}>📋 팀 편집</button>
-			<button class="btn big menu" onClick={() => go('calc')}>🧮 배틀 계산기</button>
-			<button class="btn big menu" onClick={() => go('records')}>📊 기록</button>
+		<div class="hm-nav">
+			<button class="btn menu" onClick={() => go('teams')}>📋 팀 편집</button>
+			<button class="btn menu" onClick={() => go('book')}>🏅 수첩</button>
+			<button class="btn menu" onClick={() => go('records')}>📊 기록</button>
+			<button class="btn menu" onClick={() => go('calc')}>🧮 계산기</button>
 		</div>
 	</div>;
 }
@@ -367,6 +390,7 @@ function App() {
 	}
 	if (route === 'records') return <Records onBack={() => setRoute('home')} onPlay={playReplay} />;
 	if (route === 'calc') return <CalcScreen onBack={() => setRoute('home')} />;
+	if (route === 'book') return <TrainerBook onBack={() => setRoute('home')} />;
 	if (route === 'settings') return <SettingsScreen onBack={() => setRoute('home')} />;
 	return <Home go={go} />;
 }
@@ -396,7 +420,25 @@ document.addEventListener('pointerdown', e => {
 
 // 안드로이드 앱: 상태 표시줄·내비게이션 바 여백은 앱(네이티브)이 이미 비워 둠 → 웹에서 safe-area 를 또 비우면 위아래가 검게 남음
 if ((window as any).BattleSimNative) document.documentElement.classList.add('native');
+// 웹: 브라우저 뒤로가기 — 앱 안에서는 안드로이드 뒤로 버튼처럼(창 닫기·이전 화면·배틀 메뉴), 메인·타이틀에서는 떠날지 확인
+else {
+	let leaving = false, asking = false;
+	history.pushState({ pkb: 1 }, '');
+	window.addEventListener('popstate', async () => {
+		if (leaving) return;
+		history.pushState({ pkb: 1 }, '');
+		if (asking) return;
+		const atTop = !document.querySelector('.modal-bg') && !!document.querySelector('.hm, .title-screen');
+		if (!atTop && (window as any).onAndroidBack?.()) return;
+		asking = true;
+		try {
+			if (await confirmBox('나가기', '배틀 시뮬레이터를 떠날까요?\n진행 중인 연승 도전은 저장되어 있어요.', '나가기', '머무르기')) { leaving = true; history.go(-2); }
+		} finally { asking = false; }
+	});
+}
 // 규칙의 포켓몬 풀 사양으로 데이터(종족값·특성·기술·도구) 맞추기
 applyRuleData(ruleById(loadSettings().battleRule));
 settleRankPending();   // 랭크 매치 도중 앱이 꺼졌으면 패배로
+settleSeason();        // 1주 시즌이 바뀌었으면 마감
+checkAchievements(true);
 render(<App />, document.getElementById('app')!);

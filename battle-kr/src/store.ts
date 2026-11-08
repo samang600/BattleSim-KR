@@ -80,6 +80,8 @@ export interface Records {
 	rankV?: number;
 	/** 진행 중인 랭크 매치: 지면 이렇게 됨 (배틀 도중 앱이 꺼지면 다음에 이대로 처리) */
 	rankPending?: { key: string; rp: number; streak: number };
+	/** 랭크 시즌 id (S번호, 1주 단위) */
+	season?: string;
 	/** 위 처리 결과를 랭크 매치 화면에서 한 번 알림 */
 	rankNotice?: boolean;
 	battles: number;

@@ -1,13 +1,16 @@
 /** 네임드 트레이너 · 일반 트레이너 · PWT 대회 데이터 */
 import { rng } from './sets';
 import { NAMED_SPRITE, NAMED_LINES, genericLines } from './trainer-lines';
-import { NAMED_LORE, EXTRA_NAMED } from './trainer-lore';
+import { NAMED_LORE, EXTRA_NAMED as EXTRA_LORE } from './trainer-lore';
+import { ANIME_NAMED } from './anime-trainers';
+/** 추가 인물 + 애니메이션 오리지널 트레이너 */
+const EXTRA_NAMED = [...EXTRA_LORE, ...ANIME_NAMED];
 
 export interface NamedTrainer {
 	id: string;
 	name: string;
 	title: string; // 예: '회색체육관 관장'
-	region: '관동' | '성도' | '호연' | '신오' | '하나' | '칼로스' | '알로라' | '가라르' | '팔데아' | '미르시티';
+	region: '관동' | '성도' | '호연' | '신오' | '하나' | '칼로스' | '알로라' | '가라르' | '팔데아' | '미르시티' | '애니메이션';
 	role: 'leader' | 'elite' | 'champion' | 'hero' | 'rival' | 'admin' | 'boss';
 	team: string[]; // 종족 ID 6마리 (앞쪽이 에이스 순서 아님)
 	ace: string; // 마지막에 나오는 에이스
@@ -160,9 +163,11 @@ export function namedTitle(t: NamedTrainer) {
 	if (EXTRA_SPRITE[t.id] !== undefined) return t.title;
 	return ['leader', 'elite', 'champion'].includes(t.role) ? ROLE_KO[t.role] : t.title;
 }
-export const REGIONS: NamedTrainer['region'][] = ['관동', '성도', '호연', '신오', '하나', '칼로스', '알로라', '가라르', '팔데아', '미르시티'];
+export const REGIONS: NamedTrainer['region'][] = ['관동', '성도', '호연', '신오', '하나', '칼로스', '알로라', '가라르', '팔데아', '미르시티', '애니메이션'];
+/** 지방별 색 (선택 화면 왼쪽 띠) */
+export const REGION_COLOR: { [r: string]: string } = { 관동: '#d04a3a', 성도: '#c89a2a', 호연: '#2a8ad0', 신오: '#6a5ac8', 하나: '#5a6a7a', 칼로스: '#2a7ab8', 알로라: '#e07a2a', 가라르: '#a83a6a', 팔데아: '#c84a8a', 미르시티: '#3aa88a', 애니메이션: '#e8b020' };
 /** 지역 이름 표시 ('미르시티'는 레전즈 Z-A 의 도시라 '지방'을 붙이지 않음) */
-export const regionLabel = (r: string) => r === '미르시티' ? '미르시티 (레전즈 Z-A)' : `${r} 지방`;
+export const regionLabel = (r: string) => r === '미르시티' ? '미르시티 (레전즈 Z-A)' : r === '애니메이션' ? '애니메이션 오리지널' : `${r} 지방`;
 export const ROLE_KO: { [role: string]: string } = { leader: '체육관 관장', elite: '사천왕', champion: '챔피언', hero: '주인공', rival: '라이벌', admin: '간부', boss: '보스' };
 
 // ── 일반 트레이너 ──
