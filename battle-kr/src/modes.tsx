@@ -618,14 +618,18 @@ export async function runPWT() {
 	for (let round = 0; round < 3; round++) {
 		const opp = pool[oppIdx];
 		playMusic('pwthall');
-		await ask<void>(r => <InfoScreen title={cup.name} banner={['1회전', '준결승', '결승'][round]} lines={optsLines(opts)} prep={<BgmRow />}
-			actions={[{ label: '승부한다', onClick: () => r() }]}>
-			<BracketView rounds={rounds} highlight={me} sprites={faces} message={`${['1회전', '준결승', '결승'][round]} 상대는 ${opp.title} ${opp.name}!\n${cup.name} · ${fmtKo}`} />
-		</InfoScreen>);
 		const oppTeam = withLevel(opp.team(), lvl(opts));
-		// PWT(BW2): 배틀 전 상대 엔트리를 보고 6마리 중 n마리를 고름
-		const picked = await ask<PSet[]>(r => <PickScreen title="참가 포켓몬 선택" team={myTeam} gen={9} count={n}
-			opponent={{ name: `${opp.title} ${opp.name}`, team: oppTeam }} onDone={r} />);
+		let picked: PSet[] | typeof BACK = BACK;
+		while (picked === BACK) {
+			const go = await confirmQuit(() => ask<'go' | 'quit'>(r => <InfoScreen title={cup.name} banner={['1회전', '준결승', '결승'][round]} lines={optsLines(opts)} prep={<BgmRow />}
+				actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '대회 그만두기', kind: 'danger', onClick: () => r('quit') }]}>
+				<BracketView rounds={rounds} highlight={me} sprites={faces} message={`${['1회전', '준결승', '결승'][round]} 상대는 ${opp.title} ${opp.name}!\n${cup.name} · ${fmtKo}`} />
+			</InfoScreen>), 'quit', `${cup.name}을(를) 여기서 그만둘까요? (우승 기록은 남지 않아요)`);
+			if (go === 'quit') return;
+			// PWT(BW2): 배틀 전 상대 엔트리를 보고 6마리 중 n마리를 고름 (뒤로 → 대진표)
+			picked = await ask<PSet[] | typeof BACK>(r => <PickScreen title="참가 포켓몬 선택" team={myTeam} gen={9} count={n}
+				opponent={{ name: `${opp.title} ${opp.name}`, team: oppTeam }} onBack={() => r(BACK)} onDone={r} />);
+		}
 		// 상대도 내 엔트리를 보고 n마리 선택 (네임드는 에이스 포함)
 		const oppPick = aiPickEntry(oppTeam, myTeam, n, isDoubles(fmt), Math.min(0.97, opp.skill + round * 0.04), !!opp.named);
 		const res = await battle({
@@ -715,8 +719,9 @@ export async function runNamed() {
 			const size = mode === 's3' ? 3 : mode === 'd4' ? 4 : 6;
 			const oppTeam = withLevel(namedTeam(t, 6), lvl(opts));
 			const myTeam = team;
-			const picked = await ask<PSet[]>(r => <PickScreen title={myTeam.length > size ? '참가 포켓몬' : '선봉·순서 정하기'} team={myTeam} gen={9} count={Math.min(size, myTeam.length)}
-				opponent={{ name: t.name, team: oppTeam }} prep={<BgmRow />} onDone={r} />);
+			const picked = await ask<PSet[] | typeof BACK>(r => <PickScreen title={myTeam.length > size ? '참가 포켓몬' : '선봉·순서 정하기'} team={myTeam} gen={9} count={Math.min(size, myTeam.length)}
+				opponent={{ name: t.name, team: oppTeam }} prep={<BgmRow />} onBack={() => r(BACK)} onDone={r} />);
+			if (picked === BACK) continue;   // 트레이너 목록으로
 			const oppPick = size < 6 ? aiPickEntry(oppTeam, myTeam, size, doubles, ['champion', 'boss', 'hero'].includes(t.role) ? 0.95 : 0.85, true) : oppTeam;
 			const res = await battle({
 				gen: 9, doubles, aiSkill: ['champion', 'boss', 'hero'].includes(t.role) ? 0.95 : 0.85, bg: ['champion', 'boss', 'hero'].includes(t.role) ? 'champion' : bgForTeam(oppTeam),
@@ -875,8 +880,9 @@ export async function runRank() {
 			actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '그만두기', kind: 'ghost', onClick: () => r('quit') }]} />);
 		if (go === 'quit') return;
 		// 챔피언스 방식: 상대 엔트리를 보고 참가 포켓몬 선택 (상대도 에이스 포함 n마리)
-		const picked = await ask<PSet[]>(r => <PickScreen title={`참가 포켓몬 ${n}마리`} team={team} gen={9} count={Math.min(n, team.length)}
-			opponent={{ name: `${opp.title ? opp.title + ' ' : ''}${opp.name}`, team: opp.team }} onDone={r} />);
+		const picked = await ask<PSet[] | typeof BACK>(r => <PickScreen title={`참가 포켓몬 ${n}마리`} team={team} gen={9} count={Math.min(n, team.length)}
+			opponent={{ name: `${opp.title ? opp.title + ' ' : ''}${opp.name}`, team: opp.team }} onBack={() => r(BACK)} onDone={r} />);
+		if (picked === BACK) continue;   // 매칭 화면으로 (그만두기 가능, RP 변화 없음)
 		const oppPick = aiPickEntry(opp.team, team, n, fmt === 'doubles', opp.skill, opp.named);
 		// 배틀 도중 앱을 끄거나 새로고침해도 패배를 피할 수 없게: 진 것으로 칠 결과를 먼저 저장해 두고, 결과가 나면 지움 (settleRankPending)
 		if (!noRec(opts)) updateRecords(r => { r.rankPending = { key, rp: Math.max(0, rp - loss), streak: 0 }; });
@@ -946,12 +952,14 @@ export async function runFree() {
 		else if (oppPick === 'ranker') { const rk = rankerTeam(isDoubles(fmt), lvl(opts), 0.9)!; oppTeam = withLevel(rk.team, lvl(opts)); oppTitle = `랭커`; oppName = tr.name; }
 		else { oppTeam = oppPick.cheat ? oppPick.sets.map(cloneSet) : withLevel(oppPick.sets.map(cloneSet), lvl(opts)); oppName = oppPick.name; oppTitle = '팀'; oppSprite = rng.pick(['acetrainer-gen4', 'acetrainerf-gen4', 'veteran-gen4']); }
 		const myTeam = my;
-		const size = await ask<number>(r => <ChoiceScreen title="참가 마릿수" options={[
+		const size = await ask<number>(r => <ChoiceScreen title="참가 마릿수" onBack={() => r(0)} options={[
 			{ value: n, label: `${n}마리 (${isDoubles(fmt) ? '더블' : '싱글'} 표준)`, desc: '상대 팀을 보고 고릅니다', icon: String(n) },
 			{ value: 6, label: '풀배틀 6마리', desc: '전원 참가', icon: '6' },
 		]} onPick={r} />);
-		const picked = await ask<PSet[]>(r => <PickScreen title={myTeam.length > size ? '참가 포켓몬' : '선봉·순서 정하기'} team={myTeam} gen={9} count={Math.min(size, myTeam.length)}
-			opponent={{ name: oppName, team: oppTeam }} prep={<BgmRow />} onDone={r} />);
+		if (!size) return;   // 메뉴로
+		const picked = await ask<PSet[] | typeof BACK>(r => <PickScreen title={myTeam.length > size ? '참가 포켓몬' : '선봉·순서 정하기'} team={myTeam} gen={9} count={Math.min(size, myTeam.length)}
+			opponent={{ name: oppName, team: oppTeam }} prep={<BgmRow />} onBack={() => r(BACK)} onDone={r} />);
+		if (picked === BACK) return;   // 메뉴로
 		const oppSel = size < oppTeam.length ? aiPickEntry(oppTeam, myTeam, size, isDoubles(fmt), skill) : oppTeam;
 		const res = await battle({
 			gen: 9, doubles: isDoubles(fmt), aiSkill: skill, bg: rng.pick([...OUTDOOR_BGS]), label: modeName, noRecord: true, cheat, inverse: opts.inverse,

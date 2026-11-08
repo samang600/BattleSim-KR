@@ -159,15 +159,23 @@ function makeDaily(date: string): Daily {
 let dailyCache: Daily | null = null;
 /** 오늘의 도전 (날짜가 바뀌기 전까지 한 번만 만듦 — 메인 화면이 그릴 때마다 팀 8개를 뽑지 않게) */
 export const todayDaily = () => { const k = dateKey(); if (dailyCache?.date !== k) dailyCache = makeDaily(k); return dailyCache; };
+/** 오늘의 도전 진행 저장 (같은 날이면 쉬었다가 이어서) */
+interface DailyRun { date: string; idx: number }
+const DAILY_KEY = 'daily-run';
 export async function runDaily() {
 	const d = todayDaily();
 	const best = (load<any>('stats', {}).daily || {})[d.date] || 0;
 	const n = d.doubles ? 4 : 3;
-	const start = await ask<boolean>(r => <InfoScreen title="오늘의 도전" banner={`📅 ${d.date}`} heading={`오늘의 테마: ${d.theme}`}
-		lines={[d.desc, '오늘은 누구나 같은 렌탈 6마리와 같은 상대 7명을 만납니다. 배틀마다 상대 엔트리를 보고 참가 포켓몬을 고르세요.', `오늘 최고 기록: ${best}승 / 7`, '여러 번 도전할 수 있고, 가장 좋은 기록이 남습니다. 매일 참가하면 연속 참가 일수가 늘어요.']}
+	let run = load<DailyRun | null>(DAILY_KEY, null);
+	if (run && run.date !== d.date) { remove(DAILY_KEY); run = null; }   // 지난 날 진행은 버림
+	const start = await ask<'new' | 'resume' | 'back'>(r => <InfoScreen title="오늘의 도전" banner={`📅 ${d.date}`} heading={`오늘의 테마: ${d.theme}`}
+		lines={[d.desc, '오늘은 누구나 같은 렌탈 6마리와 같은 상대 7명을 만납니다. 배틀마다 상대 엔트리를 보고 참가 포켓몬을 고르세요.', `오늘 최고 기록: ${best}승 / 7`,
+			...(run ? [`쉬는 중인 도전: ${run.idx}승 (${run.idx + 1}번째 승부부터)`] : []), '여러 번 도전할 수 있고, 가장 좋은 기록이 남습니다. 도중에 쉬었다가 같은 날 이어서 할 수 있어요.']}
 		sprites={d.rental.map(s => s.species)} sets={d.rental} gen={9}
-		actions={[{ label: '도전한다', onClick: () => r(true) }, { label: '돌아가기', kind: 'ghost', onClick: () => r(false) }]} />);
-	if (!start) return;
+		actions={[...(run ? [{ label: `이어서 (${run.idx + 1}번째 승부)`, onClick: () => r('resume') }, { label: '처음부터', kind: 'ghost' as const, onClick: () => r('new') }] : [{ label: '도전한다', onClick: () => r('new') }]),
+			{ label: '돌아가기', kind: 'ghost', onClick: () => r('back') }]} />);
+	if (start === 'back') return;
+	if (start === 'new' || !run) { run = { date: d.date, idx: 0 }; save(DAILY_KEY, run); }
 	// 참가 기록 (연속 참가)
 	updateStats(s => {
 		if (s.dailyLast !== d.date) {
@@ -177,18 +185,32 @@ export async function runDaily() {
 		}
 		s.daily[d.date] = s.daily[d.date] || 0;
 	});
-	let wins = 0;
-	for (const [i, opp] of d.opps.entries()) {
-		const picked = await ask<PSet[]>(r => <PickScreen title={`${i + 1}번째 · 참가 포켓몬 ${n}마리`} team={d.rental} gen={9} count={n}
-			opponent={{ name: `${opp.title} ${opp.name}`, team: opp.team }} prep={<BgmRow />} onDone={r} />);
+	const r0 = run;
+	let ended: 'lose' | 'clear' | 'quit' = 'clear';
+	while (r0.idx < d.opps.length) {
+		const i = r0.idx, opp = d.opps[i];
+		// 승부 전 화면: 승부한다 / 쉬기(저장 후 나가기) / 그만두기
+		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title={`오늘의 도전 · ${d.theme}`} banner={`${i + 1} / 7번째 승부`} prep={<BgmRow />}
+			heading={`${opp.title} ${opp.name}${josa(opp.name)} 승부를 걸어왔다!`} trainer={opp.sprite}
+			lines={[`현재 ${i}승`, `“${opp.lines.intro}”`]} sprites={opp.team.map(s => s.species)} sets={opp.team} gen={9}
+			actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '쉬기 (저장 후 나가기)', kind: 'ghost', onClick: () => r('rest') }, { label: '그만두기', kind: 'danger', onClick: () => r('quit') }]} />),
+			'quit', `오늘의 도전을 ${i}승에서 끝낼까요? (최고 기록은 남고, 오늘 다시 처음부터 도전할 수 있어요)`);
+		if (go === 'rest') { save(DAILY_KEY, r0); return; }
+		if (go === 'quit') { ended = 'quit'; break; }
+		const picked = await ask<PSet[] | typeof BACK>(r => <PickScreen title={`${i + 1}번째 · 참가 포켓몬 ${n}마리`} team={d.rental} gen={9} count={n}
+			opponent={{ name: `${opp.title} ${opp.name}`, team: opp.team }} onBack={() => r(BACK)} onDone={r} />);
+		if (picked === BACK) continue;   // 승부 전 화면으로
 		const oppPick = aiPickEntry(opp.team, d.rental, n, d.doubles, opp.skill, false);
 		const res = await battle({ gen: 9, doubles: d.doubles, aiSkill: opp.skill, bg: 'daily' as any, music: (i === 6 ? 'boss' : 'daily') as any, label: `오늘의 도전 ${i + 1}번째`,
 			p1: { name: playerName(), team: picked.map(cloneSet), sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppPick, sprite: opp.sprite, line: opp.lines.intro, lines: opp.lines } });
-		if (!res.win) break;
-		wins++;
-		updateStats(s => { s.daily[d.date] = Math.max(s.daily[d.date] || 0, wins); });
+		if (!res.win) { ended = 'lose'; break; }
+		r0.idx++; save(DAILY_KEY, r0);
+		const w = r0.idx;
+		updateStats(s => { s.daily[d.date] = Math.max(s.daily[d.date] || 0, w); });
 	}
-	await ask<void>(r => <InfoScreen title="오늘의 도전" banner={wins >= 7 ? '🏆 완주!' : `${wins}승`} heading={wins >= 7 ? '오늘의 도전을 완주했다!' : '오늘의 도전 종료'}
+	remove(DAILY_KEY);
+	const wins = r0.idx;
+	await ask<void>(r => <InfoScreen title="오늘의 도전" banner={wins >= 7 ? '🏆 완주!' : `${wins}승`} heading={wins >= 7 ? '오늘의 도전을 완주했다!' : ended === 'quit' ? '오늘의 도전을 그만뒀다' : '오늘의 도전 종료'}
 		lines={[`오늘 최고 기록: ${Math.max(best, wins)}승 / 7`, `연속 참가 ${load<any>('stats', {}).dailyStreak || 1}일째`]} actions={[{ label: '확인', onClick: () => r() }]} />);
 }
 
@@ -220,7 +242,8 @@ async function gauntlet(title: string, list: NamedTrainer[], run: RushRun): Prom
 			'quit', '지금까지의 진행이 사라집니다. 정말 그만둘까요?');
 		if (go === 'rest') return 'rest';
 		if (go === 'quit') { remove(RUSH_KEY); return 'quit'; }
-		const picked = await ask<PSet[]>(r => <PickScreen title="참가 포켓몬 3마리" team={run.team} gen={9} count={Math.min(3, run.team.length)} opponent={{ name: t.name, team: oppTeam }} onDone={r} />);
+		const picked = await ask<PSet[] | typeof BACK>(r => <PickScreen title="참가 포켓몬 3마리" team={run.team} gen={9} count={Math.min(3, run.team.length)} opponent={{ name: t.name, team: oppTeam }} onBack={() => r(BACK)} onDone={r} />);
+		if (picked === BACK) continue;   // 승부 전 화면으로 (쉬기·그만두기 가능)
 		const strong = ['champion', 'boss', 'hero'].includes(t.role);
 		const skill = run.hard ? 0.97 : strong ? 0.92 : t.role === 'elite' ? 0.88 : 0.8;
 		const res = await battle({ gen: 9, doubles: false, aiSkill: skill, bg: (last || t.role === 'champion' ? 'champion' : 'rush') as any, label: `${title} ${run.idx + 1}/${list.length}`,
