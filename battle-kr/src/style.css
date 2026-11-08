@@ -2228,3 +2228,31 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .wn-tag { flex: none; min-width: 44px; text-align: center; font-size: 11px; line-height: 18px; padding: 0 4px; color: #fff; background: var(--tc); box-shadow: 0 2px 0 rgba(0, 0, 0, .35); margin-top: 1px; }
 .wn-ok { width: 100%; }
 .wn-since { margin: 0 0 6px; font-size: 12px; color: #9aa4b8; }
+
+/* 더블·멀티 대상 고르기 카드: 포켓몬 그림 없이 이름·상태·HP 를 칸 가운데로 */
+.tcard .tspr { display: none !important; }
+.tcard .tbody { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; width: 100%; display: flex; flex-direction: column; justify-content: center; gap: 3px; text-align: center; }
+.tcard .trow { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; }
+.tcard .trow .tname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcard .teff-in { display: none; }
+/* 세로로 긴 카드(휴대폰 세로): 효과 표시는 맨 위 가운데 */
+@container (min-height: 96px) {
+	.target-grid2 .tcard .teff:not(.teff-in) { left: 50% !important; right: auto !important; top: 8px !important; transform: translateX(-50%); white-space: nowrap; }
+}
+/* 가로로 짧은 카드(휴대폰 가로·웹): [이름·상태·효과 | 숫자] 한 줄 + HP 바 한 줄, 효과 표시는 이름 줄 안에 */
+@container (max-height: 95px) {
+	.target-grid2 .tcard .teff:not(.teff-in) { display: none; }
+	.target-grid2 .tcard .teff-in { display: inline-block; position: static; transform: none; font-size: 10px; line-height: 13px; padding: 0 4px; flex: none; }
+	.target-grid2 .tcard .tbody { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: center; gap: 2px 6px; padding: 0 4px; }
+	.target-grid2 .tcard .trow { justify-content: flex-start; }
+	.target-grid2 .tcard .tname { font-size: 13px; line-height: 16px; }
+	.target-grid2 .tcard small { font-size: 11px; line-height: 16px; align-self: center; }
+	.target-grid2 .tcard .hpbar { grid-column: 1 / -1; grid-row: 2; }
+}
+/* 이름 옆 상태 표시 (더블·멀티 HP 창 · 대상 카드): 상태이상 · 테라 타입 · 다이맥스 */
+.mon-tags { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.mon-tags .status, .mtag { font-size: 10px; line-height: 13px; padding: 0 3px; color: #fff; font-weight: normal; border-radius: 0; box-shadow: 0 0 0 1px rgba(0, 0, 0, .55); text-shadow: 1px 1px 0 rgba(0, 0, 0, .5); white-space: nowrap; }
+.mtag.dmax { background: #d0203a; }
+.battle:not(.doubles) .info .mon-tags { display: none; }
+.doubles .info .info-top { display: flex; align-items: center; min-width: 0; }
+.doubles .info .info-top .info-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

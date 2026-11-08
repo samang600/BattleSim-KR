@@ -1243,12 +1243,15 @@ function typeTint(type: string) {
 			const dp = on && side === 'p2' && mv && plan.mode === 'pick' ? dmgPreview(mv, 'p2', i) : '';
 			const pct = m.maxhp ? Math.round(m.hp / m.maxhp * 100) : 0;
 			const click = !on ? undefined : plan.mode === 'all' ? () => go('') : () => go(side === 'p2' ? ` ${i + 1}` : ` -${i + 1}`);
+			const effCls = 'teff ' + (eff.includes('굉장') ? 'up' : 'down');
+			// 세로로 긴 카드: 효과 표시는 맨 위 가운데(teff), 가로로 짧은 카드: 이름 줄 안(teff-in) — CSS 컨테이너 쿼리로 하나만 보임
 			return <button class={'tcard ' + (side === 'p2' ? 'foe' : 'ally') + (on ? ' on' : ' off')} disabled={!on} onClick={click}>
-				{eff && <span class={'teff ' + (eff.includes('굉장') ? 'up' : 'down')}>{eff}</span>}
-				<span class="tspr" aria-hidden="true"><Sprite species={m.species} gen={gen} size={96} anim={false} shiny={m.shiny} /></span>
-				<span class="tname">{self ? '자신 · ' : ''}{m.nick}</span>
-				<HPBar hp={pct} maxhp={100} />
-				<small>{side === 'p2' ? `${pct}%` : `${m.hp}/${m.maxhp}`}{dp && ` · ${dp}`}</small>
+				{eff && <span class={effCls}>{eff}</span>}
+				<span class="tbody">
+					<span class="trow"><span class="tname">{self ? '자신 · ' : ''}{m.nick}</span>{monTags(m)}{eff && <span class={effCls + ' teff-in'}>{eff}</span>}</span>
+					<HPBar hp={pct} maxhp={100} />
+					<small>{side === 'p2' ? `${pct}%` : `${m.hp}/${m.maxhp}`}{dp && ` · ${dp}`}</small>
+				</span>
 			</button>;
 		};
 		// 여러 대상 기술: 맞는 포켓몬끼리 선으로 이어 보임 (위: 상대 0·1, 아래: 내 편 0·1)
@@ -1372,6 +1375,12 @@ function typeTint(type: string) {
 		</div>;
 	};
 
+	/** 이름 옆 작은 상태 표시 (더블·멀티 HP 창과 대상 고르기 카드): 상태이상 · 테라스탈 타입 · 다이맥스 */
+	const monTags = (mon: Mon) => (mon.status || mon.tera || mon.vol.has('dynamax')) ? <span class="mon-tags">
+		{mon.status && <StatusBadge status={mon.status} />}
+		{mon.tera && <span class="mtag tera" style={{ background: TYPE_COLOR[mon.tera] }}>{typeKo(mon.tera)}</span>}
+		{mon.vol.has('dynamax') && <span class="mtag dmax">다이맥스</span>}
+	</span> : null;
 	const infoBox = (mon: Mon | null, own: boolean, i: number) => {
 		if (!mon || (mon.fainted && !mon.anim)) return <div class="info empty" key={i} />;
 		// 포켓몬마다 새 상자 (교체 때 HP 바가 이전 포켓몬 값에서 늘거나 주는 것처럼 보이지 않게)
@@ -1382,6 +1391,7 @@ function typeTint(type: string) {
 				<b class="info-name">{mon.nick}</b>
 				{mon.gender && <span class={'gender ' + mon.gender}>{mon.gender === 'M' ? '♂' : '♀'}</span>}
 				<span class="lv">Lv{mon.level}</span>
+				{setup.doubles && monTags(mon)}
 			</div>
 			<HPBar hp={mon.hp} maxhp={mon.maxhp} />
 			<div class="info-bottom">
