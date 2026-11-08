@@ -64,6 +64,8 @@ const result = await esbuild.build({
 	keepNames: true, // 상태 복제(sim/state)가 클래스 이름을 씀
 	sourcemap: false,
 	define: { '__dirname': '"/ps/sim"', 'process.env.NODE_ENV': '"production"',
+		// 앱 버전 (package.json) — 웹 업데이트 소식 창이 이 값으로 새 버전을 알아챔
+		'__APP_VERSION__': JSON.stringify(JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8')).version),
 		// 앱 안에 들어 있는 울음소리 목록 (public/cries, scripts/fetch-sprites.sh)
 		'__LITE__': String(lite), '__BUNDLED__': String(!lite), '__ANIM_BASE__': JSON.stringify(ANIM_BASE), '__PACK_URLS__': JSON.stringify(PACK_URLS), '__CUSTOM_SPRITES__': JSON.stringify(CUSTOM_SPRITES), '__BGM_LOOPS__': '{}',
 		'__LOCAL_CRIES__': JSON.stringify(fs.existsSync(path.join(HERE, 'public/cries')) ? fs.readdirSync(path.join(HERE, 'public/cries')).filter(f => f.endsWith('.mp3')).map(f => f.slice(0, -4)).join(',') : '') },

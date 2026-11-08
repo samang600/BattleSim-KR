@@ -10,6 +10,7 @@ import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, ran
 import { runPalace, runDaily, runBossRush, todayDaily } from './frontier';
 import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
 import { TrainerBook, SymbolIcon } from './ui/book';
+import { WhatsNew, pendingChanges } from './ui/whats-new';
 import { exportBackup, inspectBackup, importBackup } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
 import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, applyRuleData, poolSub, type LegendMode } from './rules';
@@ -333,6 +334,9 @@ function App() {
 	const [route, setRoute] = useState<string>('title');
 	const [editTeam, setEditTeam] = useState<any>(null);
 	useEffect(() => { bindView(setModeView); applyTheme(loadSettings()); }, []);
+	// 웹: 새 버전으로 처음 열면 업데이트 소식 (메인 화면에 처음 왔을 때 한 번)
+	const [news, setNews] = useState(false);
+	useEffect(() => { if (route === 'home' && !(window as any).BattleSimNative && pendingChanges()) setNews(true); }, [route === 'home']);
 	// 내 포켓몬 그림을 다 읽었거나 바뀌면 다시 그림
 	const [, setSprRev] = useState(0);
 	useEffect(() => onUserSpritesChange(() => setSprRev(x => x + 1)) as any, []);
@@ -392,7 +396,7 @@ function App() {
 	if (route === 'calc') return <CalcScreen onBack={() => setRoute('home')} />;
 	if (route === 'book') return <TrainerBook onBack={() => setRoute('home')} />;
 	if (route === 'settings') return <SettingsScreen onBack={() => setRoute('home')} />;
-	return <Home go={go} />;
+	return <>{<Home go={go} />}{news && <WhatsNew onClose={() => setNews(false)} />}</>;
 }
 
 /** 창틀·배경 설정 적용 (CSS 변수) */

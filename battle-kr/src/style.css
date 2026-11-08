@@ -2217,3 +2217,13 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .bg-rank .arena-bg { background-image: url(__IMG_arena_rank__); }
 .bg-rush .arena-bg { background-image: url(__IMG_arena_rush__); }
 .bg-daily .arena-bg { background-image: url(__IMG_arena_daily__); }
+
+/* 업데이트 소식 (웹) */
+.wn { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; margin-bottom: 8px; }
+.wn-h { margin: 0 0 4px; font-size: 15px; font-weight: normal; color: var(--p-hi, #ffd84a); display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.wn-h b { font-weight: normal; color: #fff; background: rgba(0, 0, 0, .35); padding: 0 6px; }
+.wn-h small { margin-left: auto; font-size: 11px; color: #9aa4b8; }
+.wn-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wn-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.45; color: #eef2fa; }
+.wn-tag { flex: none; min-width: 44px; text-align: center; font-size: 11px; line-height: 18px; padding: 0 4px; color: #fff; background: var(--tc); box-shadow: 0 2px 0 rgba(0, 0, 0, .35); margin-top: 1px; }
+.wn-ok { width: 100%; }
