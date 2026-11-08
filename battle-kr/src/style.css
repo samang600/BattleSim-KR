@@ -2073,3 +2073,45 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 
 /* 경고 안내 (랭크 매치: 끝나지 않은 매치를 패배로 처리) */
 .hint.warn { color: #ffd27a; }
+
+/* ═════ 스토리 모드 (테스트): 거점 맵 + 대화 장면 (도트 규칙: 계단 모서리·흐림 없음) ═════ */
+.story-hub, .story-talk { position: fixed; inset: 0; z-index: 20; overflow: hidden; color: #fff; -webkit-user-select: none; user-select: none; }
+.story-hub .sh-bg { position: absolute; inset: 0; background: url(__IMG_arena_title_wide__) center bottom / cover; image-rendering: pixelated; }
+:root[data-tod="day"] .story-hub .sh-bg { background-image: url(__IMG_arena_title_wide_day__); }
+.sh-top { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 10px; padding: calc(8px + var(--safe-top)) 10px 8px;
+	background: linear-gradient(180deg, rgba(8,16,40,.92) 0 70%, rgba(8,16,40,.6) 70%); box-shadow: 0 2px 0 #3ac8ff; }
+.st-exit { padding: 4px 10px; font-size: 13px; background: #102a5a; box-shadow: 0 0 0 2px #0a0f18, 0 0 0 4px #3ac8ff; }
+.sh-stage { display: flex; flex-direction: column; align-items: center; line-height: 1; padding: 2px 10px; background: #0a2a6a; box-shadow: 0 0 0 2px #0a0f18, 0 0 0 4px #7fe0ff; clip-path: var(--clip1); }
+.sh-stage small { font-size: 10px; color: #9fe4ff; } .sh-stage b { font-size: 22px; color: #fff; text-shadow: 2px 2px 0 #0a3a8a; }
+.sh-title { font-size: 14px; color: #e8f6ff; text-shadow: 2px 2px 0 #000; } .sh-title small { color: #ffd84a; }
+/* 인물 아이콘: 동그란 초상(트레이너 도트 얼굴 부분) + 밝은 테두리 + 아래 떠 있는 마름모 표시 */
+.sh-npc { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.sh-face { width: 64px; height: 64px; border-radius: 50%; overflow: hidden; background: radial-gradient(circle, #e8f6ff 0 55%, #7fd0f0 55%);
+	box-shadow: 0 0 0 3px #0a2a5a, 0 0 0 6px #6fe0ff, 0 0 0 8px #0a2a5a; display: flex; justify-content: center; }
+.sh-face img { width: 160px; height: 160px; margin-top: -10px; image-rendering: pixelated; flex: none; }
+.sh-npc.done .sh-face { filter: grayscale(.6) brightness(.8); }
+.sh-mark { position: absolute; top: -8px; right: -6px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 14px;
+	background: #ffd84a; color: #5a2a08; box-shadow: 0 0 0 2px #5a2a08; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.sh-npc.done .sh-mark { background: #7ee08a; color: #0a3a14; }
+.sh-label { margin-top: 6px; padding: 1px 8px; font-size: 12px; background: rgba(8,16,40,.85); box-shadow: 0 0 0 2px #3ac8ff; white-space: nowrap; }
+.sh-npc::after { content: ''; width: 8px; height: 14px; margin-top: 4px; background: #6fe0ff; clip-path: polygon(50% 0, 100% 40%, 50% 100%, 0 40%); animation: shBob 1.2s steps(4) infinite; }
+@keyframes shBob { 50% { transform: translateY(4px); } }
+.sh-me { position: absolute; right: 0; bottom: calc(10px + var(--safe-bottom)); display: flex; align-items: flex-end; }
+.sh-me img { width: 240px; height: 240px; image-rendering: pixelated; margin-right: -40px; }
+.sh-me-bar { display: flex; flex-direction: column; padding: 4px 14px 6px 18px; background: linear-gradient(90deg, transparent, rgba(160,20,30,.9) 20%); box-shadow: 0 -2px 0 #ff5a5a; margin-bottom: 18px; text-align: right; }
+.sh-me-bar b { font-size: 16px; } .sh-me-bar small { font-size: 11px; color: #ffd84a; }
+/* 대화 장면 */
+.story-talk .st-bg { position: absolute; inset: 0; filter: brightness(.7) saturate(.9); }
+.st-portrait { position: absolute; left: 50%; bottom: 168px; transform: translateX(-50%); width: 320px; height: 300px; overflow: hidden; display: flex; justify-content: center;
+	animation: stIn .3s steps(4); }
+.st-portrait img { width: 400px; height: 400px; margin-top: -16px; image-rendering: pixelated; flex: none; }
+@keyframes stIn { from { transform: translateX(-50%) translateY(24px); opacity: 0; } }
+.st-box { position: absolute; left: 0; right: 0; bottom: 0; padding-bottom: var(--safe-bottom); }
+.st-name { position: relative; display: flex; align-items: center; height: 44px; padding: 0 16px; font-size: 20px;
+	background: linear-gradient(180deg, #0a1a3a 0 50%, #08142e 50%); box-shadow: 0 -2px 0 #3ac8ff, 0 2px 0 #3ac8ff; text-shadow: 2px 2px 0 #000; }
+.st-deco { position: absolute; right: 12px; top: 14px; width: 120px; height: 16px;
+	background: linear-gradient(90deg, #3ac8ff 0 10px, transparent 10px 16px, #3ac8ff 16px 22px, transparent 22px 40px, #1a6aa8 40px 100px, transparent 100px 106px, #3ac8ff 106px); opacity: .8; }
+.st-text { position: relative; min-height: 124px; padding: 12px 16px 16px; font-size: 18px; line-height: 1.6; color: #14182a; white-space: pre-wrap; background: #f6f8fc;
+	box-shadow: inset 0 4px 0 #dfe6f2; }
+.st-arrow { position: absolute; right: 16px; bottom: 10px; color: #1a6aa8; animation: blink 1s steps(1) infinite; }
+.st-skip { position: absolute; right: 10px; top: calc(10px + var(--safe-top)); padding: 4px 10px; font-size: 12px; background: rgba(8,16,40,.8); box-shadow: 0 0 0 2px #3ac8ff; }
