@@ -1394,6 +1394,7 @@ function typeTint(type: string) {
 		if (phase !== 'input' || !req) {
 			return <div class="controls waiting">
 				<button class="btn small" onClick={() => cycleSpeed()}>배속 {SPEED_LABEL[settings.speed]}</button>
+				{!setup.replay && <button class={'btn small text-toggle' + (settings.textManual ? ' manual' : '')} onClick={() => toggleManual()}>메시지 {settings.textManual ? '▶ 수동' : '▶ 자동'}</button>}
 				{setup.replay && <button class="btn small ghost" onClick={() => { deadRef.current = true; skipRef.current?.(); cancelAnims(); stopMusic(); onEnd({ win: false, forfeit: false, turns: 0, p1Left: 0, p2Left: 0, quit: true }); }}>■ 그만 보기</button>}
 				<p class="muted small">{setup.replay ? '🎬 리플레이 재생 중 · 화면을 누르면 메시지를 넘깁니다' : settings.textManual ? '수동 진행 · 화면을 누르면 다음 메시지' : '화면을 누르면 메시지를 넘깁니다'}</p>
 			</div>;
@@ -1604,17 +1605,19 @@ function typeTint(type: string) {
 	}
 
 	const slots = setup.doubles ? [0, 1] : [0];
-	return <div class={'battle bg-' + arenaBg + (setup.doubles ? ' doubles' : ' singles')} style={{ '--spd': FX.fxSpeed() } as any}>
+	// 메시지가 나오는 동안(입력 차례가 아닐 때)은 화면 어디를 눌러도 다음 메시지로 (버튼·창은 제외) — 수동 진행에서 아래 빈 곳을 눌러도 넘어가게
+	const tapAnywhere = (e: any) => { if (phase === 'input') return; if ((e.target as HTMLElement)?.closest?.('button, a, input, .modal, .modal-bg')) return; skipRef.current?.(); };
+	return <div class={'battle bg-' + arenaBg + (setup.doubles ? ' doubles' : ' singles')} style={{ '--spd': FX.fxSpeed() } as any} onClick={tapAnywhere}>
 		<div class="hud-top">
 			<span class="badge">{setup.label || ''}</span>
 			<span class="badge">{scene.turn ? `${scene.turn}턴` : ''}</span>
 			<button class="badge speed-btn" onClick={e => { e.stopPropagation(); cycleSpeed(); }}>{SPEED_LABEL[settings.speed]}</button>
-			<button class="badge text-btn" onClick={e => { e.stopPropagation(); toggleManual(); }} aria-label="메시지 진행">{settings.textManual ? '✋ 수동' : '▶ 자동'}</button>
+			<button class={'badge text-btn' + (settings.textManual ? ' manual' : '')} onClick={e => { e.stopPropagation(); toggleManual(); }} aria-label="메시지 진행">{settings.textManual ? '▶ 수동' : '▶ 자동'}</button>
 			<button class="badge field-btn" onClick={e => { e.stopPropagation(); setFieldOpen(true); }}>필드 ▸</button>
 			<button class="badge menu-btn" onClick={e => { e.stopPropagation(); setMenuOpen(true); }} aria-label="메뉴">☰ 메뉴</button>
 		</div>
 		<div class="arena-wings" aria-hidden="true" />
-		<div class={'arena' + (trainerVis.foe ? ' t-foe' : '')} ref={arenaRef} style={{ '--s': scale } as any} onClick={() => skipRef.current?.()}>
+		<div class={'arena' + (trainerVis.foe ? ' t-foe' : '')} ref={arenaRef} style={{ '--s': scale } as any} onClick={e => { e.stopPropagation(); skipRef.current?.(); }}>
 			<div class="arena-bg" />
 			<TeraFilters />
 			{/* 날씨와 필드(테라인)는 다른 레이어: 한 요소에 두면 필드의 '입자 없음' 규칙이 비·모래 줄기(가상 요소)까지 지움 */}
@@ -1646,7 +1649,7 @@ function typeTint(type: string) {
 			</div>
 		</div>
 		<div class="bottom">
-			<div class="msgbox win-dark" onClick={() => skipRef.current?.()}>
+			<div class="msgbox win-dark" onClick={e => { e.stopPropagation(); skipRef.current?.(); }}>
 				<p ref={msgRef}>{/급소에 맞았다/.test(message) ? <span class="msg-crit">{message}</span> : message}</p>
 				{phase === 'playing' && <span class="msg-arrow">▼</span>}
 			</div>

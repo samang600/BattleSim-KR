@@ -2262,3 +2262,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .hud-top .field-btn { display: none; }
 @media (orientation: landscape) and (max-height: 540px) and (min-aspect-ratio: 3/2) { .hud-top .field-btn { display: block; } }
 @media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) { .hud-top .field-btn { display: block; } }
+.text-btn.manual { color: #fff !important; }
+.battle .controls.waiting { cursor: pointer; }
+.controls.waiting .text-toggle { color: #48d070; }
+.controls.waiting .text-toggle.manual { color: #fff; }
