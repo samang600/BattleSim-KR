@@ -15,7 +15,11 @@ import { CUPS, NAMED } from './trainers';
 import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, setMoveSfxVolume } from './sound';
 import { PLAYER_SPRITES, SPRITE_URL } from './trainer-lines';
 import { UserSpritesModal } from './ui/user-sprites';
+<<<<<<< HEAD
 import { runStory } from './story';
+=======
+import { onUserSpritesChange } from './user-sprites';
+>>>>>>> main
 
 const MODES = [
 	{ id: 'tower', name: '배틀타워', sub: '연승 도전', run: runTower, color: '#3a6df0', icon: '🗼', mon: 'garchomp' },
@@ -279,7 +283,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		<p class="muted small">팀 편집·포켓몬 정보에서 능력 포인트(능력마다 32, 합계 66)로 볼지, 본가 노력치(252, 합계 510)로 볼지 고릅니다. 규칙은 그대로 66포인트라 노력치로 보면 본가보다 1포인트(노력치 8) 더 쓸 수 있습니다. 노력치 방식으로 내보낸 텍스트는 합계 510에 맞춰집니다.</p>
 		<h3 class="sec">포켓몬 그림</h3>
 		<div class="seg"><button onClick={() => setUserSpr(true)}>🖼 포켓몬 그림 바꾸기</button></div>
-		<p class="muted small">포켓몬마다 앞·뒤·색이 다른 모습 그림을 내 그림 파일로 바꿀 수 있어요(정지 도트 그림 설정, 오프라인의 이름 카드 대신). 데이터 백업에 함께 저장됩니다.</p>
+		<p class="muted small">포켓몬마다 앞·뒤·색이 다른 모습 그림을 내 그림 파일로 바꿀 수 있어요(정지 도트 그림 설정, 오프라인의 이름 카드 대신). 원본 그림 추출(한 마리·전체 zip), 내 그림 zip 내보내기·일괄 적용도 여기서 합니다. 내 그림은 데이터 백업 파일에는 들어가지 않으니 '내 그림 내보내기' zip 으로 보관하세요.</p>
 		{userSpr && <UserSpritesModal onClose={() => setUserSpr(false)} />}
 		<h3 class="sec">배틀 화면</h3>
 		<div class="seg">
@@ -311,6 +315,9 @@ function App() {
 	const [route, setRoute] = useState<string>('title');
 	const [editTeam, setEditTeam] = useState<any>(null);
 	useEffect(() => { bindView(setModeView); applyTheme(loadSettings()); }, []);
+	// 내 포켓몬 그림을 다 읽었거나 바뀌면 다시 그림
+	const [, setSprRev] = useState(0);
+	useEffect(() => onUserSpritesChange(() => setSprRev(x => x + 1)) as any, []);
 
 	const go = async (r: string) => {
 		if (r.startsWith('mode:')) {

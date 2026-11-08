@@ -118,7 +118,7 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, te
 /** 그림 후보 순서: 온라인이면 움직이는 그림 → 앱 안의 정지 그림 → 서버 정지 그림, 오프라인이면 앱 안의 그림부터 */
 declare const __CUSTOM_SPRITES__: Record<string, string>;
 /** 직접 만든 그림 (build.mjs 가 src/sprites-custom 에서 넣음): 앞모습만 있으면 뒷모습은 평소 그림 */
-const CUSTOM_SPRITES: Record<string, string> = typeof __CUSTOM_SPRITES__ === 'object' ? __CUSTOM_SPRITES__ : {};
+export const CUSTOM_SPRITES: Record<string, string> = typeof __CUSTOM_SPRITES__ === 'object' ? __CUSTOM_SPRITES__ : {};
 function spriteCandidates(species: string, id: string, back: boolean, shiny: boolean, useAnim: boolean, gen: Gen): string[] {
 	const b = back ? '-back' : '', sh = shiny ? '-shiny' : '';
 	// 사용자가 넣은 그림: 정지 도트 그림이면 가장 먼저, 3D 그림 설정이면 다른 그림을 못 받을 때(이름 카드 대신)

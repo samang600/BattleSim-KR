@@ -2115,3 +2115,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	box-shadow: inset 0 4px 0 #dfe6f2; }
 .st-arrow { position: absolute; right: 16px; bottom: 10px; color: #1a6aa8; animation: blink 1s steps(1) infinite; }
 .st-skip { position: absolute; right: 10px; top: calc(10px + var(--safe-top)); padding: 4px 10px; font-size: 12px; background: rgba(8,16,40,.8); box-shadow: 0 0 0 2px #3ac8ff; }
+.us-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 4px; }
+.us-tools button { padding: 6px 4px; font-size: 12px; background: #1a2a52; box-shadow: 0 0 0 2px #0a0f18, inset 0 2px 0 rgba(255,255,255,.15); clip-path: var(--clip1); }
+.us-tools button.danger { background: #6a1a22; }
+.us-tools button:disabled { opacity: .5; }

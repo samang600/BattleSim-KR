@@ -30,7 +30,9 @@ public class MainActivity extends Activity {
     private volatile boolean downloading = false;
 
     // ── 데이터 백업: 시스템의 파일 저장·열기 화면(저장소 접근 프레임워크, 권한 불필요) ──
-    private static final int REQ_SAVE = 41, REQ_OPEN = 42, REQ_FILE = 43;
+    private static final int REQ_SAVE = 41, REQ_OPEN = 42, REQ_FILE = 43, REQ_SAVEFILE = 44;
+    /** saveFile 로 저장할 바이트 (저장 위치를 고르는 동안 보관) */
+    private byte[] pendingFile;
     /** 웹의 파일 고르기(<input type=file>) 결과를 돌려줄 콜백 (포켓몬 그림 바꾸기 등) */
     private ValueCallback<Uri[]> fileCallback;
     private String pendingBackup = null;
@@ -44,9 +46,26 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQ_FILE) {
-            Uri u = data != null ? data.getData() : null;
-            if (fileCallback != null) fileCallback.onReceiveValue(resultCode == RESULT_OK && u != null ? new Uri[]{u} : null);
+            Uri[] res = null;
+            if (resultCode == RESULT_OK && data != null) {
+                if (data.getClipData() != null) {   // 여러 장 고름
+                    android.content.ClipData cd = data.getClipData();
+                    res = new Uri[cd.getItemCount()];
+                    for (int i = 0; i < res.length; i++) res[i] = cd.getItemAt(i).getUri();
+                } else if (data.getData() != null) res = new Uri[]{data.getData()};
+            }
+            if (fileCallback != null) fileCallback.onReceiveValue(res);
             fileCallback = null;
+            return;
+        }
+        if (requestCode == REQ_SAVEFILE) {
+            Uri u = data != null ? data.getData() : null;
+            final byte[] bytes = pendingFile; pendingFile = null;
+            if (resultCode != RESULT_OK || u == null) { backupCallback("__fileSaved", "cancel"); return; }
+            new Thread(() -> {
+                try (java.io.OutputStream out = getContentResolver().openOutputStream(u, "wt")) { out.write(bytes); backupCallback("__fileSaved", "ok"); }
+                catch (Exception e) { backupCallback("__fileSaved", "error"); }
+            }).start();
             return;
         }
         if (requestCode != REQ_SAVE && requestCode != REQ_OPEN) return;
@@ -84,6 +103,18 @@ public class MainActivity extends Activity {
                 it.setType("application/json");
                 it.putExtra(Intent.EXTRA_TITLE, name);
                 try { startActivityForResult(it, REQ_SAVE); } catch (Exception e) { backupCallback("__backupSaved", "error"); }
+            });
+        }
+        /** 파일 저장 (zip 등 바이너리, base64): 저장 위치를 고르게 하고 결과는 window.__fileSaved('ok'|'cancel'|'error') */
+        @JavascriptInterface
+        public void saveFile(String name, String mime, String base64) {
+            try { pendingFile = android.util.Base64.decode(base64, android.util.Base64.DEFAULT); } catch (Exception e) { backupCallback("__fileSaved", "error"); return; }
+            runOnUiThread(() -> {
+                Intent it = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                it.addCategory(Intent.CATEGORY_OPENABLE);
+                it.setType(mime == null || mime.isEmpty() ? "application/octet-stream" : mime);
+                it.putExtra(Intent.EXTRA_TITLE, name);
+                try { startActivityForResult(it, REQ_SAVEFILE); } catch (Exception e) { pendingFile = null; backupCallback("__fileSaved", "error"); }
             });
         }
         /** 백업 파일 열기 → 내용은 window.__backupLoaded(text) (취소·실패면 빈 문자열) */
@@ -220,8 +251,10 @@ public class MainActivity extends Activity {
                 try { it = params.createIntent(); } catch (Exception e) { it = new Intent(Intent.ACTION_GET_CONTENT); it.setType("*/*"); }
                 it.addCategory(Intent.CATEGORY_OPENABLE);
                 String[] types = params.getAcceptTypes();
-                boolean image = types != null && types.length > 0 && types[0].startsWith("image");
+                boolean image = types != null && types.length == 1 && types[0].startsWith("image");
                 if (image) it.setType("image/*");
+                else if (types != null && types.length > 1) { it.setType("*/*"); it.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/zip", "image/*"}); }
+                if (params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) it.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                 try { startActivityForResult(it, REQ_FILE); } catch (Exception e) { fileCallback = null; callback.onReceiveValue(null); return false; }
                 return true;
             }
