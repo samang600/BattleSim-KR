@@ -15,11 +15,8 @@ import { CUPS, NAMED } from './trainers';
 import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, setMoveSfxVolume } from './sound';
 import { PLAYER_SPRITES, SPRITE_URL } from './trainer-lines';
 import { UserSpritesModal } from './ui/user-sprites';
-<<<<<<< HEAD
 import { runStory } from './story';
-=======
 import { onUserSpritesChange } from './user-sprites';
->>>>>>> main
 
 const MODES = [
 	{ id: 'tower', name: '배틀타워', sub: '연승 도전', run: runTower, color: '#3a6df0', icon: '🗼', mon: 'garchomp' },
@@ -28,7 +25,7 @@ const MODES = [
 	{ id: 'named', name: '네임드 트레이너', sub: '관장 · 챔피언 · 라이벌 · 악당', run: runNamed, color: '#7a4ad8', icon: '⭐', mon: 'dragonite' },
 	{ id: 'rank', name: '랭크 매치', sub: '챔피언스식 6→3 · 6→4', run: runRank, color: '#c08a20', icon: '🏅', mon: 'incineroar' },
 	{ id: 'free', name: '프리 배틀', sub: '싱글 · 더블 바로 대전', run: () => runFree(), color: '#2a9d6a', icon: '⚔', mon: 'lucario' },
-	{ id: 'story', name: '스토리 (테스트)', sub: '거점 · 대화 · 배틀 시험판', run: runStory, color: '#1e8fc8', icon: '📖', mon: 'pikachu' },
+	{ id: 'story', name: '스토리 (시안)', sub: '관동 여정 · 선택지 · 판정', run: runStory, color: '#1e8fc8', icon: '📖', mon: 'pikachu' },
 ];
 
 function TitleScreen({ onStart }: { onStart: () => void }) {
