@@ -2073,3 +2073,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 
 /* 경고 안내 (랭크 매치: 끝나지 않은 매치를 패배로 처리) */
 .hint.warn { color: #ffd27a; }
+.us-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 4px; }
+.us-tools button { padding: 6px 4px; font-size: 12px; background: #1a2a52; box-shadow: 0 0 0 2px #0a0f18, inset 0 2px 0 rgba(255,255,255,.15); clip-path: var(--clip1); }
+.us-tools button.danger { background: #6a1a22; }
+.us-tools button:disabled { opacity: .5; }
