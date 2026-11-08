@@ -125,7 +125,8 @@ function spriteCandidates(species: string, id: string, back: boolean, shiny: boo
 	const user = getUserSprite(userSpriteKey(id, back, shiny))?.src;
 	const custom = CUSTOM_SPRITES[`${id}${b}${sh}`];
 	if (user && !useAnim) return [user];
-	if (custom) return user ? [custom, user] : [custom];
+	// 앱에 넣은 도트 그림(9세대 진짜 뒷모습 등): 정지 그림 설정이면 그것, 3D 그림 설정이면 3D 그림이 먼저(못 받으면 도트)
+	if (custom) { const l = useAnim && online() ? [`${SPRITE_HOST}/ani${b}${sh}/${id}.gif`, custom] : [custom]; return user ? [...l, user] : l; }
 	const withUser = (l: string[]) => user ? [...l, user] : l;
 	const sb = spriteBase();
 	if (id === 'substitute') return sb ? [`${sb}substitutes/gen5${b}/substitute.png`, `${SPRITE_HOST}/substitutes/gen5${b}/substitute.png`] : [`${SPRITE_HOST}/substitutes/gen5${b}/substitute.png`];
