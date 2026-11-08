@@ -1,4 +1,4 @@
-/** 업데이트 소식 창 (웹): 지난번에 본 버전보다 새 항목만, 최신 3개까지 간결하게 */
+/** 업데이트 소식 창 (웹): 지난번에 본 버전 이후의 모든 항목 (설정 › 정보에서는 전체) */
 import { h } from 'preact';
 import { Modal } from './core';
 import { CHANGELOG, APP_VERSION, verLess, type ChangeTag } from '../changelog';
@@ -12,15 +12,18 @@ export function pendingChanges() {
 	const seen = load<string>(KEY, '');
 	if (!seen) { save(KEY, APP_VERSION); return null; }
 	if (!verLess(seen, APP_VERSION)) return null;
-	const list = CHANGELOG.filter(c => verLess(seen, c.ver) && !verLess(APP_VERSION, c.ver)).slice(0, 3);
+	const list = CHANGELOG.filter(c => verLess(seen, c.ver) && !verLess(APP_VERSION, c.ver));
 	return list.length ? list : (save(KEY, APP_VERSION), null);
 }
 export function markSeen() { save(KEY, APP_VERSION); }
 
-export function WhatsNew({ onClose }: { onClose: () => void }) {
-	const list = CHANGELOG.filter(c => verLess(load<string>(KEY, ''), c.ver) && !verLess(APP_VERSION, c.ver)).slice(0, 3);
+/** all: 설정에서 열 때 — 지금까지의 모든 소식 */
+export function WhatsNew({ onClose, all }: { onClose: () => void; all?: boolean }) {
+	const seen = load<string>(KEY, '');
+	const list = all ? CHANGELOG.filter(c => !verLess(APP_VERSION, c.ver)) : CHANGELOG.filter(c => verLess(seen, c.ver) && !verLess(APP_VERSION, c.ver));
 	const close = () => { markSeen(); onClose(); };
-	return <Modal title={`업데이트 소식 · v${APP_VERSION}`} onClose={close}>
+	return <Modal title={all ? `업데이트 소식 (지금 v${APP_VERSION})` : `업데이트 소식 · v${APP_VERSION}`} onClose={close}>
+		{!all && seen && <p class="wn-since">v{seen} 이후 바뀐 점</p>}
 		<div class="wn">{list.map(c => <section class="wn-ver">
 			<h3 class="wn-h"><b>v{c.ver}</b> {c.title}<small>{c.date}</small></h3>
 			<ul class="wn-list">{c.items.map(([t, s]) => <li><span class="wn-tag" style={{ '--tc': TAG[t][1] } as any}>{TAG[t][0]}</span><span>{s}</span></li>)}</ul>

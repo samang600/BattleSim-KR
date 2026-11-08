@@ -11,6 +11,7 @@ import { runPalace, runDaily, runBossRush, todayDaily } from './frontier';
 import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
 import { TrainerBook, SymbolIcon } from './ui/book';
 import { WhatsNew, pendingChanges } from './ui/whats-new';
+import { APP_VERSION } from './changelog';
 import { exportBackup, inspectBackup, importBackup } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
 import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, applyRuleData, poolSub, type LegendMode } from './rules';
@@ -258,6 +259,7 @@ function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }
 }
 
 function SettingsScreen({ onBack }: { onBack: () => void }) {
+	const [newsAll, setNewsAll] = useState(false);
 	const [s, setS] = useState<Settings>(loadSettings());
 	const [userSpr, setUserSpr] = useState(false);
 	const up = (p: Partial<Settings>) => { const n = { ...s, ...p }; setS(n); saveSettings(n); };
@@ -323,6 +325,8 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		</div>
 		<p class="muted small">포켓몬 그림은 인터넷에 연결되어 있을 때 표시됩니다. (오프라인이면 이름 카드로 표시)</p>
 		<h3 class="sec">정보</h3>
+		<button class="btn" onClick={() => setNewsAll(true)}>📰 업데이트 소식 (v{APP_VERSION})</button>
+		{newsAll && <WhatsNew all onClose={() => setNewsAll(false)} />}
 		<p class="muted small">배틀 계산은 Pokémon Showdown 시뮬레이터(MIT)를 그대로 사용합니다. 비공식 팬 메이드 앱이며, 포켓몬 관련 명칭의 권리는 Nintendo·Creatures·GAME FREAK·The Pokémon Company에 있습니다.</p>
 		<p class="muted small">포켓몬 도트 그림: Pokémon Showdown·Smogon Sprite Project. 9세대 퍼퓨돈(암컷)·빠모트·스태솔트·찌리비·육파리·구르데·베라카스·키키링·차데스·오거폰·무쇠감투(테라스탈 모습 포함)은 PokéAPI sprites 저장소의 도트 그림(앞모습 KingOfThe-X-Roads, 뒷모습 DoveKyle).</p>
 		<button class="btn danger" onClick={() => { if (confirm('모든 기록과 팀을 지울까요?')) { try { Object.keys(localStorage).filter(k => k.startsWith('pkbkr:')).forEach(k => localStorage.removeItem(k)); } catch {} toast('초기화했습니다'); } }}>데이터 초기화</button>
