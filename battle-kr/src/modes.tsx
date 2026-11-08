@@ -777,10 +777,20 @@ function rankOpponent(rpNew: number, fmt: RankFmt, level: number) {
 	const tr = randomTrainer(trLevel);
 	return { name: tr.name, title: tr.className, sprite: tr.sprite, lines: tr.lines, line: tr.lines.intro, skill, team: withLevel(team, level), named: false, ranker: '' };
 }
+/** 끝나지 않은 랭크 매치(배틀 중 앱 종료·새로고침)를 패배로 처리. 앱 시작·랭크 매치 진입 때 부름. 처리했으면 그 형식 키를 돌려줌 */
+export function settleRankPending(): string | null {
+	const p = loadRecords().rankPending;
+	if (!p) return null;
+	updateRecords(r => { r.rp = { ...(r.rp || {}), [p.key]: p.rp }; r.rankStreak = { ...(r.rankStreak || {}), [p.key]: p.streak }; r.battles++; r.rankPending = undefined; r.rankNotice = true; });
+	return p.key;
+}
 export async function runRank() {
+	settleRankPending();
+	const settled = !!loadRecords().rankNotice;   // 앱 시작 때 처리했어도 랭크 매치에 들어오면 한 번 알림
+	if (settled) updateRecords(r => { r.rankNotice = undefined; });
 	const opts = defaultOpts();
 	const fmt = await ask<RankFmt | typeof BACK>(r => <ChoiceScreen title="모의 랭크 매치" onBack={() => r(BACK)}
-		intro={<p class="hint">포켓몬 챔피언스 방식: 6마리를 등록하고 상대 엔트리를 본 뒤 참가 포켓몬을 고릅니다. 이기면 RP가 올라 등급이 오르고, 올라갈수록 상대 포켓몬과 AI가 강해집니다.</p>}
+		intro={<>{settled && <p class="hint warn">⚠ 지난 랭크 매치가 끝나기 전에 앱이 꺼져서 패배로 처리했어요.</p>}<p class="hint">포켓몬 챔피언스 방식: 6마리를 등록하고 상대 엔트리를 본 뒤 참가 포켓몬을 고릅니다. 이기면 RP가 올라 등급이 오르고, 올라갈수록 상대 포켓몬과 AI가 강해집니다.</p></>}
 		options={[
 			{ value: 'singles' as RankFmt, label: '싱글 6→3', desc: '6마리 중 3마리 선택 · 1대1', icon: '③', badge: `${rankLabel(loadRecords().rp?.['singles' + rt()] || 0)} ${loadRecords().rp?.['singles' + rt()] || 0}RP` },
 			{ value: 'doubles' as RankFmt, label: '더블 6→4', desc: '6마리 중 4마리 선택 · 2대2', icon: '④', badge: `${rankLabel(loadRecords().rp?.['doubles' + rt()] || 0)} ${loadRecords().rp?.['doubles' + rt()] || 0}RP` },
@@ -813,6 +823,8 @@ export async function runRank() {
 		const picked = await ask<PSet[]>(r => <PickScreen title={`참가 포켓몬 ${n}마리`} team={team} gen={9} count={Math.min(n, team.length)}
 			opponent={{ name: `${opp.title ? opp.title + ' ' : ''}${opp.name}`, team: opp.team }} onDone={r} />);
 		const oppPick = aiPickEntry(opp.team, team, n, fmt === 'doubles', opp.skill, opp.named);
+		// 배틀 도중 앱을 끄거나 새로고침해도 패배를 피할 수 없게: 진 것으로 칠 결과를 먼저 저장해 두고, 결과가 나면 지움 (settleRankPending)
+		if (!noRec(opts)) updateRecords(r => { r.rankPending = { key, rp: Math.max(0, rp - loss), streak: upper ? streak : 0 }; });
 		const res = await battle({
 			gen: 9, doubles: fmt === 'doubles', aiSkill: opp.skill, bg: oppRp >= MASTER_MIN ? 'champion' : 'pwt', label: `랭크 매치 · ${tier.name}${upper ? ' · 상위 매칭' : ''}`, music: (opp as any).music ?? (oppRp >= MASTER_MIN ? 'champion' : 'tower'),
 			noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse,
@@ -822,7 +834,7 @@ export async function runRank() {
 		if (!noRec(opts)) {
 			newRp = Math.max(0, rp + (res.win ? gain : -loss));
 			updateRecords(r => { r.rp = { ...(r.rp || {}), [key]: newRp }; r.rpBest = { ...(r.rpBest || {}), [key]: Math.max(r.rpBest?.[key] || 0, newRp) };
-				r.rankStreak = { ...(r.rankStreak || {}), [key]: res.win ? streak + 1 : upper ? streak : 0 }; });
+				r.rankStreak = { ...(r.rankStreak || {}), [key]: res.win ? streak + 1 : upper ? streak : 0 }; r.rankPending = undefined; });
 			const nt = rankTier(newRp);
 			if (tierOrder(nt) > tierOrder(tier)) msg = `🎉 ${nt.name}(으)로 승급!`;
 			else if (tierOrder(nt) < tierOrder(tier)) msg = `${nt.name}(으)로 강등…`;

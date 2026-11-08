@@ -2070,3 +2070,6 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .us-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 50vh; overflow-y: auto; }
 .us-thumb { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .us-thumb .sprite, .us-thumb .sprite-fallback { max-width: 40px !important; max-height: 40px !important; }
+
+/* 경고 안내 (랭크 매치: 끝나지 않은 매치를 패배로 처리) */
+.hint.warn { color: #ffd27a; }

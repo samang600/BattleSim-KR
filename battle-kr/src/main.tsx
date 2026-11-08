@@ -6,7 +6,7 @@ import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, as
 import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
-import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel } from './modes';
+import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel, settleRankPending } from './modes';
 import { exportBackup, inspectBackup, importBackup } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
 import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, applyRuleData, poolSub, type LegendMode } from './rules';
@@ -394,4 +394,5 @@ document.addEventListener('pointerdown', e => {
 if ((window as any).BattleSimNative) document.documentElement.classList.add('native');
 // 규칙의 포켓몬 풀 사양으로 데이터(종족값·특성·기술·도구) 맞추기
 applyRuleData(ruleById(loadSettings().battleRule));
+settleRankPending();   // 랭크 매치 도중 앱이 꺼졌으면 패배로
 render(<App />, document.getElementById('app')!);
