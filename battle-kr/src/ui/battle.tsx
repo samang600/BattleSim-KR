@@ -680,6 +680,24 @@ function typeTint(type: string) {
 			if (/^\|detailschange\|[^|]+\|[^|,]*-(Mega|Primal|Ultra)/.test(lines[i]) && /^\|-(mega|primal|burst)\|/.test(lines[i + 1]) &&
 				lines[i].split('|')[2] === lines[i + 1].split('|')[2]) { [lines[i], lines[i + 1]] = [lines[i + 1], lines[i]]; i++; }
 		}
+		// 본가처럼 HP 바가 먼저 줄고 나서 '효과가 굉장했다/별로인 듯하다', '급소에 맞았다' 메시지가 뜨게:
+		// 쇼다운은 -crit·-supereffective·-resisted 를 -damage 앞에 보내므로, 같은 대상의 다음 -damage 바로 뒤로 옮김 (다음 기술·턴 전까지만 찾음)
+		for (let i = 0; i < lines.length; i++) {
+			const m = /^\|-(crit|supereffective|resisted)\|([^|]+)/.exec(lines[i]);
+			if (!m) continue;
+			const target = m[2];
+			let j = i + 1;
+			for (; j < lines.length && !/^\|(move|turn|switch|drag|upkeep|cant)\|/.test(lines[j]) && lines[j] !== '|'; j++) {
+				if (lines[j].startsWith('|-damage|' + target + '|') || (lines[j].startsWith('|-activate|' + target + '|') && /Substitute\|\[damage\]/.test(lines[j]))) break;
+			}
+			if (j >= lines.length || !(lines[j].startsWith('|-damage|') || lines[j].startsWith('|-activate|'))) continue;
+			const [eff] = lines.splice(i, 1);
+			// 그 -damage(이제 j-1) 바로 뒤, 이미 옮겨 둔 메시지들 다음 (급소 → 효과 순서 유지)
+			let k = j;
+			while (k < lines.length && /^\|-(crit|supereffective|resisted)\|/.test(lines[k])) k++;
+			lines.splice(k, 0, eff);
+			i--;                       // 이 자리에 온 다음 줄을 다시 봄
+		}
 		// 빗나가거나 막힌(방어·무효·실패) 기술: 실제로 맞은 대상이 없으면 기술 연출 생략 ([noanim] 표시)
 		const BLOCK = /^\|-activate\|[^|]*\|(move: )?(Protect|Detect|King's Shield|Spiky Shield|Baneful Bunker|Silk Trap|Obstruct|Burning Bulwark|Max Guard|Wide Guard|Quick Guard|Mat Block|Crafty Shield)/;
 		for (let i = 0; i < lines.length; i++) {
