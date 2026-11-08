@@ -3,8 +3,9 @@ import { rng } from './sets';
 import { NAMED_SPRITE, NAMED_LINES, genericLines } from './trainer-lines';
 import { NAMED_LORE, EXTRA_NAMED as EXTRA_LORE } from './trainer-lore';
 import { ANIME_NAMED } from './anime-trainers';
-/** 추가 인물 + 애니메이션 오리지널 트레이너 */
-const EXTRA_NAMED = [...EXTRA_LORE, ...ANIME_NAMED];
+import { MORE_ANIME, MORE_NAMED } from './more-trainers';
+/** 추가 인물 + 애니메이션 오리지널 트레이너 (+ v2.54 에 더한 빠진 네임드·애니메이션 인물) */
+const EXTRA_NAMED = [...EXTRA_LORE, ...MORE_NAMED, ...ANIME_NAMED, ...MORE_ANIME];
 
 export interface NamedTrainer {
 	id: string;
@@ -206,7 +207,7 @@ export function namedLines(t: NamedTrainer) {
 
 // ── PWT 대회 ──
 export interface Cup { id: string; name: string; desc: string; trainers: () => string[]; rental?: boolean; open?: boolean }
-const byRegionLeaders = (r: NamedTrainer['region']) => NAMED.filter(t => t.region === r && t.role === 'leader').map(t => t.id);
+const byRegionLeaders = (r: NamedTrainer['region']) => NAMED.filter(t => t.region === r && t.role === 'leader' && !t.title.includes('캡틴')).map(t => t.id);   // 알로라 캡틴은 '섬의 왕' 대회에서 뺌
 export const CUPS: Cup[] = [
 	{ id: 'rental', name: '렌탈 대회', desc: '대회에서 빌려주는 포켓몬으로 참가합니다. 상대는 일반 트레이너.', trainers: () => [], rental: true },
 	{ id: 'open', name: '오픈 대회', desc: '내 팀으로 참가. 상대는 실력 있는 일반 트레이너.', trainers: () => [], open: true },

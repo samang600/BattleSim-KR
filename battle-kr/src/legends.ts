@@ -86,7 +86,12 @@ export function rosterForRule(t: NamedTrainer, ruleIn: BattleRule): string[] {
 	// 지우·진철·슈티 같은 주인공·라이벌은 초전설(Restricted Legendary)을 쓰지 않음
 	if (t.region === '애니메이션') {
 		const noRestricted = /^ash|^paul$|^trip$/.test(t.id) || t.role === 'hero' || t.role === 'rival';
-		const r = noRestricted ? roster.filter(id => !RAW.species[id]?.tags?.includes('Restricted Legendary')) : roster;
+		let r = noRestricted ? roster.filter(id => !RAW.species[id]?.tags?.includes('Restricted Legendary')) : roster;
+		// 규칙이 전설·환상을 막아 6마리가 안 되면, 그 트레이너의 주 타입 포켓몬으로 앞자리를 채움 (에이스는 맨 뒤 그대로)
+		if (r.length < 6) {
+			const fill = rng.shuffle(speciesPool({ gen: 9, minBst: 480, types: [type] }).filter(id => speciesAllowed(rule, id) && !r.includes(id) && !isLegend(id)));
+			r = [...fill.slice(0, 6 - r.length), ...r];
+		}
 		return r.length ? r : t.team;
 	}
 	const used = new Set(roster);

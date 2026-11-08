@@ -217,7 +217,7 @@ export const EXTRA_NAMED: ExtraTrainer[] = [
 		line: "나는 추구합니다! 더욱더 아름다운 세계를요!", ace: "주는 자와 뺏는 자...! 내 갸라도스가 정하겠습니다!", lose: "이것이… 선택받은 자의 힘이란 말입니까.", win: "아름다운 세계에 당신의 자리는 없습니다.", src: "mixed" },
 	{ id: "xerosic", name: "크세로시키", title: "플레어단 과학자", region: "칼로스", role: "admin", team: ["magnezone", "porygonz", "klefki", "crobat", "beheeyem", "malamar"], sprite: "xerosic",
 		line: "흐흐흐, 너도 플레어단의 실험에 협력해 줘야겠다.", ace: "칼라마네로, 내 연구의 결정체를 보여 줘라!", lose: "흠, 흥미로운 결과로군. 데이터는 잘 받아 가지.", win: "실험 성공! 과학에 감정 따위는 필요 없지.", src: "written" },
-	{ id: "mable", name: "바라", title: "플레어단 과학자", region: "칼로스", role: "admin", team: ["mightyena", "honchkrow", "scrafty", "houndoom", "liepard", "bisharp"], sprite: "mable",
+	{ id: "mable", name: "모미지", title: "플레어단 과학자", region: "칼로스", role: "admin", team: ["mightyena", "honchkrow", "scrafty", "houndoom", "liepard", "bisharp"], sprite: "mable",
 		line: "플레어단의 아름다운 세계를 방해하지 마.", ace: "절각참, 방해꾼을 깔끔하게 정리해.", lose: "칫… 플라드리님께 뭐라고 보고하지.", win: "후훗, 선택받지 못한 자는 이렇게 되는 거야.", src: "written" },
 	{ id: "elio", name: "영태", title: "알로라 주인공", region: "알로라", role: "hero", team: ["raichualola", "toucannon", "lycanroc", "mimikyu", "solgaleo", "primarina"], sprite: "elio",
 		line: "알로라! 섬 순례에서 단련한 실력을 보여 줄게!", ace: "Z파워 전개! 마지막까지 함께 가자!", lose: "…졌다. 그래도 정말 좋은 승부였어!", win: "알로라리그 초대 챔피언의 실력, 어땠어?", src: "written" },
