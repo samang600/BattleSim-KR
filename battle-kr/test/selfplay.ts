@@ -3,8 +3,9 @@ import { Battle } from '../../sim/battle';
 import { chooseAI } from '../src/ai';
 import { filterGimmicks, gimmickOfLine, Session } from '../src/engine';
 import { loadSettings } from '../src/store';
-import { ruleById, applyRuleData, speciesAllowed } from '../src/rules';
-import { randomTeam, toSimTeam, randomSetFor } from '../src/sets';
+import { ruleById, applyRuleData, speciesAllowed, POOLS } from '../src/rules';
+import { randomTeam, toSimTeam, randomSetFor, factoryTeam, cloneSet } from '../src/sets';
+import { factoryPool, FACTORY_GRADES } from '../src/modes';
 import { setSmogon, aiPickEntry } from '../src/smogon';
 import { rankerTeam, rankerCount, rankerSources } from '../src/pokedb';
 import { teamPlan, planText } from '../src/plan';
@@ -12,6 +13,8 @@ import { KoreanText, parseLine } from '../src/text';
 /** o.aSmogon/bSmogon: 각 팀을 Smogon 통계로 만들지 / o.quality: 통계 세트의 쏠림 / o.pick: 6마리 중 n마리 (A 는 aiPickEntry, B 는 무작위) */
 (window as any).__Battle = Battle; (window as any).__toSimTeam = toSimTeam;
 (window as any).__plan = { teamPlan, planText };
+(window as any).__text = { KoreanText, parseLine };
+(window as any).__sets = { factoryTeam, toSimTeam, randomTeam, factoryPool, FACTORY_GRADES, cloneSet, POOLS };
 (window as any).__ranker = { rankerTeam, rankerCount, rankerSources, applyRuleData, ruleById, loadSettings, speciesAllowed };
 (window as any).selfplay = (n: number, gen: 9, doubles: boolean, skillA: number, skillB: number, _unused = false, size = 0,
 	o: { aSmogon?: boolean; bSmogon?: boolean; quality?: number; pick?: number; depthA?: number; depthB?: number; budget?: number; aRanker?: boolean; bRanker?: boolean; planA?: boolean; planB?: boolean; minBstB?: number; cfgA?: { budget?: number; seeds?: number }; cfgB?: { budget?: number; seeds?: number }; verA?: number; verB?: number; swap?: boolean; featA?: any; featB?: any } = {}) => {

@@ -12,7 +12,16 @@ export interface TeamPlan {
 	setup: boolean;
 	/** 포켓몬마다 역할: 'setter' 판을 까는 쪽(날씨·트릭룸·순풍), 'abuser' 그 판에서 강해지는 쪽 */
 	roles: ('setter' | 'abuser' | '')[];
+	/** 싱글 운영: 대면(공격적으로 맞붙음) · 사이클(유턴·재생력으로 돌며 설치기) · 막이(회복·상태이상으로 버팀) · 밸런스 */
+	style: SinglesStyle;
 }
+export type SinglesStyle = 'offense' | 'cycle' | 'stall' | 'balance';
+const PIVOT = new Set(['uturn', 'voltswitch', 'flipturn', 'partingshot', 'teleport', 'chillyreception', 'shedtail']);
+const RECOVERY = new Set(['recover', 'roost', 'softboiled', 'slackoff', 'moonlight', 'morningsun', 'synthesis', 'milkdrink', 'shoreup', 'wish', 'rest',
+	'strengthsap', 'lifedew', 'junglehealing', 'lunarblessing', 'healorder', 'leechseed', 'painsplit']);
+const HAZARD = new Set(['stealthrock', 'spikes', 'toxicspikes', 'stickyweb', 'ceaselessedge', 'stoneaxe']);
+const STATUS = new Set(['toxic', 'willowisp', 'thunderwave', 'glare', 'yawn', 'spore', 'sleeppowder', 'nuzzle', 'saltcure', 'infestation', 'whirlpool']);
+const OFF_ITEMS = new Set(['choiceband', 'choicespecs', 'choicescarf', 'lifeorb', 'focussash', 'boosterenergy', 'expertbelt', 'loadeddice', 'weaknesspolicy', 'whiteherb']);
 
 const WEATHER_ABIL: { [ab: string]: Weather } = { drizzle: 'raindance', primordialsea: 'raindance', drought: 'sunnyday', desolateland: 'sunnyday', orichalcumpulse: 'sunnyday',
 	sandstream: 'sandstorm', snowwarning: 'snowscape' };
@@ -60,7 +69,26 @@ export function teamPlan(team: MonInfo[]): TeamPlan {
 		if (trickRoom && m.spe <= 60) return 'abuser' as const;
 		return '' as const;
 	});
-	return { weather, trickRoom, tailwind, setup, roles };
+	return { weather, trickRoom, tailwind, setup, roles, style: singlesStyle(team) };
+}
+
+/** 싱글 운영 판별: 포켓몬마다 공격형·피벗·막이를 세고 팀 비율로 */
+function singlesStyle(team: MonInfo[]): SinglesStyle {
+	let off = 0, pivot = 0, wall = 0;
+	for (const m of team) {
+		const mv = m.moves.map(toID), ab = effAbility(m), it = toID(m.item);
+		const attacks = mv.filter(x => { const d = (RAW.moves as any)[x]; const g = d?.g?.['9']; return g && g[1] !== 'Status'; }).length;
+		const rec = mv.some(x => RECOVERY.has(x)) || ab === 'regenerator' && it === 'leftovers';
+		const sup = mv.filter(x => STATUS.has(x) || HAZARD.has(x) || x === 'protect' || x === 'haze' || x === 'whirlwind' || x === 'roar' || x === 'defog' || x === 'rapidspin').length;
+		if (OFF_ITEMS.has(it) || (attacks >= 3 && !rec) || mv.some(x => SETUP_MOVES.has(x)) && attacks >= 2 && !rec) off++;
+		if (mv.some(x => PIVOT.has(x)) || ab === 'regenerator') pivot++;
+		if (rec && attacks <= 2 && sup >= 1 || ab === 'unaware' && rec) wall++;
+	}
+	const n = Math.max(1, team.length);
+	if (wall / n >= 0.5 && off / n <= 0.34) return 'stall';
+	if (off / n >= 0.67) return 'offense';
+	if (pivot / n >= 0.34 && wall >= 1) return 'cycle';
+	return 'balance';
 }
 
 /** 배틀 중 진영 → 성향 (진영마다 한 번 계산) */
@@ -78,5 +106,6 @@ export function sidePlan(side: any): TeamPlan {
 /** 성향을 한국어 한 줄로 (디버그·표시용) */
 export function planText(p: TeamPlan): string {
 	const w = { raindance: '비', sunnyday: '쾌청', sandstorm: '모래바람', snowscape: '설경' } as const;
-	return [p.weather && w[p.weather] + ' 파티', p.trickRoom && '트릭룸', p.tailwind && '순풍', p.setup && '랭크업'].filter(Boolean).join(' · ') || '일반';
+	const st = { offense: '대면', cycle: '사이클', stall: '막이', balance: '' } as const;
+	return [st[p.style], p.weather && w[p.weather] + ' 파티', p.trickRoom && '트릭룸', p.tailwind && '순풍', p.setup && '랭크업'].filter(Boolean).join(' · ') || '일반';
 }

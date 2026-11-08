@@ -482,7 +482,7 @@ function typeTint(type: string) {
 		}
 		case 'move': {
 			const mon = activeMon(args[1]);
-			if (mon && !mon.seen.includes(args[2])) mon.seen.push(args[2]);
+			noteSeen(mon, p);
 			// 소리 기술(하이퍼보이스·울음소리·폭음파 등 sound 플래그)은 쓰는 포켓몬의 울음소리를 함께 냄
 			soundMoveCry(p, mon);
 			animate(mon, args[1].startsWith('p1') ? 'attack-own' : 'attack-foe', 450);
@@ -730,7 +730,7 @@ function typeTint(type: string) {
 				// 기술 이름 메시지를 먼저 보여주고 애니메이션
 				showMsg(msgs.shift()!);
 				const mon = activeMon(p.args[1]);
-				if (mon && !mon.seen.includes(p.args[2])) mon.seen.push(p.args[2]);
+				noteSeen(mon, p);
 				soundMoveCry(p, mon);
 				rerender();
 				const used = p.kw.noanim || p.kw.still ? false : await tryRebornAnim(p);
@@ -1022,6 +1022,14 @@ function typeTint(type: string) {
 	const curMon = scene.p1.active[slotIdx];
 
 	/** 화면에 보이는 대로의 상대: 일루전(조로아크)으로 둔갑한 포켓몬은 둔갑한 모습으로 상성·데미지를 계산 (진짜 타입이 새지 않게) */
+	/** 상대가 쓴 기술 기록: 잠꼬대·손가락흔들기로 나온 기술, 매직미러로 튕긴 기술, Z기술·다이맥스 기술은 그 포켓몬의 기술이 아니라서 뺌
+	 *  (넣으면 배틀팩토리에서 교환으로 받은 포켓몬의 기술이 '바뀐' 것처럼 보임) */
+	function noteSeen(mon: Mon | null | undefined, p: any) {
+		if (!mon || p.kw?.from || p.kw?.zeffect) return;
+		const md = sessionRef.current?.battle.dex.moves.get(p.args[2]);
+		if (md && (md.isZ || md.isMax)) return;
+		if (!mon.seen.includes(p.args[2])) mon.seen.push(p.args[2]);
+	}
 	const seen = (p: any): any => {
 		if (!p?.illusion) return p;
 		return p.terastallized ? [p.terastallized] : p.illusion.species.types;

@@ -5,7 +5,7 @@
  */
 import { State } from '../../sim/state';
 import { PRNG } from '../../sim/prng';
-import { sidePlan, type TeamPlan } from './plan';
+import { sidePlan, type TeamPlan, type SinglesStyle } from './plan';
 type Battle = any;
 type Pokemon = any;
 
@@ -218,6 +218,36 @@ function matchup(battle: Battle, mon: Pokemon, foes: Pokemon[]) {
 	return score + hpFrac * 0.3;
 }
 
+/** (더블 운영) 이 포켓몬이 아직 안 깔린 트릭룸·순풍을 깔 수 있고, 깔리면 우리에게 불리한가 */
+function setterThreat(battle: Battle, foe: Pokemon, me: Pokemon): boolean {
+	const has = (id: string) => foe.moveSlots?.some((m: any) => m.id === id);
+	const spe = (sd: any) => sd.pokemon.filter((p: Pokemon) => !p.fainted).reduce((a: number, p: Pokemon) => a + st(p, 'spe'), 0);
+	if (has('trickroom') && !battle.field.pseudoWeather['trickroom'] && spe(me.side) > spe(foe.side)) return true;
+	if (has('tailwind') && !foe.side.sideConditions['tailwind']) return true;
+	return false;
+}
+/** (더블 운영) 상대가 깐 판(트릭룸·순풍)이 지금 우리에게 불리하고 몇 턴 남았나 → 방어로 버틸 가치 */
+function hostileFieldTurns(battle: Battle, me: Pokemon): number {
+	const spe = (sd: any) => sd.active.filter((p: Pokemon) => p && !p.fainted).reduce((a: number, p: Pokemon) => a + st(p, 'spe'), 0);
+	const tr = battle.field.pseudoWeather['trickroom'];
+	let t = 0;
+	if (tr && spe(me.side) > spe(me.side.foe)) t = Math.max(t, tr.duration ?? 0);
+	const tw = me.side.foe.sideConditions['tailwind'];
+	if (tw && !me.side.sideConditions['tailwind']) t = Math.max(t, tw.duration ?? 0);
+	return t;
+}
+/** 싱글 운영 스타일 (대면·사이클·막이·밸런스). 더블이거나 꺼져 있으면 'balance' */
+function styleOf(b: Battle, sideId: string): SinglesStyle {
+	if ((globalThis as any).__noPlan?.[sideId] || b.gameType !== 'singles') return 'balance';
+	try { return sidePlan(b[sideId]).style; } catch { return 'balance'; }
+}
+/** 스타일별 평가 가중: 상태이상·랭크업·설치기·HP */
+const STYLE_W: { [k in SinglesStyle]: { st: number; boost: number; haz: number; hp: number } } = {
+	balance: { st: 1, boost: 1, haz: 1, hp: 1 },
+	offense: { st: 0.7, boost: 1.6, haz: 0.8, hp: 0.9 },   // 대면: 랭크업·화력, 상태이상·설치기는 덜
+	cycle: { st: 1.1, boost: 0.9, haz: 1.5, hp: 1.05 },    // 사이클: 설치기 싸움, HP 보존
+	stall: { st: 1.7, boost: 0.6, haz: 1.3, hp: 1.15 },    // 막이: 상대 상태이상 누적·내 HP 유지
+};
 /** 팀 성향 (자체 대전 비교용으로 진영마다 끌 수 있음: globalThis.__noPlan = { p1: true }) */
 function planOf(user: Pokemon): TeamPlan | null {
 	if ((globalThis as any).__noPlan?.[user.side.id]) return null;
@@ -230,6 +260,7 @@ function statusScore(battle: Battle, user: Pokemon, move: any, target: Pokemon |
 	const threat = foes.reduce((m, f) => Math.max(m, bestDamage(battle, f, user)), 0);
 	const t = target;
 	const lastMove = user.lastMove?.id;
+	const style = styleOf(battle, user.side.id);   // 싱글 운영 스타일
 	if (t && t.volatiles['substitute'] && move.target !== 'self' && !move.flags?.bypasssub) return 0;
 	if (SLEEP.has(id)) {
 		if (!t || t.status || t.side.pokemon.some((p: Pokemon) => p.status === 'slp' && p !== t)) return 5;
@@ -246,11 +277,11 @@ function statusScore(battle: Battle, user: Pokemon, move: any, target: Pokemon |
 	}
 	if (id === 'willowisp') {
 		if (!t || t.status || t.hasType('Fire') || t.getAbility().id === 'flashfire') return 0;
-		return st(t, 'atk') > st(t, 'spa') ? 70 : 30;
+		return (st(t, 'atk') > st(t, 'spa') ? 70 : 30) + (style === 'stall' ? 12 : 0);
 	}
 	if (id === 'toxic' || id === 'poisonpowder' || id === 'poisongas') {
 		if (!t || t.status || t.hasType('Poison') || t.hasType('Steel') || t.getAbility().id === 'immunity') return 0;
-		return 55;
+		return style === 'stall' ? 75 : style === 'offense' ? 40 : 55;   // 막이는 맹독 누적이 핵심
 	}
 	if (['confuseray', 'supersonic', 'sweetkiss', 'teeterdance', 'swagger', 'flatter'].includes(id)) {
 		if (!t || t.volatiles['confusion']) return 0;
@@ -273,13 +304,17 @@ function statusScore(battle: Battle, user: Pokemon, move: any, target: Pokemon |
 		if (id === 'rest') return hpFrac < 0.35 && user.status !== 'slp' ? 80 : (user.status && hpFrac < 0.6 ? 50 : 0);
 		if (id === 'wish' && user.side.slotConditions?.[user.position]?.['wish']) return 0;
 		if (hpFrac < 0.4) return 92;
-		if (hpFrac < 0.6) return 60;
-		if (hpFrac < 0.8) return 20;
+		if (hpFrac < 0.6) return style === 'stall' ? 75 : 60;
+		if (hpFrac < 0.8) return style === 'stall' ? 45 : 20;   // 막이는 일찍 회복
 		return 0;
 	}
 	if (id === 'protect' || id === 'detect') {
 		if (lastMove === 'protect' || lastMove === 'detect') return 0;
-		if (battle.gameType === 'doubles') return 25 + rand() * 25;
+		if (battle.gameType === 'doubles') {
+			// 운영: 상대 트릭룸·순풍이 불리하게 깔려 있고 곧 끝나면 방어로 턴을 흘림
+			const ht = planOf(user) ? hostileFieldTurns(battle, user) : 0;
+			return 25 + rand() * 25 + (ht >= 1 && ht <= 3 ? 25 : 0);
+		}
 		const foeT = foes[0];
 		if (foeT && (foeT.status === 'tox' || foeT.status === 'psn' || foeT.status === 'brn' || foeT.volatiles['leechseed'])) return 40;
 		return 8;
@@ -290,14 +325,18 @@ function statusScore(battle: Battle, user: Pokemon, move: any, target: Pokemon |
 		if (layers >= HAZARDS[id]) return 0;
 		const alive = foeSide.pokemon.filter((p: Pokemon) => !p.fainted).length;
 		if (alive <= 1) return 0;
-		return (id === 'stealthrock' ? 70 : 50) - layers * 15;
+		return (id === 'stealthrock' ? 70 : 50) - layers * 15 + (style === 'cycle' || style === 'stall' ? 12 : 0);   // 사이클·막이는 설치기 우선
 	}
 	if (SCREENS.has(id)) {
 		if (user.side.sideConditions[id]) return 0;
 		return id === 'reflect' || id === 'lightscreen' ? 45 : 10;
 	}
 	if (id === 'substitute') return hpFrac > 0.5 && !user.volatiles['substitute'] ? 35 : 0;
-	if (id === 'taunt') return t && !t.volatiles['taunt'] && t.moveSlots.some((m: any) => battle.dex.moves.get(m.id).category === 'Status') ? 40 : 5;
+	if (id === 'taunt') {
+		if (!t || t.volatiles['taunt']) return 5;
+		if (battle.gameType === 'doubles' && planOf(user) && setterThreat(battle, t, user)) return 80;   // 운영: 트릭룸·순풍 막기
+		return t.moveSlots.some((m: any) => battle.dex.moves.get(m.id).category === 'Status') ? 40 : 5;
+	}
 	if (id === 'encore' || id === 'disable' || id === 'torment') return t && t.lastMove && !t.volatiles[id] ? 30 : 0;
 	if (id === 'batonpass') {
 		const b = Object.values(user.boosts as { [k: string]: number }).reduce((a, x) => a + Math.max(0, x), 0);
@@ -410,7 +449,9 @@ function viability(battle: Battle, user: Pokemon, move: any, target: Pokemon | n
 	if (!target) return v - 20;
 	const d = estimateDamage(battle, user, target, move);
 	if (d <= 0) return v - 20; // 효과 없음
-	if (move.id === 'fakeout') return ctx.firstTurn ? v + (doubles ? 6 : 3) : v - 20;
+	const setterTarget = doubles && planOf(user) && setterThreat(battle, target, user);   // 운영: 트릭룸·순풍을 깔 상대를 먼저
+	if (move.id === 'fakeout') return ctx.firstTurn ? v + (doubles ? 6 : 3) + (setterTarget ? 3 : 0) : v - 20;
+	if (setterTarget) v += 1;
 	if (move.id === 'dreameater' && target.status !== 'slp') return v - 20;
 	if (move.id === 'focuspunch') v -= 6;
 	if ((move.id === 'explosion' || move.id === 'selfdestruct' || move.id === 'memento') && hpFrac > 0.35) v -= 10;
@@ -434,7 +475,7 @@ function viability(battle: Battle, user: Pokemon, move: any, target: Pokemon | n
 	if (flags.viability) {
 		const sec = move.secondary || move.secondaries?.[0];
 		if (sec && (sec.chance || 0) >= 30 && !target.status && sec.status) v += 1;
-		if (move.id === 'uturn' || move.id === 'voltswitch') v += 1;
+		if (PIVOT_MOVES.has(move.id)) v += styleOf(battle, user.side.id) === 'cycle' ? 2 : 1;   // 사이클은 유턴·볼트체인지를 더 선호
 		if (move.id === 'rapidspin' && Object.keys(user.side.sideConditions).some(k => HAZARDS[k] !== undefined)) v += 3;
 		if (move.drain && hpFrac < 0.6) v += 1;
 	}
@@ -525,6 +566,8 @@ function shouldSwitch(battle: Battle, user: Pokemon, side: any, opts: Option[], 
 	const hpFrac = user.hp / user.maxhp;
 	const bestOpt = opts.reduce((m, o) => Math.max(m, o.score), 0);
 	const cur = matchup(battle, user, foes);
+	// 대면 운영: 쓸 만한 공격이 있으면 웬만하면 남아서 싸움
+	if (styleOf(battle, side.id) === 'offense' && bestOpt >= 95 && hpFrac > 0.25 && !user.volatiles['perishsong'] && Math.random() < 0.6) return null;
 	// 1. 멸망의노래 카운트 1
 	if (user.volatiles['perishsong']?.duration === 1) return cand.i;
 	// 2. 원더가드 상대에게 효과 있는 기술 없음
@@ -911,6 +954,7 @@ function lookaheadDoubles(battle: Battle, side: any, parts: string[], slotCands:
 /** AI 버전: 1 = 이전, 2 = + 장 상황 평가, 3 = + 상대 습관·교체 예상 (v3 vs v2 싱글 6마리 53.8%(800판), 3마리 50.4%(1200판)). 자체 대전 비교용으로 globalThis.__aiVer = { p1: 1, p2: 3 } 처럼 진영별 지정 */
 /** 장 상황 평가 항목별 가중. 자체 대전(진영 바꿔 두 판씩, 깊이 1·숙고 200ms): v2 vs v1 싱글 6마리 54.9%(1200판), 3마리 49.2%(1200판) */
 const AI_FEAT = { haz: 1, scr: 1, sub: 1, item: 1 };
+const PIVOT_MOVES = new Set(['uturn', 'voltswitch', 'flipturn', 'partingshot']);
 function aiVer(me: 'p1' | 'p2'): number { return (globalThis as any).__aiVer?.[me] ?? 3; }
 
 /** (v2) 한 진영의 장 상황 점수: 설치기(내 쪽에 깔리면 손해) · 벽 · 순풍 · 대타출동 · 기합의띠/풍선 */
@@ -959,17 +1003,18 @@ function planField(b: Battle, sideId: 'p1' | 'p2'): number {
 
 /** 진영 평가: HP 비율 합 + 살아 있는 수 (내 쪽 − 상대 쪽), v2 는 장 상황도 */
 function evalState(b: Battle, mySide: 'p1' | 'p2'): number {
+	const W = STYLE_W[styleOf(b, mySide)];   // 내 운영 스타일로 무엇을 중시할지 (양쪽 같은 잣대)
 	const score = (side: any) => {
 		let v = 0;
 		for (const p of side.pokemon) {
 			if (p.fainted || !p.hp) continue;
-			v += p.hp / p.maxhp + 0.35;
-			if (p.status === 'tox' || p.status === 'brn') v -= 0.08;
-			else if (p.status === 'slp' || p.status === 'frz') v -= 0.12;
-			else if (p.status) v -= 0.05;
+			v += (p.hp / p.maxhp) * W.hp + 0.35;
+			if (p.status === 'tox' || p.status === 'brn') v -= 0.08 * W.st;
+			else if (p.status === 'slp' || p.status === 'frz') v -= 0.12 * W.st;
+			else if (p.status) v -= 0.05 * W.st;
 			if (p.isActive) {
 				const bs = Object.values(p.boosts as any).reduce((a: number, x: any) => a + x, 0) as number;
-				v += Math.max(-3, Math.min(3, bs)) * 0.04;
+				v += Math.max(-3, Math.min(3, bs)) * 0.04 * W.boost;
 			}
 		}
 		return v;
@@ -979,7 +1024,8 @@ function evalState(b: Battle, mySide: 'p1' | 'p2'): number {
 	let v = score(b[mySide]) - score(b[foe]);
 	if (aiVer(mySide) >= 2) {
 		// 항목별 가중(테스트에서 __aiFeat[진영] 으로 조절)
-		const F = (globalThis as any).__aiFeat?.[mySide] || AI_FEAT;
+		const F0 = (globalThis as any).__aiFeat?.[mySide] || AI_FEAT;
+		const F = W.haz === 1 ? F0 : { ...F0, haz: (F0.haz ?? 1) * W.haz };
 		try { v += fieldScore(b, mySide, F) - fieldScore(b, foe, F); } catch {}
 		if (!(globalThis as any).__noPlan?.[mySide] && b.gameType === 'doubles') { try { v += planField(b, mySide) - planField(b, foe); } catch {} }
 	}

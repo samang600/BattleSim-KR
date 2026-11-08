@@ -366,7 +366,7 @@ interface FactoryState { fmt: Fmt; level: 50 | 100; team: PSet[]; streak: number
 const FACTORY_KEY = (fmt: Fmt, lv: number, o: BattleOpts) => `factory-${fmt}-${lv}${optsTag(o)}${rt()}`;
 
 /** 렌탈 등급 (약한 순). 미진화·중간 진화는 Smogon 팩토리 세트가 없어 무작위 세트(진화 전만)로 만듦 */
-const FACTORY_GRADES = ['미진화', '미진화·중간 진화', '중간 진화', 'PU', 'NU', 'RU', 'UU', 'OU', 'OU·Uber', 'Uber'] as const;
+export const FACTORY_GRADES = ['미진화', '미진화·중간 진화', '중간 진화', 'PU', 'NU', 'RU', 'UU', 'OU', 'OU·Uber', 'Uber'] as const;
 type FGrade = typeof FACTORY_GRADES[number];
 /** 난이도별 세트(7연승)마다 렌탈 등급
  *  쉬움: 미진화 → 중간 진화 → PU → NU …   보통: 1세트(7회전까지) 미진화·중간 진화 → PU → NU …   어려움: UU 부터 */
@@ -382,12 +382,14 @@ const GRADE_LABEL: { [k in FGrade]: string } = { '미진화': '미진화', '미�
 /** 등급 위치 (AI 실력·팩토리 헤드 등급 계산용) */
 const gradeIdx = (g: FGrade) => FACTORY_GRADES.indexOf(g);
 const NFE_BST: { [g: string]: [number, number] } = { '미진화': [200, 400], '미진화·중간 진화': [200, 470], '중간 진화': [330, 480] };
-function factoryPool(grade: FGrade, level: number, size: number, exclude?: Set<string>, type?: string, diff: Diff = 'normal') {
+export function factoryPool(grade: FGrade, level: number, size: number, exclude?: Set<string>, type?: string, diff: Diff = 'normal') {
 	// 미진화·중간 진화: 진화 전 포켓몬만, 준전설 없음
 	if (NFE_BST[grade]) {
 		const [minBst, maxBst] = NFE_BST[grade];
 		let team = randomTeam({ gen: 9, size, stage: 'nfe', minBst, maxBst, level, exclude, types: type ? [type] : undefined, gimmicks: false, quality: 0.5 });
 		if (team.length < size) team = [...team, ...randomTeam({ gen: 9, size: size - team.length, stage: 'nfe', minBst, maxBst: maxBst + 40, level, gimmicks: false, quality: 0.5 })];
+		// 포켓몬 풀에 진화 전 포켓몬이 없으면(챔피언스 등) 가장 낮은 등급 렌탈로 채움 — 비어 있으면 배틀이 시작되지 않음
+		if (team.length < size) team = [...team, ...factoryPool('PU', level, size - team.length, new Set([...(exclude || []), ...team.map(s => toID(s.species))]), type, diff)];
 		return team;
 	}
 	// 낮은 등급(PU·NU, 쉬움은 RU 까지)은 준전설 제외

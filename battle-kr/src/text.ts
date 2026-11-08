@@ -479,7 +479,7 @@ export class KoreanText {
 			const vals: any = { POKEMON: pk(ident), EFFECT: eff.name, SOURCE: pk(kw.of), TARGET: pk(kw.of), MOVE: '', NUMBER: a4 || '', ITEM: '' };
 			if (a3) {
 				if (/^p\d[a-c]?:/.test(a3)) vals.TARGET = pk(a3);
-				else if (eff.id === 'trick' || eff.id === 'switcheroo') vals.ITEM = itemKo(a3);
+				else if (eff.id === 'trick' || eff.id === 'switcheroo' || eff.id === 'poltergeist') vals.ITEM = itemKo(a3);   // 폴터가이스트: 상대 도구 이름
 				else vals.MOVE = moveKo(a3);
 			}
 			if (eff.id === 'spite') { vals.TARGET = pk(ident); }

@@ -227,7 +227,10 @@ export function learnset(id: string, gen: Gen): string[] {
 		const bit = ({ '9': 8, '8': 4, '7': 2, '6': 1 } as { [k: string]: number })[ERA] || 8;
 		const out = (own.ls || []).filter((_: number, k: number) => ((own.lg?.charCodeAt(k) ?? 63) - 48) & bit).map((i: number) => D.moveIds[i]);
 		// 그 세대 정보가 없어 비면 기본 모습의 목록
-		return out.length || !base || base === own ? out : learnset(s.base, gen);
+		if (out.length) return out;
+		if (base && base !== own) { const b = learnset(s.base, gen); if (b.length) return b; }
+		// 그 게임에 없던 포켓몬(예: 소드·실드 룰의 러브로스 — 레전드 아르세우스 출신)은 기술이 하나도 없어지지 않게 전체 목록
+		return [...new Set<number>([...(own.ls || []), ...(own.cls || [])])].map((i: number) => D.moveIds[i]);
 	}
 	const out = new Set<number>([...(own.ls || []), ...(own.cls || [])]);
 	return [...out].map(i => D.moveIds[i]);
