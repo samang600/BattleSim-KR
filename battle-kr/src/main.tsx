@@ -10,7 +10,6 @@ import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, ran
 import { runPalace, runDaily, runBossRush, todayDaily } from './frontier';
 import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
 import { TrainerBook, SymbolIcon } from './ui/book';
-import { ModeIcon } from './ui/pixel-icons';
 import { exportBackup, inspectBackup, importBackup } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
 import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, applyRuleData, poolSub, type LegendMode } from './rules';
@@ -73,7 +72,7 @@ function Home({ go }: { go: (v: string) => void }) {
 	const achDone = ACHIEVEMENTS.filter(a => (st.ach[a.id] || 0) > 0).length;
 	const tile = (id: string, big: boolean) => { const m = MODES.find(x => x.id === id)!;
 		return <button class={'mode-tile hm-tile' + (big ? ' hm-big' : '')} style={{ '--mc': m.color } as any} onClick={() => go('mode:' + m.id)}>
-			<span class="hm-mon"><ModeIcon id={m.id} size={32} /></span>
+			<span class="hm-mon"><Sprite species={m.mon} gen={9} size={96} anim={false} /></span>
 			<span class="hm-text"><b>{m.name}</b>{(big || id !== 'daily') && m.sub && <small>{m.sub}</small>}{badge[m.id] && <em>{badge[m.id]}</em>}</span>
 		</button>; };
 	return <div class="home hm">

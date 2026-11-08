@@ -2096,10 +2096,11 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .hm-featured .hm-tile:first-child { grid-column: span 2; }
 .hm-more { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .hm-tile { position: relative; overflow: hidden; min-height: 0 !important; padding: 4px 6px !important; flex-direction: row !important; align-items: center; justify-content: flex-start !important; gap: 4px; }
-.hm-mon { position: relative; flex: none; display: flex; align-items: center; justify-content: center; }
+.hm-mon { position: relative; flex: none; display: flex; align-items: flex-end; justify-content: center; pointer-events: none; }
+.hm-mon .sprite { width: auto !important; height: auto !important; image-rendering: pixelated; }
 .pix-mode-icon { display: block; image-rendering: pixelated; filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, .5)); }
 .hm-text { position: relative; z-index: 1; display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
-.hm-text b { font-size: 15px; color: #fff; text-shadow: 2px 2px 0 rgba(0, 0, 0, .55); white-space: nowrap; font-weight: normal; }
+.hm-text b { font-size: 15px; color: #fff; text-shadow: 2px 2px 0 rgba(0, 0, 0, .55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: normal; }
 .hm-text small { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e6ecf8; }
 .hm-text em { font-style: normal; font-size: 11px; color: #8cf088; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hm-tile:active .hm-text b::before { content: '▶ '; color: var(--yellow); }
@@ -2109,14 +2110,19 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 /* 큰 타일: 이름 크게, 포켓몬은 오른쪽에 크게 */
 .hm-big { min-height: 116px !important; padding: 8px 10px !important; align-items: flex-start; }
 .hm-featured .hm-big:first-child { min-height: 120px !important; }
-.hm-big .hm-mon { position: absolute; right: 10px; bottom: 10px; }
-.hm-big .hm-text { padding-right: 0; max-width: 100%; }
-.hm-featured .hm-big:first-child .hm-text { padding-right: 40px; }
+/* 포켓몬은 글자와 겹치지 않게: 넓은 타워 칸은 오른쪽 가운데(글자는 그 왼쪽까지), 반 칸은 글자 아래 오른쪽 */
+.hm-big .hm-mon { position: absolute; right: 6px; bottom: 6px; width: 52px; height: 52px; }
+.hm-big .hm-mon .sprite { max-width: 52px !important; max-height: 52px !important; }
+.hm-big .hm-text { width: 100%; }
+.hm-featured .hm-big:not(:first-child) { min-height: 132px !important; }
+.hm-featured .hm-big:first-child .hm-mon { top: 50%; bottom: auto; transform: translateY(-50%); width: 88px; height: 88px; right: 10px; }
+.hm-featured .hm-big:first-child .hm-mon .sprite { max-width: 88px !important; max-height: 88px !important; }
+.hm-featured .hm-big:first-child .hm-text { padding-right: 100px; }
 .hm-big .hm-text b { font-size: 21px; }
 .hm-big .hm-text small, .hm-big .hm-text em { font-size: 12px; }
 /* 작은 타일: 세로로 (그림 위, 이름 아래) */
 .hm-more .hm-tile { flex-direction: column !important; justify-content: center !important; text-align: center; padding: 4px 2px !important; min-height: 96px !important; gap: 0; }
-.hm-more .hm-mon { margin-bottom: 4px; }
+.hm-more .hm-mon { width: 44px; height: 44px; margin-bottom: 2px; } .hm-more .hm-mon .sprite { max-width: 44px !important; max-height: 44px !important; }
 .hm-more .hm-text { align-items: center; max-width: 100%; }
 .hm-more .hm-text b { font-size: 14px; } .hm-more .hm-text small { display: none; } .hm-more .hm-text em { font-size: 10px; max-width: 100%; }
 .hm-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: auto; }
@@ -2136,6 +2142,9 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.hm-featured .hm-tile:first-child { grid-column: auto; }
 	.hm-big, .hm-featured .hm-big:first-child { min-height: 150px !important; flex-direction: column !important; align-items: flex-start; justify-content: flex-start !important; }
 	.hm-big .hm-text, .hm-featured .hm-big:first-child .hm-text { padding-right: 0; }
+	.hm-big .hm-mon, .hm-featured .hm-big:first-child .hm-mon { top: auto; bottom: 6px; right: 6px; transform: none; width: 64px; height: 64px; }
+	.hm-big .hm-mon .sprite, .hm-featured .hm-big:first-child .hm-mon .sprite { max-width: 64px !important; max-height: 64px !important; }
+	.hm-more .hm-mon { width: 36px; height: 36px; } .hm-more .hm-mon .sprite { max-width: 36px !important; max-height: 36px !important; }
 	.hm-more { grid-template-columns: repeat(6, 1fr); }
 	.hm-face { width: 52px; height: 48px; }
 }
@@ -2156,11 +2165,12 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.hm-featured .hm-tile:first-child { grid-column: auto; }
 	.hm-big, .hm-featured .hm-big:first-child { min-height: 230px !important; flex-direction: column !important; align-items: flex-start; justify-content: flex-start !important; padding: 12px 14px !important; }
 	.hm-big .hm-text, .hm-featured .hm-big:first-child .hm-text { padding-right: 0; }
-	.hm-big .hm-mon { right: 14px; bottom: 14px; } .hm-big .pix-mode-icon { width: 64px; height: 64px; }
+	.hm-big .hm-mon, .hm-featured .hm-big:first-child .hm-mon { top: auto; bottom: 10px; right: 10px; transform: none; width: 120px; height: 120px; }
+	.hm-big .hm-mon .sprite, .hm-featured .hm-big:first-child .hm-mon .sprite { max-width: 120px !important; max-height: 120px !important; }
 	.hm-big .hm-text b { font-size: 26px; } .hm-big .hm-text small, .hm-big .hm-text em { font-size: 14px; }
 	.hm-more { grid-template-columns: repeat(3, 1fr); gap: 10px; }
 	.hm-more .hm-tile { flex-direction: row !important; justify-content: flex-start !important; text-align: left; min-height: 84px !important; padding: 6px 10px !important; gap: 8px; }
-	.hm-more .hm-mon { margin: 0 4px 0 0; }
+	.hm-more .hm-mon { margin: 0 4px 0 0; width: 64px; height: 64px; } .hm-more .hm-mon .sprite { max-width: 64px !important; max-height: 64px !important; }
 	.hm-more .hm-text { align-items: flex-start; } .hm-more .hm-text b { font-size: 18px; } .hm-more .hm-text small { display: block; font-size: 12px; } .hm-more .hm-text em { font-size: 12px; }
 }
 
