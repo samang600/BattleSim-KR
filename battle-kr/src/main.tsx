@@ -14,6 +14,7 @@ import { packStatus, refreshPack, onPackProgress, startPackDownload, deletePack,
 import { CUPS, NAMED } from './trainers';
 import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, setMoveSfxVolume } from './sound';
 import { PLAYER_SPRITES, SPRITE_URL } from './trainer-lines';
+import { UserSpritesModal } from './ui/user-sprites';
 
 const MODES = [
 	{ id: 'tower', name: '배틀타워', sub: '연승 도전', run: runTower, color: '#3a6df0', icon: '🗼', mon: 'garchomp' },
@@ -233,6 +234,7 @@ function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }
 
 function SettingsScreen({ onBack }: { onBack: () => void }) {
 	const [s, setS] = useState<Settings>(loadSettings());
+	const [userSpr, setUserSpr] = useState(false);
 	const up = (p: Partial<Settings>) => { const n = { ...s, ...p }; setS(n); saveSettings(n); };
 	return <Screen title="설정" onBack={onBack}>
 		<label class="field-label">트레이너 이름
@@ -273,6 +275,10 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		<RuleRows s={s} up={up} />
 		<div class="set-row"><span>노력치 표시</span><div class="seg">{([['sp', '32 (66)'], ['ev', '252 (510)']] as const).map(([k, l]) => <button class={(s.evDisplay || 'sp') === k ? 'on' : ''} onClick={() => up({ evDisplay: k })}>{l}</button>)}</div></div>
 		<p class="muted small">팀 편집·포켓몬 정보에서 능력 포인트(능력마다 32, 합계 66)로 볼지, 본가 노력치(252, 합계 510)로 볼지 고릅니다. 규칙은 그대로 66포인트라 노력치로 보면 본가보다 1포인트(노력치 8) 더 쓸 수 있습니다. 노력치 방식으로 내보낸 텍스트는 합계 510에 맞춰집니다.</p>
+		<h3 class="sec">포켓몬 그림</h3>
+		<div class="seg"><button onClick={() => setUserSpr(true)}>🖼 포켓몬 그림 바꾸기</button></div>
+		<p class="muted small">포켓몬마다 앞·뒤·색이 다른 모습 그림을 내 그림 파일로 바꿀 수 있어요(정지 도트 그림 설정, 오프라인의 이름 카드 대신). 데이터 백업에 함께 저장됩니다.</p>
+		{userSpr && <UserSpritesModal onClose={() => setUserSpr(false)} />}
 		<h3 class="sec">배틀 화면</h3>
 		<div class="seg">
 			<button class={s.effects ? 'on' : ''} onClick={() => up({ effects: !s.effects })}>기술 이펙트 {s.effects ? '켜짐' : '꺼짐'}</button>

@@ -7,6 +7,7 @@ import { partBase } from '../offline';
 import SPRITE_PAD from '../gen/sprite-pad.json';
 import SPRITE_SCALE from '../gen/sprite-scale.json';
 import ZA_MEGA from '../gen/za-mega-ids.json';
+import { getUserSprite, userSpriteKey } from '../user-sprites';
 /** 정지 도트 그림의 아래 투명 여백(px) [앞, 뒤] — 발판에 딱 서도록 그만큼 내림 (scripts/sprite-pad.py) */
 const PAD = SPRITE_PAD as { [id: string]: number[] };
 /** 메가진화 등 바뀐 모습이 기본 모습보다 작아 보이지 않게 하는 배율 [정지 도트, 3D] (scripts/sprite-scale.py) */
@@ -104,7 +105,8 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, te
 	}
 	const cur = candidates[idx] || '';
 	// 배틀 그림: 정지 도트 그림이면 측정해 둔 바닥 여백을, 움직이는 그림이면 대략값을 CSS 변수로
-	const pad = (cls === 'front' || cls === 'back') ? (/\/gen5(-back)?(-shiny)?\/[^/]+\.png$/.test(cur) || cur.startsWith('data:image/png') || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? (PAD[id]?.[back ? 1 : 0] ?? 8) : 4) : undefined;
+	const us = cur.startsWith('data:') ? getUserSprite(userSpriteKey(id, !!back, !!shiny)) : null;
+	const pad = (cls === 'front' || cls === 'back') ? us?.src === cur ? us.pad : (/\/gen5(-back)?(-shiny)?\/[^/]+\.png$/.test(cur) || cur.startsWith('data:image/png') || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? (PAD[id]?.[back ? 1 : 0] ?? 8) : 4) : undefined;
 	// 배틀 그림 크기 보정: 바뀐 모습 배율 × (3D 설정인데 3D 그림이 없어 도트 그림으로 나오면 3D 그림 크기에 맞춰 1.3배)
 	const isAni = /\.gif$/.test(cur);
 	const ks = pad !== undefined ? (cur.includes(`/${id}.`) || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? SCALE[id]?.[isAni ? 1 : 0] ?? 1 : 1) * (useAnim && !isAni ? 1.3 : 1) : 1;
@@ -119,8 +121,12 @@ declare const __CUSTOM_SPRITES__: Record<string, string>;
 const CUSTOM_SPRITES: Record<string, string> = typeof __CUSTOM_SPRITES__ === 'object' ? __CUSTOM_SPRITES__ : {};
 function spriteCandidates(species: string, id: string, back: boolean, shiny: boolean, useAnim: boolean, gen: Gen): string[] {
 	const b = back ? '-back' : '', sh = shiny ? '-shiny' : '';
+	// 사용자가 넣은 그림: 정지 도트 그림이면 가장 먼저, 3D 그림 설정이면 다른 그림을 못 받을 때(이름 카드 대신)
+	const user = getUserSprite(userSpriteKey(id, back, shiny))?.src;
 	const custom = CUSTOM_SPRITES[`${id}${b}${sh}`];
-	if (custom) return [custom];
+	if (user && !useAnim) return [user];
+	if (custom) return user ? [custom, user] : [custom];
+	const withUser = (l: string[]) => user ? [...l, user] : l;
 	const sb = spriteBase();
 	if (id === 'substitute') return sb ? [`${sb}substitutes/gen5${b}/substitute.png`, `${SPRITE_HOST}/substitutes/gen5${b}/substitute.png`] : [`${SPRITE_HOST}/substitutes/gen5${b}/substitute.png`];
 	const local = [`${sb}gen5${b}${sh}/${id}.png`];
@@ -133,16 +139,17 @@ function spriteCandidates(species: string, id: string, back: boolean, shiny: boo
 	// 레전즈 Z-A 메가: 쇼다운 서버에 뒷모습이 없거나 흐릿해서 PokeAPI 도트 그림 (앱 오프라인 묶음과 같은 그림, scripts/fetch-za-megas.py)
 	const za = (ZA_MEGA as { [id: string]: number })[id];
 	const remoteStatic = za ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${back ? 'back/' : ''}${shiny ? 'shiny/' : ''}${za}.png` : `${SPRITE_HOST}/gen5${b}${sh}/${id}.png`;
-	if (!sb) { const rb = base ? [`${SPRITE_HOST}/gen5${b}${sh}/${spriteId(base)}.png`] : []; return useAnim ? [...remote, remoteStatic, ...rb] : [remoteStatic, ...rb]; }
-	if (!online()) return [...local, remoteStatic];
-	return useAnim ? [...remote, local[0], remoteStatic, ...local.slice(1)] : [local[0], remoteStatic, ...local.slice(1)];
+	if (!sb) { const rb = base ? [`${SPRITE_HOST}/gen5${b}${sh}/${spriteId(base)}.png`] : []; return withUser(useAnim ? [...remote, remoteStatic, ...rb] : [remoteStatic, ...rb]); }
+	if (!online()) return withUser([...local, remoteStatic]);
+	return withUser(useAnim ? [...remote, local[0], remoteStatic, ...local.slice(1)] : [local[0], remoteStatic, ...local.slice(1)]);
 }
 
 /** 목록·카드용 썸네일: 96px 도트 그림에서 그림이 있는 영역만 잘라 가능하면 1:1(축소 없이)로 보여 뭉개지지 않게 */
 export function CropSprite({ species, gen = 5, size = 64, shiny, cls }: { species: string; gen?: Gen; size?: number; shiny?: boolean; cls?: string }) {
 	const id = spriteId(species);
 	const e = PAD[id] || PAD[spriteId(speciesData(toID(species), 9 as Gen)?.base || '')];
-	const [x, y, w, h] = e && e.length >= 6 ? e.slice(2) : [0, 0, 96, 96];
+	const ub = getUserSprite(userSpriteKey(id, false, !!shiny))?.bb;   // 목록 썸네일은 늘 정지 그림 → 사용자 그림이면 그 영역
+	const [x, y, w, h] = ub || (e && e.length >= 6 ? e.slice(2) : [0, 0, 96, 96]);
 	const k = Math.min(1, (size - 2) / Math.max(w, h));
 	const tx = Math.round((size - w * k) / 2 - x * k), ty = Math.round((size - h * k) / 2 - y * k);
 	return <span class={'crop ' + (cls || '')} style={{ width: size, height: size, '--t': `translate(${tx}px, ${ty}px) scale(${k})` } as any}>
