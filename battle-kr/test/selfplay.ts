@@ -14,6 +14,7 @@ import { KoreanText, parseLine } from '../src/text';
 (window as any).__Battle = Battle; (window as any).__toSimTeam = toSimTeam;
 (window as any).__plan = { teamPlan, planText };
 (window as any).__text = { KoreanText, parseLine };
+(window as any).__chooseAI = chooseAI;
 (window as any).__sets = { factoryTeam, toSimTeam, randomTeam, factoryPool, FACTORY_GRADES, cloneSet, POOLS };
 (window as any).__ranker = { rankerTeam, rankerCount, rankerSources, applyRuleData, ruleById, loadSettings, speciesAllowed };
 (window as any).selfplay = (n: number, gen: 9, doubles: boolean, skillA: number, skillB: number, _unused = false, size = 0,

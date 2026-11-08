@@ -6,7 +6,7 @@ import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, as
 import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
-import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier } from './modes';
+import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel } from './modes';
 import { exportBackup, inspectBackup, importBackup } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
 import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, applyRuleData, poolSub, type LegendMode } from './rules';
@@ -51,7 +51,7 @@ function Home({ go }: { go: (v: string) => void }) {
 	const badge: { [id: string]: string } = {
 		tower: towerBest ? `최고 ${towerBest}연승` : '', factory: factoryBest ? `최고 ${factoryBest}연승` : '',
 		pwt: cupWins ? `우승 ${cupWins}회` : `${CUPS.length}개 대회`, named: `${namedWins}/${NAMED.length} 격파`, free: '',
-		rank: (() => { const rp = Math.max(rec.rp?.['singles' + t] || 0, rec.rp?.['doubles' + t] || 0); return rp ? `${rankTier(rp).name} ${rp}RP` : ''; })(),
+		rank: (() => { const rp = Math.max(rec.rp?.['singles' + t] || 0, rec.rp?.['doubles' + t] || 0); return rp ? `${rankLabel(rp)} ${rp}RP` : ''; })(),
 	};
 	return <div class="home">
 		<div class="home-head">
@@ -120,7 +120,7 @@ function Records({ onBack, onPlay }: { onBack: () => void; onPlay: (rp: SavedRep
 		{tags.length > 1 && <div class="seg wrap">{tags.map(x => <button class={x === t ? 'on' : ''} onClick={() => setT(x)}>{tagName(x)}</button>)}</div>}
 		<p class="muted small">{tagName(t)}{t === cur ? ' (지금 규칙)' : ''} — 연승·랭크 기록은 배틀 규칙마다 따로 남습니다.</p>
 		<h3 class="sec">랭크 매치</h3>
-		{(['singles', 'doubles'] as const).map(f => <div class="record-row"><span>{f === 'singles' ? '싱글 6→3' : '더블 6→4'}</span><b>{rankTier(r.rp?.[f + t] || 0).name} {r.rp?.[f + t] || 0}RP{r.rpBest?.[f + t] ? ` (최고 ${r.rpBest[f + t]})` : ''}</b></div>)}
+		{(['singles', 'doubles'] as const).map(f => <div class="record-row"><span>{f === 'singles' ? '싱글 6→3' : '더블 6→4'}</span><b>{rankLabel(r.rp?.[f + t] || 0)} {r.rp?.[f + t] || 0}RP{r.rpBest?.[f + t] ? ` (최고 ${r.rpBest[f + t]})` : ''}</b></div>)}
 		<h3 class="sec">최고 연승</h3>
 		{rows.map(([k, v]) => <div class="record-row"><span>{k}</span><b>{v}</b></div>)}
 		<h3 class="sec">PWT 우승</h3>

@@ -714,30 +714,59 @@ export async function runNamed() {
 }
 
 // ───────────── 모의 랭크 매치 (포켓몬 챔피언스 방식) ─────────────
-export const RANK_TIERS = [
-	{ name: '비기너', min: 0, ball: 'pokeball' }, { name: '몬스터볼급', min: 100, ball: 'pokeball' }, { name: '슈퍼볼급', min: 300, ball: 'greatball' },
-	{ name: '하이퍼볼급', min: 600, ball: 'ultraball' }, { name: '마스터볼급', min: 1000, ball: 'masterball' },
+/** 등급: 비기너 → 몬스터볼급·슈퍼볼급·하이퍼볼급·마스터볼급(각 5 → 1 단계) → 챔피언급(가상 순위 100위 이내, 단계 없음) */
+const RANK_CLASSES = [
+	{ name: '몬스터볼급', min: 120, max: 360, ball: 'pokeball' }, { name: '슈퍼볼급', min: 360, max: 720, ball: 'greatball' },
+	{ name: '하이퍼볼급', min: 720, max: 1200, ball: 'ultraball' }, { name: '마스터볼급', min: 1200, max: 1800, ball: 'masterball' },
 ];
-/** 기본 획득 RP · 상위 매칭(확률·실력 차이·승리 보너스) */
-const RANK_BASE = 30, UPPER_RATE = 0.2, UPPER_GAP = 400, UPPER_BONUS = 30;
-export function rankTier(rp: number) { let t = RANK_TIERS[0]; for (const x of RANK_TIERS) if (rp >= x.min) t = x; return t; }
+export const MASTER_MIN = 1200;
+type RankTierT = { name: string; min: number; ball: string; cls: string; step: number; rank?: number };
+export const RANK_TIERS: RankTierT[] = [{ name: '비기너', min: 0, ball: 'pokeball', cls: '비기너', step: 0 },
+	...RANK_CLASSES.flatMap(c => [5, 4, 3, 2, 1].map((n, i) => ({ name: `${c.name} ${n}`, min: Math.round(c.min + (c.max - c.min) * i / 5), ball: c.ball, cls: c.name, step: n })))];
+/** 기본 획득 RP · 연승 보너스(단계당·최대 단계) · 상위 매칭(확률·실력 차이·승리 보너스) */
+const RANK_BASE = 25, STREAK_STEP = 4, STREAK_MAX = 4, UPPER_RATE = 0.2, UPPER_GAP = 480, UPPER_BONUS = 25;
+/** 가상 순위: 마스터볼급(1200 RP)부터. 가상의 다른 트레이너들도 날마다 올라가서(시즌=달) 가만히 있으면 순위가 내려가고, 날마다 조금씩 흔들림.
+ *  대략 2,350 RP 안팎에서 100위 안(챔피언급) */
+export function virtualRank(rp: number, now = new Date()): number | null {
+	if (rp < MASTER_MIN) return null;
+	const day = now.getDate() - 1;                       // 이번 시즌(달)에 지난 날
+	const drift = day * 3;                               // 다른 트레이너들이 올라간 만큼
+	const seed = now.getFullYear() * 400 + now.getMonth() * 32 + now.getDate();
+	const jitter = 1 + 0.08 * Math.sin(seed * 12.9898 + rp * 0.0137);   // 날마다·RP 마다 조금씩 다름
+	const above = 60000 * Math.exp(-(rp - MASTER_MIN - drift) / 180) * jitter;
+	return Math.max(1, Math.ceil(above));
+}
+export function rankTier(rp: number): RankTierT {
+	let t = RANK_TIERS[0]; for (const x of RANK_TIERS) if (rp >= x.min) t = x;
+	const rank = virtualRank(rp);
+	if (rank !== null && rank <= 100) return { name: '챔피언급', min: MASTER_MIN, ball: 'masterball', cls: '챔피언급', step: 0, rank };
+	return rank !== null ? { ...t, rank } : t;
+}
+/** 등급 순서 (승급·강등 판정): 챔피언급이 맨 위 */
+const tierOrder = (t: RankTierT) => t.cls === '챔피언급' ? RANK_TIERS.length : RANK_TIERS.findIndex(x => x.name === t.name);
+const rankText = (t: RankTierT) => t.rank ? ` · ${t.rank.toLocaleString()}위` : '';
+/** 등급 이름 + (마스터볼급부터) 가상 순위: '마스터볼급 3 · 1,234위' */
+export function rankLabel(rp: number) { const t = rankTier(rp); return t.name + rankText(t); }
 type RankFmt = 'singles' | 'doubles';
 /** RP 에 따라 강해지는 상대: AI 실력 0.5→0.97, 종족값 하한 420→560, 300 RP 부터 준전설, (전설 허용 규칙이면) 600 RP 부터 전설 1마리·1000 RP 부터 2마리,
  *  초반엔 능력 포인트도 덜 찍음. 마스터볼급에서는 가끔 챔피언·주인공급 네임드 트레이너가 나옴 */
-function rankOpponent(rp: number, fmt: RankFmt, level: number) {
+function rankOpponent(rpNew: number, fmt: RankFmt, level: number) {
 	const rule = ruleById(loadSettings().battleRule);
+	const champ = rankTier(rpNew).cls === '챔피언급';
+	const rp = Math.min(rpNew / 1.2, 1400);   // 아래 기준값은 예전 척도(마스터볼급 1000) — 새 척도는 1.2배
+	const trLevel = rpNew >= MASTER_MIN ? 'expert' : rpNew >= 360 ? 'grown' : 'any';   // 등급에 어울리는 트레이너군
 	const s = Math.min(1, rp / 1200);
 	const skill = Math.min(0.97, 0.5 + 0.5 * s);
 	const doubles = fmt === 'doubles';
-	if (rp >= 1000 && Math.random() < 0.35) {
+	if (rp >= 1000 && Math.random() < (champ ? 0.45 : 0.35)) {
 		const pool = NAMED.filter(t => ['champion', 'hero', 'boss'].includes(t.role));
 		const t = rng.pick(pool);
 		return { name: t.name, title: namedTitle(t), sprite: namedSprite(t), lines: namedLines(t), line: t.line, skill: 0.97, team: withLevel(namedTeam(t, 6), level), named: true, ranker: '', music: namedMusic(t) };
 	}
 	// 하이퍼볼급부터 실제 랭크배틀·대회 상위 팀(PokéDB·Limitless 등)과 자주 붙음
-	if (rp >= 600 && Math.random() < (rp >= 1000 ? 0.5 : 0.3)) {
+	if (rp >= 600 && Math.random() < (champ ? 0.6 : rp >= 1000 ? 0.5 : 0.3)) {
 		const rk = rankerTeam(doubles, level, 0.6 + 0.4 * s);
-		if (rk) { const tr = randomTrainer(); return { name: tr.name, title: '랭커', sprite: tr.sprite, lines: tr.lines, line: tr.lines.intro, skill, team: withLevel(rk.team, level), named: false, ranker: rk.label }; }
+		if (rk) { const tr = randomTrainer(trLevel); return { name: tr.name, title: '랭커', sprite: tr.sprite, lines: tr.lines, line: tr.lines.intro, skill, team: withLevel(rk.team, level), named: false, ranker: rk.label }; }
 	}
 	const nLeg = rule.legendTeams ? (rp >= 1000 ? 2 : rp >= 600 ? 1 : 0) : 0;   // 초전설·환상이 가능한 규칙에서만
 	const ivs = rp < 100 ? 18 : rp < 300 ? 26 : 31;
@@ -745,7 +774,7 @@ function rankOpponent(rp: number, fmt: RankFmt, level: number) {
 	const base = randomTeam({ gen: 9, size: 6 - nLeg, minBst: 420 + Math.round(140 * s), maxBst: rp < 300 ? 580 : undefined, allowSubLegend: rp >= 300, doubles, ivs, gimmicks: false, quality });
 	const legends = nLeg ? randomTeam({ gen: 9, size: nLeg, legendOnly: true, doubles, ivs, gimmicks: false, quality, exclude: new Set(base.map(x => toID(x.species))) }) : [];
 	const team = dedupeItems(assignGimmicks([...base, ...legends]));
-	const tr = randomTrainer();
+	const tr = randomTrainer(trLevel);
 	return { name: tr.name, title: tr.className, sprite: tr.sprite, lines: tr.lines, line: tr.lines.intro, skill, team: withLevel(team, level), named: false, ranker: '' };
 }
 export async function runRank() {
@@ -753,8 +782,8 @@ export async function runRank() {
 	const fmt = await ask<RankFmt | typeof BACK>(r => <ChoiceScreen title="모의 랭크 매치" onBack={() => r(BACK)}
 		intro={<p class="hint">포켓몬 챔피언스 방식: 6마리를 등록하고 상대 엔트리를 본 뒤 참가 포켓몬을 고릅니다. 이기면 RP가 올라 등급이 오르고, 올라갈수록 상대 포켓몬과 AI가 강해집니다.</p>}
 		options={[
-			{ value: 'singles' as RankFmt, label: '싱글 6→3', desc: '6마리 중 3마리 선택 · 1대1', icon: '③', badge: `${rankTier(loadRecords().rp?.['singles' + rt()] || 0).name} ${loadRecords().rp?.['singles' + rt()] || 0}RP` },
-			{ value: 'doubles' as RankFmt, label: '더블 6→4', desc: '6마리 중 4마리 선택 · 2대2', icon: '④', badge: `${rankTier(loadRecords().rp?.['doubles' + rt()] || 0).name} ${loadRecords().rp?.['doubles' + rt()] || 0}RP` },
+			{ value: 'singles' as RankFmt, label: '싱글 6→3', desc: '6마리 중 3마리 선택 · 1대1', icon: '③', badge: `${rankLabel(loadRecords().rp?.['singles' + rt()] || 0)} ${loadRecords().rp?.['singles' + rt()] || 0}RP` },
+			{ value: 'doubles' as RankFmt, label: '더블 6→4', desc: '6마리 중 4마리 선택 · 2대2', icon: '④', badge: `${rankLabel(loadRecords().rp?.['doubles' + rt()] || 0)} ${loadRecords().rp?.['doubles' + rt()] || 0}RP` },
 		]} footer={<OptsBox opts={opts} show={ALL_OPTS} />} onPick={r} />);
 	if (fmt === BACK) return;
 	const team = await chooseTeam(9, '랭크 매치 · 팀 등록', true, opts.cheat, lvl(opts));
@@ -765,18 +794,18 @@ export async function runRank() {
 		const rec = loadRecords();
 		const rp = rec.rp?.[key] || 0;
 		const tier = rankTier(rp);
-		// 상위 매칭: 가끔(20%) 지금보다 400 RP 높은 실력의 상대와 붙음. 이기면 보너스, 져도 연승은 유지
+		// 상위 매칭: 가끔(20%) 지금보다 480 RP 높은 실력의 상대와 붙음. 이기면 보너스, 져도 연승은 유지
 		const upper = (globalThis as any).__rankUpper ?? Math.random() < UPPER_RATE; // __rankUpper: 테스트용 강제
 		const oppRp = upper ? rp + UPPER_GAP : rp;
 		const opp = rankOpponent(oppRp, fmt, lvl(opts));
-		// 연승할수록 더 많이 오름: 30 → 35 → 40 → 45 → 50 (+마스터볼급 5). 연승 수는 기록에 남아 나갔다 와도 이어짐
+		// 연승할수록 더 많이 오름: 25 → 29 → 33 → 37 → 41 (+마스터볼급부터 5). 연승 수는 기록에 남아 나갔다 와도 이어짐
 		const streak = rec.rankStreak?.[key] || 0;
-		const gain = RANK_BASE + 5 * Math.min(streak, 4) + (tier.min >= 1000 ? 5 : 0) + (upper ? UPPER_BONUS : 0), loss = rp < 100 ? 0 : 12;
-		const go = await ask<'go' | 'quit'>(r => <InfoScreen title={`랭크 매치 · ${fmt === 'doubles' ? '더블 6→4' : '싱글 6→3'}`} banner={`${tier.name} · ${rp} RP`}
+		const gain = RANK_BASE + STREAK_STEP * Math.min(streak, STREAK_MAX) + (rp >= MASTER_MIN ? 5 : 0) + (upper ? UPPER_BONUS : 0), loss = rp < 120 ? 0 : 12;
+		const go = await ask<'go' | 'quit'>(r => <InfoScreen title={`랭크 매치 · ${fmt === 'doubles' ? '더블 6→4' : '싱글 6→3'}`} banner={`${tier.name} · ${rp} RP${rankText(tier)}`}
 			heading={`${upper ? '⬆ 상위 매칭! ' : ''}${opp.title ? opp.title + ' ' : ''}${opp.name}${josa(opp.name)} 매칭되었다!`} trainer={opp.sprite}
 			lines={[`${streak ? `🔥 ${streak}연승 중 · ` : ''}승리 +${gain} RP${upper ? ` (상위 매칭 보너스 +${UPPER_BONUS} 포함)` : ''} · 패배 -${loss} RP`,
 				...(upper ? [`${rankTier(oppRp).name}(약 ${oppRp} RP) 실력의 상대입니다. 져도 연승은 끊기지 않아요.`] : []),
-				...(streak < 4 ? [`연승할수록 획득 RP 증가 (최대 +${RANK_BASE + 20 + (tier.min >= 1000 ? 5 : 0)})`] : []), ...(opp.named ? ['★ 강적 등장!'] : []), ...(opp.ranker ? ['★ 상위 랭커'] : []), ...optsLines(opts)]}
+				...(streak < STREAK_MAX ? [`연승할수록 획득 RP 증가 (최대 +${RANK_BASE + STREAK_STEP * STREAK_MAX + (rp >= MASTER_MIN ? 5 : 0)})`] : []), ...(opp.named ? ['★ 강적 등장!'] : []), ...(opp.ranker ? ['★ 상위 랭커'] : []), ...optsLines(opts)]}
 			sprites={team.map(s => s.species)} sets={team} gen={9} prep={<BgmRow />}
 			actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '그만두기', kind: 'ghost', onClick: () => r('quit') }]} />);
 		if (go === 'quit') return;
@@ -785,7 +814,7 @@ export async function runRank() {
 			opponent={{ name: `${opp.title ? opp.title + ' ' : ''}${opp.name}`, team: opp.team }} onDone={r} />);
 		const oppPick = aiPickEntry(opp.team, team, n, fmt === 'doubles', opp.skill, opp.named);
 		const res = await battle({
-			gen: 9, doubles: fmt === 'doubles', aiSkill: opp.skill, bg: oppRp >= 1000 ? 'champion' : 'pwt', label: `랭크 매치 · ${tier.name}${upper ? ' · 상위 매칭' : ''}`, music: (opp as any).music ?? (oppRp >= 1000 ? 'champion' : 'tower'),
+			gen: 9, doubles: fmt === 'doubles', aiSkill: opp.skill, bg: oppRp >= MASTER_MIN ? 'champion' : 'pwt', label: `랭크 매치 · ${tier.name}${upper ? ' · 상위 매칭' : ''}`, music: (opp as any).music ?? (oppRp >= MASTER_MIN ? 'champion' : 'tower'),
 			noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse,
 			p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppPick, line: opp.line, sprite: opp.sprite, lines: opp.lines },
 		});
@@ -795,12 +824,13 @@ export async function runRank() {
 			updateRecords(r => { r.rp = { ...(r.rp || {}), [key]: newRp }; r.rpBest = { ...(r.rpBest || {}), [key]: Math.max(r.rpBest?.[key] || 0, newRp) };
 				r.rankStreak = { ...(r.rankStreak || {}), [key]: res.win ? streak + 1 : upper ? streak : 0 }; });
 			const nt = rankTier(newRp);
-			if (nt.min > tier.min) msg = `🎉 ${nt.name}(으)로 승급!`;
-			else if (nt.min < tier.min) msg = `${nt.name}(으)로 강등…`;
+			if (tierOrder(nt) > tierOrder(tier)) msg = `🎉 ${nt.name}(으)로 승급!`;
+			else if (tierOrder(nt) < tierOrder(tier)) msg = `${nt.name}(으)로 강등…`;
 		}
 		const again = await ask<'next' | 'quit'>(r => <InfoScreen title="랭크 매치" banner={res.win ? '승리!' : '패배…'}
 			heading={noRec(opts) ? '(전적·RP에 반영되지 않습니다)' : `${rp} → ${newRp} RP${msg ? ' · ' + msg : ''}`}
-			lines={[`현재 등급: ${rankTier(newRp).name}${res.win && !noRec(opts) ? ` · ${streak + 1}연승` : ''}`,
+			lines={[`현재 등급: ${rankTier(newRp).name}${rankText(rankTier(newRp))}${res.win && !noRec(opts) ? ` · ${streak + 1}연승` : ''}`,
+				...(newRp >= MASTER_MIN && rankTier(newRp).cls !== '챔피언급' ? ['가상 순위 100위 안에 들면 챔피언급! (다른 트레이너들도 날마다 올라가요)'] : []),
 				...(upper && res.win && !noRec(opts) ? [`⬆ 상위 매칭 승리! 보너스 +${UPPER_BONUS} RP`] : []),
 				...(upper && !res.win && !noRec(opts) && streak ? [`상위 매칭이라 ${streak}연승은 그대로 이어집니다.`] : []),
 				// 상위 매칭에서 진 경우엔 '연승은 여기까지' 같은 상대 대사가 안내와 어긋나므로 생략

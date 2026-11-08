@@ -218,6 +218,13 @@ function matchup(battle: Battle, mon: Pokemon, foes: Pokemon[]) {
 	return score + hpFrac * 0.3;
 }
 
+/** 선공기가 막히는가: 사이코필드(땅에 있는 대상) · 여왕의위엄·비비드바디·테일아머 */
+function priorityBlocked(battle: Battle, target: Pokemon): boolean {
+	const ab = target.getAbility?.().id;
+	if (ab === 'queenlymajesty' || ab === 'dazzling' || ab === 'armortail') return true;
+	try { if (battle.field.isTerrain('psychicterrain') && target.isGrounded()) return true; } catch {}
+	return false;
+}
 /** (더블 운영) 이 포켓몬이 아직 안 깔린 트릭룸·순풍을 깔 수 있고, 깔리면 우리에게 불리한가 */
 function setterThreat(battle: Battle, foe: Pokemon, me: Pokemon): boolean {
 	const has = (id: string) => foe.moveSlots?.some((m: any) => m.id === id);
@@ -461,6 +468,9 @@ function viability(battle: Battle, user: Pokemon, move: any, target: Pokemon | n
 		if (d >= 1) {
 			v += 4;
 			if (move.priority > 0 || outspeeds(battle, user, target)) v += 2; // 먼저 쓰러뜨릴 수 있음
+			// 상대가 더 빠르고 HP 가 적을 때: 선공기로 마무리하면 맞지 않고 끝냄 (선공기를 막는 사이코필드·여왕의위엄 등은 제외)
+			if (move.priority > 0 && !doubles && !outspeeds(battle, user, target) && !priorityBlocked(battle, target)
+				&& predictedMove(battle, target, user).damage >= 0.35) v += 3;
 			if (move.recoil || move.mindBlownRecoil || move.self?.boosts) v -= 1;
 		} else if (d >= ctx.strongest - 0.001) {
 			v += 2; // 가장 강한 기술

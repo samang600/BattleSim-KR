@@ -76,6 +76,8 @@ export interface Records {
 	rpBest?: { [fmt: string]: number };
 	/** 랭크 매치 현재 연승 (획득 RP 보너스) */
 	rankStreak?: { [fmt: string]: number };
+	/** 랭크 RP 척도 버전: 2 = v2.53 등급 개편(승급 기준 1.2배)에 맞춰 예전 RP 를 1.2배로 바꿈 */
+	rankV?: number;
 	battles: number;
 	wins: number;
 }
@@ -91,7 +93,14 @@ export function saveReplay(r: SavedReplay) { save('replays', [r, ...loadReplays(
 export function deleteReplay(id: string) { save('replays', loadReplays().filter(x => x.id !== id)); }
 
 export function loadRecords(): Records {
-	return { best: {}, current: {}, cups: {}, named: {}, bp: 0, battles: 0, wins: 0, ...load<Partial<Records>>('records', {}) };
+	const r: Records = { best: {}, current: {}, cups: {}, named: {}, bp: 0, battles: 0, wins: 0, ...load<Partial<Records>>('records', {}) };
+	// v2.53 랭크 등급 개편: 승급 기준이 1.2배가 되어 예전 RP 도 1.2배로 (등급은 그대로 유지) — 한 번만
+	if ((r.rankV || 0) < 2) {
+		const up = (o?: { [k: string]: number }) => o && Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v * 1.2)]));
+		r.rp = up(r.rp); r.rpBest = up(r.rpBest); r.rankV = 2;
+		save('records', r);
+	}
+	return r;
 }
 export function saveRecords(r: Records) { save('records', r); }
 export function updateRecords(fn: (r: Records) => void) {

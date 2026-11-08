@@ -174,8 +174,15 @@ export const CLASSES: TrainerClass[] = (TC as any).classes;
 const NAMES_M: string[] = (TC as any).names_m;
 const NAMES_F: string[] = (TC as any).names_f;
 
-export function randomTrainer() {
-	const c = rng.pick(CLASSES);
+/** 랭크 매치 등급에 어울리는 트레이너군: 슈퍼볼급부터 어린이 트레이너군은 빠지고, 마스터볼급·챔피언급은 실력자 트레이너군만 */
+const KID_CLASSES = new Set(['반바지 꼬마', '짧은 치마', '보육원아', '아기씨', '도련님', '학원 끝난 아이', '튜브보이', '튜브걸', '포켓몬놀이', '닌자놀이',
+	'곤충채집소년', '캠프보이', '피크닉걸', '스쿨보이', '스쿨걸', '메르헨소녀']);
+const EXPERT_CLASSES = new Set(['엘리트 트레이너', '베테랑 트레이너', '드래곤 조련사', '포켓몬 레인저', '배틀걸', '태권왕', '초능력자', '포켓몬 브리더', '스카이 트레이너',
+	'마스터', '달인', '수행자', '연구원', '신사', '마담', '아가씨', '맹수 조련사', '트라이애슬리트', '무서운 아저씨', '무서운 아가씨', '주술사', '무당', '파일럿', '모델']);
+export type TrainerLevel = 'any' | 'grown' | 'expert';
+export function randomTrainer(level: TrainerLevel = 'any') {
+	const pool = level === 'expert' ? CLASSES.filter(c => EXPERT_CLASSES.has(c.name)) : level === 'grown' ? CLASSES.filter(c => !KID_CLASSES.has(c.name)) : CLASSES;
+	const c = rng.pick(pool.length ? pool : CLASSES);
 	const female = c.gender === 'f' || (c.gender === 'both' && Math.random() < 0.5);
 	const sprites = (female ? c.sprites_f : c.sprites_m).length ? (female ? c.sprites_f : c.sprites_m) : [...c.sprites_m, ...c.sprites_f];
 	// 그림의 첫 번째(4세대풍)가 자주 나오고, 다른 세대 그림도 가끔
