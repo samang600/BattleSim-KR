@@ -14,7 +14,9 @@ const DEV = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
 export const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
 /** 개발자 빌드(웹 /dev/)는 개발용 서버(battlesim-kr-dev)를 씀 — 정식 앱의 대전과 섞이지 않게, 서버 바뀐 것을 먼저 시험 */
 export const SERVER = DEV ? 'battlesim-kr-dev.samang600.workers.dev' : 'battlesim-kr.samang600.workers.dev';
-const wsUrl = (path: string) => `wss://${SERVER}${path}`;
+/** 시험용: localStorage 'pkbkr-server' 에 다른 서버 주소(예: localhost:8787)를 넣으면 그쪽으로 */
+const serverOverride = () => { try { return localStorage.getItem('pkbkr-server') || ''; } catch { return ''; } };
+const wsUrl = (path: string) => { const o = serverOverride(); return o ? `${/^(localhost|127\.)/.test(o) ? 'ws' : 'wss'}://${o}${path}` : `wss://${SERVER}${path}`; };
 
 type Side = 'p1' | 'p2';
 /** 시간 (서버 기준, ms): 한 번 고르는 시간 · 내 시간 · 대전 시간 · 남은 내 시간(진영별) · 남은 대전 시간 */
@@ -23,7 +25,13 @@ export interface StartInfo { t: 'start'; side: Side; seed: [number, number, numb
 	p1: { name: string; team: PSet[] }; p2: { name: string; team: PSet[] } }
 export interface RoomInfo { t: 'room'; code: string; side: Side | null; ruleId: string; doubles: boolean; pick: number; status: 'waiting' | 'battle' | 'ended';
 	players: { p1: string | null; p2: string | null }; online: { p1: boolean; p2: boolean }; picked: { p1: boolean; p2: boolean };
-	/** 연결이 끊긴 쪽: 이 시각까지 돌아오지 않으면 기권 처리 */ away: { p1?: number; p2?: number }; version?: string }
+	/** 연결이 끊긴 쪽: 이 시각까지 돌아오지 않으면 기권 처리 */ away: { p1?: number; p2?: number }; version?: string;
+	/** 로비식 방 */ lobby?: boolean; title?: string; locked?: boolean; closed?: boolean;
+	ready?: { p1: boolean; p2: boolean }; hasTeam?: { p1: boolean; p2: boolean }; sprites?: { p1: string; p2: string } }
+/** 방 채팅 한 줄 (side '' = 알림) */
+export interface ChatMsg { side: Side | ''; name: string; text: string; at: number }
+/** 로비 목록의 방 */
+export interface RoomCard { code: string; title: string; host: string; sprite: string; ruleId: string; doubles: boolean; pick: number; locked: boolean; players: number; status: 'waiting' | 'battle'; version: string; at: number }
 /** 둘 다 들어오면: 서로 전체 엔트리 (참가 포켓몬 고르기) */
 export interface PreviewInfo { t: 'preview'; side: Side; pick: number; doubles: boolean; ruleId: string; picked: boolean;
 	p1: { name: string; team: PSet[]; sprite?: string }; p2: { name: string; team: PSet[]; sprite?: string } }
@@ -49,14 +57,16 @@ export class OnlineRoom {
 	ws: WebSocket | null = null;
 	closed = false;
 	handlers: { room?: (r: RoomInfo) => void; preview?: (p: PreviewInfo) => void; start?: (s: StartInfo) => void; input?: (side: Side, choice: string, n: number, clock?: Clock) => void;
-		inputs?: (list: [Side, string][], clock?: Clock) => void; error?: (msg: string) => void; status?: (connected: boolean) => void } = {};
+		inputs?: (list: [Side, string][], clock?: Clock) => void; error?: (msg: string) => void; status?: (connected: boolean) => void;
+		chat?: (m: ChatMsg) => void; chatlog?: (list: ChatMsg[]) => void } = {};
 	private join: any;
 	private retries = 0;
 	private beat: any = 0;
 	private lastMsg = 0;
 	private onVis = () => { if (document.visibilityState === 'visible' && !this.closed && !this.join?.peek && (!this.ws || this.ws.readyState > 1)) { this.retries = 0; this.open(); } };
 	constructor(public code: string) {}
-	connect(join: { name: string; team?: PSet[]; ruleId?: string; doubles?: boolean; pick?: number; peek?: boolean }) {
+	connect(join: { name: string; team?: PSet[]; ruleId?: string; doubles?: boolean; pick?: number; peek?: boolean; sprite?: string; pw?: string;
+		create?: { title: string; pw?: string; ruleId: string; doubles: boolean; pick: number } }) {
 		this.join = join;
 		this.open();
 		// 하트비트: 10초마다 ping(서버 자동 응답), 20초마다 check(서버가 상대가 잠들었는지 확인 — 주기 알람 대신이라 무료 한도를 덜 씀).
@@ -81,6 +91,7 @@ export class OnlineRoom {
 		ws.onopen = () => {
 			this.retries = 0; this.lastMsg = Date.now(); this.handlers.status?.(true);
 			ws.send(JSON.stringify({ t: this.join.peek ? 'peek' : 'join', token: deviceToken(), version: APP_VERSION, ...this.join }));
+			if (this.join.create) this.join = { ...this.join, create: undefined };   // 다시 붙을 때는 그냥 입장
 		};
 		ws.onmessage = ev => {
 			this.lastMsg = Date.now();
@@ -91,6 +102,8 @@ export class OnlineRoom {
 			else if (m.t === 'input') this.handlers.input?.(m.side, m.choice, m.n, m.clock);
 			else if (m.t === 'inputs') this.handlers.inputs?.(m.list, m.clock);
 			else if (m.t === 'error') this.handlers.error?.(m.msg);
+			else if (m.t === 'chat') this.handlers.chat?.(m);
+			else if (m.t === 'chatlog') this.handlers.chatlog?.(m.list);
 		};
 		ws.onclose = () => {
 			if (this.ws !== ws) return;   // 이미 새 연결로 바뀜
@@ -105,6 +118,21 @@ export class OnlineRoom {
 	rejoin(join: { name: string; team: PSet[] }) { this.join = { ...join }; this.send({ t: 'join', token: deviceToken(), version: APP_VERSION, ...join }); }
 	send(m: any) { try { this.ws?.send(JSON.stringify(m)); } catch {} }
 	close() { this.closed = true; clearInterval(this.beat); try { document.removeEventListener('visibilitychange', this.onVis); } catch {} try { this.ws?.close(); } catch {} }
+}
+
+/** 로비 목록 보기: 방이 생기거나 바뀔 때마다 목록 전체를 받음. 돌려준 함수로 그만 봄 */
+export function watchLobby(onRooms: (list: RoomCard[]) => void, onStatus: (ok: boolean) => void): () => void {
+	let ws: WebSocket | null = null, closed = false, beat: any = 0, retry = 0;
+	const open = () => {
+		if (closed) return;
+		ws = new WebSocket(wsUrl('/lobby'));
+		ws.onopen = () => { retry = 0; onStatus(true); ws!.send(JSON.stringify({ t: 'list' })); };
+		ws.onmessage = ev => { let m: any; try { m = JSON.parse(String(ev.data)); } catch { return; } if (m.t === 'rooms') onRooms(m.list || []); };
+		ws.onclose = () => { onStatus(false); if (!closed) setTimeout(open, Math.min(15000, 1000 * 2 ** retry++)); };
+	};
+	open();
+	beat = setInterval(() => { try { if (ws?.readyState === 1) ws.send('{"t":"ping"}'); } catch {} }, 25000);
+	return () => { closed = true; clearInterval(beat); try { ws?.close(); } catch {} };
 }
 
 /** 랜덤 대전 매칭: 같은 형식·같은 앱 버전끼리 짝지어 방 코드를 받음 */

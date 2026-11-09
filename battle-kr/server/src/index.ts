@@ -16,6 +16,14 @@
  *           {t:'input', side, choice, n}  (n = 몇 번째 선택, 1부터)   {t:'inputs', list}  (재접속 때 지금까지 전부)   {t:'error', msg}
  *  GET /queue       랜덤 대전 매칭 (Lobby)
  *    앱 → {t:'queue', doubles, pick, version, token}   서버 → {t:'matched', code}
+ *
+ *  로비식 방 (v2.67): 만든 방은 로비 목록에 올라가고(규칙이 달라도 보임), 공개 방 또는 비밀번호 방.
+ *    입장: {t:'join', ..., create:{title, pw, ruleId, doubles, pick}} (방 만들기) · {t:'join', ..., pw} (들어가기, 팀 없이도 됨)
+ *    방 안: {t:'team', team} 파티 바꾸기 · {t:'rules', ruleId, doubles, pick} 방장이 규칙·형식 바꾸기 · {t:'ready', on} 준비
+ *           {t:'chat', text} 채팅 → {t:'chat', side, name, text, at} (처음 들어오면 {t:'chatlog', list})
+ *           {t:'leave'} 손님이 나가면 자리가 비고, 방장이 나가면 방이 닫힘 · {t:'again'} 배틀이 끝난 뒤 방으로 돌아가기
+ *    둘 다 준비하면 {t:'preview'} → 고르기 → {t:'start'} (그다음은 위와 같음)
+ *  GET /lobby       로비 목록 (Lobby): 앱 → {t:'list'}  서버 → {t:'rooms', list:[{code,title,host,sprite,ruleId,doubles,pick,locked,players,status,version}]} (바뀔 때마다)
  */
 import { DurableObject } from 'cloudflare:workers';
 
@@ -46,7 +54,7 @@ export default {
 			if (!ws) return json({ error: 'WebSocket 으로 연결해 주세요' }, 426);
 			return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(req);
 		}
-		if (url.pathname === '/queue') {
+		if (url.pathname === '/queue' || url.pathname === '/lobby') {
 			if (!ws) return json({ error: 'WebSocket 으로 연결해 주세요' }, 426);
 			return env.LOBBY.get(env.LOBBY.idFromName('lobby')).fetch(req);
 		}
@@ -55,10 +63,16 @@ export default {
 };
 
 type Side = 'p1' | 'p2';
-interface Player { name: string; token: string; team: any[]; version: string; sprite?: string; picked?: number[] }
+interface Player { name: string; token: string; team: any[]; version: string; sprite?: string; picked?: number[]; ready?: boolean }
+interface ChatMsg { side: Side | ''; name: string; text: string; at: number }
 interface RoomState { code: string; ruleId: string; doubles: boolean; pick: number; players: { p1?: Player; p2?: Player };
 	seed?: number[]; inputs: [Side, string][]; ended?: boolean; created: number; away?: { p1?: number; p2?: number };
-	startedAt?: number; spent?: { p1: number; p2: number } }
+	startedAt?: number; spent?: { p1: number; p2: number };
+	/** 로비식 방: 제목 · 비밀번호(SHA-256) · 채팅 · 닫힘 */ lobby?: boolean; title?: string; pw?: string; chat?: ChatMsg[]; closed?: boolean }
+const sha = async (t: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('bskr:' + t))), b => b.toString(16).padStart(2, '0')).join('');
+const CHAT_KEEP = 30;
+/** 로비 목록 한 줄 */
+interface RoomCard { code: string; title: string; host: string; sprite: string; ruleId: string; doubles: boolean; pick: number; locked: boolean; players: number; status: 'waiting' | 'battle'; version: string; at: number }
 
 export class Room extends DurableObject<Env> {
 	private st: RoomState | null = null;
@@ -94,9 +108,26 @@ export class Room extends DurableObject<Env> {
 		return { t: 'room', code: s.code, side, ruleId: s.ruleId, doubles: s.doubles, pick: s.pick || 6,
 			picked: { p1: !!s.players.p1?.picked, p2: !!s.players.p2?.picked }, status: s.ended ? 'ended' : s.seed ? 'battle' : 'waiting',
 			players: { p1: s.players.p1?.name || null, p2: s.players.p2?.name || null }, version: s.players.p1?.version,
-			online: { p1: this.alive('p1').length > 0, p2: this.alive('p2').length > 0 }, away: s.away || {} };
+			online: { p1: this.alive('p1').length > 0, p2: this.alive('p2').length > 0 }, away: s.away || {},
+			lobby: !!s.lobby, title: s.title || '', locked: !!s.pw, closed: !!s.closed,
+			ready: { p1: !!s.players.p1?.ready, p2: !!s.players.p2?.ready }, hasTeam: { p1: !!s.players.p1?.team?.length, p2: !!s.players.p2?.team?.length },
+			sprites: { p1: s.players.p1?.sprite || '', p2: s.players.p2?.sprite || '' } };
 	}
-	private broadcastRoom() { for (const ws of this.ctx.getWebSockets()) this.send(ws, this.roomInfo(this.sideOf(ws))); }
+	/** 로비 목록에 알림 (바뀐 경우만). 닫혔거나 끝났거나 로비 방이 아니면 목록에서 뺌 */
+	private lastCard = '';
+	private async notifyLobby() {
+		const s = this.st!;
+		if (!s.lobby) return;
+		const p1 = s.players.p1;
+		const card: RoomCard | null = !p1 || s.closed ? null : { code: s.code, title: s.title || `${p1.name}의 방`, host: p1.name, sprite: p1.sprite || '', ruleId: s.ruleId, doubles: s.doubles,
+			pick: s.pick || 6, locked: !!s.pw, players: s.players.p2 ? 2 : 1, status: s.seed && !s.ended ? 'battle' : 'waiting', version: p1.version, at: s.created };
+		const key = JSON.stringify(card);
+		if (key === this.lastCard) return;
+		this.lastCard = key;
+		try { await this.env.LOBBY.get(this.env.LOBBY.idFromName('lobby')).fetch('https://lobby/update', { method: 'POST', body: JSON.stringify({ code: s.code, card }) }); } catch {}
+	}
+	private sendPreviews() { for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) this.send(w, this.previewMsg(sd)); }
+	private broadcastRoom() { for (const ws of this.ctx.getWebSockets()) this.send(ws, this.roomInfo(this.sideOf(ws))); void this.notifyLobby(); }
 	private startMsg(side: Side) {
 		const s = this.st!;
 		return { t: 'start', side, seed: s.seed, ruleId: s.ruleId, doubles: s.doubles, clock: this.clock(),
@@ -148,6 +179,18 @@ export class Room extends DurableObject<Env> {
 		if (changed) this.broadcastRoom();
 		return changed;
 	}
+	private pushChat(msg: ChatMsg) { const s = this.st!; s.chat = [...(s.chat || []), msg].slice(-CHAT_KEEP); }
+	private sendChatTail() { const c = this.st!.chat || []; const last = c[c.length - 1]; if (last) for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'chat', ...last }); }
+	/** 로비 방에서 손님 자리를 비움 (나감·끊김). 방장 자리면 방을 닫음 */
+	private dropPlayer(sd: Side, note: string) {
+		const s = this.st!;
+		if (sd === 'p1') { s.closed = true; s.ended = true; for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'error', msg: '방장의 연결이 끊어져 방이 닫혔어요' }); void this.notifyLobby(); return; }
+		for (const w of this.sockets('p2')) { try { w.serializeAttachment({ at: Date.now() }); } catch {} }
+		delete s.players.p2; delete s.away?.p2;
+		if (s.players.p1) { s.players.p1.ready = false; s.players.p1.picked = undefined; }
+		this.pushChat({ side: '', name: '', text: note, at: Date.now() });
+		this.broadcastRoom(); this.sendChatTail();
+	}
 	private relay(side: Side, choice: string) {
 		const s = this.st!;
 		s.inputs.push([side, choice]);
@@ -169,7 +212,7 @@ export class Room extends DurableObject<Env> {
 		const s = await this.load();
 		const now = Date.now();
 		let dirty = false;
-		if (!s.code || now >= s.created + ROOM_TTL) { for (const ws of this.ctx.getWebSockets()) try { ws.close(1000, '방이 닫혔어요'); } catch {} await this.ctx.storage.deleteAll(); this.st = null; return; }
+		if (!s.code || now >= s.created + ROOM_TTL) { s.closed = true; await this.notifyLobby(); for (const ws of this.ctx.getWebSockets()) try { ws.close(1000, '방이 닫혔어요'); } catch {} await this.ctx.storage.deleteAll(); this.st = null; return; }
 		// 대전 시간 끝: 양쪽 앱이 같은 판정(남은 포켓몬 수 → 남은 HP 비율 → HP 합)으로 끝냄
 		if (s.seed && !s.ended && s.startedAt && now >= s.startedAt + GAME) { this.relay('p1', 'tod'); dirty = true; }
 		if (this.markStale(now)) dirty = true;
@@ -177,11 +220,12 @@ export class Room extends DurableObject<Env> {
 			const t = s.away?.[sd];
 			if (!t || t > now) continue;
 			delete s.away![sd]; dirty = true;
-			if (this.alive(sd, now).length || s.ended) continue;   // 그새 돌아옴
-			if (s.seed) this.relay(sd, 'forfeit disconnect');
-			else { s.ended = true; for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'error', msg: `${s.players[sd]?.name || '상대'}의 연결이 끊어져 대전이 취소됐어요` }); }
+			if (this.alive(sd, now).length) continue;   // 그새 돌아옴
+			if (s.seed && !s.ended) this.relay(sd, 'forfeit disconnect');
+			else if (s.lobby && !s.closed) this.dropPlayer(sd, `${s.players[sd]?.name || '상대'}의 연결이 끊어졌어요`);   // 로비 방: 손님 자리 비움 · 방장이면 방 닫음
+			else if (!s.ended) { s.ended = true; for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'error', msg: `${s.players[sd]?.name || '상대'}의 연결이 끊어져 대전이 취소됐어요` }); }
 		}
-		if (dirty) await this.save();
+		if (dirty) { await this.save(); await this.notifyLobby(); }
 		await this.schedule();
 	}
 
@@ -197,27 +241,46 @@ export class Room extends DurableObject<Env> {
 		if (m.t === 'join') {
 			const token = String(m.token || '').slice(0, 64), version = String(m.version || '');
 			if (!token) return err('token 이 필요해요');
+			if (s.closed) return err('닫힌 방이에요');
 			let side: Side | null = s.players.p1?.token === token ? 'p1' : s.players.p2?.token === token ? 'p2' : null;
+			const fresh = !side;
 			if (!side) {
 				if (s.players.p1 && s.players.p2) return err('방이 꽉 찼어요');
 				if (s.players.p1 && s.players.p1.version !== version) return err(`앱 버전이 달라서 함께 대전할 수 없어요 (방장 v${s.players.p1.version} · 나 v${version}). 둘 다 최신 버전으로 맞춰 주세요.`);
+				if (s.players.p1 && s.pw && (await sha(String(m.pw || ''))) !== s.pw) return err('비밀번호가 맞지 않아요');
+				if (!s.players.p1 && s.ended) return err('이미 끝난 방이에요');
 				const team = Array.isArray(m.team) ? m.team.slice(0, 6) : [];
-				if (!team.length) return err('팀이 비어 있어요');
+				const lobbyJoin = !!m.create || (!!s.lobby && !!s.players.p1);
+				if (!team.length && !lobbyJoin) return err('팀이 비어 있어요');
 				side = s.players.p1 ? 'p2' : 'p1';
 				let name = String(m.name || '트레이너').slice(0, 16);
 				if (side === 'p2' && name === s.players.p1!.name) name += ' (2)';   // 승자 판정이 이름으로 되므로 겹치지 않게
-				if (side === 'p1') { if (m.ruleId) s.ruleId = String(m.ruleId).slice(0, 80); s.doubles = !!m.doubles; s.pick = [3, 4, 6].includes(m.pick) ? m.pick : 6; }
+				if (side === 'p1') {
+					if (m.ruleId) s.ruleId = String(m.ruleId).slice(0, 80); s.doubles = !!m.doubles; s.pick = [3, 4, 6].includes(m.pick) ? m.pick : 6;
+					if (m.create) {   // 로비식 방 만들기
+						const c = m.create;
+						s.lobby = true; s.title = String(c.title || '').slice(0, 24); s.pw = c.pw ? await sha(String(c.pw).slice(0, 16)) : undefined;
+						if (c.ruleId) s.ruleId = String(c.ruleId).slice(0, 80); s.doubles = !!c.doubles; s.pick = [3, 4, 6].includes(c.pick) ? c.pick : 6;
+						s.chat = [];
+					}
+				}
 				s.players[side] = { name, token, team, version, sprite: String(m.sprite || '').slice(0, 40) };
+				if (s.lobby) this.pushChat({ side: '', name: '', text: `${name} 님이 ${side === 'p1' ? '방을 만들었어요' : '들어왔어요'}`, at: Date.now() });
 				await this.save();
 			}
 			ws.serializeAttachment({ side, at: Date.now() });
 			if (s.away?.[side]) { delete s.away[side]; await this.save(); await this.schedule(); }
-			if (s.ended && !s.seed) return err('이미 끝난 방이에요');
+			if (s.ended && !s.seed && !s.lobby) return err('이미 끝난 방이에요');
 			this.broadcastRoom();
+			if (s.lobby) {
+				this.send(ws, { t: 'chatlog', list: s.chat || [] });
+				const last = (s.chat || [])[(s.chat || []).length - 1];   // 들어왔다는 알림은 다른 사람에게도
+				if (fresh && last) for (const w of this.ctx.getWebSockets()) if (w !== ws) this.send(w, { t: 'chat', ...last });
+			}
 			if (s.seed) {   // 재접속: 시작 정보와 지금까지의 선택
 				this.send(ws, this.startMsg(side));
 				this.send(ws, { t: 'inputs', list: s.inputs, clock: this.clock() });
-			} else if (s.players.p1 && s.players.p2) {   // 둘 다 들어옴: 서로 전체 엔트리 → 고르기 (먼저 와 있던 쪽에도)
+			} else if (s.players.p1 && s.players.p2 && (!s.lobby || (s.players.p1.ready && s.players.p2.ready))) {   // 둘 다 들어옴(로비 방은 둘 다 준비): 서로 전체 엔트리 → 고르기
 				for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) if (w === ws || sd !== side) this.send(w, this.previewMsg(sd));
 			}
 			return;
@@ -232,6 +295,57 @@ export class Room extends DurableObject<Env> {
 			p.picked = idx;
 			await this.save();
 			if (!(await this.maybeStart())) this.broadcastRoom();
+			return;
+		}
+		if (m.t === 'chat') {
+			if (!s.lobby) return;
+			const text = String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+			if (!text) return;
+			const msg = { side, name: s.players[side]!.name, text, at: Date.now() };
+			this.pushChat(msg); await this.save();
+			for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'chat', ...msg });
+			return;
+		}
+		if (s.lobby && !s.seed) {   // 로비 방 대기 중: 파티·규칙·준비·나가기
+			const p = s.players[side]!;
+			const picking = !!(s.players.p1?.ready && s.players.p2?.ready);   // 둘 다 준비 → 고르는 중에는 파티·규칙을 바꾸지 않음
+			if ((m.t === 'team' || m.t === 'rules') && picking) return err('참가 포켓몬을 고르는 중이에요');
+			if (m.t === 'team') {
+				const team = Array.isArray(m.team) ? m.team.slice(0, 6) : [];
+				if (!team.length) return err('팀이 비어 있어요');
+				p.team = team; p.ready = false; p.picked = undefined;
+				await this.save(); this.broadcastRoom(); return;
+			}
+			if (m.t === 'rules') {
+				if (side !== 'p1') return err('방장만 규칙을 바꿀 수 있어요');
+				if (m.ruleId) s.ruleId = String(m.ruleId).slice(0, 80);
+				s.doubles = !!m.doubles; s.pick = [3, 4, 6].includes(m.pick) ? m.pick : 6;
+				for (const sd of ['p1', 'p2'] as Side[]) if (s.players[sd]) { s.players[sd]!.ready = false; s.players[sd]!.picked = undefined; }
+				this.pushChat({ side: '', name: '', text: '방장이 규칙을 바꿨어요', at: Date.now() });
+				await this.save(); this.broadcastRoom(); this.sendChatTail(); return;
+			}
+			if (m.t === 'ready') {
+				if (m.on && !p.team?.length) return err('먼저 파티를 골라 주세요');
+				p.ready = !!m.on;
+				await this.save(); this.broadcastRoom();
+				if (s.players.p1?.ready && s.players.p2?.ready) this.sendPreviews();
+				return;
+			}
+			if (m.t === 'leave') {
+				if (side === 'p1') {   // 방장이 나가면 방을 닫음
+					s.closed = true; s.ended = true; await this.save();
+					for (const w of this.ctx.getWebSockets()) if (w !== ws) this.send(w, { t: 'error', msg: '방장이 나가서 방이 닫혔어요' });
+					await this.notifyLobby();
+				} else this.dropPlayer('p2', `${p.name} 님이 나갔어요`);
+				await this.save();
+				return;
+			}
+		}
+		if (m.t === 'again') {   // 배틀이 끝난 로비 방: 다시 대기실로
+			if (!s.lobby || !s.ended || s.closed) return;
+			s.seed = undefined; s.inputs = []; s.ended = false; s.startedAt = undefined; s.spent = undefined; s.away = {};
+			for (const sd of ['p1', 'p2'] as Side[]) if (s.players[sd]) { s.players[sd]!.ready = false; s.players[sd]!.picked = undefined; }
+			await this.save(); await this.schedule(); this.broadcastRoom();
 			return;
 		}
 		if (m.t === 'leave') {   // 배틀 전에 나감
@@ -254,7 +368,7 @@ export class Room extends DurableObject<Env> {
 			await this.save();
 			return;
 		}
-		if (m.t === 'ended') { s.ended = true; await this.save(); return; }
+		if (m.t === 'ended') { s.ended = true; await this.save(); void this.notifyLobby(); return; }
 		if (m.t === 'ping') this.send(ws, { t: 'pong' });
 		// 배틀 중인 앱이 20초마다: 상대가 잠들었는지(소식 없음) 확인
 		if (m.t === 'check') { if (this.markStale(Date.now())) { await this.save(); await this.schedule(); } return; }
@@ -264,7 +378,8 @@ export class Room extends DurableObject<Env> {
 	/** 한쪽 연결이 모두 끊기면 GRACE 동안 기다림 (돌아오지 않으면 alarm 에서 기권 처리) */
 	private async gone(ws: WebSocket) {
 		const s = await this.load(), side = this.sideOf(ws);
-		if (side && !s.ended && s.players.p1 && s.players.p2 && !s.away?.[side] && !this.sockets(side).some(w => w !== ws && w.readyState === 1)) {
+		const watch = s.lobby ? !s.closed && !!s.players[side!] : !s.ended && !!s.players.p1 && !!s.players.p2;   // 로비 방은 대기실·배틀 뒤에도 (방장이 떠나면 방을 닫으려고)
+		if (side && watch && !s.away?.[side] && !this.sockets(side).some(w => w !== ws && w.readyState === 1)) {
 			s.away = { ...(s.away || {}), [side]: Date.now() + GRACE };
 			await this.save(); await this.schedule();
 		}
@@ -272,9 +387,27 @@ export class Room extends DurableObject<Env> {
 	}
 }
 
-/** 랜덤 대전 매칭: 같은 형식(싱글·더블)·같은 앱 버전끼리 먼저 온 순서로 짝지음 */
+/** 랜덤 대전 매칭 + 로비 방 목록 */
 export class Lobby extends DurableObject<Env> {
+	private rooms: Map<string, RoomCard> | null = null;
+	private async loadRooms() {
+		if (!this.rooms) this.rooms = new Map(Object.entries((await this.ctx.storage.get<{ [code: string]: RoomCard }>('rooms')) || {}));
+		const now = Date.now();
+		for (const [k, v] of this.rooms) if (now - v.at > ROOM_TTL) this.rooms.delete(k);
+		return this.rooms;
+	}
+	private listMsg() { return JSON.stringify({ t: 'rooms', list: [...this.rooms!.values()].sort((a, b) => b.at - a.at).slice(0, 100) }); }
 	async fetch(req: Request): Promise<Response> {
+		const url = new URL(req.url);
+		if (url.pathname === '/update' && req.method === 'POST') {   // 방이 알려 옴
+			const { code, card } = await req.json() as { code: string; card: RoomCard | null };
+			const rooms = await this.loadRooms();
+			if (card) rooms.set(code, card); else rooms.delete(code);
+			await this.ctx.storage.put('rooms', Object.fromEntries(rooms));
+			const msg = this.listMsg();
+			for (const w of this.ctx.getWebSockets()) if ((w.deserializeAttachment() as any)?.watch) try { w.send(msg); } catch {}
+			return new Response('ok');
+		}
 		const pair = new WebSocketPair();
 		this.ctx.acceptWebSocket(pair[1]);
 		return new Response(null, { status: 101, webSocket: pair[0] });
@@ -282,12 +415,14 @@ export class Lobby extends DurableObject<Env> {
 	async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
 		let m: any;
 		try { m = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch { return; }
+		if (m.t === 'list') { await this.loadRooms(); ws.serializeAttachment({ watch: true }); ws.send(this.listMsg()); return; }
+		if (m.t === 'ping') { try { ws.send('{"t":"pong"}'); } catch {} return; }
 		if (m.t !== 'queue') return;
 		const me = { doubles: !!m.doubles, pick: [3, 4, 6].includes(m.pick) ? m.pick : 6, version: String(m.version || ''), token: String(m.token || ''), at: Date.now() };
 		const other = this.ctx.getWebSockets().find(w => {
 			if (w === ws) return false;
 			const a = w.deserializeAttachment() as any;
-			return a && a.doubles === me.doubles && (a.pick || 6) === me.pick && a.version === me.version && a.token !== me.token;
+			return a && !a.watch && a.doubles === me.doubles && (a.pick || 6) === me.pick && a.version === me.version && a.token !== me.token;
 		});
 		if (!other) { ws.serializeAttachment(me); ws.send(JSON.stringify({ t: 'waiting' })); return; }
 		const code = newCode();
