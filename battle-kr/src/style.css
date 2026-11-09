@@ -3002,3 +3002,7 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 	.lr-wrap { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; }
 	.lr-chat { height: 100%; } .lr-log { height: 320px; }
 }
+/* 방 안 '내 파티': 휴대폰 세로에서는 한 줄에 3마리씩 (6마리 = 3×2) */
+@media (max-width: 640px) and (orientation: portrait) {
+	.lr-icons { display: grid; grid-template-columns: repeat(3, max-content); justify-content: center; column-gap: 10px; row-gap: 2px; }
+}

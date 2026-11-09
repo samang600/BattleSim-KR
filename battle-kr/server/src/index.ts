@@ -68,7 +68,9 @@ interface ChatMsg { side: Side | ''; name: string; text: string; at: number }
 interface RoomState { code: string; ruleId: string; doubles: boolean; pick: number; players: { p1?: Player; p2?: Player };
 	seed?: number[]; inputs: [Side, string][]; ended?: boolean; created: number; away?: { p1?: number; p2?: number };
 	startedAt?: number; spent?: { p1: number; p2: number };
-	/** 로비식 방: 제목 · 비밀번호(SHA-256) · 채팅 · 닫힘 */ lobby?: boolean; title?: string; pw?: string; chat?: ChatMsg[]; closed?: boolean }
+	/** 로비식 방: 제목 · 비밀번호(SHA-256) · 채팅 · 닫힘 · 로비에 마지막으로 알린 카드(같으면 다시 안 보냄) */ lobby?: boolean; title?: string; pw?: string; chat?: ChatMsg[]; closed?: boolean; cardKey?: string }
+/** 채팅: 한 사람당 이 간격에 1줄 · 저장은 이 간격에 한 번(그 사이 줄은 다음 저장 때 같이 — 방이 잠들면 마지막 몇 줄이 기록에서 빠질 수 있음) */
+const CHAT_GAP = 2000, CHAT_SAVE_GAP = 10 * 1000;
 const sha = async (t: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('bskr:' + t))), b => b.toString(16).padStart(2, '0')).join('');
 const CHAT_KEEP = 30;
 /** 로비 목록 한 줄 */
@@ -99,7 +101,12 @@ export class Room extends DurableObject<Env> {
 		if (!this.st.code && code) this.st.code = code;
 		return this.st;
 	}
-	private async save() { await this.ctx.storage.put('room', this.st!); }
+	/** 저장 + (로비 방이면) 목록 카드가 바뀐 경우만 로비에 알림 — cardKey 를 같이 저장하므로 방이 잠들었다 깨도 같은 카드를 다시 보내지 않음 */
+	private async save() {
+		const c = this.cardChange();
+		await this.ctx.storage.put('room', this.st!);
+		if (c !== undefined) await this.sendCard(c);
+	}
 	private sideOf(ws: WebSocket): Side | null { return (ws.deserializeAttachment() as any)?.side ?? null; }
 	private sockets(side?: Side) { return this.ctx.getWebSockets().filter(ws => !side || this.sideOf(ws) === side); }
 	private send(ws: WebSocket, m: any) { try { ws.send(JSON.stringify(m)); } catch {} }
@@ -114,20 +121,26 @@ export class Room extends DurableObject<Env> {
 			sprites: { p1: s.players.p1?.sprite || '', p2: s.players.p2?.sprite || '' } };
 	}
 	/** 로비 목록에 알림 (바뀐 경우만). 닫혔거나 끝났거나 로비 방이 아니면 목록에서 뺌 */
-	private lastCard = '';
-	private async notifyLobby() {
+	private chatSavedAt = 0;
+	/** 로비 목록 카드가 바뀌었으면 그 카드(없앨 땐 null)를, 같으면 undefined. 마지막으로 알린 카드는 상태(cardKey)에 기억 */
+	private cardChange(): RoomCard | null | undefined {
 		const s = this.st!;
-		if (!s.lobby) return;
+		if (!s.lobby) return undefined;
 		const p1 = s.players.p1;
 		const card: RoomCard | null = !p1 || s.closed ? null : { code: s.code, title: s.title || `${p1.name}의 방`, host: p1.name, sprite: p1.sprite || '', ruleId: s.ruleId, doubles: s.doubles,
 			pick: s.pick || 6, locked: !!s.pw, players: s.players.p2 ? 2 : 1, status: s.seed && !s.ended ? 'battle' : 'waiting', version: p1.version, at: s.created };
 		const key = JSON.stringify(card);
-		if (key === this.lastCard) return;
-		this.lastCard = key;
-		try { await this.env.LOBBY.get(this.env.LOBBY.idFromName('lobby')).fetch('https://lobby/update', { method: 'POST', body: JSON.stringify({ code: s.code, card }) }); } catch {}
+		if (key === s.cardKey) return undefined;
+		s.cardKey = key;
+		return card;
 	}
+	private async sendCard(card: RoomCard | null) {
+		try { await this.env.LOBBY.get(this.env.LOBBY.idFromName('lobby')).fetch('https://lobby/update', { method: 'POST', body: JSON.stringify({ code: this.st!.code, card }) }); } catch {}
+	}
+	/** 저장하지 않는 경로(닫기 등)에서 로비에 알림 */
+	private async notifyLobby() { const c = this.cardChange(); if (c !== undefined) await this.sendCard(c); }
 	private sendPreviews() { for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) this.send(w, this.previewMsg(sd)); }
-	private broadcastRoom() { for (const ws of this.ctx.getWebSockets()) this.send(ws, this.roomInfo(this.sideOf(ws))); void this.notifyLobby(); }
+	private broadcastRoom() { for (const ws of this.ctx.getWebSockets()) this.send(ws, this.roomInfo(this.sideOf(ws))); }
 	private startMsg(side: Side) {
 		const s = this.st!;
 		return { t: 'start', side, seed: s.seed, ruleId: s.ruleId, doubles: s.doubles, clock: this.clock(),
@@ -301,8 +314,12 @@ export class Room extends DurableObject<Env> {
 			if (!s.lobby) return;
 			const text = String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
 			if (!text) return;
-			const msg = { side, name: s.players[side]!.name, text, at: Date.now() };
-			this.pushChat(msg); await this.save();
+			const now = Date.now(), att = ws.deserializeAttachment() as any;
+			if (now - (att?.chatAt || 0) < CHAT_GAP) { this.send(ws, { t: 'chat', side: '', name: '', text: '채팅은 2초에 한 줄씩 보낼 수 있어요', at: now }); return; }
+			ws.serializeAttachment({ ...att, chatAt: now });
+			const msg = { side, name: s.players[side]!.name, text, at: now };
+			this.pushChat(msg);
+			if (now - this.chatSavedAt >= CHAT_SAVE_GAP) { this.chatSavedAt = now; await this.save(); }
 			for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'chat', ...msg });
 			return;
 		}
@@ -397,6 +414,11 @@ export class Room extends DurableObject<Env> {
 /** 랜덤 대전 매칭 + 로비 방 목록 */
 export class Lobby extends DurableObject<Env> {
 	private rooms: Map<string, RoomCard> | null = null;
+	constructor(ctx: DurableObjectState, env: Env) {
+		super(ctx, env);
+		// 로비 목록을 보는 앱의 25초 ping 은 깨우지 않고 자동 응답 (보는 사람이 많아도 요청이 거의 안 듦)
+		ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('{"t":"ping"}', '{"t":"pong"}'));
+	}
 	private async loadRooms() {
 		if (!this.rooms) this.rooms = new Map(Object.entries((await this.ctx.storage.get<{ [code: string]: RoomCard }>('rooms')) || {}));
 		const now = Date.now();
@@ -409,6 +431,8 @@ export class Lobby extends DurableObject<Env> {
 		if (url.pathname === '/update' && req.method === 'POST') {   // 방이 알려 옴
 			const { code, card } = await req.json() as { code: string; card: RoomCard | null };
 			const rooms = await this.loadRooms();
+			const old = rooms.get(code);
+			if (card ? old && JSON.stringify(old) === JSON.stringify(card) : !old) return new Response('same');   // 바뀐 게 없으면 저장·알림 안 함
 			if (card) rooms.set(code, card); else rooms.delete(code);
 			await this.ctx.storage.put('rooms', Object.fromEntries(rooms));
 			const msg = this.listMsg();
