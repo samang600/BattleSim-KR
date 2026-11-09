@@ -2939,8 +2939,8 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .ach-claim span { display: flex; align-items: center; gap: 2px; }
 
 /* ═════ v2.67: 온라인 로비 · 방 ═════ */
-.lb-actions { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; margin: 6px 0; }
-.lb-actions .btn { font-size: 14px; padding: 10px 4px; }
+.lb-actions { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin: 6px 0; }
+.lb-actions .btn { font-size: 14px; padding: 10px 4px; min-width: 0; white-space: normal; word-break: keep-all; line-height: 18px; }
 .lb-rules { margin: 4px 0; font-size: 12px; color: #c8d0e0; } .lb-rules summary { cursor: pointer; }
 .lb-empty { text-align: center; margin: 20px 0; }
 .lb-list { display: flex; flex-direction: column; gap: 6px; }
@@ -2954,7 +2954,7 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .lb-lock { font-style: normal; margin-right: 4px; }
 .lb-host { font-size: 12px; color: #c8d0e0; display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
 .lb-tags { display: flex; gap: 4px; flex-wrap: wrap; }
-.lb-tags em { font-style: normal; font-size: 11px; padding: 0 5px; background: #141c2e; box-shadow: 0 0 0 1px #4a5a7e; color: #d8e0f0; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.lb-tags em { font-style: normal; font-size: 11px; line-height: 15px; padding: 1px 5px; background: #141c2e; box-shadow: 0 0 0 1px #4a5a7e; color: #d8e0f0; max-width: 100%; word-break: keep-all; overflow-wrap: anywhere; }
 .lb-tags em.warn { color: #ffb0a0; box-shadow: 0 0 0 1px #a04a3a; }
 .lb-status { display: flex; flex-direction: column; align-items: center; font-size: 12px; padding: 2px 6px; min-width: 48px; box-shadow: 0 0 0 2px #0a0f18; }
 .lb-status small { font-size: 10px; }
@@ -2963,7 +2963,8 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .lc-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 8px; font-size: 14px; }
 .lc-row > span { color: var(--yellow, #ffd84a); }
 .lc-row input { font: inherit; font-size: 15px; padding: 8px 10px; color: #fff; background: #0e1420; border: 0; box-shadow: 0 0 0 2px #0a0f18, inset 0 0 0 2px #3a4a6e; min-width: 0; }
-.lc-rule { text-align: left; font-size: 13px; } .lc-rule small { color: #ffe070; margin-left: 6px; }
+.lc-rule { text-align: left; font-size: 13px; line-height: 18px; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; min-width: 0; padding: 6px 10px; }
+.lc-rule small { display: block; color: #ffe070; margin: 2px 0 0; }
 .lr-leg { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; } .lr-leg span { font-size: 13px; margin-right: 4px; }
 .lr-rules { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; padding: 2px; }
 .lr-rule-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 8px; text-align: left; color: #fff; font: inherit; border: 0; cursor: pointer;
@@ -3006,3 +3007,6 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 @media (max-width: 640px) and (orientation: portrait) {
 	.lr-icons { display: grid; grid-template-columns: repeat(3, max-content); justify-content: center; column-gap: 10px; row-gap: 2px; }
 }
+
+/* 로비 화면들: 혹시 넘치는 게 있어도 화면이 좌우로 흔들리지 않게 */
+.lobby-scr { overflow-x: clip; }
