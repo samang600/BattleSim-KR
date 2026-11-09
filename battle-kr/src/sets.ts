@@ -258,12 +258,15 @@ export function randomSetFor(speciesId: string, gen: Gen, level = 50, doubles = 
 
 /** 구애 도구(스카프·머리띠·안경)와 같이 써도 되는 변화기: 도구를 넘기거나 쓰고 바로 물러나는 기술만 */
 const CHOICE_OK_STATUS = new Set(['trick', 'switcheroo', 'healingwish', 'lunardance', 'memento']);
+/** 변화기를 못 쓰게 되는 도구: 구애류(트릭류는 괜찮음)·돌격조끼(변화기 전부 못 씀) */
+const isLockItem = (item: string) => /^choice/.test(toID(item)) || toID(item) === 'assaultvest';
 function choiceBadMoves(set: PSet, gen: Gen): string[] {
-	return set.moves.filter(m => { const md = moveData(toID(m), gen); return md?.category === 'Status' && !CHOICE_OK_STATUS.has(toID(m)); });
+	const av = toID(set.item) === 'assaultvest';
+	return set.moves.filter(m => { const md = moveData(toID(m), gen); return md?.category === 'Status' && (av || !CHOICE_OK_STATUS.has(toID(m))); });
 }
-/** 구애 도구를 들었는데 변화기(방어·칼춤 등)가 있으면: 하나면 공격 기술로 바꾸고, 둘 이상이면(보조형) 도구를 바꿈 */
+/** 구애 도구·돌격조끼를 들었는데 변화기(방어·칼춤 등)가 있으면: 하나면 공격 기술로 바꾸고, 둘 이상이면(보조형) 도구를 바꿈 */
 export function fixChoiceSet<T extends PSet>(set: T, gen: Gen = 9): T {
-	if (!/^choice/.test(toID(set.item))) return set;
+	if (!isLockItem(set.item)) return set;
 	const bad = choiceBadMoves(set, gen);
 	if (!bad.length) return set;
 	if (bad.length === 1 && !speciesData(toID(set.species), gen)?.req) {
@@ -352,8 +355,7 @@ export function dedupeItems(team: PSet[]) {
 		if (used.has(set.item)) {
 			const rule = ruleById(loadSettings().battleRule);
 			// 변화기가 있는 세트에는 구애 도구를 대신 주지 않음
-			const noChoice = choiceBadMoves({ ...set, item: 'choicescarf' }, 9).length > 0;
-			const alt = ITEM_ALTS.find(i => !used.has(i) && RAW.items[i] && itemAllowed(rule, i) && !(noChoice && /^choice/.test(i)));
+			const alt = ITEM_ALTS.find(i => !used.has(i) && RAW.items[i] && itemAllowed(rule, i) && !(isLockItem(i) && choiceBadMoves({ ...set, item: i }, 9).length > 0));
 			set.item = alt || '';
 		}
 		if (set.item) used.add(set.item);
