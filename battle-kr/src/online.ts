@@ -59,11 +59,14 @@ export class OnlineRoom {
 	connect(join: { name: string; team?: PSet[]; ruleId?: string; doubles?: boolean; pick?: number; peek?: boolean }) {
 		this.join = join;
 		this.open();
-		// 하트비트: 10초마다 ping, 25초 동안 아무 소식이 없으면 끊고 다시 붙음 (잠자기에서 깨어난 뒤 등). 화면이 다시 보이면 바로 재접속
+		// 하트비트: 10초마다 ping(서버 자동 응답), 20초마다 check(서버가 상대가 잠들었는지 확인 — 주기 알람 대신이라 무료 한도를 덜 씀).
+		// 25초 동안 아무 소식이 없으면 끊고 다시 붙음 (잠자기에서 깨어난 뒤 등). 화면이 다시 보이면 바로 재접속
 		if (!join.peek) {
+			let n = 0;
 			this.beat = setInterval(() => {
 				if (this.ws?.readyState !== 1) return;
 				this.send({ t: 'ping' });
+				if (++n % 2 === 0) this.send({ t: 'check' });
 				if (Date.now() - this.lastMsg > 25000) { try { this.ws.close(); } catch {} }
 			}, 10000);
 			try { document.addEventListener('visibilitychange', this.onVis); } catch {}
