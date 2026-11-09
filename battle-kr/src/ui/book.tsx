@@ -8,7 +8,8 @@ import { speciesKo, RAW } from '../data';
 import { REGIONS, regionLabel } from '../trainers';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { rankLabel, seasonOf, seasonLeft } from '../modes';
-import { cardSkin, cardSkinClass, starGlyph, equippedTitle, CardExtras, BpCoin } from './shop';
+import { cardSkin, cardSkinClass, starGlyph, TitleChip, CardExtras, BpCoin } from './shop';
+import { titleItem } from '../rewards';
 import { loadWallet, bookCover } from '../rewards';
 
 const TIER_COL = ['#5a6478', '#c07a3a', '#c8d0dc', '#f0c020', '#9ae8f0'];
@@ -45,7 +46,7 @@ function Card({ st, rec, set }: any) {
 		<div class={'bk-tcard' + cardSkinClass(w)} style={cardSkin(w)}>
 			<img class="bk-tcard-img" src={SPRITE_URL(set.playerSprite || 'lucas')} onError={trainerImgError} />
 			<div class="bk-tcard-body">
-				<b>{set.playerName || '플레이어'}{equippedTitle(w) && <i class="hm-title">{equippedTitle(w)}</i>}</b>
+				<b>{set.playerName || '플레이어'}<TitleChip it={titleItem(w)} /></b>
 				<span class="bk-tcard-stars">{starGlyph(w).repeat(stars)}<i>{starGlyph(w).repeat(5 - stars)}</i></span>
 				<small class="bk-bp"><BpCoin size={10} /> {w.bp} BP · 지금까지 {w.total} BP</small>
 				<small>전적 {rec.wins}승 {rec.battles - rec.wins}패 · 업적 {done}/{ACHIEVEMENTS.length}</small>

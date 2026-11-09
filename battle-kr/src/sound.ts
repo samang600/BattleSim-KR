@@ -593,6 +593,7 @@ export function setMusicVolume(v: 1 | 2 | 3) {
 	if (bgmGain) bgmGain.gain.value = BGM_VOL[v - 1];
 }
 /** 음악 스타일을 바꿨을 때 지금 곡을 새 스타일로 다시 */
+export const currentMusic = () => current;
 export function restartMusic() { const n = current; if (!n) return; stopMusic(); playMusic(n); }
 
 export function stopMusic() {

@@ -1,14 +1,14 @@
 /** BP 교환소 · 트레이너 카드 꾸미기 · 지방 배지 · 승리 연출 (보상 시스템 화면, src/rewards.ts) */
 import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
-import { Screen, Sprite, MiniSprite, ItemIcon, toast } from './core';
-import { loadWallet, onWallet, ITEMS, SLOT_INFO, owns, buy, equip, itemById, weeklyStatus, WEEK_ALL_BP, regionBadges, partnerMon, setBuddy, buddyCandidates, type Item, type Slot, type Wallet } from '../rewards';
+import { Screen, MiniSprite, ItemIcon, toast, Modal, HPBar, TYPE_COLOR } from './core';
+import { loadWallet, onWallet, titleItem, DEFAULT_TITLE, ITEMS, SLOT_INFO, owns, buy, equip, itemById, weeklyStatus, WEEK_ALL_BP, regionBadges, partnerMon, type Item, type Slot, type Wallet } from '../rewards';
 import { loadStats } from '../stats';
-import { loadSettings, loadTeams } from '../store';
+import { loadSettings } from '../store';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { REGION_COLOR, REGIONS } from '../trainers';
 import { speciesKo } from '../data';
-import { playMusic, stopMusic } from '../sound';
+import { playMusic, stopMusic, currentMusic } from '../sound';
 
 // ───────── 도트 그림 ─────────
 /** BP 동전 (8×8 도트) */
@@ -57,7 +57,7 @@ export function cardSkin(w: Wallet = loadWallet()): any {
 }
 export const cardSkinClass = (w: Wallet = loadWallet()) => (w.eq.cardBg ? ' skin-bg' : '') + (w.eq.frame ? ' skin-fr' : '');
 export const starGlyph = (w: Wallet = loadWallet()) => (w.eq.star ? itemById(w.eq.star)?.v : '') || '★';
-export const equippedTitle = (w: Wallet = loadWallet()) => (w.eq.title ? itemById(w.eq.title)?.name : '') || '';
+export const equippedTitle = (w: Wallet = loadWallet()) => titleItem(w)?.name || '';
 export function useWallet() { const [w, setW] = useState(loadWallet()); useEffect(() => onWallet(setW), []); return w; }
 
 /** 수첩 카드 아래 줄: 지방 배지 + 단짝 */
@@ -85,6 +85,20 @@ export function WinFx({ kind }: { kind: string }) {
 	return null;
 }
 
+// ───────── 칭호 띠 ─────────
+const lum = (hex: string) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * .299 + (n >> 8 & 255) * .587 + (n & 255) * .114) / 255; };
+/** 칭호 색: '#hex' · 'type:Water'(타입 색) · 'reg:관동'(지방 색) */
+export function titleColor(v = '#f0c040') { return v.startsWith('type:') ? TYPE_COLOR[v.slice(5)] || '#888888' : v.startsWith('reg:') ? REGION_COLOR[v.slice(4)] || '#888888' : v; }
+export function titleStyle(it?: Item): any {
+	const c = titleColor(it?.v);
+	const dark = lum(c) > .6;
+	return { '--tc1': shade(c, 1.3), '--tc2': c, '--tc3': shade(c, .78), '--tco': shade(c, .3), '--tct': dark ? '#1a1a1a' : '#ffffff', '--tcs': dark ? 'transparent' : shade(c, .35) };
+}
+export function TitleChip({ it, cls = '' }: { it?: Item; cls?: string }) {
+	if (!it) return null;
+	return <i class={'hm-title tchip ' + cls} style={titleStyle(it)}>{it.name}</i>;
+}
+
 // ───────── 교환소 화면 ─────────
 const TABS: { id: string; name: string; slots: Slot[] }[] = [
 	{ id: 'title', name: '칭호', slots: ['title'] },
@@ -92,57 +106,128 @@ const TABS: { id: string; name: string; slots: Slot[] }[] = [
 	{ id: 'trainer', name: '트레이너', slots: ['trainer'] },
 	{ id: 'fx', name: '연출', slots: ['ball', 'win', 'hp'] },
 	{ id: 'av', name: '배경·음악', slots: ['bg', 'bgm'] },
-	{ id: 'home', name: '메인', slots: ['home', 'buddy'] },
 ];
 function Preview({ it }: { it: Item }) {
 	switch (it.slot) {
-		case 'title': return <span class="pv-title">{it.name}</span>;
+		case 'title': return <TitleChip it={it} cls="pv-title" />;
 		case 'cardBg': { const c = it.v!.split(','); return <span class="pv-swatch" style={{ '--cb1': c[0], '--cb2': c[1], '--cb3': c[2], '--cb4': c[3] } as any} />; }
 		case 'frame': { const c = it.v!.split(','); return <span class="pv-frame" style={{ '--fr1': c[0], '--fr2': c[1] } as any} />; }
 		case 'star': return <span class="pv-star">{it.v}{it.v}{it.v}</span>;
 		case 'trainer': return <img class="pv-trainer" src={SPRITE_URL(it.v!)} onError={trainerImgError} alt="" loading="lazy" />;
 		case 'ball': return <span class="pv-ball"><ItemIcon item={it.v!} /></span>;
 		case 'win': return <span class={'pv-win ' + it.id.slice(4)}><i /><i /><i /><i /><i /></span>;
-		case 'hp': { const c = it.v!.split(','); return <span class="pv-hp" style={{ '--h1': c[0], '--h2': c[1] } as any}><b /><i /></span>; }
+		case 'hp': return <span class={'pv-hpbox mini hpt-' + it.v}><HpMock name="피카츄" hp={78} /></span>;
 		case 'bg': return <span class={'arena-thumb pv-bg bg-' + it.v}><span class="arena-bg" /></span>;
 		case 'bgm': return <span class="pv-bgm">♪</span>;
-		case 'home': return <span class={'arena-thumb pv-bg pv-home bg-' + it.v}><span class="arena-bg" /></span>;
-		case 'buddy': { const b = loadWallet().buddy; return <span class="pv-buddy"><Sprite species={b?.sp || 'pikachu'} gen={9} size={56} anim={false} shiny={b?.shiny} /></span>; }
+		default: return null;
 	}
 }
-/** 대표 포켓몬 고르기: 써 본 포켓몬·저장한 팀의 포켓몬 중에서 (이로치로도) */
-function BuddyPicker({ w }: { w: Wallet }) {
-	const list = buddyCandidates(loadTeams());
-	const cur = w.buddy;
-	return <div class="buddy-pick">
-		<div class="bp-head"><b>대표 포켓몬 고르기</b>
-			<label class="bp-shiny"><input type="checkbox" checked={!!cur?.shiny} disabled={!cur} onChange={e => cur && setBuddy(cur.sp, (e.target as HTMLInputElement).checked)} /> 이로치</label>
-			{cur && <button class="btn small ghost" onClick={() => setBuddy(null)}>내리기</button>}</div>
-		{list.length ? <div class="bp-grid">{list.map(sp => <button class={'bp-cell' + (cur?.sp === sp ? ' on' : '')} onClick={() => setBuddy(sp, cur?.sp === sp ? cur.shiny : false)} title={speciesKo(sp)}>
-			<MiniSprite species={sp} gen={9} size={40} shiny={cur?.sp === sp && cur.shiny} /></button>)}</div>
-			: <p class="muted small">배틀에서 써 본 포켓몬이나 저장한 팀이 있으면 여기에 나와요.</p>}
+/** HP 창 모양 (배틀과 같은 .info 틀) */
+function HpMock({ name, hp, own = true, lv = 50 }: { name: string; hp: number; own?: boolean; lv?: number }) {
+	return <div class={'info ' + (own ? 'own' : 'foe')}>
+		<div class="info-top"><b class="info-name">{name}</b><span class="lv">Lv{lv}</span></div>
+		<HPBar hp={hp} maxhp={100} />
+		<div class="info-bottom"><span />{own ? <span class="hp-num">{hp * 2}/200</span> : <span class="hp-num">{hp}%</span>}</div>
 	</div>;
 }
+/** 트레이너 카드 모양: 고른 상품을 씌워서 */
+function CardMock({ it, w }: { it: Item; w: Wallet }) {
+	const settings = loadSettings();
+	const v = it.v?.split(',') || [];
+	const style = { ...cardSkin(w), ...(it.slot === 'cardBg' ? { '--cb1': v[0], '--cb2': v[1], '--cb3': v[2], '--cb4': v[3] } : {}), ...(it.slot === 'frame' ? { '--fr1': v[0], '--fr2': v[1] } : {}) };
+	const cls = (it.slot === 'cardBg' || w.eq.cardBg ? ' skin-bg' : '') + (it.slot === 'frame' || w.eq.frame ? ' skin-fr' : '');
+	const star = it.slot === 'star' ? it.v! : starGlyph(w);
+	const title = it.slot === 'title' ? it : titleItem(w);
+	return <div class={'pv-card' + cls} style={style}>
+		<img class="pv-card-tr" src={SPRITE_URL(it.slot === 'trainer' ? it.v! : settings.playerSprite)} onError={trainerImgError} alt="" />
+		<div class="pv-card-txt">
+			<b>{settings.playerName || '플레이어'}</b>
+			<TitleChip it={title} />
+			<span class="pv-card-star">{star}{star}{star}</span>
+			<small>지금까지 {w.total} BP</small>
+		</div>
+	</div>;
+}
+/** 크게 미리보기 (구매 확인 창) */
+function BigPreview({ it, w }: { it: Item; w: Wallet }) {
+	const [n, setN] = useState(0);   // 볼·승리 연출 다시 보기
+	switch (it.slot) {
+		case 'title': case 'cardBg': case 'frame': case 'star': case 'trainer': return <CardMock it={it} w={w} />;
+		case 'ball': return <div class="pv-stage pv-ballstage" key={n} onClick={() => setN(n + 1)}><span class="pv-ball-big"><ItemIcon item={it.v!} /></span><small>눌러서 다시 보기</small></div>;
+		case 'win': return <div class="pv-stage arena-thumb bg-field" key={n} onClick={() => setN(n + 1)}><span class="arena-bg" /><WinFx kind={it.id} /><small class="pv-again">눌러서 다시 보기</small></div>;
+		case 'hp': return <div class={'pv-stage arena-thumb bg-field hpt-' + it.v}><span class="arena-bg" />
+			<div class="pv-hp-foe"><HpMock name="리자몽" hp={64} own={false} /></div><div class="pv-hp-own"><HpMock name="피카츄" hp={88} /></div></div>;
+		case 'bg': return <div class={'pv-stage arena-thumb bg-' + it.v}><span class="arena-bg" /></div>;
+		case 'bgm': return <div class="pv-stage pv-music"><div class="pv-eq">{Array.from({ length: 9 }, (_, i) => <i style={{ animationDelay: `${(i * 0.13) % 0.6}s` }} />)}</div><b>♪ {it.name}</b><small>{it.desc}</small><em>창을 닫으면 음악이 멈춰요</em></div>;
+		default: return <Preview it={it} />;
+	}
+}
+function ItemModal({ it, w, onClose }: { it: Item; w: Wallet; onClose: () => void }) {
+	const st = loadStats();
+	const have = owns(it, w, st);
+	const settings = loadSettings();
+	const on = have && isOnItem(it, w, settings);
+	// 음악은 창이 열려 있는 동안 들려줌, 닫으면 원래 음악으로
+	useEffect(() => {
+		if (it.slot !== 'bgm') return;
+		const prev = currentMusic();
+		playMusic(it.v!);
+		return () => { stopMusic(); if (prev) playMusic(prev); };
+	}, [it.id]);
+	const doBuy = () => {
+		const r = buy(it);
+		if (r === 'poor') { toast(`BP 가 ${it.price! - w.bp} 모자라요`); return; }
+		if (r === 'locked') { toast(`${it.condText} 달성 시 열려요`); return; }
+		equip(it, it.slot);
+		toast(`「${it.name}」을(를) 교환하고 장착했어요!`);
+		onClose();
+	};
+	const toggle = () => {
+		if (on) { equip(null, it.slot); toast(it.slot === 'title' && it.id !== DEFAULT_TITLE ? '기본 칭호로 돌렸어요' : '장착을 풀었어요'); }
+		else { equip(it, it.slot); toast(`「${it.name}」을(를) 장착했어요`); }
+		onClose();
+	};
+	const fixed = ['trainer', 'bg', 'bgm'].includes(it.slot);   // 설정에서 고르는 것: 풀기 없음
+	return <Modal onClose={onClose} title={SLOT_INFO[it.slot].name}>
+		<div class="pv-modal">
+			<div class="pv-big">{h(BigPreview, { it, w })}</div>
+			<div class="pv-info">
+				<b class="pv-name">{it.name}</b>
+				{it.desc && <small>{it.desc}</small>}
+				{it.cond && <small class={'pv-cond' + (have ? ' ok' : '')}>{have ? '✓ ' : '🔒 '}{it.condText}</small>}
+				{!it.cond && !have && <span class={'pv-price' + (w.bp < it.price! ? ' poor' : '')}><BpCoin size={14} />{it.price} BP <small>(가진 BP {w.bp})</small></span>}
+			</div>
+			<div class="pv-btns">
+				{!have ? (it.cond ? <button class="btn" disabled>아직 잠겨 있어요</button>
+					: <button class="btn primary" disabled={w.bp < it.price!} onClick={doBuy}>{w.bp < it.price! ? `BP 가 ${it.price! - w.bp} 모자라요` : `교환하기 (${it.price} BP)`}</button>)
+					: on ? (fixed ? <button class="btn" disabled>사용 중</button> : <button class="btn" onClick={toggle}>장착 풀기</button>)
+						: <button class="btn primary" onClick={toggle}>장착하기</button>}
+				<button class="btn ghost" onClick={onClose}>닫기</button>
+			</div>
+		</div>
+	</Modal>;
+}
+const isOnItem = (it: Item, w: Wallet, settings = loadSettings()) => it.slot === 'trainer' ? settings.playerSprite === it.v : it.slot === 'bg' ? settings.battleBg === it.v : it.slot === 'bgm' ? settings.battleBgm === it.v
+	: it.slot === 'title' ? titleItem(w)?.id === it.id : w.eq[it.slot] === it.id;
+const groupBy = (list: Item[]) => { const out: [string, Item[]][] = []; for (const it of list) { const g = it.grp || ''; const last = out[out.length - 1]; if (last && last[0] === g) last[1].push(it); else out.push([g, [it]]); } return out; };
 export function ShopScreen({ onBack }: { onBack: () => void }) {
 	const w = useWallet();
 	const st = loadStats();
 	const [tab, setTab] = useState('title');
-	const [, force] = useState(0);
+	const [sel, setSel] = useState<Item | null>(null);
 	const settings = loadSettings();
-	const isOn = (it: Item) => it.slot === 'trainer' ? settings.playerSprite === it.v : it.slot === 'bg' ? settings.battleBg === it.v : it.slot === 'bgm' ? settings.battleBgm === it.v : it.slot === 'home' ? settings.homeBg === it.v : w.eq[it.slot] === it.id;
-	const act = (it: Item) => {
-		if (!owns(it, w, st)) {
-			const r = buy(it);
-			if (r === 'poor') { toast(`BP 가 ${it.price! - w.bp} 모자라요`); return; }
-			if (r === 'locked') { toast(`${it.condText} 달성 시 열려요`); return; }
-			toast(`「${it.name}」을(를) 교환했어요!`);
-		}
-		if (isOn(it) && !['trainer', 'bg', 'bgm'].includes(it.slot)) { equip(null, it.slot); toast(it.slot === 'home' ? '기본 배경으로 돌렸어요' : '장착을 풀었어요'); }
-		else { equip(it, it.slot); if (it.slot === 'bgm') { playMusic(it.v!); setTimeout(stopMusic, 6000); } }
-		force(x => x + 1);
-	};
 	const weekly = weeklyStatus();
 	const tabDef = TABS.find(t => t.id === tab)!;
+	const card = (it: Item) => {
+		const have = owns(it, w, st), on = have && isOnItem(it, w, settings);
+		return <button class={'shop-item' + (have ? ' have' : '') + (on ? ' on' : '') + (it.cond && !have ? ' locked' : '')} onClick={() => setSel(it)}>
+			<span class="sx-pv"><Preview it={it} /></span>
+			<span class="sx-name">{it.name}</span>
+			{it.desc && <small class="sx-desc">{it.desc}</small>}
+			<span class="sx-foot">{on ? <em class="sx-on">장착 중</em> : have ? <em class="sx-own">장착하기</em> : it.cond ? <em class="sx-lock">🔒 {it.condText}</em>
+				: <em class={'sx-price' + (w.bp < it.price! ? ' poor' : '')}><BpCoin size={12} />{it.price}</em>}</span>
+		</button>;
+	};
 	return <Screen title="BP 교환소" onBack={onBack} cls="shop-scr" top>
 		<div class="shop-head">
 			<div class="shop-wallet">
@@ -160,23 +245,20 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
 				</div>)}
 			</div>
 		</div>
-		<p class="hint shop-hint">배틀에서 이기고 연승·업적·과제를 달성하면 BP 가 쌓여요. 교환한 것은 모두 꾸미기용이라 배틀 능력에는 영향이 없어요.</p>
+		<p class="hint shop-hint">배틀에서 이기고 연승·업적·과제를 달성하면 BP 가 쌓여요. 상품을 누르면 크게 미리 볼 수 있어요. 모두 꾸미기용이라 배틀 능력에는 영향이 없어요.</p>
 		<div class="seg shop-tabs">{TABS.map(t => <button class={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>{t.name}</button>)}</div>
-		{tabDef.slots.map(slot => <section class="shop-sec">
-			{tabDef.slots.length > 1 && <h3 class="sec">{SLOT_INFO[slot].name} <small class="muted">{SLOT_INFO[slot].desc}</small></h3>}
-			{tabDef.slots.length === 1 && <p class="muted small">{SLOT_INFO[slot].desc}</p>}
-			<div class={'shop-grid slot-' + slot}>{ITEMS.filter(i => i.slot === slot).map(it => {
-				const have = owns(it, w, st), on = have && isOn(it);
-				return <button class={'shop-item' + (have ? ' have' : '') + (on ? ' on' : '') + (it.cond && !have ? ' locked' : '')} onClick={() => act(it)}>
-					<span class="sx-pv"><Preview it={it} /></span>
-					<span class="sx-name">{it.name}</span>
-					{it.desc && <small class="sx-desc">{it.desc}</small>}
-					<span class="sx-foot">{on ? <em class="sx-on">장착 중</em> : have ? <em class="sx-own">장착하기</em> : it.cond ? <em class="sx-lock">🔒 {it.condText}</em>
-						: <em class={'sx-price' + (w.bp < it.price! ? ' poor' : '')}><BpCoin size={12} />{it.price}</em>}</span>
-				</button>;
-			})}</div>
-			{slot === 'buddy' && owns(ITEMS.find(i => i.slot === 'buddy')!, w, st) && <BuddyPicker w={w} />}
-		</section>)}
+		{tabDef.slots.map(slot => {
+			const list = ITEMS.filter(i => i.slot === slot);
+			const groups = slot === 'title' ? groupBy(list) : [['', list] as [string, Item[]]];
+			return <section class="shop-sec">
+				{tabDef.slots.length > 1 && <h3 class="sec">{SLOT_INFO[slot].name} <small class="muted">{SLOT_INFO[slot].desc}</small></h3>}
+				{tabDef.slots.length === 1 && <p class="muted small">{SLOT_INFO[slot].desc}</p>}
+				{groups.map(([g, items]) => <div>
+					{g && <h4 class="shop-grp">{g} <small>{items.filter(i => owns(i, w, st)).length}/{items.length}</small></h4>}
+					<div class={'shop-grid slot-' + slot}>{items.map(card)}</div>
+				</div>)}
+			</section>;
+		})}
+		{sel && <ItemModal it={sel} w={w} onClose={() => setSel(null)} />}
 	</Screen>;
 }
-void Sprite;

@@ -8,6 +8,8 @@ import { MonDetail } from './screens';
 import { speciesData, itemKo, toID } from '../data';
 import type { PSet } from '../sets';
 import { josa } from '../josa';
+import { itemById } from '../rewards';
+import { TitleChip } from './shop';
 
 export const PICK_SECONDS = 90;
 
@@ -107,7 +109,7 @@ export function OnlinePick({ title, mine, oppName, oppTitle, oppTeam, myName, co
 				})}
 			</div>
 			{oppTeam.length > 0 && <div class="opk-col foe">
-				<div class={'opk-name foe' + (opp === 'away' ? ' away' : '')}>{oppName}{oppTitle && <i class="opk-ttl">{oppTitle}</i>}{!offline && <small>{opp === 'done' ? '선택 완료' : opp === 'away' ? '연결 끊김' : '고르는 중'}</small>}</div>
+				<div class={'opk-name foe' + (opp === 'away' ? ' away' : '')}>{oppName}{oppTitle && itemById(oppTitle) && <span class="opk-ttl"><TitleChip it={itemById(oppTitle)} /></span>}{!offline && <small>{opp === 'done' ? '선택 완료' : opp === 'away' ? '연결 끊김' : '고르는 중'}</small>}</div>
 				{oppTeam.map(s => {
 					const sd = speciesData(toID(s.species), 9);
 					return <div class="opk-foe">

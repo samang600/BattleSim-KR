@@ -324,7 +324,7 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	// 보상 꾸미기 (rewards.ts): 승리 연출·HP 창 테마·볼 연출
 	const [wallet] = useState(() => loadWallet());
 	const [winFx, setWinFx] = useState('');
-	const hpTheme = wallet.eq.hp ? itemById(wallet.eq.hp)?.v?.split(',') : null;
+	const hpTheme = wallet.eq.hp ? itemById(wallet.eq.hp)?.v : '';
 	useEffect(() => {
 		const el = arenaRef.current; if (!el) return;
 		const fit = () => {
@@ -1675,7 +1675,7 @@ function typeTint(type: string) {
 	const slots = setup.doubles ? [0, 1] : [0];
 	// 메시지가 나오는 동안(입력 차례가 아닐 때)은 화면 어디를 눌러도 다음 메시지로 (버튼·창은 제외) — 수동 진행에서 아래 빈 곳을 눌러도 넘어가게
 	const tapAnywhere = (e: any) => { if (phase === 'input') return; if ((e.target as HTMLElement)?.closest?.('button, a, input, .modal, .modal-bg')) return; skipRef.current?.(); };
-	return <div class={'battle bg-' + arenaBg + (setup.doubles ? ' doubles' : ' singles') + (hpTheme ? ' hp-themed' : '')} style={{ '--spd': FX.fxSpeed(), ...(hpTheme ? { '--h1': hpTheme[0], '--h2': hpTheme[1] } : {}) } as any} onClick={tapAnywhere}>
+	return <div class={'battle bg-' + arenaBg + (setup.doubles ? ' doubles' : ' singles') + (hpTheme ? ' hpt-' + hpTheme : '')} style={{ '--spd': FX.fxSpeed() } as any} onClick={tapAnywhere}>
 		{winFx && phase === 'ended' && <WinFx kind={winFx} />}
 		<div class="hud-top">
 			{setup.online ? <OnlineClock rs={setup.online} onTimeout={onlineTimeout} /> : <span class="badge">{setup.label || ''}</span>}

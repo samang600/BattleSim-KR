@@ -95,6 +95,7 @@ export interface Item {
 	id: string; slot: Slot; name: string; price?: number; desc?: string;
 	/** 업적 전용: 조건을 채우면 공짜로 열림 (BP 로 못 삼) */ cond?: (s: Stats) => boolean; condText?: string;
 	/** 미리보기용 값 (색·그림 id 등) */ v?: string;
+	/** 교환소 안 묶음 이름 */ grp?: string;
 }
 export const SLOT_INFO: { [k in Slot]: { name: string; desc: string } } = {
 	title: { name: '칭호', desc: '수첩 카드·메인·온라인 대전 이름 밑에' },
@@ -116,19 +117,59 @@ const regionsAll = (s: Stats) => REGIONS.filter(r => r !== '애니메이션').ev
 const dexTotal = () => new Set(Object.values(RAW.species as any).map((x: any) => x.num).filter((n: number) => n > 0)).size || 1025;
 export const dexPct = (s: Stats) => Object.keys(s.used).length / dexTotal() * 100;
 
-const T = (id: string, name: string, price: number, desc = ''): Item => ({ id: 't:' + id, slot: 'title', name, price, desc });
-const TX = (id: string, name: string, condText: string, cond: (s: Stats) => boolean): Item => ({ id: 't:' + id, slot: 'title', name, cond, condText });
+/** 칭호: v = 띠 색(#hex) 또는 'type:Water'(타입 색), grp = 교환소 묶음 */
+const T = (id: string, name: string, price: number, v = '#f0c040', desc = ''): Item => ({ id: 't:' + id, slot: 'title', name, price, desc, v, grp: '교환 칭호' });
+const TX = (id: string, name: string, condText: string, cond: (s: Stats) => boolean, v = '#f0c040', grp = '업적 칭호'): Item => ({ id: 't:' + id, slot: 'title', name, cond, condText, v, grp });
+const TYPES_ALL = ['Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice', 'Fighting', 'Poison', 'Ground', 'Flying', 'Psychic', 'Bug', 'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel', 'Fairy'];
+const recWins = () => loadRecords().wins || 0;
+const achCount = (s: Stats) => Object.values(s.ach).filter(v => v > 0).length;
+const gimCnt = (s: Stats, g: string) => s.c['gim:' + g] || 0;
+const TYPE_TITLES: Item[] = [
+	...TYPES_ALL.map(t => TX('gym:' + t, `${typeKo(t)} 타입 체육관 관장`, `${typeKo(t)} 타입 포켓몬으로 50승`, s => (s.c['typeWin:' + t] || 0) >= 50, 'type:' + t, '체육관 관장')),
+	...TYPES_ALL.map(t => TX('e4:' + t, `${typeKo(t)} 타입 사천왕`, `${typeKo(t)} 타입 포켓몬으로 150승`, s => (s.c['typeWin:' + t] || 0) >= 150, 'type:' + t, '사천왕')),
+];
+/** 기본 칭호 (아무것도 안 골랐을 때 자동으로 붙음) */
+export const DEFAULT_TITLE = 't:rookie';
 export const ITEMS: Item[] = [
 	// 칭호
-	T('rookie', '신참 트레이너', 20), T('ace', '에이스 트레이너', 40), T('veteran', '베테랑', 60), T('strategist', '전략가', 50),
-	T('collector', '포켓몬 수집가', 40), T('weather', '날씨의 지배자', 50), T('critical', '급소 사냥꾼', 50), T('sweeper', '스위퍼', 60),
-	T('wall', '철벽 수비', 50), T('gimmick', '기믹 마스터', 60), T('lucky', '행운아', 30), T('legend', '살아 있는 전설', 80),
-	TX('tactics', '택틱스 마스터', '배틀타워 금 심볼', s => s.sym.tower === 2),
-	TX('knowledge', '날리지 마스터', '배틀팩토리 금 심볼', s => s.sym.factory === 2),
-	TX('champion', '시즌 챔피언', '랭크 시즌을 챔피언급으로 마감', s => s.sym.rank === 2),
-	TX('ippitsu', '한 마리의 전설', '일필도 49연승', () => ippitsu49()),
-	TX('conqueror', '지방 정복자', '모든 지방 정복', regionsAll),
-	TX('dexmaster', '도감 박사', '도감(써 본 포켓몬) 50%', s => dexPct(s) >= 50),
+	{ id: DEFAULT_TITLE, slot: 'title', name: '신참 트레이너', cond: () => true, condText: '기본 칭호', v: '#f4f4f4', grp: '기본' },
+	T('ace', '엘리트 트레이너', 40), T('veteran', '베테랑', 60, '#b8a070'), T('strategist', '전략가', 50, '#7a9ae8'),
+	T('collector', '포켓몬 수집가', 40, '#e89a5a'), T('weather', '날씨의 지배자', 50, '#5ac8e8'), T('sweeper', '스위퍼', 60, '#e85a5a'),
+	T('wall', '철벽 수비', 50, '#9aa4b0'), T('gimmick', '기믹 마스터', 60, '#c87ae8'), T('lucky', '행운아', 30, '#7ad87a'), T('legend', '살아 있는 전설', 80, '#ffd84a'),
+	T('breeder', '포켓몬 브리더', 40, '#f8a8c8'), T('ranger', '포켓몬 레인저', 40, '#5ab85a'), T('tamer', '드래곤 조련사', 60, '#7a6ae8'),
+	T('battlegirl', '배틀 마니아', 40, '#e8784a'), T('scholar', '포켓몬 박사 조수', 40, '#d8d0b0'), T('wanderer', '방랑 트레이너', 50, '#a88a6a'),
+	T('rival', '영원한 라이벌', 70, '#4a8ae8'), T('ninja', '닌자 보이', 50, '#6a5a8a'), T('idol', '포켓몬 아이돌', 60, '#ff8ae0'),
+	// 업적 칭호
+	TX('win100', '백승 트레이너', '모든 모드 합쳐 100승', () => recWins() >= 100, '#c0c8d8'),
+	TX('win500', '오백승 트레이너', '모든 모드 합쳐 500승', () => recWins() >= 500, '#e8c050'),
+	TX('win1000', '천승의 왕', '모든 모드 합쳐 1000승', () => recWins() >= 1000, '#ff6a3a'),
+	TX('ko500', '격파왕', '상대 포켓몬 500마리 쓰러뜨림', s => (s.c.ko || 0) >= 500, '#e85a5a'),
+	TX('se150', '상성 박사', '효과가 굉장한 공격 150회', s => (s.c.se || 0) >= 150, '#5ad85a'),
+	TX('critical', '급소 사냥꾼', '급소에 50회 맞힘', s => (s.c.crit || 0) >= 50, '#ffa83a'),
+	TX('perfect', '무결점', '하나도 안 쓰러지고 50승', s => (s.c.perfect || 0) >= 50, '#f8f8ff'),
+	TX('sweep6', '일당백', '한 마리로 상대 6마리를 모두 쓰러뜨리고 승리', s => (s.c.sweep6 || 0) >= 1, '#d84a4a'),
+	TX('comeback', '역전의 명수', '1 대 3 이상에서 역전승 5회', s => (s.c.comeback || 0) >= 5, '#4ac8a8'),
+	TX('marathon', '끈기의 화신', '50턴 넘는 배틀에서 승리', s => (s.c.marathon || 0) >= 1, '#8a9a6a'),
+	TX('mega', '메가진화 마스터', '메가진화 150회', s => gimCnt(s, 'mega') >= 150, '#e8a0f0'),
+	TX('tera', '테라스탈 마스터', '테라스탈 150회', s => gimCnt(s, 'tera') >= 150, '#6ae0f0'),
+	TX('zmove', 'Z 마스터', 'Z기술 150회', s => gimCnt(s, 'z') >= 150, '#ffd84a'),
+	TX('dmax', '다이맥스 마스터', '다이맥스 150회', s => gimCnt(s, 'dmax') >= 150, '#ff5a7a'),
+	TX('daily', '개근 트레이너', '오늘의 도전 30일 연속', s => (s.c.dailyStreakMax || 0) >= 30, '#8ad8ff'),
+	TX('achiever', '업적 수집가', '업적 30개 달성', s => achCount(s) >= 30, '#d0b0ff'),
+	TX('dexmaster', '도감 박사', '도감(써 본 포켓몬) 50%', s => dexPct(s) >= 50, '#e85050'),
+	TX('dexall', '포켓몬 마스터', '도감(써 본 포켓몬) 90%', s => dexPct(s) >= 90, '#ffd84a'),
+	// 프런티어·리그
+	TX('towerS', '배틀타워 도전자', '배틀타워 은 심볼', s => !!s.sym.tower, '#c8d0e0', '프런티어'),
+	TX('tactics', '택틱스 마스터', '배틀타워 금 심볼', s => s.sym.tower === 2, '#3a6df0', '프런티어'),
+	TX('factoryS', '배틀팩토리 도전자', '배틀팩토리 은 심볼', s => !!s.sym.factory, '#c8d0e0', '프런티어'),
+	TX('knowledge', '날리지 마스터', '배틀팩토리 금 심볼', s => s.sym.factory === 2, '#e0812b', '프런티어'),
+	TX('rankS', '랭크 강자', '랭크 은 심볼', s => !!s.sym.rank, '#c8d0e0', '프런티어'),
+	TX('champion', '시즌 챔피언', '랭크 시즌을 챔피언급으로 마감', s => s.sym.rank === 2, '#b8283a', '프런티어'),
+	TX('brain', '프런티어 브레인', '금 심볼 3개', s => s.sym.tower === 2 && s.sym.factory === 2 && s.sym.rank === 2, '#ffd84a', '프런티어'),
+	TX('ippitsu', '한 마리의 전설', '일필도 49연승', () => ippitsu49(), '#c82a4a', '프런티어'),
+	...REGIONS.filter(r => r !== '애니메이션').map(r => TX('reg:' + r, `${r} 챔피언`, `${r} 지방 정복`, s => !!s.conquest[r], 'reg:' + r, '지방 챔피언')),
+	TX('conqueror', '지방 정복자', '모든 지방 정복', regionsAll, '#ffd84a', '지방 챔피언'),
+	...TYPE_TITLES,
 	// 카드 배경 (3~4단 색 띠)
 	{ id: 'cb:sunset', slot: 'cardBg', name: '노을', price: 20, v: '#e86a3a,#c84a4a,#7a3a6a,#3a2a5a' },
 	{ id: 'cb:forest', slot: 'cardBg', name: '숲', price: 20, v: '#5aa84a,#3a8a3a,#2a6a3a,#1a4a2a' },
@@ -158,11 +199,17 @@ export const ITEMS: Item[] = [
 	{ id: 'win:stars', slot: 'win', name: '반짝이는 별', price: 50, desc: '화면 가득 별이 반짝임' },
 	{ id: 'win:flag', slot: 'win', name: '승리 깃발', price: 60, desc: '승리 깃발이 내려옴' },
 	// HP 창 테마
-	{ id: 'hp:ruby', slot: 'hp', name: '루비', price: 40, v: '#6a1a2a,#4a0e1a' },
-	{ id: 'hp:sapphire', slot: 'hp', name: '사파이어', price: 40, v: '#1a2a6a,#0e1a4a' },
-	{ id: 'hp:emerald', slot: 'hp', name: '에메랄드', price: 40, v: '#1a5a3a,#0e3a24' },
-	{ id: 'hp:gold', slot: 'hp', name: '골드', price: 60, v: '#6a5014,#4a380a' },
-	{ id: 'hp:crystal', slot: 'hp', name: '크리스탈', price: 60, v: '#2a6a7a,#1a4454' },
+	{ id: 'hp:ruby', slot: 'hp', name: '루비', price: 40, v: 'ruby', desc: '보석 결 무늬 · 반짝임' },
+	{ id: 'hp:sapphire', slot: 'hp', name: '사파이어', price: 40, v: 'sapphire', desc: '물결 무늬 · 빛 지나감' },
+	{ id: 'hp:emerald', slot: 'hp', name: '에메랄드', price: 40, v: 'emerald', desc: '마름모 무늬 · 반짝임' },
+	{ id: 'hp:crystal', slot: 'hp', name: '크리스탈', price: 50, v: 'crystal', desc: '사선 결 · 반짝임' },
+	{ id: 'hp:gold', slot: 'hp', name: '골드', price: 60, v: 'gold', desc: '새김 줄 · 빛 지나감' },
+	{ id: 'hp:metal', slot: 'hp', name: '메탈', price: 60, v: 'metal', desc: '강철 결 · 빛 지나감' },
+	{ id: 'hp:sakura', slot: 'hp', name: '벚꽃', price: 70, v: 'sakura', desc: '꽃 무늬 · 꽃잎 날림' },
+	{ id: 'hp:night', slot: 'hp', name: '밤하늘', price: 70, v: 'night', desc: '별 무늬 · 별 반짝임' },
+	{ id: 'hp:electric', slot: 'hp', name: '번개', price: 80, v: 'electric', desc: '번개 무늬 · 번쩍임' },
+	{ id: 'hp:lava', slot: 'hp', name: '용암', price: 90, v: 'lava', desc: '갈라진 바위 · 불똥 솟음' },
+	{ id: 'hp:rainbow', slot: 'hp', name: '무지개', price: 120, v: 'rainbow', desc: '여섯 빛깔 띠 · 빛 지나감' },
 	// 배틀 배경 · 음악 (새로 그리고 작곡한 것 — 기존 배경·음악은 계속 무료)
 	{ id: 'bg:sunset', slot: 'bg', name: '노을 언덕', price: 80, v: 'sunset' },
 	{ id: 'bg:starry', slot: 'bg', name: '별빛 호수', price: 100, v: 'starry' },
@@ -174,13 +221,6 @@ export const ITEMS: Item[] = [
 	{ id: 'bgm:g3sakura', slot: 'bgm', name: '벚꽃 정원', price: 80, v: 'g3sakura', desc: '바장조 · 산책하듯 밝은 곡' },
 	{ id: 'bgm:g3desert', slot: 'bgm', name: '사막 유적', price: 90, v: 'g3desert', desc: '라단조 · 이국적인 곡' },
 	{ id: 'bgm:g3aurora', slot: 'bgm', name: '오로라', price: 120, v: 'g3aurora', desc: '나단조 · 웅장한 결전 곡' },
-	// 메인 화면 꾸미기: 메인 배경 · 대표 포켓몬
-	{ id: 'home:sunset', slot: 'home', name: '노을 언덕', price: 60, v: 'sunset' },
-	{ id: 'home:starry', slot: 'home', name: '별빛 호수', price: 60, v: 'starry' },
-	{ id: 'home:sakura', slot: 'home', name: '벚꽃 정원', price: 60, v: 'sakura' },
-	{ id: 'home:desert', slot: 'home', name: '사막 유적', price: 60, v: 'desert' },
-	{ id: 'home:aurora', slot: 'home', name: '오로라 설원', price: 80, v: 'aurora' },
-	{ id: 'buddy:stand', slot: 'buddy', name: '대표 포켓몬 자리', price: 60, desc: '교환하면 아래에서 포켓몬을 골라요' },
 	// 트레이너 모습 (일반 트레이너군 — 네임드 인물 제외)
 	...trainerItems(),
 ];
@@ -216,6 +256,7 @@ export function equip(it: Item | null, slot: Slot) {
 	if (slot === 'bg') { if (it?.v) saveSettings({ ...loadSettings(), battleBg: it.v }); return; }
 	if (slot === 'bgm') { if (it?.v) saveSettings({ ...loadSettings(), battleBgm: it.v }); return; }
 	if (slot === 'home') { const v = it?.v || 'title'; saveSettings({ ...loadSettings(), homeBg: v }); document.documentElement.setAttribute('data-bg', v); return; }
+	if (slot === 'title' && !it) { if (!w.eq.title || w.eq.title === DEFAULT_TITLE) w.eq.title = '-'; else delete w.eq.title; saveWallet(w); return; }
 	if (it) w.eq[slot] = it.id; else delete w.eq[slot];
 	saveWallet(w);
 }
@@ -229,7 +270,9 @@ export function buddyCandidates(teams: { sets: { species: string }[] }[]): strin
 	return [...new Set([...used, ...fromTeams])].filter(id => speciesData(id, 9)).slice(0, 72);
 }
 export function equipped(slot: Slot): Item | undefined { const id = loadWallet().eq[slot]; return id ? itemById(id) : undefined; }
-export const titleText = () => equipped('title')?.name || '';
+/** 지금 칭호: 고른 것 → 없으면 기본 칭호 ('-' 는 칭호 숨김) */
+export function titleItem(w = loadWallet()): Item | undefined { const id = w.eq.title || DEFAULT_TITLE; return id === '-' ? undefined : itemById(id); }
+export const titleText = () => titleItem()?.name || '';
 /** 산 트레이너 모습·배경·음악 (설정 고르기 목록에 더함) */
 export const ownedVals = (slot: Slot) => { const w = loadWallet(); return ITEMS.filter(i => i.slot === slot && w.own[i.id]).map(i => ({ v: i.v!, name: i.name })); };
 
@@ -252,14 +295,14 @@ export function weeklyMissions(no = weekNo()): Mission[] {
 	let h = no * 2654435761 >>> 0; const r = () => { h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0; h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 	const t = TYPES[Math.floor(r() * TYPES.length)];
 	const pool: Mission[] = [
-		{ id: 'type:' + t, text: `${typeKo(t)} 타입 포켓몬이 참가해 ${5}승`, goal: 5, bp: 15 },
-		{ id: 'doubles', text: '더블 배틀 10판', goal: 10, bp: 15 },
-		{ id: 'facility', text: '시설(타워·팩토리·팰리스·일필도)에서 14연승', goal: 14, bp: 20 },
-		{ id: 'wins', text: '아무 배틀 20승', goal: 20, bp: 15 },
-		{ id: 'ko', text: '상대 포켓몬 40마리 쓰러뜨리기', goal: 40, bp: 15 },
-		{ id: 'crit', text: '급소 10번 맞히기', goal: 10, bp: 10 },
-		{ id: 'perfect', text: '한 마리도 쓰러지지 않고 3승', goal: 3, bp: 20 },
-		{ id: 'named', text: '네임드·PWT·보스 러시 상대에게 5승', goal: 5, bp: 15 },
+		{ id: 'type:' + t, text: `${typeKo(t)} 타입 포켓몬이 참가해 3승`, goal: 3, bp: 15 },
+		{ id: 'se', text: '효과가 굉장한 기술 20번 맞히기', goal: 20, bp: 15 },
+		{ id: 'ko', text: '상대 포켓몬 20마리 쓰러뜨리기', goal: 20, bp: 15 },
+		{ id: 'wins', text: '아무 배틀 10승', goal: 10, bp: 15 },
+		{ id: 'battles', text: '배틀 15판 하기 (승패 상관없음)', goal: 15, bp: 10 },
+		{ id: 'doubles', text: '더블 배틀 5판', goal: 5, bp: 10 },
+		{ id: 'gimmick', text: '메가진화·테라스탈·Z기술·다이맥스 5번 쓰기', goal: 5, bp: 10 },
+		{ id: 'named', text: '네임드·PWT·보스 러시 상대에게 3승', goal: 3, bp: 15 },
 	];
 	const out: Mission[] = [pool[0]];
 	const rest = pool.slice(1);
@@ -278,10 +321,8 @@ function weeklyFromBattle(setup: any, battle: any, win: boolean) {
 	const myTypes = new Set(Object.keys(f.mine).flatMap(sid => speciesData(sid, 9)?.t || []));
 	for (const m of ms) if (m.id.startsWith('type:') && win && myTypes.has(m.id.slice(5))) add(m.id, 1);
 	if (setup.doubles) add('doubles', 1);
-	if (FACILITY.test(label)) { if (win) add('facility', 1); else if (ms.some(m => m.id === 'facility') && !wk.got.facility) wk.prog.facility = 0; }
 	if (win) add('wins', 1);
-	add('ko', f.kos); add('crit', f.crits);
-	if (f.perfect) add('perfect', 1);
+	add('ko', f.kos); add('se', f.se); add('battles', 1); add('gimmick', f.gim.length);
 	if (win && !FACILITY.test(label) && !/^(프리|랭크|오늘의)/.test(label)) add('named', 1);
 	const earned: [number, string][] = [];
 	for (const m of ms) if (!wk.got[m.id] && (wk.prog[m.id] || 0) >= m.goal) { wk.got[m.id] = 1; earned.push([m.bp, '주간 과제']); }

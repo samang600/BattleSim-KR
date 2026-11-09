@@ -2,11 +2,11 @@
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import { ask, Screen, toast } from './ui/core';
-import { loadWallet, itemById } from './rewards';
+import { titleItem } from './rewards';
 /** 온라인으로 보내는 모습 칸: '모습|칭호id' (서버는 40자까지 그대로 전달) */
-const spriteWithTitle = () => { const t = loadWallet().eq.title; return (playerSprite() + (t ? '|' + t.slice(2) : '')).slice(0, 40); };
+const spriteWithTitle = () => { const t = titleItem()?.id; return (playerSprite() + (t ? '|' + t.slice(2) : '')).slice(0, 40); };
 /** 받은 모습 칸 → [모습, 칭호 이름] */
-export const splitSprite = (v?: string): [string, string] => { const [sp, t] = String(v || '').split('|'); return [sp || 'acetrainer', t ? itemById('t:' + t)?.name || '' : '']; };
+export const splitSprite = (v?: string): [string, string] => { const [sp, t] = String(v || '').split('|'); return [sp || 'acetrainer', t ? 't:' + t : '']; };
 import { ChoiceScreen, InfoScreen } from './ui/screens';
 import { battle, chooseTeam, playerName, playerSprite, withLevel, BACK, BgmRow } from './modes';
 import { OnlineRoom, RemoteSession, matchmake, newRoomCode, normCode, APP_VERSION, type StartInfo, type RoomInfo, type PreviewInfo } from './online';
