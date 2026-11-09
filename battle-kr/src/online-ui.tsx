@@ -33,7 +33,7 @@ async function chooseFmt(title: string): Promise<Fmt | typeof BACK> {
 function CodeEntry({ onDone, onBack }: { onDone: (code: string) => void; onBack: () => void }) {
 	const [v, setV] = useState('');
 	const ok = normCode(v).length === 6;
-	return <Screen title="방 코드로 들어가기" onBack={onBack}>
+	return <Screen title="방 코드로 들어가기" onBack={onBack} cls="wide-scr">
 		<p class="hint">친구가 알려 준 6자리 방 코드를 넣어 주세요.</p>
 		<input class="code-input" value={v} maxLength={8} inputMode="text" autoCapitalize="characters" placeholder="ABC234"
 			onInput={(e: any) => setV(normCode(e.currentTarget.value))} onKeyDown={(e: any) => { if (e.key === 'Enter' && ok) onDone(normCode(v)); }} />
@@ -123,7 +123,10 @@ async function play(room: OnlineRoom, start: StartInfo, label: string) {
 export async function runOnline() {
 	while (true) {
 		const pick = await ask<'host' | 'join' | 'random' | typeof BACK>(r => <ChoiceScreen title="온라인 대전 (테스트)" onBack={() => r(BACK)}
-			intro={<p class="hint">같은 앱 버전(v{APP_VERSION})끼리 대전해요. 기록에는 남지 않아요. 시간: 고르기 90초 · 한 번 선택 45초 · 내 시간 7분 · 대전 20분(끝나면 남은 포켓몬 수 → HP 비율로 판정). 끊겨도 1분 안에 돌아오면 이어서 해요.</p>}
+			intro={<p class="hint">같은 앱 버전(v{APP_VERSION})끼리 대전해요. 기록에는 남지 않아요.<br />
+				시간: 고르기 90초 · 한 번 선택 45초 · 내 시간 7분 · 대전 20분<br />
+				대전 시간이 끝나면 남은 포켓몬 수, 다음은 HP 비율로 판정해요.<br />
+				끊겨도 1분 안에 돌아오면 이어서 해요.</p>}
 			options={[
 				{ value: 'host' as const, label: '친구 대전 · 방 만들기', desc: '방 코드를 만들어 친구에게 알려 줌 · 지금 설정의 배틀 규칙', icon: '🏠' },
 				{ value: 'join' as const, label: '친구 대전 · 코드로 들어가기', desc: '친구가 알려 준 방 코드로 입장', icon: '🔑' },
@@ -151,7 +154,7 @@ async function host() {
 	const code = newRoomCode();
 	const room = new OnlineRoom(code);
 	room.connect({ name: playerName(), team: withLevel(team, LEVEL), ruleId, doubles, pick: fmt.pick, sprite: playerSprite() } as any);
-	const w = await waitStart(room, (cancel, info) => <Screen title="친구 대전 · 방 만들기" onBack={cancel}>
+	const w = await waitStart(room, (cancel, info) => <Screen title="친구 대전 · 방 만들기" onBack={cancel} cls="wide-scr">
 		<div class="online-wait">
 			<p class="hint">친구에게 이 방 코드를 알려 주세요. 친구가 들어오면 바로 시작해요.</p>
 			<div class="room-code">{code}</div>
@@ -187,7 +190,7 @@ async function join() {
 	const room = new OnlineRoom(code);
 	peek.close();
 	room.connect({ name: playerName(), team: withLevel(team, LEVEL), sprite: playerSprite() } as any);
-	const w = await waitStart(room, (cancel) => <Screen title="친구 대전" onBack={cancel}>
+	const w = await waitStart(room, (cancel) => <Screen title="친구 대전" onBack={cancel} cls="wide-scr">
 		<div class="online-wait"><p class="hint">들어가는 중…</p><button class="btn ghost" onClick={cancel}>취소</button></div>
 	</Screen>);
 	await proceed(room, w, '친구 대전');
@@ -202,7 +205,7 @@ async function random() {
 	let stop: () => void = () => {};
 	const code = await new Promise<string | null>(res => {
 		stop = matchmake(doubles, fmt.pick, c => res(c), msg => { toast(msg); res(null); });
-		void ask<void>(r => <Screen title="랜덤 대전" onBack={() => { stop(); res(null); r(); }}>
+		void ask<void>(r => <Screen title="랜덤 대전" cls="wide-scr" onBack={() => { stop(); res(null); r(); }}>
 			<div class="online-wait">
 				<p class="hint">상대를 찾는 중… ({fmtKo(doubles, fmt.pick)} · 무작위 팀)</p>
 				<div class="room-code searching">···</div>
@@ -214,7 +217,7 @@ async function random() {
 	if (!code) return;
 	const room = new OnlineRoom(code);
 	room.connect({ name: playerName(), team, ruleId: RANDOM_RULE, doubles, pick: fmt.pick, sprite: playerSprite() } as any);
-	const w = await waitStart(room, (cancel) => <Screen title="랜덤 대전" onBack={cancel}>
+	const w = await waitStart(room, (cancel) => <Screen title="랜덤 대전" onBack={cancel} cls="wide-scr">
 		<div class="online-wait"><p class="hint">상대를 찾았어요! 배틀을 준비하는 중…</p><button class="btn ghost" onClick={cancel}>취소</button></div>
 	</Screen>);
 	await proceed(room, w, '랜덤 대전');

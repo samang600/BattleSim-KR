@@ -6,6 +6,12 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.56.2', date: '2026-11-09', title: '화면 다듬기', items: [
+		['up', 'PC 배틀 양옆 파티 칸·교체 칸에 작은 도트 아이콘'],
+		['up', 'PC·가로 화면: 메뉴·온라인 대전 화면을 넓게 (두 줄 · PC 1.5배)'],
+		['up', '문장 줄바꿈 정리: 낱말 중간에서 끊지 않고, 가운뎃점(·)이 줄 맨 앞에 오지 않게'],
+		['fix', '일필도 무한다이노는 내 포켓몬에게 불리한 타입으로 테라스탈 (예: 물 → 풀)'],
+	] },
 	{ ver: '2.56.1', date: '2026-11-09', title: '일필도 · 화면 정리', items: [
 		['new', '일필도: 포켓몬 한 마리로 1:1 연승 도전. 49번째에는 테라스탈한 무한다이맥스 무한다이노!'],
 		['up', '교체 칸: 작은 도트 아이콘과 이름, 그 아래 HP 바 (오른쪽이 잘리지 않게)'],

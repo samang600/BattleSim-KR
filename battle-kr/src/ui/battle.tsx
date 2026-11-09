@@ -1617,7 +1617,7 @@ function typeTint(type: string) {
 				if (!d) return;
 				const fnt = d.live.hp <= 0;
 				cells.push(<div class={'sp-mon' + (fnt ? ' fnt' : '') + (pm.isActive ? ' act' : '')} {...hov(() => ownTip(i))} onClick={() => setSheet({ idx: i, canSwitch: false })}>
-					<CropSprite species={d.set.species} gen={gen} size={52} shiny={!!d.set.shiny} cls="sp-pic" snap />
+					<PokeIcon species={d.set.species} cls="sp-pic" />
 					<HPBar hp={d.live.hp} maxhp={d.live.maxhp || 1} />
 				</div>);
 			});
@@ -1625,7 +1625,7 @@ function typeTint(type: string) {
 			for (let i = 0; i < sd.teamSize; i++) {
 				const m = sd.team[i];
 				cells.push(m ? <div class={'sp-mon' + (m.fainted ? ' fnt' : '') + (sd.active.includes(m) ? ' act' : '')} {...hov(() => foeTip(m))} onClick={() => setDetail({ mon: m, own: false })}>
-					<CropSprite species={m.species} gen={gen} size={52} shiny={m.shiny} cls="sp-pic" snap />
+					<PokeIcon species={m.species} cls="sp-pic" />
 					<HPBar hp={m.fainted ? 0 : m.hp} maxhp={m.maxhp || 1} />
 				</div> : <div class="sp-mon unk"><span class="ball unk" /></div>);
 			}

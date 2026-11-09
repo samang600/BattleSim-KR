@@ -461,6 +461,17 @@ settleRankPending();   // 랭크 매치 도중 앱이 꺼졌으면 패배로
 settleSeason();        // 1주 시즌이 바뀌었으면 마감
 checkAchievements(true);
 render(<App />, document.getElementById('app')!);
+// 줄바꿈: 'A · B' 의 가운뎃점이 줄 맨 앞에 오지 않게 (앞 공백을 줄바꿈 없는 공백으로), 'Z-A' 같은 하이픈 낱말은 끊지 않게(WJ). 화면에 새로 붙는 글자도 계속 고침
+{
+	const fix = (n: Node) => {
+		if (n.nodeType === 3) { const t = (n as Text).data; if (/ · |[A-Za-z0-9]-[A-Za-z0-9]/.test(t)) (n as Text).data = t.replace(/ · /g, '\u00a0· ').replace(/([A-Za-z0-9])-([A-Za-z0-9])/g, '$1\u2060-\u2060$2'); return; }
+		if (n.nodeType === 1 && !/^(INPUT|TEXTAREA|SCRIPT|STYLE)$/.test((n as Element).tagName)) n.childNodes.forEach(fix);
+	};
+	const root = document.getElementById('app')!;
+	fix(root);
+	new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') fix(m.target); else m.addedNodes.forEach(fix); } })
+		.observe(root, { childList: true, subtree: true, characterData: true });
+}
 // 개발자 빌드 표시 (웹 /dev/ — main 브랜치 최신 코드, 저장 데이터는 정식 웹과 따로)
 declare const __DEV_BUILD__: boolean, __BUILD_REV__: string;
 if (typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__) {

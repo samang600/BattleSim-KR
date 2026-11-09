@@ -132,14 +132,18 @@ export async function runPalace() {
 // ═════════ 일필도: 포켓몬 한 마리로 1:1 연승 도전. 49번째는 무한다이맥스 무한다이노(내 포켓몬에게 불리한 타입으로 테라스탈) ═════════
 const IPPITSU_KEY = () => `ippitsu${rt()}`;
 interface IppitsuState { mon: PSet; streak: number }
-/** 무한다이노가 테라스탈할 타입: 내 포켓몬의 공격 기술(없으면 타입)로 가장 큰 효과를 받는 타입 */
+/** 무한다이노가 테라스탈할 타입: 플레이어에게 불리한 타입 (예: 물 포켓몬 → 풀).
+ *  1) 내 공격 기술(없으면 내 타입)이 가장 안 듣는 타입 2) 그 타입 기술(테라버스트)이 내 포켓몬에게 잘 듣는 타입 */
 export function weakTeraAgainst(mon: PSet): string {
+	const myTypes = Dex.species.get(mon.species).types;
 	const atk = mon.moves.map(m => Dex.moves.get(m)).filter(m => m.exists && m.category !== 'Status').map(m => m.type);
-	const types = atk.length ? [...new Set(atk)] : Dex.species.get(mon.species).types;
-	let best = 'Normal', bestScore = -99;
+	const types = atk.length ? [...new Set(atk)] : myTypes;
+	const eff = (mt: string, def: string[]) => Dex.getImmunity(mt, def) ? Dex.getEffectiveness(mt, def) : -3;
+	let best = 'Normal', bestScore = -999;
 	for (const t of ALL_TYPES.filter(x => x !== 'Stellar')) {
-		const hits = types.map(mt => Dex.getImmunity(mt, [t]) ? Dex.getEffectiveness(mt, [t]) : -9);
-		const score = Math.max(...hits) * 10 + hits.filter(h => h > 0).length;
+		const taken = Math.max(...types.map(mt => eff(mt, [t])));   // 내가 주는 최대 효과 (낮을수록 나에게 불리)
+		const dealt = eff(t, myTypes);                               // 테라 타입 기술이 나에게 주는 효과
+		const score = -taken * 10 + dealt * 3;
 		if (score > bestScore) { bestScore = score; best = t; }
 	}
 	return best;
@@ -169,7 +173,9 @@ export async function runIppitsu() {
 		let opp: any;
 		if (final) {
 			const tera = weakTeraAgainst(state.mon);
-			const boss = { ...randomSetFor('eternatuseternamax', 9, 50, false, 1), species: 'Eternatus-Eternamax', teraType: tera };
+			const bs = randomSetFor('eternatuseternamax', 9, 50, false, 1);
+			// 테라 타입으로 공격하도록 마지막 기술은 테라버스트
+			const boss = { ...bs, species: 'Eternatus-Eternamax', teraType: tera, moves: [...bs.moves.filter(m => m !== 'terablast').slice(0, 3), 'terablast'] };
 			opp = { name: '무한다이노', title: '', sprite: '', team: [boss], skill: 0.97, line: '하늘을 뒤덮은 붉은 빛… 무한다이맥스의 힘이 덮쳐 온다!',
 				lines: { ace: '무한의 힘이 소용돌이친다!', lose: '무한다이노가 힘을 잃고 쓰러졌다!', win: '거대한 힘 앞에 쓰러지고 말았다…' }, tera };
 		} else {
@@ -180,7 +186,7 @@ export async function runIppitsu() {
 		opp.team = withLevel(opp.team, 50);
 		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title="일필도 · 1:1" banner={`${no}번째 승부`} prep={<BgmRow />}
 			heading={final ? '⚠ 무한다이노가 나타났다!' : `${opp.title ? opp.title + ' ' : ''}${opp.name}${josa(opp.name)} 승부를 걸어왔다!`} trainer={final ? undefined : opp.sprite}
-			lines={[final ? `${typeKo(opp.tera)} 타입으로 테라스탈한 무한다이맥스 무한다이노 — 마지막 승부!` : `현재 ${state!.streak}연승 · 다음 상대: ${speciesKo(toID(opp.team[0].species))}`]}
+			lines={[final ? `${typeKo(opp.tera)} 타입으로 테라스탈하는\n무한다이맥스 무한다이노 — 마지막 승부!` : `현재 ${state!.streak}연승 · 다음 상대: ${speciesKo(toID(opp.team[0].species))}`]}
 			sprites={final ? opp.team.map((s: PSet) => s.species) : [state!.mon.species]} sets={final ? opp.team : [state!.mon]} gen={9}
 			actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '쉬기 (저장 후 나가기)', kind: 'ghost', onClick: () => r('rest') }, { label: '도전 그만두기', kind: 'danger', onClick: () => r('quit') }]} />),
 			'quit', `지금까지의 ${state!.streak}연승 도전이 끝납니다. 정말 그만둘까요?`);

@@ -126,7 +126,7 @@ export function ChoiceScreen<T>({ title, intro, footer, options, onPick, onBack 
 	options: { value: T; label: string; desc?: string; badge?: string; disabled?: boolean; icon?: ComponentChildren; /** 묶음 제목 (바뀔 때마다 머리글) */ group?: string; /** 왼쪽 색 띠 */ color?: string }[];
 	onPick: (v: T) => void;
 }) {
-	return <Screen title={title} onBack={onBack}>
+	return <Screen title={title} onBack={onBack} cls="choice-scr">
 		{intro}
 		<div class="option-list">
 			{options.map((o, i) => [o.group && o.group !== options[i - 1]?.group ? <h3 class="sec opt-group">{o.group}</h3> : null,
