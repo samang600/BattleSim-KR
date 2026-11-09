@@ -2610,3 +2610,5 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 /* [+]: 덮어 그리지 않고, 보이는 마지막 칸 바로 뒤에 붙음 (넘치는 칸은 battle.tsx 에서 통째로 숨김) */
 .info-tags .mtag.more { position: static; align-self: center; flex: none; right: auto; top: auto; margin-left: 2px; box-shadow: none; }
 .info-tags.over .mtag.more { display: block; }
+/* [+] v2.56.4: 회색 도트 칸(모서리 1칸 깎음) + 굵은 검은 + (12×12, 정가운데) */
+.info-tags .mtag.more { width: 12px; height: 12px; background: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgc2hhcGUtcmVuZGVyaW5nPSJjcmlzcEVkZ2VzIj48cmVjdCB4PSIxIiB5PSIwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTIiIGZpbGw9IiNhNGE0YTQiLz48cmVjdCB4PSIwIiB5PSIxIiB3aWR0aD0iMTIiIGhlaWdodD0iMTAiIGZpbGw9IiNhNGE0YTQiLz48cmVjdCB4PSI1IiB5PSIyIiB3aWR0aD0iMiIgaGVpZ2h0PSI4IiBmaWxsPSIjMDAwIi8+PHJlY3QgeD0iMiIgeT0iNSIgd2lkdGg9IjgiIGhlaWdodD0iMiIgZmlsbD0iIzAwMCIvPjwvc3ZnPg==) 0 0 / 12px 12px no-repeat !important; box-shadow: none; }
