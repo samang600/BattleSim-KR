@@ -309,6 +309,7 @@ const BANNED_POOL = new Set(['unown', 'ditto', 'smeargle', 'wobbuffet', 'wynaut'
 	'dustox', 'kricketune', 'wormadam', 'wormadamsandy', 'wormadamtrash', 'mothim', 'combee', 'burmy', 'phione', 'caterpie',
 	'arceus', 'giratinaorigin', 'shayminsky', 'deoxys', 'deoxysattack', 'deoxysdefense', 'deoxysspeed', 'basculinbluestriped',
 	'genesectdouse', 'genesectshock', 'genesectburn', 'genesectchill', 'keldeoresolute', 'meloettapirouette',
+	'eternatuseternamax',   // 무한다이노(무한다이맥스): 게임에서 트레이너가 쓸 수 없는 모습
 ]);
 
 /** 성능이 좋은 미진화체: 종족값 합계 450 이상(폴리곤2·미끄네일·럭키·스라크 등) 또는 진화의휘석으로 실전에서 쓰이는 것 */
