@@ -1,0 +1,13 @@
+# 배틀시뮬 KR 온라인 배틀 서버 — 배포: CLOUDFLARE_API_TOKEN·CLOUDFLARE_ACCOUNT_ID 환경변수를 두고 `npm run deploy`
+name = "battlesim-kr"
+main = "dist/worker.js"
+compatibility_date = "2025-09-01"
+no_bundle = true   # 엔진 묶기는 build.mjs(앱과 같은 쇼다운 shim)로 미리 함
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]   # 무료 요금제는 SQLite 저장 방식만
