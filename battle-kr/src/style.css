@@ -2426,9 +2426,11 @@ html { image-rendering: pixelated; }
 	background: rgba(10, 6, 40, .35); }
 .opk-card.on .opk-txt small { background: rgba(40, 60, 0, .15); }
 .opk-spr { flex: none; display: flex; align-items: center; justify-content: center; image-rendering: pixelated; }
-.opk-info { position: absolute; top: 4px; right: 4px; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-style: italic;
-	color: #fff; background: #1a1240; clip-path: var(--clip1); }
-.opk-card.on .opk-info { background: #2a3a08; }
+.opk-info { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; line-height: 0; cursor: pointer;
+	--ib: #1a1240; --if: #ffffff; --ih: #d8d2ff; --ig: #3a2c8c; }
+.opk-info:active { transform: translate(2px, 2px); }
+.opk-card.on .opk-info { --ib: #2a3a08; --if: #ffffff; --ih: #eef8b0; --ig: #4a6a08; }
+.opk-ico { display: block; image-rendering: pixelated; }
 .opk-sex { font-style: normal; font-size: 12px; margin-left: 4px; padding: 0 2px; background: #fff; clip-path: var(--clip1); }
 .opk-sex.m { color: #2a68e0; } .opk-sex.f { color: #e03a60; }
 /* 상대 카드 */
@@ -2450,3 +2452,15 @@ html { image-rendering: pixelated; }
 .hud-top .badge.oclock.low { color: #ffef5a; }
 .hud-top .badge.oturn { background: #c0282a; color: #fff; }
 .hud-top .badge.oturn.low { background: #ffef5a; color: #000; animation: blink 1s steps(2) infinite; }
+
+/* PC(넓은 화면): 가운데 정렬 폭 제한, 오른쪽에 고른/가리킨 포켓몬 상세 */
+@media (min-width: 900px) {
+	.opk > * { width: 100%; max-width: 1240px; margin-inline: auto; }
+	.opk-cols.wide { grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(320px, 5fr); }
+	.opk-detail { position: sticky; top: 0; align-self: start; display: flex; flex-direction: column; gap: 6px; max-height: calc(100vh - 150px); overflow-y: auto;
+		padding: 0 0 6px; background: #0e1236; clip-path: var(--clip2); box-shadow: inset 0 0 0 2px #000, inset 0 0 0 4px #5a64c0; }
+	.opk-detail .opk-name { margin: 6px 6px 0; }
+	.opk-detail .sheet { padding: 0 10px; }
+	.opk-bottom { max-width: 1240px; }
+	.opk-go { max-width: 520px; margin-inline: auto; }
+}

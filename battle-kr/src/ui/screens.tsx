@@ -183,55 +183,64 @@ export function MonSheet({ set, gen, live, actions, onClose, note }: {
 	actions?: { label: string; kind?: 'primary' | 'ghost' | 'danger'; disabled?: boolean; onClick: () => void }[];
 }) {
 	const sd = speciesData(toID(set.species), gen);
+	return <Modal title={`${set.name || sd?.n} Lv${set.level || 50}`} onClose={onClose}>
+		<MonDetail set={set} gen={gen} live={live} note={note} actions={actions} />
+	</Modal>;
+}
+
+/** 포켓몬 상세(특성·도구·성격·능력치·기술) — 창(MonSheet) 또는 화면 옆 칸에 그대로 */
+export function MonDetail({ set, gen, live, actions, note }: {
+	set: PSet; gen: Gen; live?: LiveInfo; note?: string;
+	actions?: { label: string; kind?: 'primary' | 'ghost' | 'danger'; disabled?: boolean; onClick: () => void }[];
+}) {
+	const sd = speciesData(toID(set.species), gen);
 	const nat = natureData(set.nature);
 	const level = set.level || 50;
-	return <Modal title={`${set.name || sd?.n} Lv${level}`} onClose={onClose}>
-		<div class="sheet">
-			<div class="sheet-head">
-				<div class="sheet-sprite"><Sprite species={set.species} gen={gen} size={96} shiny={set.shiny} /></div>
-				<div class="sheet-info">
-					<div class="types">{sd?.t.map(t => <TypeBadge type={t} />)}</div>
-					{sd && sd.n !== set.name && <div class="muted small">{sd.n}</div>}
-					{set.teraType && <div class="small">테라스탈 <TypeBadge type={fixedTera(set.species) || set.teraType} small /></div>}
-					{live && <div class="sheet-hp"><HPBar hp={live.hp} maxhp={live.maxhp || 1} /><span>{live.hp}/{live.maxhp}</span> <StatusBadge status={live.status} /></div>}
-				</div>
+	return <div class="sheet">
+		<div class="sheet-head">
+			<div class="sheet-sprite"><Sprite species={set.species} gen={gen} size={96} shiny={set.shiny} /></div>
+			<div class="sheet-info">
+				<div class="types">{sd?.t.map(t => <TypeBadge type={t} />)}</div>
+				{sd && sd.n !== set.name && <div class="muted small">{sd.n}</div>}
+				{set.teraType && <div class="small">테라스탈 <TypeBadge type={fixedTera(set.species) || set.teraType} small /></div>}
+				{live && <div class="sheet-hp"><HPBar hp={live.hp} maxhp={live.maxhp || 1} /><span>{live.hp}/{live.maxhp}</span> <StatusBadge status={live.status} /></div>}
 			</div>
-			{note && <p class="sheet-note">{note}</p>}
-			<div class="sheet-row"><span class="lbl">특성</span><div><b>{abilityKo(set.ability)}</b><small class="muted block">{abilityDesc(set.ability)}</small></div></div>
-			<div class="sheet-row"><span class="lbl">도구</span><div><b>{set.item ? itemKo(set.item) : '없음'}</b><small class="muted block">{set.item ? itemDesc(set.item) : ''}</small></div></div>
-			<div class="sheet-row"><span class="lbl">성격</span><div><b>{natureKo(set.nature)}</b>{nat?.p && <small class="muted"> {STAT_KO[nat.p]}▲ {STAT_KO[nat.m]}▼</small>}</div></div>
-			<div class="stat-bars">
-				{STATS.map((k, i) => {
-					const natMul = nat?.p === k ? 1.1 : nat?.m === k ? 0.9 : 1;
-					const base = sd?.bs[i] || 0;
-					const val = live?.stats?.[k] ?? (k === 'hp' && live ? live.maxhp : calcStat(base, spToEv(evToSp(set.evs[k] || 0)), 31, level, natMul, k === 'hp'));
-					const boost = live?.boosts?.[k] || 0;
-					return <div class="stat-bar">
-						<span class={'sb-label' + (natMul > 1 ? ' up' : natMul < 1 ? ' down' : '')}>{STAT_SHORT[k]}</span>
-						<span class="sb-track"><span class="sb-fill" style={{ width: Math.min(100, base / 180 * 100) + '%', background: base >= 120 ? '#40c8a0' : base >= 90 ? '#58d058' : base >= 60 ? '#e8c830' : '#e86030' }} /></span>
-						<span class="sb-base">{base}</span>
-						<b class="sb-val">{val}{boost ? <small class={boost > 0 ? 'up' : 'down'}> {boost > 0 ? '+' : ''}{boost}</small> : null}</b>
-						<span class="sb-ev">{set.evs[k] ? (evDisplay() ? `노력치 ${spToEv(evToSp(set.evs[k]))}` : `SP ${evToSp(set.evs[k])}`) : ''}</span>
-					</div>;
-				})}
-			</div>
-			<div class="sheet-moves">
-				{set.moves.map(m => {
-					const md = moveData(m, gen);
-					const pp = live?.pp?.[toID(m)];
-					return <div class="sheet-move" style={{ '--tc': TYPE_COLOR[md?.type || 'Normal'] } as any}>
-						<div class="sm-top"><b>{moveKo(m)}</b>{md && <TypeBadge type={md.type} small />}
-							<span class="muted small">{md ? (md.category === 'Physical' ? '물리' : md.category === 'Special' ? '특수' : '변화') : ''}</span>
-							<span class="sm-num">위력 {md?.basePower || '—'} · 명중 {md?.accuracy || '—'} · PP {pp ? `${pp[0]}/${pp[1]}` : md?.pp ? Math.floor(md.pp * 8 / 5) : '-'}</span></div>
-						{md?.desc && <small class="muted block">{md.desc}</small>}
-					</div>;
-				})}
-			</div>
-			{actions && actions.length > 0 && <div class="sheet-actions">
-				{actions.map(a => <button class={'btn ' + (a.kind || 'primary')} disabled={a.disabled} onClick={a.onClick}>{a.label}</button>)}
-			</div>}
 		</div>
-	</Modal>;
+		{note && <p class="sheet-note">{note}</p>}
+		<div class="sheet-row"><span class="lbl">특성</span><div><b>{abilityKo(set.ability)}</b><small class="muted block">{abilityDesc(set.ability)}</small></div></div>
+		<div class="sheet-row"><span class="lbl">도구</span><div><b>{set.item ? itemKo(set.item) : '없음'}</b><small class="muted block">{set.item ? itemDesc(set.item) : ''}</small></div></div>
+		<div class="sheet-row"><span class="lbl">성격</span><div><b>{natureKo(set.nature)}</b>{nat?.p && <small class="muted"> {STAT_KO[nat.p]}▲ {STAT_KO[nat.m]}▼</small>}</div></div>
+		<div class="stat-bars">
+			{STATS.map((k, i) => {
+				const natMul = nat?.p === k ? 1.1 : nat?.m === k ? 0.9 : 1;
+				const base = sd?.bs[i] || 0;
+				const val = live?.stats?.[k] ?? (k === 'hp' && live ? live.maxhp : calcStat(base, spToEv(evToSp(set.evs[k] || 0)), 31, level, natMul, k === 'hp'));
+				const boost = live?.boosts?.[k] || 0;
+				return <div class="stat-bar">
+					<span class={'sb-label' + (natMul > 1 ? ' up' : natMul < 1 ? ' down' : '')}>{STAT_SHORT[k]}</span>
+					<span class="sb-track"><span class="sb-fill" style={{ width: Math.min(100, base / 180 * 100) + '%', background: base >= 120 ? '#40c8a0' : base >= 90 ? '#58d058' : base >= 60 ? '#e8c830' : '#e86030' }} /></span>
+					<span class="sb-base">{base}</span>
+					<b class="sb-val">{val}{boost ? <small class={boost > 0 ? 'up' : 'down'}> {boost > 0 ? '+' : ''}{boost}</small> : null}</b>
+					<span class="sb-ev">{set.evs[k] ? (evDisplay() ? `노력치 ${spToEv(evToSp(set.evs[k]))}` : `SP ${evToSp(set.evs[k])}`) : ''}</span>
+				</div>;
+			})}
+		</div>
+		<div class="sheet-moves">
+			{set.moves.map(m => {
+				const md = moveData(m, gen);
+				const pp = live?.pp?.[toID(m)];
+				return <div class="sheet-move" style={{ '--tc': TYPE_COLOR[md?.type || 'Normal'] } as any}>
+					<div class="sm-top"><b>{moveKo(m)}</b>{md && <TypeBadge type={md.type} small />}
+						<span class="muted small">{md ? (md.category === 'Physical' ? '물리' : md.category === 'Special' ? '특수' : '변화') : ''}</span>
+						<span class="sm-num">위력 {md?.basePower || '—'} · 명중 {md?.accuracy || '—'} · PP {pp ? `${pp[0]}/${pp[1]}` : md?.pp ? Math.floor(md.pp * 8 / 5) : '-'}</span></div>
+					{md?.desc && <small class="muted block">{md.desc}</small>}
+				</div>;
+			})}
+		</div>
+		{actions && actions.length > 0 && <div class="sheet-actions">
+			{actions.map(a => <button class={'btn ' + (a.kind || 'primary')} disabled={a.disabled} onClick={a.onClick}>{a.label}</button>)}
+		</div>}
+	</div>;
 }
 
 export function SetDetailModal({ set, gen, onClose }: { set: PSet; gen: Gen; onClose: () => void }) {
