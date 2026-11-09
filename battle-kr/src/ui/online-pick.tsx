@@ -21,6 +21,15 @@ function InfoIcon() {
 	</svg>;
 }
 
+/** 도트 닫기(×) 아이콘: 7×7 칸(한 칸 2px) 대각선 — 글자 × 는 글꼴마다 가운데가 어긋나서 그림으로 */
+function CloseIcon() {
+	const cells: [number, number][] = [];
+	for (let i = 0; i < 7; i++) { cells.push([i, i]); if (i !== 3) cells.push([6 - i, i]); }
+	return <svg class="opk-xico" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true">
+		{cells.map(([x, y]) => <rect x={x} y={y} width="1" height="1" fill="currentColor" />)}
+	</svg>;
+}
+
 /** 넓은 화면(PC)이면 상세를 오른쪽 칸에 */
 function useWide() {
 	const q = '(min-width: 900px)';
@@ -110,7 +119,7 @@ export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent,
 			{wide && <div class="opk-detail">
 				{info !== null ? <>
 					<div class="opk-name me">{mine[info].name || speciesData(toID(mine[info].species), 9)?.n} Lv{mine[info].level || 50}{picked.includes(info) && <small>{picked.indexOf(info) + 1}번째</small>}
-						<button class="opk-x" onClick={() => setInfo(null)} aria-label="닫기">×</button></div>
+						<button class="opk-x" onClick={() => setInfo(null)} aria-label="닫기"><CloseIcon /></button></div>
 					<MonDetail set={mine[info]} gen={9} />
 				</> : <div class="opk-prep wide">
 					<div class="opk-name me">배틀 필드 · 음악</div>
@@ -127,7 +136,7 @@ export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent,
 		{view !== null && !wide && <div class="opk-pop-bg" onClick={() => setView(null)}>
 			<div class="opk-pop" role="dialog" onClick={e => e.stopPropagation()}>
 				<div class="opk-name me">{mine[view].name || speciesData(toID(mine[view].species), 9)?.n} Lv{mine[view].level || 50}{picked.includes(view) && <small>{picked.indexOf(view) + 1}번째</small>}
-					<button class="opk-x" onClick={() => setView(null)} aria-label="닫기">×</button></div>
+					<button class="opk-x" onClick={() => setView(null)} aria-label="닫기"><CloseIcon /></button></div>
 				<div class="opk-pop-body"><MonDetail set={mine[view]} gen={9} actions={done ? [{ label: '닫기', kind: 'ghost', onClick: () => setView(null) }] : [
 			picked.includes(view) ? { label: '선택 해제', kind: 'ghost', onClick: () => { toggle(view); setView(null); } }
 				: { label: `선택 (${picked.length + 1}번째)`, disabled: picked.length >= need, onClick: () => { toggle(view); setView(null); } },
