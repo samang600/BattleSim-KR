@@ -1,4 +1,4 @@
-/** 트레이너 수첩: 카드(심볼·시즌·정복) · 업적 · 포켓몬별 통계 · 도감 */
+/** 트레이너 수첩: 카드(심볼·시즌·클리어) · 업적 · 포켓몬별 통계 · 도감 */
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import { Screen, MiniSprite } from './core';
@@ -60,7 +60,7 @@ function Card({ st, rec, set }: any) {
 		<div class="kv"><span>싱글</span><b>{rankLabel(rp('singles'))} · {rp('singles')} RP</b></div>
 		<div class="kv"><span>더블</span><b>{rankLabel(rp('doubles'))} · {rp('doubles')} RP</b></div>
 		{st.seasons.length > 0 && <div class="season-list">{st.seasons.slice(-8).reverse().map((x: any) => <div class="kv small"><span>시즌 {x.id.slice(1)} · {x.fmt.startsWith('doubles') ? '더블' : '싱글'}</span><b>{x.tier} ({x.rp} RP)</b></div>)}</div>}
-		<h3 class="sec">보스 러시 · 지방 정복</h3>
+		<h3 class="sec">보스 러시 · 지방 클리어</h3>
 		<div class="conq-grid">{REGIONS.filter(r => r !== '애니메이션').map(r => <span class={'conq' + (st.conquest[r] ? ' on' : '')}>{r}{st.conquest[r] === 2 ? ' ★★' : st.conquest[r] ? ' ★' : ''}</span>)}</div>
 		<h3 class="sec">보스 러시 · 시나리오 / 오늘의 도전</h3>
 		{Object.keys(BOSS_LEN).map(k => <div class="kv"><span>{k === 'villain' ? '악의 조직 보스' : k === 'admin' ? '악의 조직 간부' : '역대 챔피언'}</span><b>{st.boss[k] || 0} / {BOSS_LEN[k]}</b></div>)}

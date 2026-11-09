@@ -141,7 +141,7 @@ const OTHER_PEOPLE: [string, string][] = [
 	['penny', '보탄'], ['cheren', '체렌'], ['bianca', '벨'], ['wally', '민진'], ['barry', '용식'], ['shauna', '사나'], ['tierno', '티에르노'], ['trevor', '트로바'],
 	['oak', '오박사'], ['elm', '공박사'], ['birch', '털보박사'], ['rowan', '마박사'], ['juniper', '주박사'], ['sycamore', '플라타느 박사'], ['kukui', '쿠쿠이 박사'],
 	['burnet', '버넷 박사'], ['magnolia', '매그놀리아 박사'], ['sada', '팔데아 박사 (스칼렛)'], ['turo', '팔데아 박사 (바이올렛)'],
-	['ash', '지우'], ['ash-alola', '지우 (알로라)'], ['anabel', '리라'], ['az', 'AZ'], ['ingo', '노보리'], ['emmet', '클라우드'], ['rei', '테루'], ['akari', '쇼우'], ['nurse', '간호순'],
+	['ash', '지우'], ['ash-alola', '지우 (알로라)'], ['anabel', '리라'], ['az', 'AZ'], ['ingo', '노보리'], ['emmet', '클라우드'], ['rei', '영빈'], ['akari', '윤슬'], ['nurse', '간호순'],
 ];
 const ROLE_PRICE: { [r: string]: number } = { leader: 60, elite: 80, champion: 100, hero: 60, rival: 60, admin: 60, boss: 80 };
 /** 기본 칭호 (아무것도 안 골랐을 때 자동으로 붙음) */
@@ -183,8 +183,8 @@ export const ITEMS: Item[] = [
 	TX('champion', '시즌 챔피언', '랭크 시즌을 챔피언급으로 마감', s => s.sym.rank === 2, '#b8283a', '프런티어'),
 	TX('brain', '프런티어 브레인', '금 심볼 3개', s => s.sym.tower === 2 && s.sym.factory === 2 && s.sym.rank === 2, '#ffd84a', '프런티어'),
 	TX('ippitsu', '한 마리의 전설', '일필도 49연승', () => ippitsu49(), '#c82a4a', '프런티어'),
-	...REGIONS.filter(r => r !== '애니메이션').map(r => TX('reg:' + r, `${r} 챔피언`, `${r} 지방 정복`, s => !!s.conquest[r], 'reg:' + r, '지방 챔피언')),
-	TX('conqueror', '지방 정복자', '모든 지방 정복', regionsAll, '#ffd84a', '지방 챔피언'),
+	...REGIONS.filter(r => r !== '애니메이션').map(r => TX('reg:' + r, `${r} 챔피언`, `${r} 지방 클리어`, s => !!s.conquest[r], 'reg:' + r, '지방 챔피언')),
+	TX('conqueror', '올클리어 트레이너', '모든 지방 클리어', regionsAll, '#ffd84a', '지방 챔피언'),
 	...TYPE_TITLES,
 	// 카드 배경 (3~4단 색 띠)
 	{ id: 'cb:sunset', slot: 'cardBg', name: '노을', price: 20, v: '#e86a3a,#c84a4a,#7a3a6a,#3a2a5a' },
@@ -207,9 +207,9 @@ export const ITEMS: Item[] = [
 	{ id: 'st:club', slot: 'star', name: '클로버', price: 20, v: '♣' },
 	{ id: 'st:spade', slot: 'star', name: '스페이드', price: 20, v: '♠' },
 	// HP 창 테마
-	{ id: 'hp:ruby', slot: 'hp', name: '루비', price: 40, v: 'ruby', desc: '보석 결 무늬 · 반짝임' },
-	{ id: 'hp:sapphire', slot: 'hp', name: '사파이어', price: 40, v: 'sapphire', desc: '물결 무늬 · 빛 지나감' },
-	{ id: 'hp:emerald', slot: 'hp', name: '에메랄드', price: 40, v: 'emerald', desc: '마름모 무늬 · 반짝임' },
+	{ id: 'hp:ruby', slot: 'hp', name: '루비', price: 40, v: 'ruby', desc: '보석 결 무늬' },
+	{ id: 'hp:sapphire', slot: 'hp', name: '사파이어', price: 40, v: 'sapphire', desc: '물결 무늬' },
+	{ id: 'hp:emerald', slot: 'hp', name: '에메랄드', price: 40, v: 'emerald', desc: '마름모 무늬' },
 	{ id: 'hp:crystal', slot: 'hp', name: '크리스탈', price: 50, v: 'crystal', desc: '사선 결 · 반짝임' },
 	{ id: 'hp:gold', slot: 'hp', name: '골드', price: 60, v: 'gold', desc: '새김 줄 · 빛 지나감' },
 	{ id: 'hp:metal', slot: 'hp', name: '메탈', price: 60, v: 'metal', desc: '강철 결 · 빛 지나감' },
@@ -229,6 +229,12 @@ export const ITEMS: Item[] = [
 	{ id: 'bgm:g3sakura', slot: 'bgm', name: '벚꽃 정원', price: 80, v: 'g3sakura', desc: '바장조 · 산책하듯 밝은 곡' },
 	{ id: 'bgm:g3desert', slot: 'bgm', name: '사막 유적', price: 90, v: 'g3desert', desc: '라단조 · 이국적인 곡' },
 	{ id: 'bgm:g3aurora', slot: 'bgm', name: '오로라', price: 120, v: 'g3aurora', desc: '나단조 · 웅장한 결전 곡' },
+	{ id: 'bg:deepsea', slot: 'bg', name: '해저 신전', price: 120, v: 'deepsea', desc: '빛줄기 · 거품이 올라옴' },
+	{ id: 'bg:skypillar', slot: 'bg', name: '구름 위 탑', price: 120, v: 'skypillar', desc: '구름 바다가 흘러감' },
+	{ id: 'bg:neon', slot: 'bg', name: '네온 시티', price: 120, v: 'neon', desc: '창 불빛 · 밤비' },
+	{ id: 'bgm:g3deepsea', slot: 'bgm', name: '해저 신전', price: 120, v: 'g3deepsea', desc: '가단조 · 신비롭게 일렁이는 곡' },
+	{ id: 'bgm:g3skypillar', slot: 'bgm', name: '구름 위 탑', price: 120, v: 'g3skypillar', desc: '내림마장조 · 영웅적으로 솟는 곡' },
+	{ id: 'bgm:g3neon', slot: 'bgm', name: '네온 시티', price: 120, v: 'g3neon', desc: '사단조 · 엇박으로 달리는 곡' },
 	// 트레이너 모습 (일반 트레이너군 — 네임드 인물 제외)
 	...trainerItems(),
 ];
@@ -293,7 +299,7 @@ export const titleText = () => titleItem()?.name || '';
 export const ownedVals = (slot: Slot) => { const w = loadWallet(); return ITEMS.filter(i => i.slot === slot && w.own[i.id]).map(i => ({ v: i.v!, name: i.name })); };
 
 // ───────── 업적·기록 전용 표시 (자동) ─────────
-/** 정복한 지방 배지 (★★ 는 금색) */
+/** 클리어한 지방 배지 (★★ 는 금색) */
 export function regionBadges(s = loadStats()) { return REGIONS.filter(r => r !== '애니메이션' && s.conquest[r]).map(r => ({ region: r, gold: s.conquest[r] === 2 })); }
 /** 단짝: 100승 이상 포켓몬 중 가장 많이 이긴 포켓몬 */
 export function partnerMon(s = loadStats()) { let best: string | null = null, w = 99; for (const [k, m] of Object.entries(s.mons)) if (m.w > w) { w = m.w; best = k; } return best; }

@@ -6,6 +6,12 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.62.0', date: '2026-11-09', title: '새 배경·음악', items: [
+		['new', '교환소에 배경 「해저 신전」「구름 위 탑」「네온 시티」와 같은 이름의 새 음악 3곡 (각 120 BP)'],
+		['up', '교환소 HP 창·배경·음악을 「배틀」 탭 하나로'],
+		['up', 'HP 창 테마 루비·사파이어·에메랄드는 움직임 없이 무늬만'],
+		['up', "'지방 정복' → '지방 클리어'"],
+	] },
 	{ ver: '2.61.0', date: '2026-11-09', title: '일일 미션 · 트레이너 모습 확장', items: [
 		['new', '이번 주 과제 → 일일 미션: 매일 자정에 바뀌는 미션 3개 (모두 하면 보너스)'],
 		['new', '교환소 트레이너 모습에 네임드 트레이너(지방별)와 릴리에·박사님 같은 인물 추가'],

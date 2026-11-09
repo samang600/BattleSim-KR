@@ -91,8 +91,7 @@ const TABS: { id: string; name: string; slots: Slot[] }[] = [
 	{ id: 'title', name: '칭호', slots: ['title'] },
 	{ id: 'card', name: '카드', slots: ['cardBg', 'frame', 'star'] },
 	{ id: 'trainer', name: '트레이너', slots: ['trainer'] },
-	{ id: 'fx', name: 'HP 창', slots: ['hp'] },
-	{ id: 'av', name: '배경·음악', slots: ['bg', 'bgm'] },
+	{ id: 'av', name: '배틀', slots: ['hp', 'bg', 'bgm'] },
 ];
 function Preview({ it }: { it: Item }) {
 	switch (it.slot) {

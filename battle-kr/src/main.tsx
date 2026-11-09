@@ -32,7 +32,7 @@ const MODES = [
 	{ id: 'palace', name: '배틀팰리스', sub: '성격대로 스스로', run: runPalace, color: '#23a05a', mon: 'blissey' },
 	{ id: 'ippitsu', name: '일필도', sub: '한 마리로 1:1 연승', run: runIppitsu, color: '#b8402a', mon: 'eternatus' },
 	{ id: 'pwt', name: 'PWT', sub: '월드 토너먼트', run: runPWT, color: '#c03aa8', mon: 'hydreigon' },
-	{ id: 'boss', name: '보스 러시', sub: '지방 정복 · 악의 조직 · 챔피언', run: runBossRush, color: '#6a30b8', mon: 'mewtwo' },
+	{ id: 'boss', name: '보스 러시', sub: '지방 클리어 · 악의 조직 · 챔피언', run: runBossRush, color: '#6a30b8', mon: 'mewtwo' },
 	{ id: 'named', name: '네임드', sub: '관장 · 챔피언 · 애니메이션', run: runNamed, color: '#14968c', mon: 'dragonite' },
 	{ id: 'free', name: '프리 배틀', sub: '싱글 · 더블 바로 대전', run: () => runFree(), color: '#56708e', mon: 'lucario' },
 	{ id: 'daily', name: '오늘의 도전', sub: '', run: runDaily, color: '#d8a018', mon: 'pikachu' },
@@ -72,7 +72,7 @@ function Home({ go }: { go: (v: string) => void }) {
 	const badge: { [id: string]: string } = {
 		tower: best('tower-') ? `최고 ${best('tower-')}연승` : '', factory: best('factory-') ? `최고 ${best('factory-')}연승` : '', palace: best('palace-') ? `최고 ${best('palace-')}연승` : '',
 		pwt: cupWins ? `우승 ${cupWins}회` : `${CUPS.length}개 대회`, named: `${namedWins}/${NAMED.length}`, free: '',
-		boss: conq || Object.values(st.boss).some(Boolean) ? `정복 ${conq}지방` : '',
+		boss: conq || Object.values(st.boss).some(Boolean) ? `클리어 ${conq}지방` : '',
 		rank: `시즌 ${season.no} · ${rp ? rankLabel(rp) : '참가 전'}`,
 		daily: `${daily.theme}${today !== undefined ? ` · ${today}/7` : ''}`, online: '',
 	};

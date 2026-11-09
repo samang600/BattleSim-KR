@@ -5,7 +5,7 @@
   g3frontier 배틀 프런티어풍 (F장조 160): 금관 팡파르 느낌의 장조, 믹솔리디안 Bb·C7
   pwthall    PWT 대진표 대기 (Bb장조 132): 경기장 행진풍 (NEW 의 song2 형식)
   g3palace 배틀팰리스 (D도리안 138) · g3factory 배틀팩토리 (E단조 158) · g3rank 랭크 매치 (B단조 170)
-  g3rush 보스 러시 (F단조 182) · g3daily 오늘의 도전 (G장조 150) · g3sunset 노을 언덕 (D장조 152) · g3star 별빛 결전 (E단조 168) · g3sakura 벚꽃 정원 (F장조 132) · g3desert 사막 유적 (D단조 160) · g3aurora 오로라 (B단조 176)
+  g3rush 보스 러시 (F단조 182) · g3daily 오늘의 도전 (G장조 150) · g3sunset 노을 언덕 (D장조 152) · g3star 별빛 결전 (E단조 168) · g3sakura 벚꽃 정원 (F장조 132) · g3desert 사막 유적 (D단조 160) · g3aurora 오로라 (B단조 176) · g3deepsea 해저 신전 (A단조 144) · g3skypillar 구름 위 탑 (Eb장조 168) · g3neon 네온 시티 (G단조 172)
 형식: 인트로 → A(8마디) → B(8마디) → A 로 반복 (intro 칸부터)
 출력: <앱>/src/gen/chip-gen3.json (chip-tracks.json 과 같은 형식: 16분음표 한 칸에 한 글자, ' ' 쉼, '!' 지속, 그 밖 chr(MIDI+14))
 사용: python3 gen3.py [출력 경로]"""
@@ -403,6 +403,43 @@ NEW = {
          'e7.2 d7.2 b6.2 g6.2 e6.4 g6.4|a6.2 b6.2 c#7.2 e7.2 a7.4 e7.4|f#7.6 e7.2 d7.4 a6.4|c#7.2 r.2 c#7.2 r.2 a#6.2 c#7.2 f#7.4',
          {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
     ], {'main': 'k.hks.hkk.hks.hk', 'b': 'k.hhs.hkkkhhs.hs', 'intro': 'k.k.k.k.s.s.ssss'}, 'k.s.k.s.ssssssss'),
+    # 해저 신전 (A단조 144, 교환소): 물빛이 일렁이는 깊은 바다의 신전 — 펼친 화음 인트로, 3도 대선율과 워킹 베이스, B 는 F·G 로 올라갔다가 E7 로 돌아옴
+    'g3deepsea': (144, [
+        ('intro', ['Am', 'F'],
+         'e5.2 a5.2 c6.2 e6.2 a6.4 g6.2 e6.2|f6.2 c6.2 a5.2 c6.2 f6.4 e6.4', {'harm': 'pad', 'bass': 'half', 'drum': 'intro'}),
+        ('A', ['Am', 'Dm', 'G', 'C', 'F', 'Dm', 'E', 'E7'],
+         'a5.4 c6.2 e6.2 a6.6 g6.2|f6.4 e6.2 d6.2 a5.8|b5.2 d6.2 g6.4 d6.2 b5.2 g5.4|c6.6 e6.2 g6.8|'
+         'a6.4 g6.2 f6.2 c6.4 f6.4|d6.2 e6.2 f6.2 a6.2 d7.4 c7.2 a6.2|b6.6 g#6.2 e6.4 b5.4|d6.2 e6.2 g#6.2 b6.2 e7.8', {'harm': 'third', 'bass': 'walk'}),
+        ('B', ['F', 'G', 'Em', 'Am', 'Dm', 'E', 'Am', 'E7'],
+         'c7.6 a6.2 f6.8|d7.6 b6.2 g6.8|g6.4 b6.4 e7.4 b6.4|a6.12 e6.4|'
+         'f6.2 e6.2 d6.2 a5.2 d6.4 f6.4|g#6.2 a6.2 b6.2 e7.2 g#7.4 e7.4|a6.6 b6.2 c7.4 e7.4|d7.2 r.2 d7.2 r.2 b6.2 g#6.2 e6.4',
+         {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k...h.h.s..kh.h.', 'b': 'k.h.s.h.k.hhs.hs', 'intro': 'k.......s.......'}, 'k.s.k.s.s.ssssss'),
+    # 구름 위 탑 (Eb장조 168, 교환소): 구름 바다 위 높은 탑의 결전 — 솟구치는 영웅적 장조, 갤럽 베이스, B 는 Fm·Bb7 로 조였다가 다시 Eb 로
+    'g3skypillar': (168, [
+        ('intro', ['Eb', 'Bb'],
+         'eb5.2 g5.2 bb5.2 eb6.2 g6.4 bb6.4|bb5.2 d6.2 f6.2 bb6.2 d7.8', {'harm': 'none', 'bass': 'drive', 'drum': 'intro'}),
+        ('A', ['Eb', 'Cm', 'Ab', 'Bb', 'Eb', 'Gm', 'Ab', 'Bb7'],
+         'g6.4 bb6.2 g6.2 eb6.4 bb5.4|c6.2 d6.2 eb6.2 g6.2 c7.8|c7.6 bb6.2 ab6.4 eb6.4|f6.6 g6.2 f6.4 d6.4|'
+         'eb6.2 f6.2 g6.2 bb6.2 eb7.4 d7.2 bb6.2|d7.6 bb6.2 g6.4 d6.4|eb6.2 f6.2 ab6.2 c7.2 eb7.4 c7.4|d7.2 c7.2 bb6.2 ab6.2 f6.8', {'harm': 'third', 'bass': 'gallop'}),
+        ('B', ['Ab', 'Bb', 'Gm', 'Cm', 'Fm', 'Bb', 'Eb', 'Bb7'],
+         'ab6.6 bb6.2 c7.8|bb6.6 c7.2 d7.8|d7.4 bb6.4 g6.4 bb6.4|c7.12 g6.4|'
+         'ab6.2 g6.2 f6.2 c6.2 f6.4 ab6.4|bb6.2 c7.2 d7.2 f7.2 bb7.4 f7.4|g7.6 f7.2 eb7.4 bb6.4|ab6.2 r.2 ab6.2 r.2 f6.2 d6.2 bb5.4',
+         {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k.hks.hkk.hks.hk', 'b': 'kkhks.hkk.hks.ss', 'intro': 'k.k.k.k.s.s.ssss'}, 'k.s.k.s.ssssssss'),
+    # 네온 시티 (G단조 172, 교환소): 밤거리 네온 아래 승부 — 끊어 치는 리듬 인트로, 엇박 베이스, B 는 Eb·F 로 열렸다가 D7 반복 찌르기
+    'g3neon': (172, [
+        ('intro', ['Gm', 'Gm', 'Eb', 'D7'],
+         'g5.1 r.1 g5.1 r.1 bb5.2 d6.2 r.2 g6.2 f6.2 d6.2|g5.1 r.1 g5.1 r.1 bb5.2 d6.2 r.2 bb6.2 a6.2 g6.2|eb6.4 g6.4 bb6.4 g6.4|f#6.2 a6.2 c7.2 d7.2 f#7.8',
+         {'harm': 'none', 'bass': 'synco', 'drum': 'intro'}),
+        ('A', ['Gm', 'Eb', 'Cm', 'D', 'Gm', 'Bb', 'Cm', 'D7'],
+         'g6.2 r.1 g6.1 bb6.2 d7.2 g7.4 f7.2 d7.2|eb7.4 d7.2 bb6.2 g6.4 eb6.4|c6.2 r.1 c6.1 eb6.2 g6.2 c7.4 bb6.2 g6.2|a6.6 f#6.2 d6.4 a5.4|'
+         'bb6.2 a6.2 g6.2 d6.2 g6.4 bb6.4|d7.6 c7.2 bb6.4 f6.4|eb6.2 g6.2 c7.2 eb7.2 g7.4 eb7.4|f#7.2 e7.2 d7.2 c7.2 a6.8', {'harm': 'third', 'bass': 'synco'}),
+        ('B', ['Eb', 'F', 'Dm', 'Gm', 'Cm', 'D', 'Gm', 'D7'],
+         'g6.6 bb6.2 eb7.8|a6.6 c7.2 f7.8|f7.4 d7.4 a6.4 d7.4|bb6.12 g6.4|'
+         'eb7.2 d7.2 c7.2 g6.2 c7.4 eb7.4|f#7.2 e7.2 d7.2 a6.2 d7.4 f#7.4|g7.6 f7.2 d7.4 bb6.4|c7.2 r.2 c7.2 r.2 a6.2 f#6.2 d6.4',
+         {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k.hks.hk.khks.hk', 'b': 'kkhks.hkk.hks.ss', 'intro': 'k..hs..hk..hs.ss'}, 'k.s.k.s.ssssssss'),
 }
 for k, (bpm, secs, *dr) in NEW.items():
     print(consonance(k, secs))

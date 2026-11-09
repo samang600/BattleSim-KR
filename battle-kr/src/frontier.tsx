@@ -1,4 +1,4 @@
-/** 새 도전 모드: 배틀팰리스 · 일필도 · 오늘의 도전 · 지방 정복 · 보스 러시 */
+/** 새 도전 모드: 배틀팰리스 · 일필도 · 오늘의 도전 · 지방 클리어 · 보스 러시 */
 import { h } from 'preact';
 import { ask } from './ui/core';
 import { PickScreen, InfoScreen, ChoiceScreen } from './ui/screens';
@@ -321,7 +321,7 @@ export async function runDaily() {
 		lines={[`오늘 최고 기록: ${Math.max(best, wins)}승 / 7`, `연속 참가 ${load<any>('stats', {}).dailyStreak || 1}일째`]} actions={[{ label: '확인', onClick: () => r() }]} />);
 }
 
-// ═════════ 보스 러시: 지방 정복(관장 → 사천왕 → 챔피언) + 시나리오 코스(악의 조직 보스·간부, 역대 챔피언) ═════════
+// ═════════ 보스 러시: 지방 클리어(관장 → 사천왕 → 챔피언) + 시나리오 코스(악의 조직 보스·간부, 역대 챔피언) ═════════
 const conquestList = (region: string) => region === '애니메이션' ? [] : NAMED.filter(t => t.region === region && ['leader', 'elite', 'champion'].includes(t.role)).sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role));
 const COURSES: { id: string; name: string; desc: string; color: string; list: () => NamedTrainer[] }[] = [
 	{ id: 'villain', name: '악의 조직 보스', desc: '역대 악의 조직 보스 전원', color: '#6a1a2a', list: () => NAMED.filter(t => t.role === 'boss' && t.region !== '애니메이션').sort((a, b) => a.id.localeCompare(b.id)) },
@@ -333,7 +333,7 @@ type RushKind = { kind: 'region' | 'course'; id: string };
 interface RushRun extends RushKind { hard: boolean; team: PSet[]; idx: number }
 const RUSH_KEY = 'rush-run';
 const rushList = (k: RushKind) => k.kind === 'region' ? conquestList(k.id) : COURSES.find(c => c.id === k.id)!.list();
-const rushName = (k: RushKind) => k.kind === 'region' ? `${regionLabel(k.id as any)} 정복` : `${COURSES.find(c => c.id === k.id)!.name} 러시`;
+const rushName = (k: RushKind) => k.kind === 'region' ? `${regionLabel(k.id as any)} 클리어` : `${COURSES.find(c => c.id === k.id)!.name} 러시`;
 type GauntletEnd = 'clear' | 'rest' | 'quit' | 'lose';
 async function gauntlet(title: string, list: NamedTrainer[], run: RushRun): Promise<GauntletEnd> {
 	while (run.idx < list.length) {
@@ -372,7 +372,7 @@ export async function runBossRush() {
 	const st = loadStats();
 	const savedTag = (k: RushKind) => saved && saved.kind === k.kind && saved.id === k.id ? `진행 중 ${saved.idx}/${rushList(saved).length}` : undefined;
 	const options = [
-		...REGIONS.filter(reg => conquestList(reg).length >= 4).map(reg => ({ value: { kind: 'region', id: reg } as RushKind, group: '지방 정복 · 관장 → 사천왕 → 챔피언', color: REGION_COLOR[reg],
+		...REGIONS.filter(reg => conquestList(reg).length >= 4).map(reg => ({ value: { kind: 'region', id: reg } as RushKind, group: '지방 클리어 · 관장 → 사천왕 → 챔피언', color: REGION_COLOR[reg],
 			label: regionLabel(reg), desc: `${conquestList(reg).length}연전`, icon: <img class="trainer-icon" src={SPRITE_URL(namedSprite(conquestList(reg)[conquestList(reg).length - 1]))} onError={trainerImgError} />,
 			badge: savedTag({ kind: 'region', id: reg }) || (st.conquest[reg] === 2 ? '★★ 어려움 클리어' : st.conquest[reg] ? '★ 클리어' : undefined) })),
 		...COURSES.map(c => ({ value: { kind: 'course', id: c.id } as RushKind, group: '시나리오 러시', color: c.color, label: c.name, desc: `${c.desc} · ${BOSS_LEN[c.id]}연전`,
@@ -401,7 +401,7 @@ export async function runBossRush() {
 		if (r0.kind === 'course') s.boss[r0.id] = Math.max(s.boss[r0.id] || 0, r0.idx);
 		if (end === 'clear' && r0.kind === 'region') s.conquest[r0.id] = Math.max(s.conquest[r0.id] || 0, r0.hard ? 2 : 1) as 1 | 2;
 	});
-	if (end === 'clear') earnBP(r0.kind === 'region' ? (r0.hard ? 25 : 15) : 15, r0.kind === 'region' ? '지방 정복' : '보스 러시 완주');
+	if (end === 'clear') earnBP(r0.kind === 'region' ? (r0.hard ? 25 : 15) : 15, r0.kind === 'region' ? '지방 클리어' : '보스 러시 완주');
 	if (end === 'clear') await ask<void>(r => <InfoScreen title="보스 러시" banner="🏆 완주!" heading={r0.kind === 'region' ? `${regionLabel(r0.id as any)}의 정점에 섰다!` : `${rushName(r0)}를 돌파했다!`}
 		sprites={r0.team.map(s => s.species)} sets={r0.team} gen={9} lines={[`${list.length}연전 완주${r0.hard ? ' (어려움)' : ''}`]} actions={[{ label: '확인', onClick: () => r() }]} />);
 }

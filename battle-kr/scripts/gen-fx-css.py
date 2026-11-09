@@ -157,9 +157,9 @@ BOLT = tile([
 
 HP = [
 	# 키, 이름, 띠, 움직임
-	('ruby', ['#e8506a', '#b8203e', '#8a1430', '#5a0a1e'], 'spark'),
-	('sapphire', ['#5a8af0', '#2a58c8', '#1a3e98', '#0e2462'], 'shine'),
-	('emerald', ['#5ad890', '#24a05a', '#167a42', '#0a4a26'], 'spark'),
+	('ruby', ['#e8506a', '#b8203e', '#8a1430', '#5a0a1e'], None),
+	('sapphire', ['#5a8af0', '#2a58c8', '#1a3e98', '#0e2462'], None),
+	('emerald', ['#5ad890', '#24a05a', '#167a42', '#0a4a26'], None),
 	('gold', ['#ffe070', '#c8961e', '#a07014', '#64440a'], 'shine'),
 	('crystal', ['#9af0ff', '#2aa0b8', '#1a7a92', '#0e4e62'], 'spark'),
 	('rainbow', ['#d83a4a', '#e07a2a', '#b8a020', '#38984a', '#2a68c0', '#6a3aa8'], 'shine'),
@@ -241,6 +241,18 @@ u, w, h = DUST; layer('desert', 'before', u, w, h, '52%', '0', f'arDrift 7s step
 ar.append('.bg-desert .arena-bg::after { content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 48%; pointer-events: none; background: repeating-linear-gradient(180deg, rgba(255,240,200,.08) 0 2px, transparent 2px 8px); animation: arHeat 1.6s steps(4) infinite; }')
 u, w, h = AUR; layer('aurora', 'before', u, w, h, '27%', '58%', f'arDrift 24s steps(128) infinite; --dx: {w}px; --dy: 0px')
 u, w, h = SNOW; layer('aurora', 'after', u, w, h, '0', '0', f'arDrift 10s steps(80) infinite; --dx: 8px; --dy: {h * 2}px')
+BUBBLE = tile(scatter(48, 64, 4, [['.a.', 'a.a', '.a.'], ['a'], ['a']], 41), {'a': ('#c8f0ff', .8)})
+RAYS = tile(['a.......' * 2] * 1 + ['........' * 2] * 3, {'a': ('#8ad8ff', .25)})
+SKYCLOUD = tile(scatter(160, 12, 3, [['..aaaaaaaa..', 'aaaaaaaaaaaa', '.bbbbbbbbbb.']], 12), {'a': ('#ffffff', .75), 'b': ('#dce8fa', .75)})
+WIN = tile(scatter(40, 30, 6, [['a', 'a'], ['b', 'b'], ['c', 'c']], 27), {'a': ('#ffe08a', .9), 'b': ('#8ae0ff', .9), 'c': ('#ffb0e0', .9)})
+RAIN = tile(scatter(32, 32, 4, [['a', 'a', 'a']], 51), {'a': ('#b8c8ff', .4)})
+u, w, h = BUBBLE; layer('deepsea', 'before', u, w, h, '0', '40%', f'arDrift 6s steps(48) infinite; --dx: 0px; --dy: -{h}px')
+ar.append('.bg-deepsea .arena-bg::after { content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 45%; pointer-events: none; background: repeating-linear-gradient(105deg, transparent 0 22px, rgba(140,216,255,.10) 22px 30px, transparent 30px 64px) 0 0 / 200% 100%; animation: arRay 8s steps(32) infinite; }')
+u, w, h = SKYCLOUD; layer('skypillar', 'before', u, w, h, '40%', '48%', f'arDrift 40s steps(160) infinite; --dx: -{w}px; --dy: 0px')
+u, w, h = SKYCLOUD; layer('skypillar', 'after', u, w, h, '8%', '76%', f'arDrift 70s steps(160) infinite; --dx: {w}px; --dy: 0px; opacity: .5')
+u, w, h = WIN; layer('neon', 'before', u, w, h, '10%', '62%', 'arTwinkle 2.4s steps(1) infinite')
+u, w, h = RAIN; layer('neon', 'after', u, w, h, '0', '0', f'arDrift 1.2s steps(16) infinite; --dx: -8px; --dy: {h}px')
+ar.append('@keyframes arRay { 0%, 100% { background-position: 0 0; } 50% { background-position: 24px 0; } }')
 ar += [
 	'.arena-bg { overflow: hidden; }',
 	'@keyframes arDrift { to { background-position: var(--dx) var(--dy); } }',

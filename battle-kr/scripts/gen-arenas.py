@@ -844,6 +844,110 @@ def aurora():
     return im
 
 
+def deepsea():
+    """해저 신전 (교환소): 위에서 내리쬐는 빛줄기, 깊어지는 푸른 물, 무너진 신전 기둥, 산호·해초, 모래 바닥"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#2a8ac0', '#2278b0', '#1c68a0', '#185a90', '#144c80', '#104070', '#0c3462'])
+    for k, x0 in enumerate([30, 92, 150, 214]):   # 빛줄기 (사선, 2px 계단)
+        for y in range(0, 70, 2):
+            x = x0 + y // 3
+            d.rectangle([x, y, x + 5 - y // 20, y + 1], fill=['#3a9ad0', '#3496c8', '#3a9ad0', '#2e8ac0'][k])
+    rnd = random.Random(63)
+    for _ in range(30):   # 떠다니는 알갱이
+        d.point((rnd.randint(0, W - 1), rnd.randint(0, 70)), fill=rnd.choice(['#6ac0e8', '#4aa8d8']))
+    # 신전: 계단 받침 + 기둥 5개(둘은 부러짐) + 지붕 조각
+    d.rectangle([132, 66, 236, 70], fill='#4a7a9a'); d.rectangle([128, 70, 240, 74], fill='#3a6a8a')
+    for k, hgt in enumerate([34, 20, 34, 34, 12]):
+        x = 138 + k * 20
+        d.rectangle([x, 66 - hgt, x + 8, 66], fill='#7aa8c0'); d.rectangle([x + 6, 66 - hgt, x + 8, 66], fill='#5a88a0')
+        d.rectangle([x - 1, 66 - hgt - 2, x + 9, 66 - hgt], fill='#8ab8d0')
+    d.rectangle([136, 28, 214, 32], fill='#8ab8d0'); d.rectangle([136, 32, 214, 34], fill='#5a88a0')
+    for x in range(6, 120, 22):   # 해초 (흔들리는 줄기 모양)
+        for y in range(48, 76, 2):
+            dx = 1 if (y // 4) % 2 else 0
+            d.rectangle([x + dx, y, x + dx + 1, y + 1], fill='#2a8a5a' if y % 4 else '#3aa86a')
+    bands(d, 76, H, ['#d8c890', '#d0c088', '#c8b880', '#c0b078', '#b8a870', '#b0a068'])
+    for y in range(78, H, 4):
+        for x in range((y * 7) % 11, W, 11):
+            d.line([(x, y), (x + 3, y)], fill='#c0b070')
+    for x, col in [(20, '#e86a7a'), (98, '#f0a050'), (120, '#c86ae0'), (240, '#e86a7a')]:   # 산호
+        d.rectangle([x, 70, x + 2, 80], fill=col); d.rectangle([x - 4, 72, x - 2, 76], fill=col); d.rectangle([x + 4, 68, x + 6, 74], fill=col)
+        d.rectangle([x - 4, 76, x + 2, 77], fill=col); d.rectangle([x + 2, 74, x + 6, 75], fill=col)
+    for _ in range(16):   # 조개·돌
+        x, y = rnd.randint(0, W - 4), rnd.randint(84, H - 3)
+        d.rectangle([x, y, x + 2, y + 1], fill=rnd.choice(['#f0e8d0', '#a89868']))
+    ellipse_platform(d, 196, 86, 46, 9, '#a8d0e0', '#78a8c0', '#4a7890')
+    ellipse_platform(d, 62, 132, 62, 11, '#a8d0e0', '#78a8c0', '#4a7890')
+    return im
+
+
+def skypillar():
+    """구름 위 탑 (교환소): 맑고 높은 하늘, 구름 바다 위로 솟은 먼 탑, 구름 위에 떠 있는 돌 발판"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 80, ['#2a6ad8', '#3a7ae0', '#4a8ae6', '#5c9aec', '#70aaf0', '#88baf4', '#a0caf6', '#bcdaf8'])
+    d.ellipse([28, 10, 48, 30], fill='#fff8d0'); d.ellipse([32, 14, 44, 26], fill='#ffffff')
+    # 먼 탑: 층마다 넓어지는 원통 + 꼭대기 첨탑
+    for k, (y, w) in enumerate([(10, 8), (18, 10), (28, 12), (40, 14), (54, 16), (68, 18)]):
+        x = 176 - w // 2
+        d.rectangle([x, y, x + w, y + 12], fill='#8a7ab0'); d.rectangle([x + w - 3, y, x + w, y + 12], fill='#6a5a90')
+        d.rectangle([x - 1, y, x + w + 1, y + 1], fill='#b0a0d0')
+        if k % 2: d.rectangle([x + w // 2 - 1, y + 4, x + w // 2 + 1, y + 7], fill='#ffe080')
+    d.polygon([(172, 10), (176, 0), (180, 10)], fill='#b0a0d0')
+    rnd = random.Random(88)
+    def cloud_row(y0, c_top, c_mid, c_low, step, seed):
+        r = random.Random(seed)
+        x = -10
+        while x < W + 10:
+            w = r.randint(18, 34); h = r.randint(6, 10)
+            d.ellipse([x, y0 - h, x + w, y0 + h], fill=c_mid)
+            d.ellipse([x + 3, y0 - h, x + w - 6, y0], fill=c_top)
+            x += step + r.randint(-4, 6)
+        d.rectangle([0, y0, W, y0 + 6], fill=c_mid); d.rectangle([0, y0 + 6, W, y0 + 10], fill=c_low)
+    cloud_row(70, '#ffffff', '#e8f0fc', '#d0dcf4', 22, 1)
+    bands(d, 80, H, ['#e8f0fc', '#e0eaf8', '#d8e4f6', '#d0dcf4', '#c8d6f0', '#c0d0ee'])
+    for y in range(82, H, 4):   # 구름 결
+        for x in range((y * 7) % 15, W, 15):
+            d.line([(x, y), (x + 5, y)], fill='#ffffff' if y % 8 else '#b8c8e8')
+    for _ in range(5):   # 작은 새
+        x, y = rnd.randint(60, 150), rnd.randint(14, 44)
+        d.point((x, y), fill='#3a4a7a'); d.point((x - 1, y - 1), fill='#3a4a7a'); d.point((x + 1, y - 1), fill='#3a4a7a')
+    ellipse_platform(d, 196, 86, 46, 9, '#c8c0d8', '#a098b8', '#706890')
+    ellipse_platform(d, 62, 132, 62, 11, '#c8c0d8', '#a098b8', '#706890')
+    return im
+
+
+def neon():
+    """네온 시티 (교환소): 밤 도시의 빌딩 숲과 불 켜진 창, 네온 간판, 비에 젖어 빛을 비추는 광장"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 74, ['#120a2a', '#1a0e36', '#220f42', '#2a124c', '#341456', '#40185e', '#4e1c66'])
+    rnd = random.Random(19)
+    x = -4
+    while x < W:   # 빌딩 (높이·폭 제각각) + 창
+        w = rnd.randint(16, 30); top = rnd.randint(14, 46)
+        col = rnd.choice(['#1a1430', '#221a3c', '#16122a'])
+        d.rectangle([x, top, x + w, 76], fill=col); d.rectangle([x, top, x + w, top + 1], fill='#3a2e5a')
+        for wy in range(top + 4, 72, 5):
+            for wx in range(x + 3, x + w - 2, 4):
+                if rnd.random() < 0.45: d.rectangle([wx, wy, wx + 1, wy + 2], fill=rnd.choice(['#ffe08a', '#8ae0ff', '#ffb0e0']))
+        x += w + rnd.randint(0, 4)
+    for x0, y0, w, col in [(24, 40, 22, '#ff4ab8'), (110, 30, 26, '#4af0ff'), (200, 44, 20, '#ffe04a')]:   # 네온 간판 (테두리 + 글자 줄)
+        d.rectangle([x0, y0, x0 + w, y0 + 10], fill='#0e0a1e'); d.rectangle([x0, y0, x0 + w, y0 + 10], outline=col)
+        for k in range(x0 + 3, x0 + w - 2, 4): d.rectangle([k, y0 + 4, k + 1, y0 + 6], fill=col)
+    bands(d, 76, H, ['#2a2440', '#26203a', '#221c34', '#1e182e', '#1a1428', '#161022'])
+    for y in range(80, H, 6):   # 젖은 바닥에 비친 불빛 (세로 짧은 줄)
+        for x in range((y * 9) % 23, W, 23):
+            d.line([(x, y), (x, y + 2)], fill=rnd.choice(['#ff4ab8', '#4af0ff', '#ffe04a', '#5a4a8a']))
+    for y in range(78, H, 3):
+        for x in range((y * 5) % 13, W, 13):
+            d.point((x, y), fill='#3a3256')
+    ellipse_platform(d, 196, 86, 46, 9, '#5a5080', '#40386a', '#241e40')
+    ellipse_platform(d, 62, 132, 62, 11, '#5a5080', '#40386a', '#241e40')
+    return im
+
+
 def extend_top(im, extra, stars=True):
     w, h = im.size
     out = Image.new('RGB', (w, h + extra))
@@ -864,7 +968,7 @@ if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [('field', field), ('tower', tower), ('factory', factory), ('pwt', stadium), ('champion', champion),
                      ('cave', cave), ('beach', beach), ('snow', snow), ('volcano', volcano), ('gym', gym),
-                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry), ('sakura', sakura), ('desert', desert), ('aurora', aurora)]:
+                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry), ('sakura', sakura), ('desert', desert), ('aurora', aurora), ('deepsea', deepsea), ('skypillar', skypillar), ('neon', neon)]:
         im = fn()
         if name != 'title':
             im = extend_top(im, 48, stars=name not in ('cave', 'gym', 'palace', 'rush'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림

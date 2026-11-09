@@ -20,7 +20,7 @@ export interface Stats {
 	seasons: { id: string; fmt: string; rp: number; tier: string }[];
 	/** 오늘의 도전: 날짜 → 최고 승수, 연속 참가 */
 	daily: { [date: string]: number }; dailyStreak: number; dailyLast: string;
-	/** 지방 정복: 지방 → 1 보통 · 2 어려움 클리어 / 보스 러시: 코스 → 최고 단계 */
+	/** 지방 클리어: 지방 → 1 보통 · 2 어려움 클리어 / 보스 러시: 코스 → 최고 단계 */
 	conquest: { [region: string]: 1 | 2 }; boss: { [course: string]: number };
 }
 const KEY = 'stats';
@@ -199,8 +199,8 @@ export const ACHIEVEMENTS: Ach[] = [
 	// 도전
 	{ id: 'daily', name: '오늘의 도전 개근', desc: '오늘의 도전 {n}일 연속 참가', cat: '도전', steps: [3, 7, 30], value: s => s.c.dailyStreakMax || 0 },
 	{ id: 'dailyPerfect', name: '오늘의 완주', desc: '오늘의 도전 7연승 {n}회', cat: '도전', steps: [1, 10], value: s => Object.values(s.daily).filter(v => v >= 7).length },
-	{ id: 'conquest', name: '지방 정복', desc: '보스 러시 › 지방 정복 {n}곳 완주', cat: '도전', steps: [1, 4, 9], value: s => Object.keys(s.conquest).length },
-	{ id: 'conquestHard', name: '진심 정복', desc: '어려움으로 지방 정복 {n}곳 완주', cat: '도전', steps: [1, 4], value: s => Object.values(s.conquest).filter(v => v === 2).length },
+	{ id: 'conquest', name: '지방 클리어', desc: '보스 러시 › 지방 클리어 {n}곳 완주', cat: '도전', steps: [1, 4, 9], value: s => Object.keys(s.conquest).length },
+	{ id: 'conquestHard', name: '진심 클리어', desc: '어려움으로 지방 클리어 {n}곳 완주', cat: '도전', steps: [1, 4], value: s => Object.values(s.conquest).filter(v => v === 2).length },
 	{ id: 'boss', name: '보스 러시 돌파', desc: '보스 러시 시나리오 코스 {n}개 완주', cat: '도전', steps: [1, 2], value: s => Object.entries(s.boss).filter(([k, v]) => v >= (BOSS_LEN[k] || 99)).length },
 	// 수집
 	{ id: 'used', name: '백 가지 동료', desc: '서로 다른 포켓몬 {n}종으로 배틀', cat: '수집', steps: [30, 100, 300], value: s => Object.keys(s.used).length },
