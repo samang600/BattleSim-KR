@@ -144,12 +144,15 @@ type LobbyAction = { create: true } | { room: RoomCard } | { code: true } | { ra
 function LobbyScreen({ done }: { done: (a: LobbyAction) => void }) {
 	const [rooms, setRooms] = useState<RoomCard[] | null>(null);
 	const [ok, setOk] = useState(true);
-	useEffect(() => watchLobby(setRooms, setOk), []);
+	const [rev, setRev] = useState(0);   // 새로 고침: 로비 연결을 다시 열어 목록을 새로 받음
+	const [busy, setBusy] = useState(false);
+	useEffect(() => watchLobby(l => { setRooms(l); setBusy(false); }, setOk), [rev]);
+	const refresh = () => { if (busy) return; setBusy(true); setRooms(null); setRev(r => r + 1); setTimeout(() => setBusy(false), 4000); };
 	return <Screen title="온라인 로비" onBack={() => done(BACK)} cls="wide-scr lobby-scr" top>
 		<div class="lb-actions">
 			<button class="btn primary" onClick={() => done({ create: true })}>＋ 방 만들기</button>
 			<button class="btn" onClick={() => done({ code: true })}>🔑 코드로 들어가기</button>
-			<button class="btn" onClick={() => done({ random: true })}>🎲 랜덤 대전</button>
+			<button class="btn" disabled={busy} onClick={refresh}>{busy ? '불러오는 중…' : '↻ 새로 고침'}</button>
 		</div>
 		<details class="lb-rules"><summary>대전 안내 (v{APP_VERSION})</summary>
 			<p class="hint">같은 앱 버전끼리 대전해요. 기록에는 남지 않아요. 시간: 고르기 90초 · 한 번 선택 45초 · 내 시간 7분 · 대전 20분 (끝나면 남은 포켓몬 수 → HP 비율로 판정). 끊겨도 1분 안에 돌아오면 이어서 해요.</p></details>

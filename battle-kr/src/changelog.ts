@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.68.2', date: '2026-11-10', title: '로비 새로 고침', items: [
+		['up', '온라인 로비 위의 「랜덤 대전」 대신 「새로 고침」 버튼 — 열린 방 목록을 다시 받아요'],
+	] },
 	{ ver: '2.68.1', date: '2026-11-10', title: '온라인 대전 보상', items: [
 		['up', '온라인 대전 보상이 한 판에 5 BP 로 늘었어요 (이기든 지든, 하루 10판까지)'],
 	] },
