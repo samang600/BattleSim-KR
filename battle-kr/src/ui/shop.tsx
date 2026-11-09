@@ -1,7 +1,7 @@
 /** BP 교환소 · 트레이너 카드 꾸미기 · 지방 배지 · 승리 연출 (보상 시스템 화면, src/rewards.ts) */
 import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
-import { Screen, MiniSprite, ItemIcon, toast, Modal, HPBar, TYPE_COLOR } from './core';
+import { Screen, MiniSprite, toast, Modal, HPBar, TYPE_COLOR } from './core';
 import { loadWallet, onWallet, titleItem, DEFAULT_TITLE, ITEMS, SLOT_INFO, owns, buy, equip, itemById, weeklyStatus, WEEK_ALL_BP, regionBadges, partnerMon, type Item, type Slot, type Wallet } from '../rewards';
 import { loadStats } from '../stats';
 import { loadSettings } from '../store';
@@ -72,19 +72,6 @@ export function CardExtras() {
 	</div>;
 }
 
-// ───────── 승리 연출 ─────────
-export function WinFx({ kind }: { kind: string }) {
-	if (kind === 'win:confetti') {
-		const cols = ['#ff5a5a', '#ffd84a', '#5ad8ff', '#7aff7a', '#ff8ae0', '#ffffff'];
-		return <div class="win-fx confetti" aria-hidden="true">{Array.from({ length: 36 }, (_, i) => <i style={{ left: `${(i * 37) % 100}%`, background: cols[i % cols.length], animationDelay: `${(i % 9) * 0.12}s`, animationDuration: `${1.6 + (i % 5) * 0.2}s` }} />)}</div>;
-	}
-	if (kind === 'win:stars') {
-		return <div class="win-fx stars" aria-hidden="true">{Array.from({ length: 22 }, (_, i) => <i style={{ left: `${(i * 41 + 7) % 96}%`, top: `${(i * 23 + 5) % 90}%`, animationDelay: `${(i % 7) * 0.15}s` }} />)}</div>;
-	}
-	if (kind === 'win:flag') return <div class="win-fx flag" aria-hidden="true"><div class="win-flag"><span>WIN!</span></div></div>;
-	return null;
-}
-
 // ───────── 칭호 띠 ─────────
 const lum = (hex: string) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * .299 + (n >> 8 & 255) * .587 + (n & 255) * .114) / 255; };
 /** 칭호 색: '#hex' · 'type:Water'(타입 색) · 'reg:관동'(지방 색) */
@@ -104,7 +91,7 @@ const TABS: { id: string; name: string; slots: Slot[] }[] = [
 	{ id: 'title', name: '칭호', slots: ['title'] },
 	{ id: 'card', name: '카드', slots: ['cardBg', 'frame', 'star'] },
 	{ id: 'trainer', name: '트레이너', slots: ['trainer'] },
-	{ id: 'fx', name: '연출', slots: ['ball', 'win', 'hp'] },
+	{ id: 'fx', name: 'HP 창', slots: ['hp'] },
 	{ id: 'av', name: '배경·음악', slots: ['bg', 'bgm'] },
 ];
 function Preview({ it }: { it: Item }) {
@@ -114,8 +101,6 @@ function Preview({ it }: { it: Item }) {
 		case 'frame': { const c = it.v!.split(','); return <span class="pv-frame" style={{ '--fr1': c[0], '--fr2': c[1] } as any} />; }
 		case 'star': return <span class="pv-star">{it.v}{it.v}{it.v}</span>;
 		case 'trainer': return <img class="pv-trainer" src={SPRITE_URL(it.v!)} onError={trainerImgError} alt="" loading="lazy" />;
-		case 'ball': return <span class="pv-ball"><ItemIcon item={it.v!} /></span>;
-		case 'win': return <span class={'pv-win ' + it.id.slice(4)}><i /><i /><i /><i /><i /></span>;
 		case 'hp': return <span class={'pv-hpbox mini hpt-' + it.v}><HpMock name="피카츄" hp={78} /></span>;
 		case 'bg': return <span class={'arena-thumb pv-bg bg-' + it.v}><span class="arena-bg" /></span>;
 		case 'bgm': return <span class="pv-bgm">♪</span>;
@@ -150,11 +135,8 @@ function CardMock({ it, w }: { it: Item; w: Wallet }) {
 }
 /** 크게 미리보기 (구매 확인 창) */
 function BigPreview({ it, w }: { it: Item; w: Wallet }) {
-	const [n, setN] = useState(0);   // 볼·승리 연출 다시 보기
 	switch (it.slot) {
 		case 'title': case 'cardBg': case 'frame': case 'star': case 'trainer': return <CardMock it={it} w={w} />;
-		case 'ball': return <div class="pv-stage pv-ballstage" key={n} onClick={() => setN(n + 1)}><span class="pv-ball-big"><ItemIcon item={it.v!} /></span><small>눌러서 다시 보기</small></div>;
-		case 'win': return <div class="pv-stage arena-thumb bg-field" key={n} onClick={() => setN(n + 1)}><span class="arena-bg" /><WinFx kind={it.id} /><small class="pv-again">눌러서 다시 보기</small></div>;
 		case 'hp': return <div class={'pv-stage arena-thumb bg-field hpt-' + it.v}><span class="arena-bg" />
 			<div class="pv-hp-foe"><HpMock name="리자몽" hp={64} own={false} /></div><div class="pv-hp-own"><HpMock name="피카츄" hp={88} /></div></div>;
 		case 'bg': return <div class={'pv-stage arena-thumb bg-' + it.v}><span class="arena-bg" /></div>;

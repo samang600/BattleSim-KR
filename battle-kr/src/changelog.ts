@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.60.1', date: '2026-11-09', title: '교환소 정리', items: [
+		['fix', '교환소에서 볼 연출·승리 연출을 뺐어요 — 이미 산 것은 BP 로 돌려드려요'],
+	] },
 	{ ver: '2.60.0', date: '2026-11-09', title: '교환소 미리보기 · 칭호 대량 추가', items: [
 		['new', '교환소 상품을 누르면 실제 모습을 크게 미리 보고(음악은 들어 보고) 교환·장착할 수 있어요'],
 		['new', '칭호 90여 개: 「물 타입 체육관 관장」「불꽃 타입 사천왕」 같은 타입별 칭호, 지방 챔피언, 프런티어, 업적 칭호 — 칭호마다 색이 달라요'],

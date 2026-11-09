@@ -24,6 +24,14 @@ const emptyWallet = (): Wallet => ({ bp: 0, total: 0, own: {}, eq: {}, frac: 0, 
 export function loadWallet(): Wallet { return { ...emptyWallet(), ...load<Partial<Wallet>>(WKEY, {}) }; }
 function saveWallet(w: Wallet) { save(WKEY, w); listeners.forEach(f => f(w)); }
 const listeners = new Set<(w: Wallet) => void>();
+/** v2.61: 볼·승리 연출 상품을 없애면서 산 BP 를 돌려줌 (한 번) */
+const GONE: { [id: string]: number } = { 'ball:greatball': 20, 'ball:ultraball': 30, 'ball:premierball': 30, 'ball:luxuryball': 40, 'ball:duskball': 40, 'ball:dreamball': 50, 'ball:beastball': 60, 'ball:cherishball': 70, 'ball:masterball': 100, 'win:confetti': 50, 'win:stars': 50, 'win:flag': 60 };
+(function refundGone() {
+	const w = loadWallet(); let n = 0;
+	for (const id in w.own) if (id in GONE) { n += GONE[id]; delete w.own[id]; }
+	const eq = w.eq.ball || w.eq.win; delete w.eq.ball; delete w.eq.win;
+	if (n || eq) { w.bp += n; save(WKEY, w); }
+})();
 export function onWallet(f: (w: Wallet) => void) { listeners.add(f); return () => { listeners.delete(f); }; }
 
 /** BP 얻기 (화면 아래에 도트 동전과 함께 잠깐 표시) */
@@ -90,7 +98,7 @@ onBattleEnd((setup, battle, win) => {
 });
 
 // ───────── 교환소 상품 ─────────
-export type Slot = 'title' | 'cardBg' | 'frame' | 'star' | 'trainer' | 'ball' | 'win' | 'hp' | 'bg' | 'bgm' | 'home' | 'buddy';
+export type Slot = 'title' | 'cardBg' | 'frame' | 'star' | 'trainer' | 'hp' | 'bg' | 'bgm' | 'home' | 'buddy';
 export interface Item {
 	id: string; slot: Slot; name: string; price?: number; desc?: string;
 	/** 업적 전용: 조건을 채우면 공짜로 열림 (BP 로 못 삼) */ cond?: (s: Stats) => boolean; condText?: string;
@@ -103,8 +111,6 @@ export const SLOT_INFO: { [k in Slot]: { name: string; desc: string } } = {
 	frame: { name: '카드 테두리', desc: '트레이너 카드 도트 테두리' },
 	star: { name: '별 모양', desc: '트레이너 카드 등급 표시' },
 	trainer: { name: '트레이너 모습', desc: '주인공 모습에 추가' },
-	ball: { name: '볼 연출', desc: '내 포켓몬이 나올 때 볼' },
-	win: { name: '승리 연출', desc: '배틀에서 이겼을 때' },
 	hp: { name: 'HP 창 테마', desc: '배틀 HP 창 색' },
 	bg: { name: '배틀 배경', desc: '배경 고르기에 추가' },
 	bgm: { name: '배틀 음악', desc: '음악 고르기에 추가' },
@@ -190,14 +196,6 @@ export const ITEMS: Item[] = [
 	{ id: 'st:heart', slot: 'star', name: '하트', price: 20, v: '♥' },
 	{ id: 'st:club', slot: 'star', name: '클로버', price: 20, v: '♣' },
 	{ id: 'st:spade', slot: 'star', name: '스페이드', price: 20, v: '♠' },
-	// 볼 연출 (내 포켓몬이 나올 때 항상 이 볼)
-	...([['greatball', '슈퍼볼', 20], ['ultraball', '하이퍼볼', 30], ['premierball', '프레미어볼', 30], ['luxuryball', '럭셔리볼', 40], ['duskball', '다크볼', 40],
-		['dreamball', '드림볼', 50], ['beastball', '울트라볼', 60], ['cherishball', '프레셔스볼', 70], ['masterball', '마스터볼', 100]] as [string, string, number][])
-		.map(([b, n, p]) => ({ id: 'ball:' + b, slot: 'ball' as Slot, name: n, price: p, v: b })),
-	// 승리 연출
-	{ id: 'win:confetti', slot: 'win', name: '도트 꽃가루', price: 50, desc: '네모난 꽃가루가 쏟아짐' },
-	{ id: 'win:stars', slot: 'win', name: '반짝이는 별', price: 50, desc: '화면 가득 별이 반짝임' },
-	{ id: 'win:flag', slot: 'win', name: '승리 깃발', price: 60, desc: '승리 깃발이 내려옴' },
 	// HP 창 테마
 	{ id: 'hp:ruby', slot: 'hp', name: '루비', price: 40, v: 'ruby', desc: '보석 결 무늬 · 반짝임' },
 	{ id: 'hp:sapphire', slot: 'hp', name: '사파이어', price: 40, v: 'sapphire', desc: '물결 무늬 · 빛 지나감' },
