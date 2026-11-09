@@ -255,7 +255,8 @@ function RoomView({ box, act }: { box: RoomBox; act: (a: RoomAct) => void }) {
 	const [rules, setRules] = useState(false);
 	const [text, setText] = useState('');
 	const logRef = useRef<HTMLDivElement>(null);
-	useEffect(() => { const f = () => tick(x => x + 1); box.subs.add(f); return () => { box.subs.delete(f); }; }, []);
+	// 구독 직후 한 번 다시 그림: 화면이 뜬 뒤 구독하기 전에 온 방 정보(배틀 뒤 'again' 응답 등)를 놓치지 않게
+	useEffect(() => { const f = () => tick(x => x + 1); box.subs.add(f); f(); return () => { box.subs.delete(f); }; }, []);
 	useEffect(() => { const el = logRef.current; if (el) el.scrollTop = el.scrollHeight; }, [box.chat.length]);
 	const info = box.info;
 	if (!info) return <Screen title="방" onBack={() => act({ leave: true })} cls="wide-scr"><div class="online-wait"><p class="hint">방에 들어가는 중…</p></div></Screen>;

@@ -306,6 +306,12 @@ export class Room extends DurableObject<Env> {
 			for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'chat', ...msg });
 			return;
 		}
+		const resetBattle = () => {   // 배틀이 끝난 로비 방을 대기실 상태로
+			s.seed = undefined; s.inputs = []; s.ended = false; s.startedAt = undefined; s.spent = undefined; s.away = {};
+			for (const sd of ['p1', 'p2'] as Side[]) if (s.players[sd]) { s.players[sd]!.ready = false; s.players[sd]!.picked = undefined; }
+		};
+		// 배틀 결과 화면에서 바로 나감: 아무도 'again' 을 안 눌렀어도 대기실로 돌린 뒤 나가기 처리 (안 그러면 1분 동안 자리가 안 빔)
+		if (m.t === 'leave' && s.lobby && s.seed && s.ended && !s.closed) resetBattle();
 		if (s.lobby && !s.seed) {   // 로비 방 대기 중: 파티·규칙·준비·나가기
 			const p = s.players[side]!;
 			const picking = !!(s.players.p1?.ready && s.players.p2?.ready);   // 둘 다 준비 → 고르는 중에는 파티·규칙을 바꾸지 않음
@@ -342,9 +348,10 @@ export class Room extends DurableObject<Env> {
 			}
 		}
 		if (m.t === 'again') {   // 배틀이 끝난 로비 방: 다시 대기실로
-			if (!s.lobby || !s.ended || s.closed) return;
-			s.seed = undefined; s.inputs = []; s.ended = false; s.startedAt = undefined; s.spent = undefined; s.away = {};
-			for (const sd of ['p1', 'p2'] as Side[]) if (s.players[sd]) { s.players[sd]!.ready = false; s.players[sd]!.picked = undefined; }
+			if (!s.lobby || s.closed) return;
+			// 이미 대기실로 돌아가 있으면(상대가 먼저 돌아갔거나 나감) 지금 방 상태만 다시 보냄 — 결과 화면에 있는 동안 온 방 정보를 앱이 놓쳤을 수 있음
+			if (!s.ended) { if (!s.seed) this.send(ws, this.roomInfo(side)); return; }
+			resetBattle();
 			await this.save(); await this.schedule(); this.broadcastRoom();
 			return;
 		}
