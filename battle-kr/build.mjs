@@ -10,6 +10,7 @@
 import { execSync } from 'child_process';
 import * as esbuild from 'esbuild';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,6 +39,10 @@ const shimPlugin = {
 
 if (!args.has('--test')) fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
+const PKG_VERSION = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8')).version;
+/** 이 화면 코드가 필요로 하는 앱(안드로이드) 기능 번호. 새 네이티브 기능(BattleSimNative 의 새 함수 등)을 쓰기 시작하면 올리고,
+ *  MainActivity.NATIVE_API 도 같이 올려 APK 를 새로 낸다 — 번호가 낮은 옛 앱은 이 화면을 자동으로 받지 않음 */
+const OTA_NATIVE = 1;
 const lite = !args.has('--full'); // 기본은 저용량판(그림·울음소리·애니메이션은 인터넷 또는 설정에서 받은 오프라인 묶음), --full 이면 앱에 포함
 // 저용량판: 그림·울음소리·애니메이션을 앱에 넣지 않고 인터넷에서 받음 (애니메이션은 jsDelivr 의 저장소 파일)
 // 저장소 주소: GH_REPO 환경변수(예: myname/battlesim-kr) → git origin 주소 → 기본값 순서로 정함 (새 저장소로 옮겨도 그대로 동작)
@@ -94,6 +99,16 @@ if (!fs.existsSync(path.join(HERE, 'public/sprites/gen5'))) console.warn('⚠ pu
 // 관현악 배경음악(public/bgm mp3)은 빼고 칩튠판만 씀 → 앱에 넣지 않음
 fs.cpSync(path.join(HERE, 'public'), OUT, { recursive: true, filter: src => !/[\\/]public[\\/]bgm(?:[\\/]|$)/.test(src) && (!lite || !/[\\/]public[\\/](sprites|cries|anims)(?:[\\/]|$)/.test(src)) });
 console.log(`battle-kr/dist/index.html ${(html.length / 1024 / 1024).toFixed(2)} MB`);
+
+// 앱 화면 자동 업데이트용 목록 (android OtaCore): 버전 · 앱 쪽 기능 번호(native) · 파일마다 크기와 sha256
+// 앱은 정식 웹(web 브랜치 → GitHub Pages)의 version.json 을 보고, 버전이 더 높으면 파일을 받아 검사한 뒤 다음 실행부터 씀
+{
+	const files = [];
+	const walk = (d, rel = '') => { for (const f of fs.readdirSync(d)) { const full = path.join(d, f), r = rel + f; if (fs.statSync(full).isDirectory()) walk(full, r + '/'); else if (r !== 'version.json') files.push(r); } };
+	walk(OUT);
+	const manifest = { version: PKG_VERSION, native: OTA_NATIVE, files: files.sort().map(p => { const b = fs.readFileSync(path.join(OUT, p)); return { p, s: b.length, h: crypto.createHash('sha256').update(b).digest('hex') }; }) };
+	fs.writeFileSync(path.join(OUT, 'version.json'), JSON.stringify(manifest));
+}
 
 if (args.has('--android')) {
 	const assets = path.join(HERE, 'android/app/src/main/assets/www');

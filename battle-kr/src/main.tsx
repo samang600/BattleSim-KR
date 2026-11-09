@@ -188,6 +188,32 @@ function OfflinePack() {
 	</div>;
 }
 
+/** 설정 → 앱 업데이트 (안드로이드 앱만): 지금 화면 버전, 업데이트 확인 */
+function AppUpdate() {
+	const nat = (window as any).BattleSimNative;
+	const read = () => { try { return JSON.parse(nat.otaStatus()); } catch { return null; } };
+	const [st, setSt] = useState<any>(read);
+	const [busy, setBusy] = useState(false);
+	if (!st) return null;
+	const check = () => {
+		setBusy(true);
+		(window as any).onOtaChecked = (r: string) => {
+			setBusy(false); setSt(read());
+			const [k, v] = [r.slice(0, r.indexOf(':')), r.slice(r.indexOf(':') + 1)];
+			if (k === 'none') toast(`최신 버전이에요 (v${st.version})`);
+			else if (k === 'ready') { void confirmBox('앱 업데이트', `새 버전 v${v} 을 받아 두었어요.\n지금 다시 시작할까요?`, '다시 시작', '나중에').then(ok => ok && nat.restartApp()); }
+			else toast('확인하지 못했어요. 인터넷 연결을 확인해 주세요');
+		};
+		nat.checkUpdate();
+	};
+	return <>
+		<h3 class="sec">앱 업데이트</h3>
+		<p class="small">화면 v{APP_VERSION} {st.source === 'ota' ? '(자동 업데이트로 받음)' : ''}{st.source === 'ota' && st.version !== APP_VERSION ? ` ⚠ 앱은 v${st.version} 을 쓰려 했지만 적용되지 않았어요` : ''}{st.ready ? ` · 새 버전 v${st.ready} 받아 둠 — 다시 시작하면 적용` : ''}</p>
+		<div class="seg"><button disabled={busy} onClick={check}>{busy ? '확인하는 중…' : '업데이트 확인'}</button>{st.ready && <button onClick={() => nat.restartApp()}>지금 다시 시작</button>}</div>
+		<p class="muted small">새 버전이 나오면 앱이 켜질 때 화면을 자동으로 받아 두고, 다시 시작하면 바뀌어요. 저장 데이터는 그대로예요. (앱 설치 파일 v{st.apk})</p>
+	</>;
+}
+
 // ── 데이터 백업: 안드로이드 앱은 시스템 파일 저장·열기 화면, 브라우저는 내려받기·파일 고르기 ──
 const backupName = () => `battle-kr-backup-${new Date().toISOString().slice(0, 10)}.json`;
 function backupSave() {
@@ -328,6 +354,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 			if (!(await confirmBox('전적 초기화', '연승 기록·대회 우승·네임드 승리·랭크 포인트·승패 기록을 모두 지웁니다.\n(팀·리플레이·설정은 그대로입니다) 정말 지울까요?', '모두 지우기', '취소'))) return;
 			remove('records'); toast('전적을 초기화했습니다.');
 		}}>전적 초기화</button></div>
+		{(window as any).BattleSimNative?.otaStatus && <AppUpdate />}
 		<h3 class="sec">데이터 백업</h3>
 		<div class="seg">
 			<button onClick={() => backupSave()}>파일로 내보내기</button>
@@ -384,7 +411,8 @@ function App() {
 	useEffect(() => { bindView(setModeView); applyTheme(loadSettings()); }, []);
 	// 웹: 새 버전으로 처음 열면 업데이트 소식 (메인 화면에 처음 왔을 때 한 번)
 	const [news, setNews] = useState(false);
-	useEffect(() => { if (route === 'home' && !(window as any).BattleSimNative && pendingChanges()) setNews(true); }, [route === 'home']);
+	// 앱: 화면 자동 업데이트로 새 버전이 적용된 경우에도 (APK 를 새로 깔았을 때는 안 띄움)
+	useEffect(() => { if (route === 'home' && (!(window as any).BattleSimNative || otaSource() === 'ota') && pendingChanges()) setNews(true); }, [route === 'home']);
 	// 내 포켓몬 그림을 다 읽었거나 바뀌면 다시 그림
 	const [, setSprRev] = useState(0);
 	useEffect(() => onUserSpritesChange(() => setSprRev(x => x + 1)) as any, []);
@@ -495,6 +523,26 @@ settleRankPending();   // 랭크 매치 도중 앱이 꺼졌으면 패배로
 settleSeason();        // 1주 시즌이 바뀌었으면 마감
 checkAchievements(true);
 render(<App />, document.getElementById('app')!);
+
+// ── 앱 화면 자동 업데이트 (안드로이드 MainActivity·OtaCore) ──
+// 화면이 떴다고 알림(새 화면이 시작에 두 번 실패하면 앱이 되돌림) · 새 화면을 받아 두었으면 다시 시작할지 물어봄 (배틀 중이면 끝난 뒤에)
+function otaSource(): string { try { return JSON.parse((window as any).BattleSimNative?.otaStatus?.() || '{}').source || ''; } catch { return ''; } }
+{
+	const nat = (window as any).BattleSimNative;
+	if (nat) {
+		setTimeout(() => { try { nat.bootOk?.(); } catch {} }, 1500);
+		let asked = false;
+		(window as any).onOtaReady = (info: { version: string }) => {
+			if (asked) return;
+			const ask = async () => {
+				if (document.querySelector('.battle, .opk, .lobby-scr')) { setTimeout(ask, 5000); return; }   // 배틀·고르기·온라인 방에서는 끝난 뒤에
+				asked = true;
+				if (await confirmBox('앱 업데이트', `새 버전 v${info.version} 을 받아 두었어요.\n지금 다시 시작하면 바로 바뀌어요. (나중에 앱을 다시 켜도 바뀌어요)`, '다시 시작', '나중에')) nat.restartApp?.();
+			};
+			ask();
+		};
+	}
+}
 // 줄바꿈: 'A · B' 의 가운뎃점이 줄 맨 앞에 오지 않게 (앞 공백을 줄바꿈 없는 공백으로), 'Z-A' 같은 하이픈 낱말은 끊지 않게(WJ). 화면에 새로 붙는 글자도 계속 고침
 {
 	const fix = (n: Node) => {

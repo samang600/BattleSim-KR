@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.68.0', date: '2026-11-10', title: '앱 자동 업데이트', items: [
+		['new', '안드로이드 앱이 켜질 때 새 버전 화면을 자동으로 받아 두고, 다시 시작하면 바로 바뀌어요 — 이제 APK 를 새로 깔지 않아도 돼요'],
+		['up', '설정 › 앱 업데이트에서 지금 버전 보기·업데이트 확인. 저장 데이터는 그대로예요'],
+	] },
 	{ ver: '2.67.0', date: '2026-11-09', title: '온라인 로비', items: [
 		['new', '온라인 대전이 로비식으로: 열린 방 목록에서 골라 들어가기, 방 만들기(공개 방 · 🔒 비밀번호 방)'],
 		['new', '방 안에서 채팅, 방장은 규칙·형식 바꾸기, 파티 바꾸기, 둘 다 「준비 완료」하면 엔트리 보고 고르기 → 배틀 → 같은 방에서 재대전'],
