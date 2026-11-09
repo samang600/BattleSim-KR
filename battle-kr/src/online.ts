@@ -17,7 +17,9 @@ export const SERVER = DEV ? 'battlesim-kr-dev.samang600.workers.dev' : 'battlesi
 const wsUrl = (path: string) => `wss://${SERVER}${path}`;
 
 type Side = 'p1' | 'p2';
-export interface StartInfo { t: 'start'; side: Side; seed: [number, number, number, number]; ruleId: string; doubles: boolean;
+/** 시간 (서버 기준, ms): 한 번 고르는 시간 · 내 시간 · 대전 시간 · 남은 내 시간(진영별) · 남은 대전 시간 */
+export interface Clock { turn: number; own: number; game: number; left: { p1: number; p2: number }; gameLeft: number }
+export interface StartInfo { t: 'start'; side: Side; seed: [number, number, number, number]; ruleId: string; doubles: boolean; clock?: Clock;
 	p1: { name: string; team: PSet[] }; p2: { name: string; team: PSet[] } }
 export interface RoomInfo { t: 'room'; code: string; side: Side | null; ruleId: string; doubles: boolean; pick: number; status: 'waiting' | 'battle' | 'ended';
 	players: { p1: string | null; p2: string | null }; online: { p1: boolean; p2: boolean }; picked: { p1: boolean; p2: boolean };
@@ -46,44 +48,60 @@ export const normCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '')
 export class OnlineRoom {
 	ws: WebSocket | null = null;
 	closed = false;
-	handlers: { room?: (r: RoomInfo) => void; preview?: (p: PreviewInfo) => void; start?: (s: StartInfo) => void; input?: (side: Side, choice: string, n: number) => void;
-		inputs?: (list: [Side, string][]) => void; error?: (msg: string) => void; status?: (connected: boolean) => void } = {};
+	handlers: { room?: (r: RoomInfo) => void; preview?: (p: PreviewInfo) => void; start?: (s: StartInfo) => void; input?: (side: Side, choice: string, n: number, clock?: Clock) => void;
+		inputs?: (list: [Side, string][], clock?: Clock) => void; error?: (msg: string) => void; status?: (connected: boolean) => void } = {};
 	private join: any;
 	private retries = 0;
+	private beat: any = 0;
+	private lastMsg = 0;
+	private onVis = () => { if (document.visibilityState === 'visible' && !this.closed && !this.join?.peek && (!this.ws || this.ws.readyState > 1)) { this.retries = 0; this.open(); } };
 	constructor(public code: string) {}
 	connect(join: { name: string; team?: PSet[]; ruleId?: string; doubles?: boolean; pick?: number; peek?: boolean }) {
 		this.join = join;
 		this.open();
+		// 하트비트: 10초마다 ping, 25초 동안 아무 소식이 없으면 끊고 다시 붙음 (잠자기에서 깨어난 뒤 등). 화면이 다시 보이면 바로 재접속
+		if (!join.peek) {
+			this.beat = setInterval(() => {
+				if (this.ws?.readyState !== 1) return;
+				this.send({ t: 'ping' });
+				if (Date.now() - this.lastMsg > 25000) { try { this.ws.close(); } catch {} }
+			}, 10000);
+			try { document.addEventListener('visibilitychange', this.onVis); } catch {}
+		}
 	}
 	private open() {
 		if (this.closed) return;
 		const ws = new WebSocket(wsUrl(`/ws?room=${this.code}`));
+		const old = this.ws;
 		this.ws = ws;
+		if (old && old.readyState < 2) try { old.close(); } catch {}
 		ws.onopen = () => {
-			this.retries = 0; this.handlers.status?.(true);
+			this.retries = 0; this.lastMsg = Date.now(); this.handlers.status?.(true);
 			ws.send(JSON.stringify({ t: this.join.peek ? 'peek' : 'join', token: deviceToken(), version: APP_VERSION, ...this.join }));
 		};
 		ws.onmessage = ev => {
-			let m: any; try { m = JSON.parse(String(ev.data)); } catch { return; }
-			if (m.t === 'room') this.handlers.room?.(m);
+			this.lastMsg = Date.now();
+				let m: any; try { m = JSON.parse(String(ev.data)); } catch { return; }
+				if (m.t === 'room') this.handlers.room?.(m);
 			else if (m.t === 'preview') this.handlers.preview?.(m);
 			else if (m.t === 'start') this.handlers.start?.(m);
-			else if (m.t === 'input') this.handlers.input?.(m.side, m.choice, m.n);
-			else if (m.t === 'inputs') this.handlers.inputs?.(m.list);
+			else if (m.t === 'input') this.handlers.input?.(m.side, m.choice, m.n, m.clock);
+			else if (m.t === 'inputs') this.handlers.inputs?.(m.list, m.clock);
 			else if (m.t === 'error') this.handlers.error?.(m.msg);
 		};
 		ws.onclose = () => {
+			if (this.ws !== ws) return;   // 이미 새 연결로 바뀜
 			this.handlers.status?.(false);
 			if (this.closed || this.join.peek) return;
 			// 끊기면 다시 (1·2·4·8초…, 최대 15초 간격)
 			const d = Math.min(15000, 1000 * 2 ** this.retries++);
-			setTimeout(() => this.open(), d);
+			setTimeout(() => { if (this.ws === ws) this.open(); }, d);   // 그새 다른 연결이 생겼으면 그만
 		};
 	}
 	/** 피크(방 정보만 보기)였던 연결을 실제 입장으로 바꿈 */
 	rejoin(join: { name: string; team: PSet[] }) { this.join = { ...join }; this.send({ t: 'join', token: deviceToken(), version: APP_VERSION, ...join }); }
 	send(m: any) { try { this.ws?.send(JSON.stringify(m)); } catch {} }
-	close() { this.closed = true; try { this.ws?.close(); } catch {} }
+	close() { this.closed = true; clearInterval(this.beat); try { document.removeEventListener('visibilitychange', this.onVis); } catch {} try { this.ws?.close(); } catch {} }
 }
 
 /** 랜덤 대전 매칭: 같은 형식·같은 앱 버전끼리 짝지어 방 코드를 받음 */
@@ -113,6 +131,11 @@ export class RemoteSession {
 	onDesync: ((msg: string) => void) | null = null;
 	private applied = 0;
 	private flip: boolean;
+	/** 시간: 서버가 알려 준 값 + 받은 시각(로컬) */
+	clock: Clock = { turn: 45000, own: 420000, game: 1200000, left: { p1: 420000, p2: 420000 }, gameLeft: 1200000 };
+	private clockAt = Date.now();
+	/** 지금 고르는 중이면 시작 시각 (고르는 시간은 내 시간에서 빠짐) */
+	turnStart = 0;
 	private battleProxy: any;
 	constructor(public info: StartInfo, public room: OnlineRoom) {
 		const start = info;
@@ -127,8 +150,9 @@ export class RemoteSession {
 		this.battleProxy = !this.flip ? real : new Proxy(real, {
 			get: (t, k) => k === 'p1' ? t.p2 : k === 'p2' ? t.p1 : k === 'sides' ? [t.p2, t.p1] : (typeof t[k] === 'function' ? t[k].bind(t) : t[k]),
 		});
-		room.handlers.input = (side, choice, n) => this.receive(side, choice, n);
-		room.handlers.inputs = list => list.forEach((x, i) => this.receive(x[0], x[1], i + 1));
+		if (info.clock) this.setClock(info.clock);
+		room.handlers.input = (side, choice, n, clock) => { if (clock) this.setClock(clock); this.receive(side, choice, n); };
+		room.handlers.inputs = (list, clock) => { if (clock) this.setClock(clock); list.forEach((x, i) => this.receive(x[0], x[1], i + 1)); };
 	}
 	private view(lines: string[] | null) { return !lines ? lines : this.flip ? lines.map(swapTok) : lines; }
 	get battle() { return this.battleProxy; }
@@ -140,22 +164,47 @@ export class RemoteSession {
 	get rule() { return this.local.rule; }
 	get record() { return this.flip ? { p1: this.local.record.p2, p2: this.local.record.p1 } : this.local.record; }
 	start(): string[] { return this.view(this.local.start())!; }
+	private setClock(c: Clock) { this.clock = c; this.clockAt = Date.now(); }
+	private get oppSide(): Side { return this.mySide === 'p1' ? 'p2' : 'p1'; }
+	/** 화면이 고르기를 시작할 때 (여러 번 불러도 처음 시각 유지) */
+	beginTurn() { if (!this.turnStart && !this.ended) this.turnStart = Date.now(); }
+	/** 남은 시간 (ms): 대전 · 내 시간(고르는 중이면 실시간으로 줄어듦) · 상대 시간 · 이번 선택(고르는 중일 때만) */
+	timers() {
+		const now = Date.now(), used = this.turnStart ? now - this.turnStart : 0;
+		const mine = Math.max(0, this.clock.left[this.mySide] - used);
+		return { game: Math.max(0, this.clock.gameLeft - (now - this.clockAt)), mine, opp: this.clock.left[this.oppSide],
+			turn: this.turnStart ? Math.max(0, Math.min(this.clock.turn, this.clock.left[this.mySide]) - used) : null };
+	}
+	/** 이번 선택 시간이 다 됨: 내 시간이 남았으면 자동 선택(default), 없으면 시간 초과 패배 */
+	timeout(): boolean {
+		if (this.ended || !this.turnStart) return false;
+		const t = this.timers();
+		if (t.mine <= 0) { this.send('forfeit timeout'); return true; }
+		if (this.local.canChoose(this.mySide, 'default')) { this.send('default'); return true; }
+		return false;
+	}
+	private send(choice: string) {
+		const ms = this.turnStart ? Date.now() - this.turnStart : 0;
+		this.turnStart = 0;
+		this.room.send({ t: 'choose', choice, ms });
+	}
 	/** 내 선택: 먼저 내 엔진에서 가능한지 보고 서버로 보냄 (실제 적용은 서버가 중계해 돌려줄 때). 안 되면 null */
 	choose(choice: string): string[] | null {
 		if (!this.local.canChoose(this.mySide, choice)) return null;
-		this.room.send({ t: 'choose', choice });
+		this.send(choice);
 		return [];
 	}
-	forfeit(): string[] { this.room.send({ t: 'choose', choice: 'forfeit' }); return []; }
+	forfeit(): string[] { this.send('forfeit'); return []; }
 	private receive(side: Side, choice: string, n: number) {
 		if (n <= this.applied) return;             // 이미 넣은 것 (재접속 때 다시 온 기록)
 		this.applied = n;
+		if (choice === 'tod' || choice.startsWith('forfeit')) this.turnStart = 0;
 		let out = this.local.applyInput(side, choice);
 		if (out === null) { this.onDesync?.('상대와 배틀 진행이 어긋났어요 (앱 버전이 다를 수 있어요)'); return; }
 		// 기권·연결 끊김: 승패 줄 앞에 무슨 일인지 알림
 		if (choice.startsWith('forfeit') && out.length) {
 			const name = this.info[side].name;
-			out = [`|-message|${choice === 'forfeit disconnect' ? josa(name, 'conjunctive') + '의 연결이 끊어졌다!' : josa(name, 'subject') + ' 기권했다!'}`, ...out];
+			out = [`|-message|${choice === 'forfeit disconnect' ? josa(name, 'conjunctive') + '의 연결이 끊어졌다!' : choice === 'forfeit timeout' ? name + '의 남은 시간이 0이 되었다!' : josa(name, 'subject') + ' 기권했다!'}`, ...out];
 		}
 		if (out.length) this.onLines?.(this.view(out)!);
 	}

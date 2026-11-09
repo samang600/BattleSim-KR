@@ -115,14 +115,15 @@ async function play(room: OnlineRoom, start: StartInfo, label: string) {
 		p2: { name: opp.name, title: '', team: opp.team, sprite: (opp as any).sprite || 'acetrainer' },
 	});
 	room.close();
-	await ask<void>(r => <InfoScreen title={label} heading={res.win ? '승리!' : '패배…'} lines={[`${opp.name}${res.win ? '에게 이겼다!' : '에게 졌다…'} (${res.turns}턴)`]}
+	const draw = rs.ended && !rs.winner;
+	await ask<void>(r => <InfoScreen title={label} heading={draw ? '무승부' : res.win ? '승리!' : '패배…'} lines={[`${opp.name}${draw ? '와(과) 비겼다' : res.win ? '에게 이겼다!' : '에게 졌다…'} (${res.turns}턴)`]}
 		actions={[{ label: '확인', onClick: () => r() }]} />);
 }
 
 export async function runOnline() {
 	while (true) {
 		const pick = await ask<'host' | 'join' | 'random' | typeof BACK>(r => <ChoiceScreen title="온라인 대전 (테스트)" onBack={() => r(BACK)}
-			intro={<p class="hint">같은 앱 버전(v{APP_VERSION})끼리 대전해요. 기록에는 남지 않아요. 배틀 도중 끊겨도 다시 들어오면 이어서 할 수 있어요.</p>}
+			intro={<p class="hint">같은 앱 버전(v{APP_VERSION})끼리 대전해요. 기록에는 남지 않아요. 시간: 고르기 90초 · 한 번 선택 45초 · 내 시간 7분 · 대전 20분(끝나면 남은 포켓몬 수 → HP 비율로 판정). 끊겨도 1분 안에 돌아오면 이어서 해요.</p>}
 			options={[
 				{ value: 'host' as const, label: '친구 대전 · 방 만들기', desc: '방 코드를 만들어 친구에게 알려 줌 · 지금 설정의 배틀 규칙', icon: '🏠' },
 				{ value: 'join' as const, label: '친구 대전 · 코드로 들어가기', desc: '친구가 알려 준 방 코드로 입장', icon: '🔑' },

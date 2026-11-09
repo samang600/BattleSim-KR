@@ -218,7 +218,22 @@ export class Session {
 	/** (온라인) 서버가 중계한 순서대로 한쪽 선택을 넣음. 두 쪽이 모이면 턴이 진행되고 그 줄을 돌려줌. 넣을 수 없으면 null */
 	applyInput(side: 'p1' | 'p2', choice: string): string[] | null {
 		if (this.ended) return [];
-		if (choice.startsWith('forfeit')) {   // 'forfeit' 기권 · 'forfeit disconnect' 연결 끊김 (서버가 넣음)
+		if (choice === 'tod') {   // 대전 시간 끝 (서버가 넣음): 남은 포켓몬 수 → 남은 HP 비율 평균 → 남은 HP 합, 같으면 무승부
+			const sc = (sd: 'p1' | 'p2') => { const ms: any[] = this.battle[sd].pokemon, al = ms.filter(p => p.hp > 0);
+				return [al.length, al.reduce((a, p) => a + p.hp / p.maxhp, 0) / Math.max(1, ms.length), al.reduce((a, p) => a + p.hp, 0)]; };
+			const a = sc('p1'), b = sc('p2');
+			let w: 'p1' | 'p2' | null = null, by = '';
+			for (let i = 0; i < 3 && !w; i++) if (Math.abs(a[i] - b[i]) > 1e-9) { w = a[i] > b[i] ? 'p1' : 'p2'; by = ['남은 포켓몬 수', '남은 HP 비율', '남은 HP 합계'][i]; }
+			const n1 = this.battle.p1.name, n2 = this.battle.p2.name;
+			this.battle.add('-message', '대전 시간이 다 되었다!');
+			this.battle.add('-message', `남은 포켓몬 ${n1} ${a[0]}마리 · ${n2} ${b[0]}마리 (HP ${Math.round(a[1] * 100)}% · ${Math.round(b[1] * 100)}%)`);
+			this.battle.add('-message', w ? `${by}(으)로 판정!` : '완전히 같아서 무승부!');
+			this.record[side].push(choice);
+			this.battle.forceWin(w as any);
+			this.battle.sendUpdates();
+			return this.flush();
+		}
+		if (choice.startsWith('forfeit')) {   // 'forfeit' 기권 · 'forfeit disconnect' 연결 끊김 · 'forfeit timeout' 내 시간 0 (서버가 넣음)
 			this.record[side].push('forfeit');
 			this.battle.forceWin(side === 'p1' ? 'p2' : 'p1');
 			this.battle.sendUpdates();

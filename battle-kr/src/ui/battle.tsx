@@ -867,6 +867,7 @@ function typeTint(type: string) {
 		setSlotIdx(first);
 		setMenu(req.forceSwitch ? 'switch' : 'main');
 		setPhase('input');
+		setup.online?.beginTurn();   // 온라인: 선택 시간·내 시간 재기 시작
 		const scene = sceneRef.current;
 		const mon = scene.p1.active[first];
 		if (req.forceSwitch) setMessage(req.side?.pokemon?.some((x: any) => x.reviving) ? '되살릴 포켓몬을 골라 주세요.' : '다음 포켓몬을 골라 주세요.');
@@ -978,6 +979,13 @@ function typeTint(type: string) {
 		}
 		if (setup.online) { setPhase('playing'); setMessage(`${setup.p2.name}${josaSubject(setup.p2.name)} 고르기를 기다리는 중…`); return; }
 		play(lines);
+	}
+
+	/** 온라인: 이번 선택 시간이 다 됨 → 자동 선택(내 시간이 0이면 시간 초과 패배) */
+	function onlineTimeout() {
+		if (!setup.online?.timeout()) return;
+		setSheet(null); setParts([]); setPhase('playing');
+		setMessage(setup.online.timers().mine <= 0 ? '남은 시간이 0이 되었다…' : '시간이 다 되어 자동으로 골랐다!');
 	}
 
 	function cancelChoice() {
@@ -1636,7 +1644,7 @@ function typeTint(type: string) {
 	const tapAnywhere = (e: any) => { if (phase === 'input') return; if ((e.target as HTMLElement)?.closest?.('button, a, input, .modal, .modal-bg')) return; skipRef.current?.(); };
 	return <div class={'battle bg-' + arenaBg + (setup.doubles ? ' doubles' : ' singles')} style={{ '--spd': FX.fxSpeed() } as any} onClick={tapAnywhere}>
 		<div class="hud-top">
-			<span class="badge">{setup.label || ''}</span>
+			{setup.online ? <OnlineClock rs={setup.online} onTimeout={onlineTimeout} /> : <span class="badge">{setup.label || ''}</span>}
 			<span class="badge">{scene.turn ? `${scene.turn}턴` : ''}</span>
 			<button class="badge speed-btn" onClick={e => { e.stopPropagation(); cycleSpeed(); }}>{SPEED_LABEL[settings.speed]}</button>
 			<button class={'badge text-btn' + (settings.textManual ? ' manual' : '')} onClick={e => { e.stopPropagation(); toggleManual(); }} aria-label="메시지 진행">{settings.textManual ? '▶ 수동' : '▶ 자동'}</button>
@@ -1870,3 +1878,16 @@ function MonDetail({ mon, own, gen, session, onClose }: { mon: Mon; own: boolean
 	</Modal>;
 }
 void Fragment;
+
+/** 온라인 대전 시계: 남은 대전 시간 · 내 시간 · 상대 시간, 고르는 중이면 이번 선택 남은 초 (0 이 되면 onTimeout) */
+function OnlineClock({ rs, onTimeout }: { rs: RemoteSession; onTimeout: () => void }) {
+	const [, tick] = useState(0);
+	useEffect(() => { const t = setInterval(() => tick(x => x + 1), 250); return () => clearInterval(t); }, []);
+	const t = rs.timers();
+	useEffect(() => { if (t.turn !== null && t.turn <= 0) onTimeout(); });
+	const mmss = (ms: number) => { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+	return <>
+		<span class={'badge oclock' + (t.game < 60000 ? ' low' : '')} title="남은 대전 시간 · 내 시간 · 상대 시간">⏱{mmss(t.game)} · 나 {mmss(t.mine)} · 상대 {mmss(t.opp)}</span>
+		{t.turn !== null && <span class={'badge oturn' + (t.turn <= 10000 ? ' low' : '')}>선택 {Math.ceil(t.turn / 1000)}</span>}
+	</>;
+}

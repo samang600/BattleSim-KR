@@ -26,6 +26,10 @@ const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => CODE_CHARS[b % CODE_CHARS.length]).join('');
 const ROOM_TTL = 6 * 3600 * 1000;   // 방은 6시간 뒤 지움
 const GRACE = 60 * 1000;            // 연결이 끊기고 이만큼 돌아오지 않으면 기권 처리
+/** 시간 규칙 (포켓몬 챔피언스 랭크배틀과 같게): 한 번 고르는 시간 45초 · 내 시간(持ち時間) 7분 · 대전 시간 20분 */
+const TURN = 45 * 1000, OWN = 7 * 60 * 1000, GAME = 20 * 60 * 1000;
+/** 하트비트: 앱이 10초마다 ping. 이만큼 소식이 없으면(휴대폰 잠자기 등 소켓만 남은 경우) 끊긴 것으로 봄 */
+const STALE = 30 * 1000, BEAT = 15 * 1000;
 
 export default {
 	async fetch(req: Request, env: Env): Promise<Response> {
@@ -51,10 +55,27 @@ export default {
 type Side = 'p1' | 'p2';
 interface Player { name: string; token: string; team: any[]; version: string; sprite?: string; picked?: number[] }
 interface RoomState { code: string; ruleId: string; doubles: boolean; pick: number; players: { p1?: Player; p2?: Player };
-	seed?: number[]; inputs: [Side, string][]; ended?: boolean; created: number; away?: { p1?: number; p2?: number } }
+	seed?: number[]; inputs: [Side, string][]; ended?: boolean; created: number; away?: { p1?: number; p2?: number };
+	startedAt?: number; spent?: { p1: number; p2: number } }
 
 export class Room extends DurableObject<Env> {
 	private st: RoomState | null = null;
+	constructor(ctx: DurableObjectState, env: Env) {
+		super(ctx, env);
+		// ping 은 깨우지 않고 자동 응답 (마지막 응답 시각으로 살아 있는지 봄)
+		ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('{"t":"ping"}', '{"t":"pong"}'));
+	}
+	private lastSeen(ws: WebSocket) {
+		const a = (ws.deserializeAttachment() as any)?.at || 0;
+		const r = this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() || 0;
+		return Math.max(a, r);
+	}
+	private alive(side: Side, now = Date.now()) { return this.sockets(side).filter(w => w.readyState === 1 && now - this.lastSeen(w) < STALE); }
+	private clock() {
+		const s = this.st!, sp = s.spent || { p1: 0, p2: 0 };
+		return { turn: TURN, own: OWN, game: GAME, left: { p1: Math.max(0, OWN - sp.p1), p2: Math.max(0, OWN - sp.p2) },
+			gameLeft: s.startedAt ? Math.max(0, s.startedAt + GAME - Date.now()) : GAME };
+	}
 	private async load(code = ''): Promise<RoomState> {
 		if (!this.st) this.st = (await this.ctx.storage.get<RoomState>('room')) || { code, ruleId: 'mzdt_one.natdex.no.no', doubles: false, pick: 6, players: {}, inputs: [], created: Date.now() };
 		if (!this.st.code && code) this.st.code = code;
@@ -69,12 +90,12 @@ export class Room extends DurableObject<Env> {
 		return { t: 'room', code: s.code, side, ruleId: s.ruleId, doubles: s.doubles, pick: s.pick || 6,
 			picked: { p1: !!s.players.p1?.picked, p2: !!s.players.p2?.picked }, status: s.ended ? 'ended' : s.seed ? 'battle' : 'waiting',
 			players: { p1: s.players.p1?.name || null, p2: s.players.p2?.name || null }, version: s.players.p1?.version,
-			online: { p1: this.sockets('p1').some(w => w.readyState === 1), p2: this.sockets('p2').some(w => w.readyState === 1) }, away: s.away || {} };
+			online: { p1: this.alive('p1').length > 0, p2: this.alive('p2').length > 0 }, away: s.away || {} };
 	}
 	private broadcastRoom() { for (const ws of this.ctx.getWebSockets()) this.send(ws, this.roomInfo(this.sideOf(ws))); }
 	private startMsg(side: Side) {
 		const s = this.st!;
-		return { t: 'start', side, seed: s.seed, ruleId: s.ruleId, doubles: s.doubles,
+		return { t: 'start', side, seed: s.seed, ruleId: s.ruleId, doubles: s.doubles, clock: this.clock(),
 			p1: this.pub('p1', true), p2: this.pub('p2', true) };
 	}
 	private pub(sd: Side, picked: boolean) {
@@ -90,7 +111,8 @@ export class Room extends DurableObject<Env> {
 		const s = this.st!;
 		if (s.seed || !s.players.p1?.picked || !s.players.p2?.picked) return false;
 		s.seed = Array.from(crypto.getRandomValues(new Uint16Array(4)));
-		await this.save();
+		s.startedAt = Date.now(); s.spent = { p1: 0, p2: 0 };
+		await this.save(); await this.schedule();
 		this.broadcastRoom();
 		for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) this.send(w, this.startMsg(sd));
 		return true;
@@ -98,14 +120,15 @@ export class Room extends DurableObject<Env> {
 	/** 알람: 방 수명(TTL) 또는 끊긴 쪽 기다림(GRACE) 중 빠른 것 */
 	private async schedule() {
 		const s = this.st!;
-		const ts = [s.created + ROOM_TTL, s.away?.p1, s.away?.p2].filter((x): x is number => !!x);
+		const live = !s.ended && !!s.players.p1 && !!s.players.p2;
+		const ts = [s.created + ROOM_TTL, s.away?.p1, s.away?.p2, live && s.startedAt ? s.startedAt + GAME : 0, live ? Date.now() + BEAT : 0].filter((x): x is number => !!x);
 		await this.ctx.storage.setAlarm(Math.min(...ts));
 	}
 	private relay(side: Side, choice: string) {
 		const s = this.st!;
 		s.inputs.push([side, choice]);
 		if (choice.startsWith('forfeit')) s.ended = true;
-		const msg = { t: 'input', side, choice, n: s.inputs.length };
+		const msg = { t: 'input', side, choice, n: s.inputs.length, clock: this.clock() };
 		for (const w of this.ctx.getWebSockets()) if (this.sideOf(w)) this.send(w, msg);
 	}
 
@@ -120,11 +143,20 @@ export class Room extends DurableObject<Env> {
 		const s = await this.load();
 		const now = Date.now();
 		if (!s.code || now >= s.created + ROOM_TTL) { for (const ws of this.ctx.getWebSockets()) try { ws.close(1000, '방이 닫혔어요'); } catch {} await this.ctx.storage.deleteAll(); this.st = null; return; }
+		// 대전 시간 끝: 양쪽 앱이 같은 판정(남은 포켓몬 수 → 남은 HP 비율 → HP 합)으로 끝냄
+		if (s.seed && !s.ended && s.startedAt && now >= s.startedAt + GAME) this.relay('p1', 'tod');
+		// 하트비트: 소식 없는 쪽(잠자기 등)은 끊긴 것으로 — 소켓을 닫고 GRACE 기다림
+		if (!s.ended && s.players.p1 && s.players.p2) for (const sd of ['p1', 'p2'] as Side[]) {
+			if (s.away?.[sd] || this.alive(sd, now).length) continue;
+			for (const w of this.sockets(sd)) try { w.close(4000, 'stale'); } catch {}
+			s.away = { ...(s.away || {}), [sd]: now + GRACE - BEAT };
+			this.broadcastRoom();
+		}
 		for (const sd of ['p1', 'p2'] as Side[]) {
 			const t = s.away?.[sd];
 			if (!t || t > now) continue;
 			delete s.away![sd];
-			if (this.sockets(sd).some(w => w.readyState === 1) || s.ended) continue;   // 그새 돌아옴
+			if (this.alive(sd, now).length || s.ended) continue;   // 그새 돌아옴
 			if (s.seed) this.relay(sd, 'forfeit disconnect');
 			else { s.ended = true; for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'error', msg: `${s.players[sd]?.name || '상대'}의 연결이 끊어져 대전이 취소됐어요` }); }
 		}
@@ -137,6 +169,8 @@ export class Room extends DurableObject<Env> {
 		let m: any;
 		try { m = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch { return; }
 		const err = (msg: string) => this.send(ws, { t: 'error', msg });
+		const att = ws.deserializeAttachment() as any;
+		if (att?.side) ws.serializeAttachment({ ...att, at: Date.now() });
 
 		if (m.t === 'peek') return this.send(ws, this.roomInfo(null));
 		if (m.t === 'join') {
@@ -155,13 +189,13 @@ export class Room extends DurableObject<Env> {
 				s.players[side] = { name, token, team, version, sprite: String(m.sprite || '').slice(0, 40) };
 				await this.save();
 			}
-			ws.serializeAttachment({ side });
+			ws.serializeAttachment({ side, at: Date.now() });
 			if (s.away?.[side]) { delete s.away[side]; await this.save(); await this.schedule(); }
 			if (s.ended && !s.seed) return err('이미 끝난 방이에요');
 			this.broadcastRoom();
 			if (s.seed) {   // 재접속: 시작 정보와 지금까지의 선택
 				this.send(ws, this.startMsg(side));
-				this.send(ws, { t: 'inputs', list: s.inputs });
+				this.send(ws, { t: 'inputs', list: s.inputs, clock: this.clock() });
 			} else if (s.players.p1 && s.players.p2) {   // 둘 다 들어옴: 서로 전체 엔트리 → 고르기 (먼저 와 있던 쪽에도)
 				for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) if (w === ws || sd !== side) this.send(w, this.previewMsg(sd));
 			}
@@ -190,7 +224,12 @@ export class Room extends DurableObject<Env> {
 			if (s.ended) return err('끝난 배틀이에요');
 			const choice = String(m.choice || '').slice(0, 200);
 			if (!choice) return;
-			this.relay(side, choice.startsWith('forfeit') ? 'forfeit' : choice);   // 'forfeit disconnect' 는 서버만 넣음
+			if (choice === 'tod' || choice === 'forfeit disconnect') return;   // 서버만 넣음
+			// 고르는 데 쓴 시간(앱이 잰 값, 연출 시간 제외)을 내 시간에서 뺌
+			const sp = s.spent || (s.spent = { p1: 0, p2: 0 });
+			sp[side] += Math.max(0, Math.min(TURN + 5000, Number(m.ms) || 0));
+			this.relay(side, choice.startsWith('forfeit') ? (choice === 'forfeit timeout' ? choice : 'forfeit') : choice);
+			if (!s.ended && sp[side] >= OWN) this.relay(side, 'forfeit timeout');   // 내 시간 0
 			await this.save();
 			return;
 		}
