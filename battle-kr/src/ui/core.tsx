@@ -146,12 +146,14 @@ function spriteCandidates(species: string, id: string, back: boolean, shiny: boo
 }
 
 /** 목록·카드용 썸네일: 96px 도트 그림에서 그림이 있는 영역만 잘라 가능하면 1:1(축소 없이)로 보여 뭉개지지 않게 */
-export function CropSprite({ species, gen = 5, size = 64, shiny, cls }: { species: string; gen?: Gen; size?: number; shiny?: boolean; cls?: string }) {
+/** snap: 배율을 1 또는 1/2 로만 (어중간한 배율로 줄이면 도트 굵기가 들쭉날쭉해짐) */
+export function CropSprite({ species, gen = 5, size = 64, shiny, cls, snap }: { species: string; gen?: Gen; size?: number; shiny?: boolean; cls?: string; snap?: boolean }) {
 	const id = spriteId(species);
 	const e = PAD[id] || PAD[spriteId(speciesData(toID(species), 9 as Gen)?.base || '')];
 	const ub = getUserSprite(userSpriteKey(id, false, !!shiny))?.bb;   // 목록 썸네일은 늘 정지 그림 → 사용자 그림이면 그 영역
 	const [x, y, w, h] = ub || (e && e.length >= 6 ? e.slice(2) : [0, 0, 96, 96]);
-	const k = Math.min(1, (size - 2) / Math.max(w, h));
+	let k = Math.min(1, (size - 2) / Math.max(w, h));
+	if (snap) k = k >= 1 ? 1 : 0.5;
 	const tx = Math.round((size - w * k) / 2 - x * k), ty = Math.round((size - h * k) / 2 - y * k);
 	return <span class={'crop ' + (cls || '')} style={{ width: size, height: size, '--t': `translate(${tx}px, ${ty}px) scale(${k})` } as any}>
 		<Sprite species={species} gen={gen} size={96} anim={false} shiny={shiny} />

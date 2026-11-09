@@ -2300,3 +2300,26 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 }
 /* 더블: 아직 나오지 않았거나 쓰러진 자리의 HP 상자는 빈 테두리로 보이지 않게 (자리는 유지) */
 .doubles .info.empty { visibility: hidden; }
+
+/* ═════ v2.55.3: 넓은 화면 도트 선명하게 ═════ */
+/* 그림·테두리 그림은 모두 최근접 보간 (상속되므로 html 에 한 번) */
+html { image-rendering: pixelated; }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
+	/* 어중간한 zoom(1.15·1.35)은 2px 도트 테두리를 2.3·2.7px 로 만들어 번짐 → 정수 배율 */
+	.battle > .hud-top { zoom: 1; }
+	.battle .arena .panels, .battle .arena .ab-pop, .battle .arena .hud-cond { zoom: 1.5; }
+	/* 파티 칸: 그림을 잘라 칸 아래쪽(HP 바 바로 위)에 */
+	.sp-mon .crop.sp-pic { width: 52px !important; height: 52px !important; margin-top: auto; }
+	.sp-mon .crop .sprite { width: 96px !important; height: 96px !important; object-fit: fill; }
+	.sp-mon { justify-content: flex-end; gap: 0; }
+}
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) {
+	.battle.doubles .arena .panels { zoom: 1.5; }
+}
+/* 메뉴 화면 배율도 정수·반 배율 대신 1.5 (1.25·1.4 는 도트 테두리가 번짐) */
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 860px) {
+	body:not(:has(.battle)) #app { zoom: 1; }
+}
+@media (min-width: 1680px) and (min-aspect-ratio: 5/4) and (min-height: 1000px) {
+	body:not(:has(.battle)) #app { zoom: 1.5; }
+}
