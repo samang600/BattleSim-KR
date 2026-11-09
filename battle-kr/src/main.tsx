@@ -13,7 +13,7 @@ import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
 import { TrainerBook, SymbolIcon } from './ui/book';
 import { WhatsNew, pendingChanges } from './ui/whats-new';
 import { APP_VERSION } from './changelog';
-import { exportBackup, inspectBackup, importBackup } from './store';
+import { exportBackup, inspectBackup, importBackup, PREFIX as STORE_PREFIX } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
 import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, applyRuleData, poolSub, type LegendMode } from './rules';
 import { packStatus, refreshPack, onPackProgress, startPackDownload, deletePack, hasNative, fmtBytes, BUNDLED, type PackProgress } from './offline';
@@ -339,7 +339,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		{newsAll && <WhatsNew all onClose={() => setNewsAll(false)} />}
 		<p class="muted small">배틀 계산은 Pokémon Showdown 시뮬레이터(MIT)를 그대로 사용합니다. 비공식 팬 메이드 앱이며, 포켓몬 관련 명칭의 권리는 Nintendo·Creatures·GAME FREAK·The Pokémon Company에 있습니다.</p>
 		<p class="muted small">포켓몬 도트 그림: Pokémon Showdown·Smogon Sprite Project. 9세대 퍼퓨돈(암컷)·빠모트·스태솔트·찌리비·육파리·구르데·베라카스·키키링·차데스·오거폰·무쇠감투(테라스탈 모습 포함)은 PokéAPI sprites 저장소의 도트 그림(앞모습 KingOfThe-X-Roads, 뒷모습 DoveKyle).</p>
-		<button class="btn danger" onClick={() => { if (confirm('모든 기록과 팀을 지울까요?')) { try { Object.keys(localStorage).filter(k => k.startsWith('pkbkr:')).forEach(k => localStorage.removeItem(k)); } catch {} toast('초기화했습니다'); } }}>데이터 초기화</button>
+		<button class="btn danger" onClick={() => { if (confirm('모든 기록과 팀을 지울까요?')) { try { Object.keys(localStorage).filter(k => k.startsWith(STORE_PREFIX)).forEach(k => localStorage.removeItem(k)); } catch {} toast('초기화했습니다'); } }}>데이터 초기화</button>
 	</Screen>;
 }
 
@@ -460,3 +460,12 @@ settleRankPending();   // 랭크 매치 도중 앱이 꺼졌으면 패배로
 settleSeason();        // 1주 시즌이 바뀌었으면 마감
 checkAchievements(true);
 render(<App />, document.getElementById('app')!);
+// 개발자 빌드 표시 (웹 /dev/ — main 브랜치 최신 코드, 저장 데이터는 정식 웹과 따로)
+declare const __DEV_BUILD__: boolean, __BUILD_REV__: string;
+if (typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__) {
+	document.title = '[DEV] ' + document.title;
+	const tag = document.createElement('div');
+	tag.className = 'dev-tag';
+	tag.textContent = `DEV v${APP_VERSION} · ${__BUILD_REV__}`;
+	document.body.appendChild(tag);
+}

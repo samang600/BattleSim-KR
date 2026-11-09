@@ -2379,3 +2379,7 @@ html { image-rendering: pixelated; }
 .room-code.searching { letter-spacing: 4px; animation: blink 1s steps(2) infinite; }
 .code-input { display: block; width: 100%; box-sizing: border-box; font: inherit; font-size: 32px; letter-spacing: 8px; text-align: center; text-transform: uppercase;
 	padding: 10px; margin: 10px 0 14px; background: #0e1a30; color: #fff; border: 0; box-shadow: 0 0 0 2px #fff; outline: none; }
+
+/* 개발자 빌드 표시 (웹 /dev/) — 누름은 그대로 통과 */
+.dev-tag { position: fixed; left: 0; bottom: 0; z-index: 9999; pointer-events: none; padding: 2px 6px; font-size: 11px; line-height: 14px;
+	background: #c0282a; color: #fff; opacity: .85; }

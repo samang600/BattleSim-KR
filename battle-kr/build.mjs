@@ -65,6 +65,8 @@ const result = await esbuild.build({
 	sourcemap: false,
 	define: { '__dirname': '"/ps/sim"', 'process.env.NODE_ENV': '"production"',
 		// 앱 버전 (package.json) — 웹 업데이트 소식 창이 이 값으로 새 버전을 알아챔
+		// 개발자 빌드(DEV_BUILD=1, 웹 /dev/): 저장 공간을 따로 쓰고 화면에 DEV 표시 (.github/workflows/pages.yml)
+		'__DEV_BUILD__': String(!!process.env.DEV_BUILD), '__BUILD_REV__': JSON.stringify(git('git log -1 --format=%h·%cd --date=format:%m-%d_%H:%M', '')),
 		'__APP_VERSION__': JSON.stringify(JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8')).version),
 		// 앱 안에 들어 있는 울음소리 목록 (public/cries, scripts/fetch-sprites.sh)
 		'__LITE__': String(lite), '__BUNDLED__': String(!lite), '__ANIM_BASE__': JSON.stringify(ANIM_BASE), '__PACK_URLS__': JSON.stringify(PACK_URLS), '__CUSTOM_SPRITES__': JSON.stringify(CUSTOM_SPRITES), '__BGM_LOOPS__': '{}',

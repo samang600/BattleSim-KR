@@ -8,6 +8,8 @@ import { Session } from './engine';
 import { toSimTeam, type PSet } from './sets';
 
 declare const __APP_VERSION__: string;
+declare const __DEV_BUILD__: boolean;
+const DEV = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
 export const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
 export const SERVER = 'battlesim-kr.samang600.workers.dev';
 const wsUrl = (path: string) => `wss://${SERVER}${path}`;
@@ -21,8 +23,10 @@ export interface RoomInfo { t: 'room'; code: string; side: Side | null; ruleId: 
 /** 기기마다 하나 (재접속 때 같은 진영으로 돌아오는 열쇠) */
 export function deviceToken(): string {
 	try {
-		let t = localStorage.getItem('pkbkr:online-token');
-		if (!t) { t = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join(''); localStorage.setItem('pkbkr:online-token', t); }
+		// 개발자 빌드는 탭마다 따로 (한 브라우저의 두 탭으로 서로 대전해 보려고) — 새로고침해도 그 탭은 유지
+		const st = DEV ? sessionStorage : localStorage;
+		let t = st.getItem('pkbkr:online-token');
+		if (!t) { t = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join(''); st.setItem('pkbkr:online-token', t); }
 		return t;
 	} catch { return 'anon-' + Math.random().toString(36).slice(2); }
 }

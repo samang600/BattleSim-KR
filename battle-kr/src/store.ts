@@ -2,7 +2,9 @@
 import type { PSet } from './sets';
 
 const mem: { [k: string]: string } = {};
-const PREFIX = 'pkbkr:';
+declare const __DEV_BUILD__: boolean;
+/** 개발자 빌드(웹 /dev/)는 정식 웹과 같은 주소(도메인)라 저장 칸을 따로 씀 */
+export const PREFIX = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__ ? 'pkbkr-dev:' : 'pkbkr:';
 
 function get(key: string): string | null {
 	try {

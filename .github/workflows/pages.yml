@@ -1,6 +1,7 @@
 # 웹 버전: main 에 푸시하거나 수동 실행하면 'web' 브랜치의 battle-kr/dist 를 빌드해 GitHub Pages 에 올림
 # (v2.54.0 부터 새 기능은 안드로이드 앱 먼저 — 웹에 올리려면 web 브랜치를 main 으로 옮기고 이 워크플로를 실행)
 # 주소: https://samang600.github.io/BattleSim-KR/
+# 개발자 빌드: main 브랜치 최신 코드를 /dev/ 에 함께 올림 → https://samang600.github.io/BattleSim-KR/dev/ (저장 데이터는 정식 웹과 따로, 화면 아래 DEV 표시)
 name: 웹 버전 배포 (GitHub Pages)
 
 on:
@@ -33,6 +34,21 @@ jobs:
       - run: node battle-kr/build.mjs
         env:
           GH_REPO: ${{ github.repository }}
+      # 개발자 빌드 (main)
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: dev-src
+          fetch-depth: 0
+      - run: npm ci
+        working-directory: dev-src
+      - run: node battle-kr/build.mjs
+        working-directory: dev-src
+        env:
+          GH_REPO: ${{ github.repository }}
+          DEV_BUILD: '1'
+          PACK_BRANCH: main
+      - run: mkdir -p battle-kr/dist/dev && cp -r dev-src/battle-kr/dist/. battle-kr/dist/dev/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
