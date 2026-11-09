@@ -2763,3 +2763,26 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .battle.bg-desert { --wg1: #2a5a8a; --wg2: #6a8aa8; --wg3: #c8a878; --wg4: #b88a48; --wg5: #987038; --wgl: #f0c880; }
 .battle.bg-aurora { --wg1: #06101e; --wg2: #0e2034; --wg3: #1e3a54; --wg4: #6a88a8; --wg5: #4a6888; --wgl: #c8dcf0; }
 .pv-bg .arena-bg { background-position: center 42% !important; background-size: cover !important; }
+
+/* ═════ v2.59.0: 메인 화면 꾸미기 — 메인 배경 · 대표 포켓몬 ═════ */
+:root[data-bg="sunset"] body::before { background-image: url(__IMG_arena_sunset__); filter: brightness(.6); }
+:root[data-bg="starry"] body::before { background-image: url(__IMG_arena_starry__); filter: brightness(.75); }
+:root[data-bg="sakura"] body::before { background-image: url(__IMG_arena_sakura__); filter: brightness(.55); }
+:root[data-bg="desert"] body::before { background-image: url(__IMG_arena_desert__); filter: brightness(.55); }
+:root[data-bg="aurora"] body::before { background-image: url(__IMG_arena_aurora__); filter: brightness(.75); }
+/* 대표 포켓몬: 카드 오른쪽 끝, 도트 받침 위에 서서 살짝 통통 */
+.hm-card { position: relative; }
+.hm-buddy { margin-left: auto; flex: none; width: 64px; height: 56px; position: relative; display: flex; align-items: flex-end; justify-content: center; margin-right: -4px; margin-bottom: -4px; }
+.hm-buddy::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 6px; background: rgba(0,0,0,.35); clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 2px, 100% 4px, calc(100% - 4px) 100%, 4px 100%, 0 4px, 0 2px); }
+.hm-buddy .sprite { position: relative; z-index: 1; max-width: 64px !important; max-height: 60px !important; object-fit: contain; animation: buddyHop 2.4s steps(1) infinite; image-rendering: pixelated; }
+@keyframes buddyHop { 0%, 84%, 100% { transform: translateY(0); } 88% { transform: translateY(-4px); } 92% { transform: translateY(-2px); } }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) and (min-height: 541px) { .hm-buddy { width: 52px; height: 56px; margin-right: -2px; } .hm-buddy .sprite { max-width: 56px !important; max-height: 56px !important; } }
+/* 교환소: 메인 배경·대표 포켓몬 미리보기와 고르기 */
+.pv-buddy { display: flex; align-items: flex-end; justify-content: center; height: 56px; } .pv-buddy .sprite { max-height: 56px !important; }
+.buddy-pick { margin: 8px 4px; padding: 8px; background: var(--p-row2, #22304a); box-shadow: 0 0 0 2px #0a0f18; }
+.bp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; } .bp-head b { font-weight: normal; color: var(--yellow, #ffd84a); }
+.bp-shiny { display: flex; align-items: center; gap: 4px; font-size: 13px; margin-left: auto; }
+.bp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 4px; max-height: 240px; overflow-y: auto; }
+.bp-cell { height: 48px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.25); border: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.4); cursor: pointer; padding: 0; }
+.bp-cell.on { box-shadow: inset 0 0 0 2px #ffd84a; background: rgba(255,216,74,.15); }
+.hm-card:has(.hm-buddy) .hm-syms { flex-wrap: wrap; row-gap: 0; } .hm-card:has(.hm-buddy) .hm-syms i { white-space: nowrap; }

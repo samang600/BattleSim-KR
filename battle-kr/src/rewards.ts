@@ -17,6 +17,7 @@ export interface Wallet {
 	/** 온라인 대전 하루 상한 */ onDay: string; onN: number;
 	/** 주간 과제: 주 id · 진행 · 받은 보상 */ week: { id: string; prog: { [k: string]: number }; got: { [k: string]: 1 } };
 	/** 최근 얻은 내역 */ log: { t: number; n: number; why: string }[];
+	/** 대표 포켓몬 (메인 화면) */ buddy?: { sp: string; shiny?: boolean };
 }
 const WKEY = 'wallet';
 const emptyWallet = (): Wallet => ({ bp: 0, total: 0, own: {}, eq: {}, frac: 0, onDay: '', onN: 0, week: { id: '', prog: {}, got: {} }, log: [] });
@@ -89,7 +90,7 @@ onBattleEnd((setup, battle, win) => {
 });
 
 // ───────── 교환소 상품 ─────────
-export type Slot = 'title' | 'cardBg' | 'frame' | 'star' | 'trainer' | 'ball' | 'win' | 'hp' | 'bg' | 'bgm';
+export type Slot = 'title' | 'cardBg' | 'frame' | 'star' | 'trainer' | 'ball' | 'win' | 'hp' | 'bg' | 'bgm' | 'home' | 'buddy';
 export interface Item {
 	id: string; slot: Slot; name: string; price?: number; desc?: string;
 	/** 업적 전용: 조건을 채우면 공짜로 열림 (BP 로 못 삼) */ cond?: (s: Stats) => boolean; condText?: string;
@@ -106,6 +107,8 @@ export const SLOT_INFO: { [k in Slot]: { name: string; desc: string } } = {
 	hp: { name: 'HP 창 테마', desc: '배틀 HP 창 색' },
 	bg: { name: '배틀 배경', desc: '배경 고르기에 추가' },
 	bgm: { name: '배틀 음악', desc: '음악 고르기에 추가' },
+	home: { name: '메인 배경', desc: '메인 화면·메뉴 뒤 배경 (설정의 메인 배경에도 추가)' },
+	buddy: { name: '대표 포켓몬', desc: '메인 트레이너 카드 옆에 서 있는 포켓몬' },
 };
 const symGold = (s: Stats) => s.sym.tower === 2 || s.sym.factory === 2 || s.sym.rank === 2;
 const ippitsu49 = () => Object.entries(loadRecords().best).some(([k, v]) => k.startsWith('ippitsu') && (v as number) >= 49);
@@ -171,6 +174,13 @@ export const ITEMS: Item[] = [
 	{ id: 'bgm:g3sakura', slot: 'bgm', name: '벚꽃 정원', price: 80, v: 'g3sakura', desc: '바장조 · 산책하듯 밝은 곡' },
 	{ id: 'bgm:g3desert', slot: 'bgm', name: '사막 유적', price: 90, v: 'g3desert', desc: '라단조 · 이국적인 곡' },
 	{ id: 'bgm:g3aurora', slot: 'bgm', name: '오로라', price: 120, v: 'g3aurora', desc: '나단조 · 웅장한 결전 곡' },
+	// 메인 화면 꾸미기: 메인 배경 · 대표 포켓몬
+	{ id: 'home:sunset', slot: 'home', name: '노을 언덕', price: 60, v: 'sunset' },
+	{ id: 'home:starry', slot: 'home', name: '별빛 호수', price: 60, v: 'starry' },
+	{ id: 'home:sakura', slot: 'home', name: '벚꽃 정원', price: 60, v: 'sakura' },
+	{ id: 'home:desert', slot: 'home', name: '사막 유적', price: 60, v: 'desert' },
+	{ id: 'home:aurora', slot: 'home', name: '오로라 설원', price: 80, v: 'aurora' },
+	{ id: 'buddy:stand', slot: 'buddy', name: '대표 포켓몬 자리', price: 60, desc: '교환하면 아래에서 포켓몬을 골라요' },
 	// 트레이너 모습 (일반 트레이너군 — 네임드 인물 제외)
 	...trainerItems(),
 ];
@@ -205,8 +215,18 @@ export function equip(it: Item | null, slot: Slot) {
 	if (slot === 'trainer') { if (it?.v) saveSettings({ ...loadSettings(), playerSprite: it.v }); return; }
 	if (slot === 'bg') { if (it?.v) saveSettings({ ...loadSettings(), battleBg: it.v }); return; }
 	if (slot === 'bgm') { if (it?.v) saveSettings({ ...loadSettings(), battleBgm: it.v }); return; }
+	if (slot === 'home') { const v = it?.v || 'title'; saveSettings({ ...loadSettings(), homeBg: v }); document.documentElement.setAttribute('data-bg', v); return; }
 	if (it) w.eq[slot] = it.id; else delete w.eq[slot];
 	saveWallet(w);
+}
+/** 대표 포켓몬 고르기 (자리를 산 뒤) */
+export function setBuddy(sp: string | null, shiny = false) { const w = loadWallet(); if (sp) w.buddy = { sp, shiny }; else delete w.buddy; saveWallet(w); }
+/** 대표 포켓몬 후보: 써 본 포켓몬(많이 이긴 순) + 저장한 팀의 포켓몬 */
+export function buddyCandidates(teams: { sets: { species: string }[] }[]): string[] {
+	const st = loadStats();
+	const used = Object.entries(st.mons).sort((a, b) => b[1].w - a[1].w || b[1].u - a[1].u).map(([k]) => k);
+	const fromTeams = teams.flatMap(t => t.sets.map(s => toID(s.species)));
+	return [...new Set([...used, ...fromTeams])].filter(id => speciesData(id, 9)).slice(0, 72);
 }
 export function equipped(slot: Slot): Item | undefined { const id = loadWallet().eq[slot]; return id ? itemById(id) : undefined; }
 export const titleText = () => equipped('title')?.name || '';

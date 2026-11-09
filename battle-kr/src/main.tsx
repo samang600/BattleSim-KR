@@ -93,6 +93,7 @@ function Home({ go }: { go: (v: string) => void }) {
 					<small>{rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · ${Math.round(rec.wins / rec.battles * 100)}%` : ''} · 업적 {achDone}/{ACHIEVEMENTS.length}</small>
 					<span class="hm-syms">{(['tower', 'factory', 'rank'] as const).map(k => <SymbolIcon kind={k} lv={st.sym[k] || 0} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
 				</span>
+				{wallet.buddy && <span class="hm-buddy" aria-label="대표 포켓몬"><Sprite species={wallet.buddy.sp} gen={9} size={96} shiny={wallet.buddy.shiny} /></span>}
 			</button>
 			<div class="head-btns">
 				<FullscreenButton />
@@ -317,7 +318,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		<div class="seg">{([['night', '밤'], ['day', '낮'], ['auto', '시간에 따라']] as const).map(([k, l]) => <button class={(s.tod || 'night') === k ? 'on' : ''} onClick={() => { up({ tod: k }); applyTheme({ ...s, tod: k }); }}>{l}</button>)}</div>
 		<p class="muted small">타이틀·메뉴 배경과 배틀타워·팩토리·경기장 배경이 낮·밤으로 바뀝니다. '시간에 따라'는 6시~18시에 낮입니다.</p>
 		<h3 class="sec">메뉴 배경</h3>
-		<div class="seg wrap">{([['title', '하늘'], ['field', '초원'], ['tower', '타워'], ['factory', '팩토리'], ['pwt', '경기장'], ['champion', '챔피언']] as const).map(([k, l]) => <button class={s.homeBg === k ? 'on' : ''} onClick={() => { up({ homeBg: k }); applyTheme({ ...s, homeBg: k }); }}>{l}</button>)}</div>
+		<div class="seg wrap">{([['title', '하늘'], ['field', '초원'], ['tower', '타워'], ['factory', '팩토리'], ['pwt', '경기장'], ['champion', '챔피언'], ...ownedVals('home').map(o => [o.v, o.name])] as [string, string][]).map(([k, l]) => <button class={s.homeBg === k ? 'on' : ''} onClick={() => { up({ homeBg: k }); applyTheme({ ...s, homeBg: k }); }}>{l}</button>)}</div>
 		<p class="muted small">효과음·배경음악은 이 앱에서 합성한 칩튠, 기술 효과음은 Pokémon Reborn 제작. 울음소리는 인터넷에서 받아 옵니다.</p>
 		<h3 class="sec">배틀 규칙</h3>
 		<RuleRows s={s} up={up} />

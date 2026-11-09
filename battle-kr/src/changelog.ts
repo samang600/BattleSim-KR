@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.59.0', date: '2026-11-09', title: '메인 화면 꾸미기', items: [
+		['new', 'BP 교환소 「메인」: 메인 배경 5종(노을 언덕·별빛 호수·벚꽃 정원·사막 유적·오로라 설원)'],
+		['new', '대표 포켓몬: 메인 트레이너 카드 옆에 고른 포켓몬이 서 있어요 (이로치로도)'],
+	] },
 	{ ver: '2.58.0', date: '2026-11-09', title: '이로치 연출 · 새 배경·음악', items: [
 		['new', '이로치 포켓몬이 나오면 도트 별이 반짝여요'],
 		['new', '교환소에 배경 「벚꽃 정원」「사막 유적」「오로라 설원」, 음악 「벚꽃 정원」「사막 유적」「오로라」 추가'],

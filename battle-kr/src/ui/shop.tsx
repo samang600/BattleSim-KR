@@ -2,9 +2,9 @@
 import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { Screen, Sprite, MiniSprite, ItemIcon, toast } from './core';
-import { loadWallet, onWallet, ITEMS, SLOT_INFO, owns, buy, equip, itemById, weeklyStatus, WEEK_ALL_BP, regionBadges, partnerMon, type Item, type Slot, type Wallet } from '../rewards';
+import { loadWallet, onWallet, ITEMS, SLOT_INFO, owns, buy, equip, itemById, weeklyStatus, WEEK_ALL_BP, regionBadges, partnerMon, setBuddy, buddyCandidates, type Item, type Slot, type Wallet } from '../rewards';
 import { loadStats } from '../stats';
-import { loadSettings } from '../store';
+import { loadSettings, loadTeams } from '../store';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { REGION_COLOR, REGIONS } from '../trainers';
 import { speciesKo } from '../data';
@@ -92,6 +92,7 @@ const TABS: { id: string; name: string; slots: Slot[] }[] = [
 	{ id: 'trainer', name: '트레이너', slots: ['trainer'] },
 	{ id: 'fx', name: '연출', slots: ['ball', 'win', 'hp'] },
 	{ id: 'av', name: '배경·음악', slots: ['bg', 'bgm'] },
+	{ id: 'home', name: '메인', slots: ['home', 'buddy'] },
 ];
 function Preview({ it }: { it: Item }) {
 	switch (it.slot) {
@@ -105,7 +106,22 @@ function Preview({ it }: { it: Item }) {
 		case 'hp': { const c = it.v!.split(','); return <span class="pv-hp" style={{ '--h1': c[0], '--h2': c[1] } as any}><b /><i /></span>; }
 		case 'bg': return <span class={'arena-thumb pv-bg bg-' + it.v}><span class="arena-bg" /></span>;
 		case 'bgm': return <span class="pv-bgm">♪</span>;
+		case 'home': return <span class={'arena-thumb pv-bg pv-home bg-' + it.v}><span class="arena-bg" /></span>;
+		case 'buddy': { const b = loadWallet().buddy; return <span class="pv-buddy"><Sprite species={b?.sp || 'pikachu'} gen={9} size={56} anim={false} shiny={b?.shiny} /></span>; }
 	}
+}
+/** 대표 포켓몬 고르기: 써 본 포켓몬·저장한 팀의 포켓몬 중에서 (이로치로도) */
+function BuddyPicker({ w }: { w: Wallet }) {
+	const list = buddyCandidates(loadTeams());
+	const cur = w.buddy;
+	return <div class="buddy-pick">
+		<div class="bp-head"><b>대표 포켓몬 고르기</b>
+			<label class="bp-shiny"><input type="checkbox" checked={!!cur?.shiny} disabled={!cur} onChange={e => cur && setBuddy(cur.sp, (e.target as HTMLInputElement).checked)} /> 이로치</label>
+			{cur && <button class="btn small ghost" onClick={() => setBuddy(null)}>내리기</button>}</div>
+		{list.length ? <div class="bp-grid">{list.map(sp => <button class={'bp-cell' + (cur?.sp === sp ? ' on' : '')} onClick={() => setBuddy(sp, cur?.sp === sp ? cur.shiny : false)} title={speciesKo(sp)}>
+			<MiniSprite species={sp} gen={9} size={40} shiny={cur?.sp === sp && cur.shiny} /></button>)}</div>
+			: <p class="muted small">배틀에서 써 본 포켓몬이나 저장한 팀이 있으면 여기에 나와요.</p>}
+	</div>;
 }
 export function ShopScreen({ onBack }: { onBack: () => void }) {
 	const w = useWallet();
@@ -113,7 +129,7 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
 	const [tab, setTab] = useState('title');
 	const [, force] = useState(0);
 	const settings = loadSettings();
-	const isOn = (it: Item) => it.slot === 'trainer' ? settings.playerSprite === it.v : it.slot === 'bg' ? settings.battleBg === it.v : it.slot === 'bgm' ? settings.battleBgm === it.v : w.eq[it.slot] === it.id;
+	const isOn = (it: Item) => it.slot === 'trainer' ? settings.playerSprite === it.v : it.slot === 'bg' ? settings.battleBg === it.v : it.slot === 'bgm' ? settings.battleBgm === it.v : it.slot === 'home' ? settings.homeBg === it.v : w.eq[it.slot] === it.id;
 	const act = (it: Item) => {
 		if (!owns(it, w, st)) {
 			const r = buy(it);
@@ -121,7 +137,7 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
 			if (r === 'locked') { toast(`${it.condText} 달성 시 열려요`); return; }
 			toast(`「${it.name}」을(를) 교환했어요!`);
 		}
-		if (isOn(it) && !['trainer', 'bg', 'bgm'].includes(it.slot)) { equip(null, it.slot); toast('장착을 풀었어요'); }
+		if (isOn(it) && !['trainer', 'bg', 'bgm'].includes(it.slot)) { equip(null, it.slot); toast(it.slot === 'home' ? '기본 배경으로 돌렸어요' : '장착을 풀었어요'); }
 		else { equip(it, it.slot); if (it.slot === 'bgm') { playMusic(it.v!); setTimeout(stopMusic, 6000); } }
 		force(x => x + 1);
 	};
@@ -159,6 +175,7 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
 						: <em class={'sx-price' + (w.bp < it.price! ? ' poor' : '')}><BpCoin size={12} />{it.price}</em>}</span>
 				</button>;
 			})}</div>
+			{slot === 'buddy' && owns(ITEMS.find(i => i.slot === 'buddy')!, w, st) && <BuddyPicker w={w} />}
 		</section>)}
 	</Screen>;
 }
