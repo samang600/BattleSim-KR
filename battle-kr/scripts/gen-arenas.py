@@ -758,6 +758,92 @@ def starry():
     return im
 
 
+def sakura():
+    """벚꽃 정원 (교환소): 연분홍 하늘, 벚나무 줄과 흩날리는 꽃잎, 돌길이 지나는 잔디"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 60, ['#8ac8f0', '#a0d0f0', '#b8d8f0', '#d0e0f0', '#e8e0f0', '#f8e0e8'])
+    bands(d, 60, 74, ['#6aa858', '#5a9a4c', '#4e8c42'])   # 나무 뒤 낮은 덤불
+    rnd = random.Random(31)
+    for i in range(7):   # 벚나무: 줄기 + 둥근 꽃 덩어리(3단 분홍)
+        x = 10 + i * 38 + rnd.randint(-6, 6)
+        d.rectangle([x + 10, 50, x + 13, 74], fill='#6a3a3a')
+        for k, (dx, dy, r) in enumerate([(0, 40, 14), (14, 34, 15), (26, 42, 12), (12, 46, 12)]):
+            d.ellipse([x + dx - r + 6, dy - r + 4, x + dx + r + 6, dy + r + 4], fill=['#f0a0c0', '#f8b8d0', '#f8c8d8', '#e890b0'][k])
+    for _ in range(160):
+        x, y = rnd.randint(0, W - 1), rnd.randint(22, 56)
+        d.point((x, y), fill=rnd.choice(['#ffe0ec', '#e080a8', '#ffffff']))
+    bands(d, 74, H, ['#88c870', '#80c068', '#78b860', '#70b058', '#68a850', '#60a048'])
+    for y in range(76, H, 3):
+        for x in range((y * 5) % 9, W, 9):
+            d.point((x, y), fill='#98d880')
+    for _ in range(40):   # 땅에 떨어진 꽃잎
+        x, y = rnd.randint(0, W - 3), rnd.randint(78, H - 2)
+        d.rectangle([x, y, x + 1, y], fill=rnd.choice(['#f8b8d0', '#ffe0ec']))
+    for _ in range(18):   # 흩날리는 꽃잎 (하늘)
+        x, y = rnd.randint(0, W - 3), rnd.randint(4, 70)
+        d.rectangle([x, y, x + 1, y], fill='#ffd0e0'); d.point((x + 1, y + 1), fill='#e890b0')
+    ellipse_platform(d, 196, 82, 46, 9, '#d8c8b0', '#b8a888', '#887858')
+    ellipse_platform(d, 62, 132, 62, 11, '#d8c8b0', '#b8a888', '#887858')
+    return im
+
+
+def desert():
+    """사막 유적 (교환소): 뜨거운 하늘, 모래 언덕 너머 무너진 기둥과 신전, 물결무늬 모래"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 58, ['#4aa0d8', '#62b0e0', '#7cc0e6', '#98ceea', '#b8dcec', '#d8e6e8'])
+    d.ellipse([36, 10, 58, 32], fill='#fff4b0'); d.ellipse([40, 14, 54, 28], fill='#fffce8')
+    for i, (col, base, amp, per) in enumerate([('#e0b878', 62, 10, 41), ('#d0a060', 68, 8, 27)]):
+        pts = [(0, H)] + [(x, base - amp * abs(math.sin(x / per + i * 2))) for x in range(0, W + 8, 8)] + [(W, H)]
+        d.polygon(pts, fill=col)
+    # 무너진 신전: 받침·기둥 4개(하나는 부러짐)·지붕 조각
+    d.rectangle([150, 54, 222, 58], fill='#c89858'); d.rectangle([148, 58, 224, 62], fill='#a87840')
+    for k, hgt in enumerate([26, 26, 14, 26]):
+        x = 154 + k * 18
+        d.rectangle([x, 54 - hgt, x + 7, 54], fill='#e8d0a0'); d.rectangle([x + 5, 54 - hgt, x + 7, 54], fill='#c8a878')
+        d.rectangle([x - 1, 54 - hgt - 2, x + 8, 54 - hgt], fill='#d8b888')
+    d.polygon([(150, 26), (186, 16), (196, 26)], fill='#d8b888')
+    for x in range(16, 120, 34):   # 반쯤 묻힌 돌
+        d.rectangle([x, 60, x + 10, 64], fill='#b88850')
+    bands(d, 72, H, ['#f0c880', '#e8c078', '#e0b870', '#d8b068', '#d0a860', '#c8a058'])
+    for y in range(76, H, 5):   # 모래 물결
+        for x in range((y * 7) % 13, W, 13):
+            d.line([(x, y), (x + 4, y)], fill='#c89858')
+    ellipse_platform(d, 196, 82, 46, 9, '#f8e0a8', '#e0c080', '#b08848')
+    ellipse_platform(d, 62, 132, 62, 11, '#f8e0a8', '#e0c080', '#b08848')
+    return im
+
+
+def aurora():
+    """오로라 설원 (교환소): 밤하늘에 초록·보라 오로라 띠, 눈 덮인 침엽수, 빛을 받은 설원"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 66, ['#06101e', '#0a1628', '#0e1e34', '#122640', '#162e4a', '#1a3654'])
+    rnd = random.Random(77)
+    for _ in range(50):
+        d.point((rnd.randint(0, W - 1), rnd.randint(0, 60)), fill=rnd.choice(['#ffffff', '#c8e0ff']))
+    for k, (col, y0, amp, per) in enumerate([('#3ae8a0', 18, 8, 23), ('#2ab888', 24, 7, 31), ('#9a6ae8', 12, 6, 19)]):   # 오로라 띠 (세로 2px 결)
+        for x in range(0, W, 2):
+            yc = int(y0 + amp * math.sin(x / per + k))
+            for yy in range(yc, yc + 10 - k * 2, 2):
+                if (x // 2 + yy // 2) % 3 != 0: d.rectangle([x, yy, x + 1, yy + 1], fill=col)
+    for i, (col, base) in enumerate([('#1e3a54', 62), ('#16304a', 68)]):
+        pts = [(0, H)] + [(x, base - 8 * abs(math.sin(x / (21 + i * 9)))) for x in range(0, W + 8, 8)] + [(W, H)]
+        d.polygon(pts, fill=col)
+    for x in range(-4, W, 13):   # 눈 덮인 침엽수
+        h = 14 + (x * 7) % 6
+        d.polygon([(x, 76), (x + 6, 76 - h), (x + 12, 76)], fill='#0e2a34')
+        d.polygon([(x + 3, 76 - h // 2), (x + 6, 76 - h), (x + 9, 76 - h // 2)], fill='#e8f4ff')
+    bands(d, 76, H, ['#c8dcf0', '#bcd4ec', '#b0cce8', '#a4c4e2', '#98bcdc', '#8cb4d6'])
+    for y in range(78, H, 3):
+        for x in range((y * 5) % 9, W, 9):
+            d.point((x, y), fill='#a8f0d0' if (x + y) % 4 == 0 else '#e8f4ff')
+    ellipse_platform(d, 196, 82, 46, 9, '#f0f8ff', '#c8dcf0', '#88a8c8')
+    ellipse_platform(d, 62, 132, 62, 11, '#f0f8ff', '#c8dcf0', '#88a8c8')
+    return im
+
+
 def extend_top(im, extra, stars=True):
     w, h = im.size
     out = Image.new('RGB', (w, h + extra))
@@ -778,7 +864,7 @@ if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [('field', field), ('tower', tower), ('factory', factory), ('pwt', stadium), ('champion', champion),
                      ('cave', cave), ('beach', beach), ('snow', snow), ('volcano', volcano), ('gym', gym),
-                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry)]:
+                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry), ('sakura', sakura), ('desert', desert), ('aurora', aurora)]:
         im = fn()
         if name != 'title':
             im = extend_top(im, 48, stars=name not in ('cave', 'gym', 'palace', 'rush'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림

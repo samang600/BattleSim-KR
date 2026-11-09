@@ -274,6 +274,22 @@ export function sparkle(layer: HTMLElement, at: Pt, type: string, s: number, dow
 	}
 }
 
+/** 이로치 등장: 도트 별(십자 4갈래)이 몸 둘레에 두 바퀴 반짝이며 퍼짐 (흐림 없이 steps) */
+export function shinyStars(layer: HTMLElement, at: Pt, s: number) {
+	const star = (sz: number, c: string) => `background:linear-gradient(${c},${c}) ${sz * 2}px 0/${sz}px ${sz * 5}px no-repeat,linear-gradient(${c},${c}) 0 ${sz * 2}px/${sz * 5}px ${sz}px no-repeat,linear-gradient(#fff,#fff) ${sz * 2}px ${sz * 2}px/${sz}px ${sz}px no-repeat;`;
+	for (let wave = 0; wave < 2; wave++) {
+		const n = 8;
+		for (let i = 0; i < n; i++) {
+			const a = (i / n) * Math.PI * 2 + wave * 0.4;
+			const r0 = (8 + wave * 4) * s, r1 = (30 + wave * 10) * s;
+			const sz = Math.max(2, Math.round((wave ? 2 : 3) * s / 2) * 2) / 2;
+			const el = px(layer, at.x - sz * 2.5, at.y - sz * 2.5, sz * 5, sz * 5, 'transparent', star(sz, i % 2 ? '#fff8a0' : '#a8e8ff'));
+			anim(el, [{ transform: `translate(${Math.cos(a) * r0}px,${Math.sin(a) * r0}px)`, opacity: 0 }, { opacity: 1, offset: 0.25 },
+				{ transform: `translate(${Math.cos(a) * r1}px,${Math.sin(a) * r1}px)`, opacity: 0 }], { duration: 700, delay: wave * 260 + i * 20, easing: 'steps(7)' });
+		}
+	}
+}
+
 export function shake(el: HTMLElement, strong = false, dur = 0) {
 	const d = strong ? 6 : 3;
 	el.animate([{ transform: 'translate(0,0)' }, { transform: `translate(${d}px,${-d}px)` }, { transform: `translate(${-d}px,${d}px)` }, { transform: `translate(${d}px,0)` }, { transform: 'translate(0,0)' }],

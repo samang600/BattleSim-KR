@@ -31,8 +31,7 @@ function CloseIcon() {
 }
 
 /** 넓은 화면(PC)이면 상세를 오른쪽 칸에 */
-function useWide() {
-	const q = '(min-width: 900px)';
+export function useWide(q = '(min-width: 900px)') {
 	const [w, setW] = useState(() => { try { return matchMedia(q).matches; } catch { return false; } });
 	useEffect(() => { try { const m = matchMedia(q), f = () => setW(m.matches); m.addEventListener('change', f); return () => m.removeEventListener('change', f); } catch { return; } }, []);
 	return w;
@@ -50,11 +49,13 @@ export interface OnlinePickProps {
 	onLeave: () => void;
 	/** 배틀 필드·음악 고르기 (PC: 오른쪽 칸, 모바일: 아래) */
 	prep?: ComponentChildren;
+	/** 혼자 하는 모드(타워·랭크 등)의 고르기: 시간 제한·상대 상태 없음, '이 순서 그대로' 버튼 */
+	offline?: boolean; hint?: string;
 }
 
 const sexMark = (s: PSet) => s.gender === 'M' ? <i class="op-sex m">♂</i> : s.gender === 'F' ? <i class="op-sex f">♀</i> : null;
 
-export function OnlinePick({ title, mine, oppName, oppTitle, oppTeam, myName, count, sent, opp, onDone, onLeave, prep }: OnlinePickProps) {
+export function OnlinePick({ title, mine, oppName, oppTitle, oppTeam, myName, count, sent, opp, onDone, onLeave, prep, offline, hint }: OnlinePickProps) {
 	const need = Math.min(count, mine.length);
 	const [picked, setPicked] = useState<number[]>([]);
 	const [done, setDone] = useState(!!sent);
@@ -64,7 +65,7 @@ export function OnlinePick({ title, mine, oppName, oppTitle, oppTeam, myName, co
 	const [info, setInfo] = useState<number | null>(null);   // PC: i 를 누른 포켓몬 (오른쪽 칸, 없으면 필드·음악)
 	const finish = (idx: number[]) => { if (done) return; setDone(true); setView(null); onDone(idx); };
 	useEffect(() => {
-		if (done) return;
+		if (done || offline) return;
 		const t = setInterval(() => setLeft(x => x - 1), 1000);
 		return () => clearInterval(t);
 	}, [done]);
@@ -85,10 +86,10 @@ export function OnlinePick({ title, mine, oppName, oppTitle, oppTeam, myName, co
 	return <div class="opk">
 		<div class="opk-top">
 			<button class="opk-back" onClick={onLeave} aria-label="나가기">‹</button>
-			<span class={'opk-timer' + (!done && left <= 10 ? ' low' : '')}>⏱ {done ? '--:--' : `${mm}:${ss}`}</span>
+			{!offline && <span class={'opk-timer' + (!done && left <= 10 ? ' low' : '')}>⏱ {done ? '--:--' : `${mm}:${ss}`}</span>}
 			<b class="opk-title">{title}</b>
 		</div>
-		<div class="opk-msg">{msg}{!done && <small>{wide ? '카드를 누르면 선택 · i 는 오른쪽에 능력치' : '카드를 누르면 선택 · 오른쪽 위 i 는 능력치'}</small>}</div>
+		<div class="opk-msg">{offline && hint ? hint : msg}{!done && <small>{wide ? '카드를 누르면 선택 · i 는 오른쪽에 능력치' : '카드를 누르면 선택 · 오른쪽 위 i 는 능력치'}</small>}</div>
 		<div class={'opk-cols' + (wide ? ' wide' : '')}>
 			<div class="opk-col mine">
 				<div class="opk-name me">{myName}</div>
@@ -105,8 +106,8 @@ export function OnlinePick({ title, mine, oppName, oppTitle, oppTeam, myName, co
 					</div>;
 				})}
 			</div>
-			<div class="opk-col foe">
-				<div class={'opk-name foe' + (opp === 'away' ? ' away' : '')}>{oppName}{oppTitle && <i class="opk-ttl">{oppTitle}</i>}<small>{opp === 'done' ? '선택 완료' : opp === 'away' ? '연결 끊김' : '고르는 중'}</small></div>
+			{oppTeam.length > 0 && <div class="opk-col foe">
+				<div class={'opk-name foe' + (opp === 'away' ? ' away' : '')}>{oppName}{oppTitle && <i class="opk-ttl">{oppTitle}</i>}{!offline && <small>{opp === 'done' ? '선택 완료' : opp === 'away' ? '연결 끊김' : '고르는 중'}</small>}</div>
 				{oppTeam.map(s => {
 					const sd = speciesData(toID(s.species), 9);
 					return <div class="opk-foe">
@@ -115,14 +116,14 @@ export function OnlinePick({ title, mine, oppName, oppTitle, oppTeam, myName, co
 						<span class="opk-types">{sd?.t.map(t => <TypeBadge type={t} small />)}{sexMark(s)}</span>
 					</div>;
 				})}
-			</div>
+			</div>}
 			{wide && <div class="opk-detail">
 				{info !== null ? <>
 					<div class="opk-name me">{mine[info].name || speciesData(toID(mine[info].species), 9)?.n} Lv{mine[info].level || 50}{picked.includes(info) && <small>{picked.indexOf(info) + 1}번째</small>}
 						<button class="opk-x" onClick={() => setInfo(null)} aria-label="닫기"><CloseIcon /></button></div>
 					<MonDetail set={mine[info]} gen={9} />
 				</> : <div class="opk-prep wide">
-					<div class="opk-name me">배틀 필드 · 음악</div>
+					<div class="opk-name me">{prep ? '배틀 필드 · 음악' : '포켓몬 능력치'}</div>
 					{prep}
 					<p class="opk-tip">포켓몬 카드의 i 를 누르면 여기에 능력치가 나와요.</p>
 				</div>}
@@ -131,7 +132,8 @@ export function OnlinePick({ title, mine, oppName, oppTitle, oppTeam, myName, co
 		{!wide && prep && <div class="opk-prep">{prep}</div>}
 		<div class="opk-bottom">
 			{done ? <button class="opk-go" disabled>상대를 기다리는 중…</button>
-				: <button class="opk-go" disabled={picked.length !== need} onClick={() => finish(picked)}><i>◎ {picked.length}/{need}</i>선택 완료</button>}
+				: <>{offline && picked.length === 0 && <button class="opk-go ghost" onClick={() => finish(mine.slice(0, need).map((_, i) => i))}>이 순서 그대로</button>}
+					<button class="opk-go" disabled={picked.length !== need} onClick={() => finish(picked)}><i>◎ {picked.length}/{need}</i>선택 완료</button></>}
 		</div>
 		{view !== null && !wide && <div class="opk-pop-bg" onClick={() => setView(null)}>
 			<div class="opk-pop" role="dialog" onClick={e => e.stopPropagation()}>

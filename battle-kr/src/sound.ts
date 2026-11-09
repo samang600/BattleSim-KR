@@ -180,6 +180,7 @@ function sfxRaw(name: string, type: string) {
 	case 'hitPunch': noise(0.08, { freq: 900, sweep: 300, vol: 0.5 }); tone(140, 0.1, { type: 'sine', slide: 50, vol: 0.5 }); break;
 	case 'hitSlash': noise(0.14, { type: 'bandpass', freq: 2400, sweep: 5000, q: 2, vol: 0.4 }); noise(0.06, { freq: 1200, vol: 0.3, at: 0.1 }); break;
 	case 'hitExplode': noise(0.6, { freq: 1200, sweep: 80, vol: 0.7 }); tone(60, 0.5, { type: 'sine', slide: 25, vol: 0.6 }); break;
+	case 'shiny': [0, 4, 7, 12, 16, 19, 24].forEach((d, i) => tone(N(84 + d), 0.06, { type: 'square', vol: 0.06, at: i * 0.045 })); [0, 0.32].forEach(t => noise(0.12, { type: 'highpass', freq: 6000, vol: 0.08, at: t + 0.1 })); break;
 	case 'ballOpen': tone(N(84), 0.05, { vol: 0.12 }); noise(0.18, { type: 'highpass', freq: 2500, vol: 0.22, at: 0.05 }); [0, 7, 12].forEach((d, i) => tone(N(88 + d), 0.08, { type: 'triangle', vol: 0.12, at: 0.1 + i * 0.04 })); break;
 	case 'ballThrow': tone(400, 0.25, { type: 'sine', slide: 900, vol: 0.1 }); break;
 	case 'crit': tone(N(96), 0.06, { vol: 0.18 }); tone(N(100), 0.08, { vol: 0.16, at: 0.05 }); break;

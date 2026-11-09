@@ -165,6 +165,12 @@ export const ITEMS: Item[] = [
 	{ id: 'bg:starry', slot: 'bg', name: '별빛 호수', price: 100, v: 'starry' },
 	{ id: 'bgm:g3sunset', slot: 'bgm', name: '노을 언덕', price: 80, v: 'g3sunset', desc: '라장조 · 시원하게 달리는 곡' },
 	{ id: 'bgm:g3star', slot: 'bgm', name: '별빛 결전', price: 100, v: 'g3star', desc: '마단조 · 몰아치는 곡' },
+	{ id: 'bg:sakura', slot: 'bg', name: '벚꽃 정원', price: 80, v: 'sakura' },
+	{ id: 'bg:desert', slot: 'bg', name: '사막 유적', price: 90, v: 'desert' },
+	{ id: 'bg:aurora', slot: 'bg', name: '오로라 설원', price: 120, v: 'aurora' },
+	{ id: 'bgm:g3sakura', slot: 'bgm', name: '벚꽃 정원', price: 80, v: 'g3sakura', desc: '바장조 · 산책하듯 밝은 곡' },
+	{ id: 'bgm:g3desert', slot: 'bgm', name: '사막 유적', price: 90, v: 'g3desert', desc: '라단조 · 이국적인 곡' },
+	{ id: 'bgm:g3aurora', slot: 'bgm', name: '오로라', price: 120, v: 'g3aurora', desc: '나단조 · 웅장한 결전 곡' },
 	// 트레이너 모습 (일반 트레이너군 — 네임드 인물 제외)
 	...trainerItems(),
 ];

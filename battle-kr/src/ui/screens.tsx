@@ -5,6 +5,8 @@ import { fixedTera, speciesData, toID, moveKo, itemKo, abilityKo, natureKo, type
 import { evToSp, spToEv, evDisplay, fmtSP, type PSet } from '../sets';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { Screen, Sprite, MiniSprite, CropSprite, TypeBadge, Modal, HPBar, StatusBadge, TYPE_COLOR } from './core';
+import { OnlinePick, useWide } from './online-pick';
+import { loadSettings } from '../store';
 
 /** 세트 요약 카드 */
 export function SetCard({ set, gen, selected, order, onClick, compact, children }: {
@@ -38,6 +40,11 @@ export function PickScreen({ title, team, gen, count, opponent, hint, onDone, on
 		else if (picked.length < count) setPicked([...picked, i]);
 	};
 	const need = Math.min(count, team.length);
+	// 넓은 화면(PC·휴대폰 가로): 온라인 고르기와 같은 화면 — 내 포켓몬 · 상대 · 오른쪽 큰 배틀 필드·음악
+	const wide = useWide('(min-width: 900px) and (min-height: 541px)');   // 웹(PC)만 — 휴대폰 가로는 아래 2단 화면
+	if (wide) return <OnlinePick offline title={title} hint={hint || (need < team.length ? `싸울 포켓몬을 ${need}마리 순서대로 고르세요. 처음 고른 포켓몬이 먼저 나갑니다.` : '나갈 순서대로 고르세요.')}
+		mine={team} myName={loadSettings().playerName || '플레이어'} oppName={opponent?.name || ''} oppTeam={opponent?.team || []} count={count} opp="picking"
+		onDone={idx => onDone(idx.map(i => team[i]))} onLeave={() => onBack?.()} prep={prep} />;
 	// 넓은 화면(PC·휴대폰 가로): 왼쪽에 상대·안내·음악/배경, 오른쪽에 내 카드 여러 열 (style.css .pick-screen)
 	return <Screen title={title} onBack={onBack} cls="pick-screen">
 		<div class="pick-side">

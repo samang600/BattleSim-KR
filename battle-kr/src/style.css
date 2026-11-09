@@ -2752,3 +2752,14 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 #bp-toast { width: max-content; max-width: calc(100vw - 32px); white-space: nowrap; }
 #bp-toast small { overflow: hidden; text-overflow: ellipsis; }
 .win-flag { margin-top: 24vh; }
+/* 혼자 하는 모드 고르기(온라인 고르기 화면 재사용): '이 순서 그대로' + '선택 완료' 나란히 */
+.opk-bottom:has(.opk-go.ghost) { display: flex; gap: 8px; justify-content: center; }
+.opk-bottom:has(.opk-go.ghost) .opk-go { margin-inline: 0; max-width: 360px; }
+.opk-go.ghost { background: linear-gradient(180deg, #5a6a8e 0 50%, #4a5a7e 50%); }
+.bg-sakura .arena-bg { background-image: url(__IMG_arena_sakura__); }
+.bg-desert .arena-bg { background-image: url(__IMG_arena_desert__); }
+.bg-aurora .arena-bg { background-image: url(__IMG_arena_aurora__); }
+.battle.bg-sakura { --wg1: #4a6a8a; --wg2: #8a6a8a; --wg3: #c88aa8; --wg4: #4e8c42; --wg5: #3e7434; --wgl: #88c870; }
+.battle.bg-desert { --wg1: #2a5a8a; --wg2: #6a8aa8; --wg3: #c8a878; --wg4: #b88a48; --wg5: #987038; --wgl: #f0c880; }
+.battle.bg-aurora { --wg1: #06101e; --wg2: #0e2034; --wg3: #1e3a54; --wg4: #6a88a8; --wg5: #4a6888; --wgl: #c8dcf0; }
+.pv-bg .arena-bg { background-position: center 42% !important; background-size: cover !important; }

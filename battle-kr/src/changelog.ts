@@ -6,6 +6,12 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.58.0', date: '2026-11-09', title: '이로치 연출 · 새 배경·음악', items: [
+		['new', '이로치 포켓몬이 나오면 도트 별이 반짝여요'],
+		['new', '교환소에 배경 「벚꽃 정원」「사막 유적」「오로라 설원」, 음악 「벚꽃 정원」「사막 유적」「오로라」 추가'],
+		['up', 'PC: 참가 포켓몬 고르기를 온라인 대전처럼 — 내 포켓몬 · 상대 · 오른쪽 큰 배틀 필드·음악'],
+		['up', 'BP 교환소 칸 그림을 모으령으로'],
+	] },
 	{ ver: '2.57.0', date: '2026-11-09', title: 'BP 교환소', items: [
 		['new', '배틀에서 이기고 세트 클리어·브레인 격파·업적·주간 과제를 달성하면 BP 가 쌓여요'],
 		['new', 'BP 교환소 (메인 오른쪽 아래): 칭호·트레이너 카드 꾸미기·트레이너 모습·볼 연출·승리 연출·HP 창 테마'],

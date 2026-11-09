@@ -104,7 +104,7 @@ function Home({ go }: { go: (v: string) => void }) {
 			<div class="hm-featured">{FEATURED.map(id => tile(id, true))}</div>
 			<div class="hm-more">{MORE.map(id => tile(id, false))}
 				<button class="mode-tile hm-tile hm-shop" onClick={() => go('shop')}>
-					<span class="hm-mon shop-coin"><BpCoin size={48} /></span>
+					<span class="hm-mon"><Sprite species="gimmighoul" gen={9} size={96} anim={false} /></span>
 					<span class="hm-text"><b>BP 교환소</b><small>칭호 · 카드 · 연출 · 배경 · 음악</small><em>{wallet.bp} BP</em></span>
 				</button>
 			</div>

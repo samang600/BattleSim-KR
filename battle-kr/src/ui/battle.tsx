@@ -495,8 +495,11 @@ function typeTint(type: string) {
 				if ((!own || partnerMon) && ball === 'pokeball') ball = conceptBall(d.species, own ? setup.partner?.name || 'partner' : setup.p2.name || '');
 				else if (own && !partnerMon && !setup.replay && wallet.eq.ball) ball = itemById(wallet.eq.ball)?.v || ball;   // 교환소 볼 연출
 				const t = FX.ballOut(layer, from, to, scale, ball) / FX.fxSpeed();
-				setTimeout(() => { mon.hidden = false; mon.anim = 'enter'; rerender(); sfx('ballOpen'); cry(toID(mon.species)); setTimeout(() => { if (mon.anim === 'enter') { mon.anim = ''; rerender(); } }, 500); }, t);
-				return t + 450 / FX.fxSpeed();
+				setTimeout(() => { mon.hidden = false; mon.anim = 'enter'; rerender(); sfx('ballOpen'); cry(toID(mon.species)); setTimeout(() => { if (mon.anim === 'enter') { mon.anim = ''; rerender(); } }, 500);
+					// 이로치: 나온 직후 도트 별이 반짝임
+					if (mon.shiny && settings.effects !== false) setTimeout(() => { if (!layer.isConnected) return; FX.shinyStars(layer, { x: to.x, y: to.y - 18 * scale }, scale); sfx('shiny'); }, 380 / FX.fxSpeed());
+				}, t);
+				return t + (mon.shiny ? 1100 : 450) / FX.fxSpeed();
 			}
 			animate(mon, 'enter', 600);
 			cry(toID(mon.species));

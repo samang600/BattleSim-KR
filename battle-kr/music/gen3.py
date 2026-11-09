@@ -5,7 +5,7 @@
   g3frontier 배틀 프런티어풍 (F장조 160): 금관 팡파르 느낌의 장조, 믹솔리디안 Bb·C7
   pwthall    PWT 대진표 대기 (Bb장조 132): 경기장 행진풍 (NEW 의 song2 형식)
   g3palace 배틀팰리스 (D도리안 138) · g3factory 배틀팩토리 (E단조 158) · g3rank 랭크 매치 (B단조 170)
-  g3rush 보스 러시 (F단조 182) · g3daily 오늘의 도전 (G장조 150) · g3sunset 노을 언덕 (D장조 152) · g3star 별빛 결전 (E단조 168)
+  g3rush 보스 러시 (F단조 182) · g3daily 오늘의 도전 (G장조 150) · g3sunset 노을 언덕 (D장조 152) · g3star 별빛 결전 (E단조 168) · g3sakura 벚꽃 정원 (F장조 132) · g3desert 사막 유적 (D단조 160) · g3aurora 오로라 (B단조 176)
 형식: 인트로 → A(8마디) → B(8마디) → A 로 반복 (intro 칸부터)
 출력: <앱>/src/gen/chip-gen3.json (chip-tracks.json 과 같은 형식: 16분음표 한 칸에 한 글자, ' ' 쉼, '!' 지속, 그 밖 chr(MIDI+14))
 사용: python3 gen3.py [출력 경로]"""
@@ -366,6 +366,43 @@ NEW = {
          'c7.2 b6.2 a6.2 e6.2 c7.4 a6.4|d#7.2 b6.2 f#6.2 b6.2 a6.4 f#6.4|g6.2 a6.2 b6.2 e7.2 g7.4 e7.4|f#7.2 r.2 f#7.2 r.2 d#7.2 b6.2 a6.4',
          {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
     ], {'main': 'k.hks.hkk.hks.hk', 'b': 'kkhks.hkk.hks.ss', 'intro': 'k.k.k.k.s.s.ssss'}, 'k.s.k.s.ssssssss'),
+    # 벚꽃 정원 (F장조 132, 교환소): 꽃잎이 흩날리는 산책 — 3도 대선율과 워킹 베이스, B 는 Dm·Gm 으로 살짝 아련해졌다가 C7 로 돌아옴
+    'g3sakura': (132, [
+        ('intro', ['F', 'C'],
+         'c6.2 a5.2 f5.2 a5.2 c6.4 f6.4|e6.2 c6.2 g5.2 c6.2 e6.4 g6.4', {'harm': 'third', 'bass': 'walk', 'drum': 'intro'}),
+        ('A', ['F', 'Dm', 'Bb', 'C', 'F', 'Am', 'Bb', 'C7'],
+         'a5.4 c6.2 d6.2 c6.4 a5.4|d6.6 e6.2 f6.4 a5.4|bb5.2 c6.2 d6.2 f6.2 bb6.4 a6.4|g6.6 f6.2 e6.4 c6.4|'
+         'f6.4 a6.2 g6.2 f6.4 c6.4|e6.6 d6.2 c6.4 a5.4|d6.2 c6.2 bb5.2 d6.2 f6.4 d6.4|e6.8 g5.4 bb5.4', {'harm': 'third', 'bass': 'walk'}),
+        ('B', ['Dm', 'Am', 'Bb', 'F', 'Gm', 'C', 'F', 'C7'],
+         'f6.6 e6.2 d6.4 a5.4|c6.6 b5.2 a5.4 e5.4|d6.4 f6.4 bb6.6 a6.2|a6.8 f6.4 c6.4|'
+         'g5.2 a5.2 bb5.2 d6.2 g6.4 d6.4|e6.2 f6.2 g6.2 e6.2 c6.4 e6.4|f6.6 g6.2 a6.4 c7.4|bb6.2 r.2 bb6.2 r.2 g6.2 e6.2 c6.4',
+         {'harm': 'pad', 'bass': 'half', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k...h.h.s...h.h.', 'b': 'k.h.s.h.k.h.s.hh', 'intro': 'k.......s...s.s.'}, 'k...h.h.s.h.s.ss'),
+    # 사막 유적 (D단조 160, 교환소): 뜨거운 바람의 유적 — 증2도(Bb-C#) 느낌의 선율, 엇박 베이스, B 는 Gm·C·F 로 열렸다가 A7 로 조임
+    'g3desert': (160, [
+        ('intro', ['Dm', 'A7'],
+         'd5.2 f5.2 a5.2 d6.2 f6.4 e6.2 d6.2|a5.2 c#6.2 e6.2 g6.2 a6.4 bb6.2 a6.2', {'harm': 'none', 'bass': 'half', 'drum': 'intro'}),
+        ('A', ['Dm', 'Bb', 'A', 'Dm', 'Gm', 'Bb', 'A', 'A7'],
+         'd6.4 e6.2 f6.2 a6.4 f6.4|f6.2 e6.2 d6.2 bb5.2 d6.4 f6.4|e6.6 f6.2 e6.2 c#6.2 a5.4|d6.12 r.4|'
+         'bb5.4 d6.2 g6.2 bb6.4 a6.2 g6.2|f6.6 d6.2 bb5.4 f5.4|a5.2 bb5.2 c#6.2 e6.2 a6.4 g6.2 e6.2|c#6.2 e6.2 g6.2 bb6.2 a6.8', {'harm': 'third', 'bass': 'synco'}),
+        ('B', ['Gm', 'A', 'Dm', 'Bb', 'Gm', 'C', 'F', 'A7'],
+         'g6.6 a6.2 bb6.4 g6.4|a6.6 g6.2 e6.4 c#6.4|d6.4 f6.4 a6.4 d7.4|d7.6 c7.2 bb6.8|'
+         'bb6.2 a6.2 g6.2 d6.2 g6.4 bb6.4|c7.2 bb6.2 g6.2 e6.2 c6.4 e6.4|f6.6 e6.2 f6.4 a6.4|a6.2 r.2 a6.2 r.2 g6.2 e6.2 c#6.4',
+         {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k..hs.h.k.hhs.h.', 'b': 'k.hks.hkk.hks.hs', 'intro': 'k..h..h.k..h..hs'}, 'k.s.k.s.s.ssssss'),
+    # 오로라 (B단조 176, 교환소): 극지의 밤하늘 아래 큰 승부 — 펼친 화음 인트로, 높이 솟는 A, B 는 F#m·Em 을 지나 F# 장화음으로 끝맺음
+    'g3aurora': (176, [
+        ('intro', ['Bm', 'G', 'A', 'F#'],
+         'b4.2 f#5.2 b5.2 d6.2 f#6.4 b6.4|g6.2 d6.2 b5.2 d6.2 g6.4 b6.4|a6.2 e6.2 c#6.2 e6.2 a6.4 c#7.4|a#6.4 f#6.4 c#7.8',
+         {'harm': 'none', 'bass': 'drive', 'drum': 'intro'}),
+        ('A', ['Bm', 'G', 'D', 'A', 'Bm', 'Em', 'G', 'F#'],
+         'f#6.2 r.1 f#6.1 b6.2 d7.2 f#7.4 e7.2 d7.2|d7.6 b6.2 g6.4 d6.4|a6.2 r.1 a6.1 d7.2 f#7.2 a7.4 f#7.2 d7.2|e7.6 c#7.2 a6.8|'
+         'b6.2 c#7.2 d7.2 f#7.2 d7.4 c#7.2 b6.2|g6.6 f#6.2 e6.4 b5.4|d6.2 g6.2 b6.2 d7.2 g7.4 d7.4|f#7.2 e7.2 c#7.2 a#6.2 f#6.8', {'harm': 'third', 'bass': 'gallop'}),
+        ('B', ['G', 'A', 'F#m', 'Bm', 'Em', 'A', 'D', 'F#'],
+         'b6.6 a6.2 g6.8|c#7.6 b6.2 a6.8|a6.4 c#7.4 f#7.4 c#7.4|d7.12 b6.4|'
+         'e7.2 d7.2 b6.2 g6.2 e6.4 g6.4|a6.2 b6.2 c#7.2 e7.2 a7.4 e7.4|f#7.6 e7.2 d7.4 a6.4|c#7.2 r.2 c#7.2 r.2 a#6.2 c#7.2 f#7.4',
+         {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k.hks.hkk.hks.hk', 'b': 'k.hhs.hkkkhhs.hs', 'intro': 'k.k.k.k.s.s.ssss'}, 'k.s.k.s.ssssssss'),
 }
 for k, (bpm, secs, *dr) in NEW.items():
     print(consonance(k, secs))
