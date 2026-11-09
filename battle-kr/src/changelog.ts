@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.66.0', date: '2026-11-09', title: '수집 업적 · 업적 보상 받기', items: [
+		['new', '수집 업적 6개: 트레이너 모습·칭호·카드 꾸미기·HP 창·배경과 음악 모으기, BP 모으기'],
+		['up', '업적 BP 보상은 수첩 › 업적에서 눌러서 받아요 (모두 받기 가능, 받을 게 있으면 빨간 점)'],
+	] },
 	{ ver: '2.65.0', date: '2026-11-09', title: '교환소 음악 새로 작곡', items: [
 		['up', '교환소 음악 11곡을 곡마다 다른 장르로 새로 작곡 — 셔플·록·요 음계·타블라·하프타임·앰비언트·행진곡·신스펑크·왈츠·스윙·전파 팝'],
 		['up', '곡마다 악기 소리(펄스 굵기·삼각파·톱니파·오르골처럼 튕기기·천천히 부풀기)와 메아리, 드럼(탐·박수·림샷·열린 하이햇)이 달라요'],

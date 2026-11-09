@@ -2923,3 +2923,17 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .battle.bg-yume { --wg1: #c8b8f8; --wg2: #e0c0f2; --wg3: #fcd2e4; --wg4: #f6d0ea; --wg5: #eab8e4; --wgl: #ffffff; }
 .battle.bg-yami { --wg1: #0e0816; --wg2: #220e34; --wg3: #3e1450; --wg4: #5e1860; --wg5: #4a1450; --wgl: #ff6ab0; }
 .battle.bg-menhera { --wg1: #ffe4ee; --wg2: #ffcce2; --wg3: #f8b4d6; --wg4: #f4e0f0; --wg5: #ecd0e8; --wgl: #ffffff; }
+
+/* ═════ v2.66: 업적 보상 받기 ═════ */
+.ach-claimall { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 8px; padding: 6px 10px;
+	background: linear-gradient(180deg, #6a4c10 0 2px, #54380a 2px 60%, #3a2608 60%); box-shadow: 0 0 0 2px #f0c040, 0 0 0 4px #1a1004; }
+.ach-claimall span { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #f4e8c8; } .ach-claimall b { color: #ffe070; font-weight: normal; }
+.ach-claim { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-width: 56px; padding: 4px 6px; border: 0; font: inherit; cursor: pointer;
+	color: #241a04; background: linear-gradient(180deg, #ffe890 0 2px, #f0c040 2px 70%, #c89420 70%); box-shadow: 0 0 0 2px #3a2804; animation: claimBlink 1.2s steps(2) infinite; }
+.ach-claim b { font-size: 14px; font-weight: normal; line-height: 15px; } .ach-claim small { font-size: 10px; line-height: 11px; }
+.ach-claim:active { transform: translate(2px, 2px); }
+@keyframes claimBlink { 50% { box-shadow: 0 0 0 2px #3a2804, 0 0 0 4px #fff4b0; } }
+.ach-row.claim { box-shadow: inset 4px 0 0 #f0c040; }
+.ach-cats button.has-claim::after, .claim-dot { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 4px; vertical-align: 6px; background: #ff4a4a; box-shadow: 0 0 0 1px #3a0a0a; }
+.claim-dot { font-style: normal; }
+.ach-claim span { display: flex; align-items: center; gap: 2px; }

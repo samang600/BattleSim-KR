@@ -22,7 +22,7 @@ import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, s
 import { PLAYER_SPRITES, SPRITE_URL, trainerImgError } from './trainer-lines';
 import { UserSpritesModal } from './ui/user-sprites';
 import { ShopScreen, BpCoin, cardSkin, cardSkinClass, TitleChip, useWallet } from './ui/shop';
-import { titleItem, ownedVals, loadWallet, ITEMS } from './rewards';
+import { titleItem, ownedVals, loadWallet, ITEMS, pendingAchTotal } from './rewards';
 import { onUserSpritesChange } from './user-sprites';
 
 const MODES = [
@@ -110,7 +110,7 @@ function Home({ go }: { go: (v: string) => void }) {
 		</div>
 		<div class="hm-nav">
 			<button class="btn menu hm-teams" onClick={() => go('teams')}>📋 팀 편집</button>
-			<button class="btn menu" onClick={() => go('book')}>🏅 수첩</button>
+			<button class="btn menu" onClick={() => go('book')}>🏅 수첩{pendingAchTotal() > 0 && <i class="claim-dot" aria-label="받을 업적 보상" />}</button>
 			<button class="btn menu" onClick={() => go('records')}>📊 기록</button>
 			<button class="btn menu" onClick={() => go('calc')}>🧮 계산기</button>
 		</div>

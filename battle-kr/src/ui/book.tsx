@@ -8,8 +8,9 @@ import { speciesKo, RAW } from '../data';
 import { REGIONS, regionLabel } from '../trainers';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { rankLabel, seasonOf, seasonLeft } from '../modes';
-import { cardSkin, cardSkinClass, starGlyph, TitleChip, CardExtras, BpCoin } from './shop';
-import { titleItem } from '../rewards';
+import { cardSkin, cardSkinClass, starGlyph, TitleChip, CardExtras, BpCoin, useWallet } from './shop';
+import { sfx } from '../sound';
+import { titleItem, achPending, claimAch, pendingAchTotal } from '../rewards';
 import { loadWallet, bookCover } from '../rewards';
 
 const TIER_COL = ['#5a6478', '#c07a3a', '#c8d0dc', '#f0c020', '#9ae8f0'];
@@ -26,7 +27,7 @@ import { SymbolIcon } from './pixel-icons';
 export function TrainerBook({ onBack, initial = 'card' }: { onBack: () => void; initial?: string }) {
 	const [tab, setTab] = useState(initial);
 	const st = loadStats(), rec = loadRecords(), set = loadSettings();
-	const TABS: [string, string][] = [['card', '카드'], ['ach', '업적'], ['mons', '포켓몬'], ['dex', '도감']];
+	const TABS: [string, string][] = [['card', '카드'], ['ach', pendingAchTotal() > 0 ? '업적 •' : '업적'], ['mons', '포켓몬'], ['dex', '도감']];
 	return <Screen title="트레이너 수첩" onBack={onBack} top cls={'book-scr' + (bookCover(st) ? ' cover-' + bookCover(st) : '')}>
 		<div class="seg book-tabs">{TABS.map(([k, n]) => <button class={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{n}</button>)}</div>
 		{tab === 'card' && <Card st={st} rec={rec} set={set} />}
@@ -69,23 +70,32 @@ function Card({ st, rec, set }: any) {
 	</div>;
 }
 
-function Achievements({ st }: any) {
+function Achievements({ st: st0 }: any) {
 	const cats: AchCat[] = ['배틀', '기믹', '타입', '시설', '네임드', '랭크', '도전', '수집'];
 	const [cat, setCat] = useState<AchCat>('배틀');
+	const w = useWallet();   // 보상을 받으면 다시 그림
+	const st = loadStats();
+	void st0;
 	const list = ACHIEVEMENTS.filter(a => a.cat === cat);
+	const total = pendingAchTotal(st, w);
+	const catPending = (c: AchCat) => ACHIEVEMENTS.some(a => a.cat === c && achPending(a, st, w) > 0);
 	return <div>
+		{total > 0 && <div class="ach-claimall"><span><BpCoin size={16} /> 받을 수 있는 업적 보상 <b>{total} BP</b></span>
+			<button class="btn small primary" onClick={() => { const n = claimAch(ACHIEVEMENTS.map(a => a.id)); if (n) sfx('select'); }}>모두 받기</button></div>}
 		<div class="seg wrap ach-cats">{cats.map(c => { const n = ACHIEVEMENTS.filter(a => a.cat === c); const d = n.filter(a => (st.ach[a.id] || 0) >= a.steps.length).length;
-			return <button class={cat === c ? 'on' : ''} onClick={() => setCat(c)}>{c} <small>{d}/{n.length}</small></button>; })}</div>
+			return <button class={(cat === c ? 'on' : '') + (catPending(c) ? ' has-claim' : '')} onClick={() => setCat(c)}>{c} <small>{d}/{n.length}</small></button>; })}</div>
 		<div class="ach-list">{list.map(a => {
 			const v = a.value(st), l = achLevel(a, v), next = a.steps[Math.min(l, a.steps.length - 1)], done = l >= a.steps.length;
-			return <div class={'ach-row' + (l ? ' got' : '')}>
+			const p = achPending(a, st, w);
+			return <div class={'ach-row' + (l ? ' got' : '') + (p ? ' claim' : '')}>
 				<Medal tier={achTier(a, l)} size={28} />
 				<div class="ach-body">
 					<b>{a.name}{l > 0 && a.steps.length > 1 && <small class="ach-tier" style={{ color: TIER_COL[achTier(a, l)] }}> {TIER_NAME[achTier(a, l)]}</small>}</b>
 					<small>{achDesc(a, done ? a.steps.length - 1 : l)}</small>
 					<div class="ach-bar"><i style={{ width: Math.min(100, v / next * 100) + '%' }} /><span>{done ? '완료' : `${Math.min(v, next)} / ${next}`}</span></div>
 				</div>
-				<span class="ach-pips">{a.steps.map((_, i) => <i class={i < l ? 'on' : ''} />)}</span>
+				{p > 0 ? <button class="ach-claim" onClick={() => { if (claimAch([a.id])) sfx('select'); }}><span><BpCoin size={12} /><b>+{p}</b></span><small>받기</small></button>
+					: <span class="ach-pips">{a.steps.map((_, i) => <i class={i < l ? 'on' : ''} />)}</span>}
 			</div>;
 		})}</div>
 	</div>;

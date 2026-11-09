@@ -3,7 +3,7 @@
  *  저장: localStorage pkbkr:wallet */
 import { load, save, loadRecords, loadSettings, saveSettings } from './store';
 import { onBattleEnd } from './battle-hooks';
-import { loadStats, analyze, setAchHook, type Stats } from './stats';
+import { loadStats, analyze, ACHIEVEMENTS, achTier, checkAchievements, type Ach, type Stats } from './stats';
 import { speciesData, toID, RAW, typeKo } from './data';
 import TRAINER_CLASSES from './gen/trainer-classes.json';
 import { REGIONS, NAMED, namedSprite } from './trainers';
@@ -19,6 +19,7 @@ export interface Wallet {
 	/** 일일 미션: 날 id · 진행 · 받은 보상 (예전 이름 그대로 week) */ week: { id: string; prog: { [k: string]: number }; got: { [k: string]: 1 } };
 	/** 최근 얻은 내역 */ log: { t: number; n: number; why: string }[];
 	/** 대표 포켓몬 (메인 화면) */ buddy?: { sp: string; shiny?: boolean };
+	/** 업적 보상: 업적 → 받은 단계 수 (단계를 이루면 수첩 › 업적에서 눌러서 받음) */ achClaim?: { [id: string]: number };
 }
 const WKEY = 'wallet';
 const emptyWallet = (): Wallet => ({ bp: 0, total: 0, own: {}, eq: {}, frac: 0, onDay: '', onN: 0, week: { id: '', prog: {}, got: {} }, log: [] });
@@ -44,6 +45,7 @@ export function earnBP(n: number, why: string, quiet = false) {
 	w.log = [{ t: Date.now(), n, why }, ...w.log].slice(0, 30);
 	saveWallet(w);
 	if (!quiet) bpToast(n, why);
+	checkAchievements();
 }
 export function spendBP(n: number): boolean {
 	const w = loadWallet();
@@ -75,7 +77,34 @@ export const ACH_BP = [0, 2, 5, 10, 20];   // 업적 단계(브론즈·실버·�
 export const SEASON_BP: { [cls: string]: number } = { '비기너': 2, '몬스터볼급': 4, '슈퍼볼급': 6, '하이퍼볼급': 10, '마스터볼급': 18, '챔피언급': 30 };
 const FACILITY = /^(배틀타워|배틀팩토리|배틀팰리스|일필도)/;
 
-setAchHook(tiers => { const n = tiers.reduce((a, t) => a + (ACH_BP[t] || 0), 0); if (n) earnBP(n, '업적 달성'); });
+// ───────── 업적 보상: 단계를 이루면 수첩 › 업적에서 눌러서 받기 ─────────
+// 예전(자동 지급) 버전에서 이미 받은 단계는 받은 것으로 침
+(function migrateAchClaim() { const w = loadWallet(); if (!w.achClaim) { w.achClaim = { ...loadStats().ach }; save(WKEY, w); } })();
+/** 이 업적에서 아직 안 받은 BP */
+export function achPending(a: Ach, s: Stats = loadStats(), w: Wallet = loadWallet()) {
+	const lv = s.ach[a.id] || 0, got = w.achClaim?.[a.id] ?? 0; let n = 0;
+	for (let k = got + 1; k <= lv; k++) n += ACH_BP[achTier(a, k)] || 0;
+	return n;
+}
+export function pendingAchTotal(s: Stats = loadStats(), w: Wallet = loadWallet()) { return ACHIEVEMENTS.reduce((t, a) => t + achPending(a, s, w), 0); }
+/** 업적 보상 받기 (여러 개 한 번에) → 받은 BP */
+export function claimAch(ids: string[]) {
+	const s = loadStats(), w = loadWallet(); let n = 0;
+	for (const a of ACHIEVEMENTS) if (ids.includes(a.id)) { const p = achPending(a, s, w); if (p) { n += p; (w.achClaim ||= {})[a.id] = s.ach[a.id] || 0; } }
+	if (!n) return 0;
+	saveWallet(w); earnBP(n, '업적 보상');
+	return n;
+}
+// 수집 업적 (교환소에서 모은 것 — 지갑을 보므로 여기서 추가)
+const ownCount = (slots: Slot[], s: Stats) => { const w = loadWallet(); return ITEMS.filter(i => slots.includes(i.slot) && (i.slot !== 'title' || i.id !== DEFAULT_TITLE) && owns(i, w, s)).length; };
+ACHIEVEMENTS.push(
+	{ id: 'ownTrainer', name: '트레이너 모습 수집가', desc: '교환소 트레이너 모습 {n}종 모으기', cat: '수집', steps: [5, 30, 100], value: s => ownCount(['trainer'], s) },
+	{ id: 'ownTitle', name: '칭호 수집가', desc: '칭호 {n}개 모으기 (기본 칭호 제외)', cat: '수집', steps: [3, 15, 40], value: s => ownCount(['title'], s) },
+	{ id: 'ownCard', name: '카드 꾸미기 장인', desc: '카드 배경·테두리·별 모양 {n}개 모으기', cat: '수집', steps: [3, 10, 20], value: s => ownCount(['cardBg', 'frame', 'star'], s) },
+	{ id: 'ownHp', name: 'HP 창 수집가', desc: 'HP 창 테마 {n}개 모으기', cat: '수집', steps: [1, 5, 14], value: s => ownCount(['hp'], s) },
+	{ id: 'ownStage', name: '무대 연출가', desc: '배틀 배경·음악 {n}개 모으기', cat: '수집', steps: [2, 10, 22], value: s => ownCount(['bg', 'bgm'], s) },
+	{ id: 'bpTotal', name: 'BP 부자', desc: '지금까지 BP {n} 모으기', cat: '수집', steps: [100, 500, 2000], value: () => loadWallet().total },
+);
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 onBattleEnd((setup, battle, win) => {
 	if (setup.replay) return;
@@ -284,6 +313,7 @@ export function buy(it: Item): 'ok' | 'owned' | 'poor' | 'locked' {
 	if (it.price == null) return 'locked';
 	if (w.bp < it.price) return 'poor';
 	w.bp -= it.price; w.own[it.id] = 1; saveWallet(w);
+	checkAchievements();
 	return 'ok';
 }
 /** 장착 (같은 칸의 다른 것은 풀림). 트레이너 모습은 설정의 주인공 모습으로 */

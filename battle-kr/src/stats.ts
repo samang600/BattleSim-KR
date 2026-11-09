@@ -227,6 +227,6 @@ export function checkAchievements(quiet = false) {
 			const l = achLevel(a, a.value(s));
 			if (l > (s.ach[a.id] || 0)) { for (let k = (s.ach[a.id] || 0) + 1; k <= l; k++) newTiers.push(achTier(a, k)); s.ach[a.id] = l; news.push(`${a.name}${a.steps.length > 1 ? ' ' + TIER_NAME[achTier(a, l)] : ''}`); }
 		}
-		if (news.length) { save(KEY, s); onAchBP?.(newTiers); if (!quiet && loadSettings()) toast(`🏆 업적 달성: ${news.slice(0, 2).join(', ')}${news.length > 2 ? ` 외 ${news.length - 2}개` : ''}`); }
+		if (news.length) { save(KEY, s); onAchBP?.(newTiers); if (!quiet && loadSettings()) toast(`🏆 업적 달성: ${news.slice(0, 2).join(', ')}${news.length > 2 ? ` 외 ${news.length - 2}개` : ''} — 수첩 › 업적에서 BP 받기`); }
 	} finally { checking = false; }
 }
