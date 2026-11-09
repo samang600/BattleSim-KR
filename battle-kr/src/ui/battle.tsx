@@ -634,6 +634,13 @@ function typeTint(type: string) {
 			if (m && toID(args[2]) === 'dynamax' && /-Gmax$/.test(m.transformed || '')) m.transformed = undefined;
 			if (!m) return 0;
 			const id = effectInfo(args[2]).id;
+			if (id === 'substitute' && m.vol.has('substitute') && !m.fainted) {
+				// 대타 인형이 흔들리다 하얗게 번쩍이며 아래로 사라지고, 본래 포켓몬이 나타남
+				const sp = FX.fxSpeed();
+				m.anim = 'subbreak'; rerender();
+				setTimeout(() => { m.vol.delete('substitute'); if (m.anim === 'subbreak') animate(m, 'enter', 450); rerender(); }, 520 / sp);
+				return 760;
+			}
 			m.vol.delete(id);
 			if (id === 'stockpile') for (const k of [...m.vol]) if (k.startsWith('stockpile')) m.vol.delete(k);
 			return 0;
@@ -1624,8 +1631,8 @@ function typeTint(type: string) {
 			<div class={'weather-ov ' + (scene.weather || '')} />
 			<div class={'weather-ov terrain-ov ' + [...scene.pseudo].join(' ')} />
 			<div class="anim-bg-layer" ref={animBgRef} />
-			{(['p1', 'p2'] as const).map(sd => { const pp = scene.popup?.[sd]; return pp ? <div class={'ab-pop ' + (sd === 'p1' ? 'own' : 'foe') + ' ' + pp.kind} key={pp.key}>
-				{pp.item && <ItemIcon item={pp.item} />}<span><small>{pp.who}의</small><b>{pp.what}</b></span></div> : null; })}
+			<div class="ab-clip">{(['p1', 'p2'] as const).map(sd => { const pp = scene.popup?.[sd]; return pp ? <div class={'ab-pop ' + (sd === 'p1' ? 'own' : 'foe') + ' ' + pp.kind} key={pp.key}>
+				{pp.item && <ItemIcon item={pp.item} />}<span><small>{pp.who}의</small><b>{pp.what}</b></span></div> : null; })}</div>
 			<canvas class="anim-canvas back" ref={backRef} />
 			{setup.p2.sprite2 && <img class={'trainer-spr foe second' + (trainerVis.foe ? ' in' : '')} src={SPRITE_URL(setup.p2.sprite2)} alt="" onError={trainerImgError} />}
 			{setup.p2.sprite && <img class={'trainer-spr foe' + (trainerVis.foe ? ' in' : '')} src={SPRITE_URL(setup.p2.sprite)} alt="" onError={trainerImgError} />}

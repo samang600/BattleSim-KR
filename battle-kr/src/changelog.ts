@@ -6,6 +6,12 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.55.2', date: '2026-11-09', title: '화면 다듬기', items: [
+		['up', 'PC: 대화창을 배틀 화면 바로 아래에 같은 폭으로, 글자도 크게'],
+		['up', '특성·도구 발동 띠가 배틀 화면 테두리 안에서 나타나요'],
+		['new', '대타 인형이 사라질 때 연출'],
+		['fix', '다이맥스 빛 한 줄로, 교체 칸 이름 잘림, 더블 빈 HP 상자 정리'],
+	] },
 	{ ver: '2.55.0', date: '2026-11-08', title: '배틀 편의 기능', items: [
 		['new', '메시지 자동/수동 진행: 배틀 위 띠의 버튼이나 ☰ 메뉴에서 바꿔요 (수동은 화면을 눌러 넘김)'],
 		['up', '예상 데미지가 메가진화·테라스탈·다이맥스·Z기술 선택, 날씨·특성·도구·벽까지 반영해 최소~최대로 바로 바뀌어요'],

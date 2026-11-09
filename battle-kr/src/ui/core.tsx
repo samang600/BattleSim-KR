@@ -314,7 +314,7 @@ const TERA_SPARK = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http:
 const TERA_FACET = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'><polygon points='0,0 8,0 0,8' fill='white' fill-opacity='.7'/><polygon points='8,0 16,0 16,8 8,8' fill='white' fill-opacity='.25'/><polygon points='0,8 8,8 0,16' fill='white' fill-opacity='.45'/><polygon points='16,8 16,16 8,16' fill='white' fill-opacity='.6'/></svg>");
 export function TeraFilters() {
 	return <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
-		<defs>{glowFilter('dmax-glow', '#ff2a40', 3, 6, '.12;.42;.12', '1.6s', false)}
+		<defs>{glowFilter('dmax-glow', '#ff2a40', 4, 4, '.18;.5;.18', '1.6s', true)}
 		{Object.entries({ ...TYPE_COLOR, Stellar: '#2b3a96' }).map(([t, c]) => <filter id={'tera-' + t} x="-0.2" y="-0.2" width="1.4" height="1.4" color-interpolation-filters="sRGB">
 			{glowRings(c, 1, 2, '.2;.45;.2', '2.4s')}
 			<feImage href={TERA_FACET} x="0" y="0" width="16" height="16" result="t" />
@@ -350,9 +350,10 @@ function glowRings(color: string, r1: number, r2: number, values: string, dur: s
 		<feComponentTransfer in="g2o" result="ring2"><feFuncA type="linear" slope=".2"><animate attributeName="slope" values={values} dur={dur} repeatCount="indefinite" /></feFuncA></feComponentTransfer>
 	</>;
 }
-function glowFilter(id: string, color: string, r1: number, r2: number, values: string, dur: string, _x: boolean) {
+/** single: 바깥 빛 한 줄만 (다이맥스) */
+function glowFilter(id: string, color: string, r1: number, r2: number, values: string, dur: string, single: boolean) {
 	return <filter id={id} x="-0.25" y="-0.25" width="1.5" height="1.5" color-interpolation-filters="sRGB">
 		{glowRings(color, r1, r2, values, dur)}
-		<feMerge><feMergeNode in="ring2" /><feMergeNode in="ring1" /><feMergeNode in="SourceGraphic" /></feMerge>
+		<feMerge>{!single && <feMergeNode in="ring2" />}<feMergeNode in="ring1" /><feMergeNode in="SourceGraphic" /></feMerge>
 	</filter>;
 }
