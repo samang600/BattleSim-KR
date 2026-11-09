@@ -2900,3 +2900,8 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .battle.bg-deepsea { --wg1: #0c3462; --wg2: #144c80; --wg3: #1c68a0; --wg4: #c8b880; --wg5: #b0a068; --wgl: #d8c890; }
 .battle.bg-skypillar { --wg1: #2a6ad8; --wg2: #4a8ae6; --wg3: #88baf4; --wg4: #d8e4f6; --wg5: #c0d0ee; --wgl: #ffffff; }
 .battle.bg-neon { --wg1: #120a2a; --wg2: #220f42; --wg3: #40185e; --wg4: #26203a; --wg5: #161022; --wgl: #5a4a8a; }
+/* 교환소 트레이너 검색 */
+.shop-search { display: flex; gap: 6px; margin: 4px; position: sticky; top: 0; z-index: 3; padding: 4px 0; background: var(--bg, #141a26); }
+.shop-search input { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 8px 10px; color: #fff; background: #0e1420; border: 0; box-shadow: 0 0 0 2px #0a0f18, inset 0 0 0 2px #3a4a6e; }
+.shop-search input::placeholder { color: #8a94a8; }
+.shop-empty { text-align: center; margin: 16px 0; }

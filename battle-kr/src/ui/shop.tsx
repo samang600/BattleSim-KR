@@ -196,6 +196,7 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
 	const st = loadStats();
 	const [tab, setTab] = useState('title');
 	const [sel, setSel] = useState<Item | null>(null);
+	const [q, setQ] = useState('');
 	const settings = loadSettings();
 	const daily = dailyStatus();
 	const tabDef = TABS.find(t => t.id === tab)!;
@@ -229,11 +230,15 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
 		<p class="hint shop-hint">배틀에서 이기고 연승·업적·일일 미션을 달성하면 BP 가 쌓여요. 상품을 누르면 크게 미리 볼 수 있어요. 모두 꾸미기용이라 배틀 능력에는 영향이 없어요.</p>
 		<div class="seg shop-tabs">{TABS.map(t => <button class={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>{t.name}</button>)}</div>
 		{tabDef.slots.map(slot => {
-			const list = ITEMS.filter(i => i.slot === slot);
+			const qq = q.trim().replace(/\s+/g, '');
+			const hit = (i: Item) => !qq || [i.name, i.desc || '', i.grp || ''].some(t => t.replace(/\s+/g, '').includes(qq));
+			const list = ITEMS.filter(i => i.slot === slot && (slot !== 'trainer' || hit(i)));
 			const groups = list.some(i => i.grp) ? groupBy(list) : [['', list] as [string, Item[]]];
 			return <section class="shop-sec">
 				{tabDef.slots.length > 1 && <h3 class="sec">{SLOT_INFO[slot].name} <small class="muted">{SLOT_INFO[slot].desc}</small></h3>}
 				{tabDef.slots.length === 1 && <p class="muted small">{SLOT_INFO[slot].desc}</p>}
+				{slot === 'trainer' && <div class="shop-search"><input type="search" value={q} placeholder="이름·직함·지방으로 찾기 (예: 난천, 관장, 호연)" onInput={e => setQ((e.target as HTMLInputElement).value)} /></div>}
+				{slot === 'trainer' && !list.length && <p class="muted small shop-empty">「{q}」에 맞는 모습이 없어요.</p>}
 				{groups.map(([g, items]) => <div>
 					{g && <h4 class="shop-grp">{g} <small>{items.filter(i => owns(i, w, st)).length}/{items.length}</small></h4>}
 					<div class={'shop-grid slot-' + slot}>{items.map(card)}</div>

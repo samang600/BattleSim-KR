@@ -948,7 +948,131 @@ def neon():
     return im
 
 
-def extend_top(im, extra, stars=True):
+HEART = ['.11.11.', '1111111', '1111111', '.11111.', '..111..', '...1...']
+STAR5 = ['..1..', '.111.', '11111', '.111.', '.1.1.']
+
+
+def stamp(d, x, y, shape, col, hl=None):
+    for j, row in enumerate(shape):
+        for i, ch in enumerate(row):
+            if ch == '1': d.point((x + i, y + j), fill=col)
+    if hl: d.point((x + 1, y + 1), fill=hl)
+
+
+def puff(d, x, y, w, h, col, shade):
+    """몽실 구름 (동그라미 셋 + 아래 그림자)"""
+    d.ellipse([x, y + h // 3, x + w // 2, y + h], fill=col)
+    d.ellipse([x + w // 4, y, x + w * 3 // 4, y + h], fill=col)
+    d.ellipse([x + w // 2, y + h // 3, x + w, y + h], fill=col)
+    d.rectangle([x + 4, y + h - 2, x + w - 4, y + h], fill=shade)
+
+
+def yume():
+    """유메 카와이 (꿈): 파스텔 분홍·보라·민트 하늘, 몽실 구름, 무지개, 별·하트가 떠다니는 솜사탕 언덕"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#c8b8f8', '#d4bcf6', '#e0c0f2', '#ecc4ee', '#f6cae8', '#fcd2e4', '#fedce4'])
+    for k, col in enumerate(['#ffb0c8', '#ffd8a8', '#fff4b0', '#c0f0c8', '#b0e0f8', '#d0c0f8']):   # 무지개 (계단 반원)
+        r = 70 - k * 5
+        for a in range(0, 181, 2):
+            x = 196 + int(r * math.cos(math.radians(a))); y = 74 - int(r * 0.7 * math.sin(math.radians(a)))
+            d.rectangle([x, y, x + 3, y + 3], fill=col)
+    for x, y, w, h in [(8, 18, 44, 16), (80, 8, 36, 12), (128, 40, 48, 18), (214, 22, 34, 12), (40, 52, 40, 14)]:
+        puff(d, x, y, w, h, '#ffffff', '#f0dcf4')
+    rnd = random.Random(14)
+    for _ in range(9): stamp(d, rnd.randint(4, W - 10), rnd.randint(4, 66), HEART, rnd.choice(['#ff8ab8', '#ffa8d0', '#d0a0ff']), '#ffffff')
+    for _ in range(9): stamp(d, rnd.randint(4, W - 8), rnd.randint(4, 66), STAR5, rnd.choice(['#fff090', '#a8e8ff', '#ffffff']))
+    for _ in range(30): d.point((rnd.randint(0, W - 1), rnd.randint(0, 70)), fill='#ffffff')
+    for i, (col, base, amp, per) in enumerate([('#f8c8e8', 72, 6, 19), ('#d8f0e8', 76, 5, 13)]):   # 솜사탕 언덕
+        pts = [(0, H)] + [(x, base - amp * abs(math.sin(x / per + i))) for x in range(0, W + 8, 8)] + [(W, H)]
+        d.polygon(pts, fill=col)
+    bands(d, 80, H, ['#fde0ee', '#fad8ec', '#f6d0ea', '#f2c8e8', '#eec0e6', '#eab8e4'])
+    for y in range(82, H, 8):   # 파스텔 체크
+        for x in range(((y // 8) % 2) * 8, W, 16):
+            d.rectangle([x, y, x + 7, y + 3], fill='#f8d0ec')
+    for _ in range(14): stamp(d, rnd.randint(0, W - 6), rnd.randint(84, H - 6), STAR5, rnd.choice(['#fff4b0', '#ffffff']))
+    ellipse_platform(d, 196, 86, 46, 9, '#ffffff', '#f4d4f0', '#d0a8e0')
+    ellipse_platform(d, 62, 132, 62, 11, '#ffffff', '#f4d4f0', '#d0a8e0')
+    return im
+
+
+def yami():
+    """야미 카와이 (어둠): 검보라 밤하늘, 금이 간 분홍 달, 우는 하트·박쥐 날개 하트, 녹아내리는 분홍 바닥"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#0e0816', '#140a20', '#1a0c2a', '#220e34', '#2a103e', '#341248', '#3e1450'])
+    d.ellipse([186, 8, 222, 44], fill='#ff8ac8'); d.ellipse([192, 12, 218, 38], fill='#ffb0dc')
+    for x, y in [(200, 14), (202, 18), (199, 22), (203, 26), (201, 30)]: d.point((x, y), fill='#3e1450')   # 달의 금
+    rnd = random.Random(66)
+    for _ in range(40): d.point((rnd.randint(0, W - 1), rnd.randint(0, 70)), fill=rnd.choice(['#ff8ac8', '#c8a0ff', '#ffffff']))
+    BIG = ['..111.111..', '.111111111.', '11111111111', '11111111111', '.111111111.', '..1111111..', '...11111...', '....111....', '.....1.....']
+    for k, (x, y) in enumerate([(22, 16), (88, 40), (140, 12), (54, 54), (240, 52)]):   # 박쥐 날개 하트 + 눈물 + 꿰맨 자국
+        stamp(d, x, y, BIG, '#e83a8a'); d.point((x + 3, y + 1), fill='#ff9ac8'); d.point((x + 2, y + 2), fill='#ff9ac8')
+        for j in range(4):   # 날개 (계단)
+            d.rectangle([x - 8 + j * 2, y + j, x - 1, y + j], fill='#120818'); d.rectangle([x + 11, y + j, x + 18 - j * 2, y + j], fill='#120818')
+        d.point((x - 7, y + 4), fill='#120818'); d.point((x + 17, y + 4), fill='#120818')
+        for j in range(3): d.point((x + 5, y + 2 + j * 2), fill='#2a0e3a'); d.point((x + 4, y + 3 + j * 2), fill='#2a0e3a'); d.point((x + 6, y + 3 + j * 2), fill='#2a0e3a')
+        d.rectangle([x + 2, y + 9, x + 2, y + 11], fill='#8ae0ff')   # 눈물
+    for x in [30, 110, 160]:   # 리본 묶은 곰인형 실루엣
+        d.ellipse([x, 60, x + 12, 74], fill='#0a0610'); d.ellipse([x + 2, 50, x + 10, 60], fill='#0a0610')
+        d.ellipse([x + 1, 48, x + 4, 52], fill='#0a0610'); d.ellipse([x + 8, 48, x + 11, 52], fill='#0a0610')
+        d.rectangle([x + 4, 60, x + 8, 61], fill='#ff6ab0')
+    pts = [(0, H)] + [(x, 74 - 4 * abs(math.sin(x / 17))) for x in range(0, W + 8, 8)] + [(W, H)]
+    d.polygon(pts, fill='#2a0e3a')
+    bands(d, 78, H, ['#4a1450', '#541658', '#5e1860', '#681a68', '#721c70', '#7c1e78'])
+    for x in range(0, W, 6):   # 녹아내리는 분홍 (위에서 흘러내림)
+        ln = 3 + (x * 7) % 9
+        d.rectangle([x, 78, x + 3, 78 + ln], fill='#ff6ab0'); d.rectangle([x + 1, 78 + ln, x + 2, 80 + ln], fill='#ff6ab0')
+    for y in range(92, H, 6):
+        for x in range((y * 5) % 17, W, 17):
+            d.rectangle([x, y, x + 1, y + 1], fill='#a83a90')
+    for _ in range(8): stamp(d, rnd.randint(0, W - 8), rnd.randint(96, H - 8), HEART, '#3a0a3a')
+    ellipse_platform(d, 196, 88, 46, 9, '#3a1a4a', '#ff6ab0', '#1a0a24')
+    ellipse_platform(d, 62, 132, 62, 11, '#3a1a4a', '#ff6ab0', '#1a0a24')
+    return im
+
+
+def menhera():
+    """멘헤라 카와이 (병원 감성): 연분홍 커튼 하늘, 반창고 붙인 하트, 알약 캡슐·십자, 하얀 타일 바닥"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#ffe4ee', '#ffdcea', '#ffd4e6', '#ffcce2', '#ffc4de', '#fcbcda', '#f8b4d6'])
+    for x in range(0, W, 16):   # 세로 줄무늬 벽지 (넓고 은은하게)
+        for y in range(0, 76, 2):
+            if (y // 2) % 3: d.rectangle([x, y, x + 7, y + 1], fill='#ffe8f2' if y < 38 else '#fcd4e6')
+    for x0 in (0, W - 40):   # 커튼 (주름)
+        for k in range(5):
+            d.rectangle([x0 + k * 8, 0, x0 + k * 8 + 7, 74], fill='#ffffff' if k % 2 else '#f4e8f4')
+        d.rectangle([x0, 40, x0 + 39, 43], fill='#ff8ab8')
+    rnd = random.Random(29)
+    for k in range(4):   # 반창고 하트
+        x, y = 56 + k * 40 + rnd.randint(-6, 6), rnd.randint(10, 46)
+        big = ['..111.111..', '.111111111.', '11111111111', '11111111111', '.111111111.', '..1111111..', '...11111...', '....111....', '.....1.....']
+        stamp(d, x, y, big, '#ff6aa0', None); d.point((x + 3, y + 1), fill='#ffffff'); d.point((x + 2, y + 2), fill='#ffffff')
+        for j in range(7):   # 사선 반창고
+            d.rectangle([x + 1 + j, y + 7 - j, x + 2 + j, y + 8 - j], fill='#f8d8b0')
+        d.point((x + 5, y + 4), fill='#e8b888')
+    for k in range(6):   # 알약 캡슐 (반 분홍 반 하양)
+        x, y = rnd.randint(50, 200), rnd.randint(6, 64)
+        d.rectangle([x, y, x + 3, y + 3], fill='#ff8ac0'); d.rectangle([x + 4, y, x + 7, y + 3], fill='#ffffff')
+        d.rectangle([x, y + 3, x + 7, y + 3], fill='#d888b0')
+    for k in range(5):   # 하늘색 십자
+        x, y = rnd.randint(50, 200), rnd.randint(6, 66)
+        d.rectangle([x + 2, y, x + 3, y + 5], fill='#8ad0f0'); d.rectangle([x, y + 2, x + 5, y + 3], fill='#8ad0f0')
+    bands(d, 76, H, ['#fff8fc', '#fcf0f8', '#f8e8f4', '#f4e0f0', '#f0d8ec', '#ecd0e8'])
+    for y in range(78, H, 10):   # 타일 줄눈
+        d.line([(0, y), (W, y)], fill='#e8c8e0')
+    for x in range(0, W, 14):
+        d.line([(x, 78), (x, H)], fill='#e8c8e0')
+    for _ in range(6):
+        x, y = rnd.randint(4, W - 10), rnd.randint(84, H - 6)
+        d.rectangle([x, y, x + 3, y + 2], fill='#ff8ac0'); d.rectangle([x + 4, y, x + 7, y + 2], fill='#ffffff')
+    ellipse_platform(d, 196, 88, 46, 9, '#ffffff', '#ffc0dc', '#e090b8')
+    ellipse_platform(d, 62, 132, 62, 11, '#ffffff', '#ffc0dc', '#e090b8')
+    return im
+
+
+def extend_top(im, extra, stars=True, light=False):
     w, h = im.size
     out = Image.new('RGB', (w, h + extra))
     out.paste(im, (0, extra))
@@ -956,6 +1080,7 @@ def extend_top(im, extra, stars=True):
     top = im.getpixel((w // 2, 0))
     for y in range(extra):
         k = 0.55 + 0.45 * (y // 6 * 6) / extra  # 6px 단위 계단식 그라데이션
+        if light: k = 0.9 + 0.1 * (y // 6 * 6) / extra   # 밝은 파스텔 하늘은 거의 그대로
         d.line([(0, y), (w, y)], fill=tuple(int(c * k) for c in top))
     rnd = random.Random(1)
     if stars and sum(top) < 200:  # 어두운 하늘엔 별 (동굴 천장·체육관 벽은 빼고)
@@ -968,10 +1093,10 @@ if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [('field', field), ('tower', tower), ('factory', factory), ('pwt', stadium), ('champion', champion),
                      ('cave', cave), ('beach', beach), ('snow', snow), ('volcano', volcano), ('gym', gym),
-                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry), ('sakura', sakura), ('desert', desert), ('aurora', aurora), ('deepsea', deepsea), ('skypillar', skypillar), ('neon', neon)]:
+                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry), ('sakura', sakura), ('desert', desert), ('aurora', aurora), ('deepsea', deepsea), ('skypillar', skypillar), ('neon', neon), ('yume', yume), ('yami', yami), ('menhera', menhera)]:
         im = fn()
         if name != 'title':
-            im = extend_top(im, 48, stars=name not in ('cave', 'gym', 'palace', 'rush'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림
+            im = extend_top(im, 48, stars=name not in ('cave', 'gym', 'palace', 'rush'), light=name in ('yume', 'menhera'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림
         im.save(os.path.join(OUT, f'arena_{name}.png'), optimize=True)
         print('arena_' + name)
     # 타이틀·메뉴 배경(arena_title*) 은 scripts/gen-title.py 가 만든다

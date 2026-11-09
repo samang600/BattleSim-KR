@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.62.1', date: '2026-11-09', title: '트레이너 모습 검색', items: [
+		['up', '교환소 트레이너 탭에 검색창 — 이름·직함·지방으로 찾기 (예: 난천, 관장, 호연)'],
+	] },
 	{ ver: '2.62.0', date: '2026-11-09', title: '새 배경·음악', items: [
 		['new', '교환소에 배경 「해저 신전」「구름 위 탑」「네온 시티」와 같은 이름의 새 음악 3곡 (각 120 BP)'],
 		['up', '교환소 HP 창·배경·음악을 「배틀」 탭 하나로'],
