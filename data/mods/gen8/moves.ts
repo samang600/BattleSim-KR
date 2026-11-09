@@ -430,6 +430,12 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	maxhailstorm: {
 		inherit: true,
 		isNonstandard: null,
+		self: {
+			onHit(source) {
+				if (!source.volatiles['dynamax']) return;
+				this.field.setWeather('hail');
+			},
+		},
 	},
 	maxknuckle: {
 		inherit: true,

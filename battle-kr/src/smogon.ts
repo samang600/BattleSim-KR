@@ -3,7 +3,7 @@
  *  - 팀을 짤 때 자주 같이 쓰는 포켓몬을 고르고
  *  - 6→3/6→4 참가 선택에서 상대 팀을 보고 유리한 포켓몬을 고른다. */
 import SMOGON from './gen/smogon.json';
-import { fixedTera, RAW, speciesData, learnset, moveData, toID, type Gen } from './data';
+import { fixedTera, megaStoneFits, RAW, speciesData, learnset, moveData, toID, type Gen } from './data';
 import { ruleById, megaStoneAllowed, itemAllowed, type BattleRule } from './rules';
 import { loadSettings } from './store';
 import { evToSp, spToEv, fillSP, type PSet } from './sets';
@@ -48,7 +48,7 @@ function weightedPick<T extends Pair>(list: T[], quality: number, skip?: (k: str
 function itemOk(itemId: string, speciesId: string, rule: BattleRule): boolean {
 	const it = RAW.items[itemId];
 	if (!it) return false;
-	if (it.mega) return megaStoneAllowed(rule, itemId) && (it.megaFrom || []).map(toID).includes(toID(RAW.species[toID(speciesId)]?.base || speciesId));
+	if (it.mega) return megaStoneAllowed(rule, itemId) && megaStoneFits(itemId, speciesId);
 	if (it.zt || it.zu) return rule.kinds.includes('zmove');
 	return itemAllowed(rule, itemId);   // 포켓몬 풀(게임)에 있는 도구만
 }

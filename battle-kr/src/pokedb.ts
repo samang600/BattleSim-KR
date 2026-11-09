@@ -5,7 +5,7 @@
  *  비어 있는 기술·성격·능력 포인트는 Smogon 통계로 채운다. */
 import TEAMS from './gen/pokedb-teams.json';
 import RT from './gen/ranker-teams.json';
-import { RAW, speciesData, nickKo, moveData, toID, type Gen } from './data';
+import { RAW, megaStoneFits, speciesData, nickKo, moveData, toID, type Gen } from './data';
 import { ruleById, speciesAllowed, itemAllowed, megaStoneAllowed, type BattleRule } from './rules';
 import { loadSettings } from './store';
 import { smogonSet } from './smogon';
@@ -27,7 +27,7 @@ const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;
 function itemOk(id: string, sid: string, rule: BattleRule): boolean {
 	const it = RAW.items[id];
 	if (!it) return false;
-	if (it.mega) return megaStoneAllowed(rule, id) && (it.megaFrom || []).map(toID).includes(toID(RAW.species[sid]?.base || sid));
+	if (it.mega) return megaStoneAllowed(rule, id) && megaStoneFits(id, sid);
 	if (it.zt || it.zu) return rule.kinds.includes('zmove');
 	return itemAllowed(rule, id);   // 포켓몬 풀(게임)에 있는 도구
 }

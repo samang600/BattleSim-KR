@@ -340,6 +340,15 @@ export function megaStonesFor(speciesId: string): string[] {
 	if (!en) return [];
 	return Object.entries(D.items).filter(([, it]) => it.mega && it.megaFrom?.includes(en)).map(([id]) => id);
 }
+/** 이 메가스톤으로 메가진화할 수 있는 포켓몬인가: 그 포켓몬 자신, 또는 성별·모양만 다른 폼(원래 모습 기준).
+ *  리전폼(가라르 야도란·알로라 라이츄)과 지우개굴닌자는 원래 모습의 메가스톤으로 메가진화 못 함 */
+export function megaStoneFits(itemId: string, speciesId: string): boolean {
+	const it = D.items[toID(itemId)], sp = D.species[toID(speciesId)];
+	if (!it?.mega || !sp) return false;
+	const from = (it.megaFrom || []).map(toID);
+	if (from.includes(toID(sp.en))) return true;
+	return !!sp.base && !/-(Alola|Galar|Hisui|Paldea|Ash|Bond)/.test(sp.en) && from.includes(toID(sp.base));
+}
 /** 타입 Z크리스탈 (전용 Z크리스탈 제외) */
 export function zCrystalForType(type: string): string | null {
 	for (const [id, it] of Object.entries(D.items)) if (it.zt === type && !it.zf) return id;

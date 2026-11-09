@@ -155,6 +155,8 @@ function eraMod(era: '8' | '7' | '6' | 'max') {
 		if (!t || !(base_moves as any).Moves[id]) continue;
 		Moves[id] = { inherit: true, type: t[0], category: t[1], basePower: t[2], accuracy: t[3] === 0 ? true : t[3], pp: t[4], priority: t[5], target: t[6] };
 	}
+	// 8세대(소드·실드) 사양: 다이아이스는 싸라기눈 (9세대 이후 기본은 설경)
+	if (era === '8') Moves.maxhailstorm = { ...(Moves.maxhailstorm || { inherit: true }), self: { onHit(this: any, source: any) { if (!source.volatiles['dynamax']) return; this.field.setWeather('hail'); } } };
 	// 무제한: 상태이상(마비 1/8·잠듦 2~3턴·얼음 최대 3턴)·날씨·필드는 챔피언스 방식 (날씨·필드는 9세대와 같음)
 	const extra = era === 'max' ? { conditions: { Conditions: champConditions } } : {};
 	return { scripts: { Scripts: { inherit: 'gen9', gen: 9 } }, pokedex: { Pokedex }, moves: { Moves }, abilities: { Abilities: eraAbilities(era) }, ...extra };

@@ -1,7 +1,7 @@
 /** 팀 성향(운영 방식) 판별: 날씨(비·쾌청·모래·설경) · 트릭룸 · 순풍 · 랭크업.
  *  AI 가 기술 점수(ai.ts statusScore)와 참가 포켓몬 고르기(smogon.ts aiPickEntry)에서 쓴다.
  *  입력은 세트(PSet)든 배틀 중 포켓몬이든 { 종, 특성, 기술, 도구 } 만 맞추면 됨. */
-import { RAW, speciesData, toID } from './data';
+import { RAW, megaStoneFits, speciesData, toID } from './data';
 
 export type Weather = 'raindance' | 'sunnyday' | 'sandstorm' | 'snowscape';
 export interface MonInfo { species: string; ability: string; moves: string[]; item: string }
@@ -41,7 +41,7 @@ function effAbility(m: MonInfo): string {
 	const it = RAW.items[toID(m.item)];
 	if (it?.mega) {
 		const ms = speciesData(toID(it.mega), 9);
-		if (ms?.ab?.length && (it.megaFrom || []).map(toID).includes(toID(RAW.species[toID(m.species)]?.base || m.species))) return ms.ab[0];
+		if (ms?.ab?.length && megaStoneFits(toID(m.item), m.species)) return ms.ab[0];
 	}
 	return toID(m.ability);
 }

@@ -11218,7 +11218,8 @@ export const Moves: import('../sim/dex-moves').MoveDataTable = {
 		self: {
 			onHit(source) {
 				if (!source.volatiles['dynamax']) return;
-				this.field.setWeather('hail');
+				// 9세대 이후 사양(전국도감·무제한 등)에서는 싸라기눈 대신 설경 (8세대 이하 모드는 따로 hail)
+				this.field.setWeather('snowscape');
 			},
 		},
 		target: "adjacentFoe",
