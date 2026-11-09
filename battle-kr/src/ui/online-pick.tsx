@@ -51,6 +51,7 @@ export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent,
 	const [view, setView] = useState<number | null>(null);
 	const wide = useWide();
 	const [hover, setHover] = useState<number | null>(null);
+	const [focus, setFocus] = useState<number | null>(null);   // PC: 마지막으로 누른 카드 (오른쪽 칸)
 	const finish = (idx: number[]) => { if (done) return; setDone(true); setView(null); onDone(idx); };
 	useEffect(() => {
 		if (done) return;
@@ -68,7 +69,7 @@ export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent,
 		if (picked.includes(i)) setPicked(picked.filter(x => x !== i));
 		else if (picked.length < need) setPicked([...picked, i]);
 	};
-	const shown = hover ?? view ?? (picked.length ? picked[picked.length - 1] : 0);   // PC 오른쪽 칸에 보이는 포켓몬
+	const shown = hover ?? focus ?? (picked.length ? picked[picked.length - 1] : 0);   // PC 오른쪽 칸에 보이는 포켓몬
 	const mm = String(Math.max(0, Math.floor(left / 60))).padStart(2, '0'), ss = String(Math.max(0, left % 60)).padStart(2, '0');
 	const msg = done ? (opp === 'away' ? `${josa(oppName, 'conjunctive')}의 연결이 끊겼어요. 돌아오기를 기다리는 중…` : opp === 'done' ? '곧 배틀이 시작됩니다!' : `${josa(oppName, 'subject')} 고르는 중… 잠시 기다려 주세요.`)
 		: need < mine.length ? `싸울 포켓몬을 ${need}마리 선택해 주십시오.` : '나갈 순서대로 포켓몬을 선택해 주십시오.';
@@ -84,14 +85,14 @@ export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent,
 				<div class="opk-name me">{myName}</div>
 				{mine.map((s, i) => {
 					const o = picked.indexOf(i);
-					return <div role="button" class={'opk-card' + (o >= 0 ? ' on' : '') + (done && o < 0 ? ' out' : '')} onClick={() => { toggle(i); if (wide) setView(i); }} onMouseEnter={() => wide && setHover(i)} onMouseLeave={() => setHover(null)}>
+					return <div role="button" class={'opk-card' + (o >= 0 ? ' on' : '') + (done && o < 0 ? ' out' : '')} onClick={() => { toggle(i); setFocus(i); }} onMouseEnter={() => wide && setHover(i)} onMouseLeave={() => setHover(null)}>
 						<span class="opk-no">{o >= 0 ? o + 1 : ''}</span>
 						<span class="opk-spr"><CropSprite species={s.species} gen={9} size={56} shiny={s.shiny} /></span>
 						<span class="opk-txt">
 							<b>{s.name || speciesData(toID(s.species), 9)?.n || s.species}{sexMark(s)}</b>
 							<small>{s.item ? <><ItemIcon item={s.item} size={16} />{itemKo(s.item)}</> : '도구 없음'}</small>
 						</span>
-						<span class="opk-info" role="button" aria-label="능력치" onClick={e => { e.stopPropagation(); setView(i); }}><InfoIcon /></span>
+						<span class="opk-info" role="button" aria-label="능력치" onClick={e => { e.stopPropagation(); if (wide) setFocus(i); else setView(i); }}><InfoIcon /></span>
 					</div>;
 				})}
 			</div>
@@ -101,6 +102,7 @@ export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent,
 					const sd = speciesData(toID(s.species), 9);
 					return <div class="opk-foe">
 						<span class="opk-spr"><CropSprite species={s.species} gen={9} size={52} shiny={s.shiny} /></span>
+						<b class="opk-foe-name">{sd?.n || s.species}</b>
 						<span class="opk-types">{sd?.t.map(t => <TypeBadge type={t} small />)}{sexMark(s)}</span>
 					</div>;
 				})}
