@@ -222,7 +222,7 @@ export function randomSetFor(speciesId: string, gen: Gen, level = 50, doubles = 
 	const id = toID(speciesId);
 	// Smogon 사용률 통계가 있으면 실전형 세트 (quality 가 높을수록 자주 쓰는 구성)
 	const sm = smogonSet(id, gen, level, doubles, quality);
-	if (sm && sm.moves.length) { sm.name = nickKo(id); if ((RAW.items as any)[sm.item]?.mega) fitSetToMega(sm, sm.item, gen); return sm; }
+	if (sm && sm.moves.length) { sm.name = nickKo(id); if ((RAW.items as any)[sm.item]?.mega) fitSetToMega(sm, sm.item, gen); return fixChoiceSet(sm, gen); }
 	const g = generator(gen);
 	let set: PSet;
 	const table = doubles ? g.randomDoublesSets : g.randomSets;
@@ -256,6 +256,25 @@ export function randomSetFor(speciesId: string, gen: Gen, level = 50, doubles = 
 	return out;
 }
 
+/** 구애 도구(스카프·머리띠·안경)와 같이 써도 되는 변화기: 도구를 넘기거나 쓰고 바로 물러나는 기술만 */
+const CHOICE_OK_STATUS = new Set(['trick', 'switcheroo', 'healingwish', 'lunardance', 'memento']);
+function choiceBadMoves(set: PSet, gen: Gen): string[] {
+	return set.moves.filter(m => { const md = moveData(toID(m), gen); return md?.category === 'Status' && !CHOICE_OK_STATUS.has(toID(m)); });
+}
+/** 구애 도구를 들었는데 변화기(방어·칼춤 등)가 있으면: 하나면 공격 기술로 바꾸고, 둘 이상이면(보조형) 도구를 바꿈 */
+export function fixChoiceSet<T extends PSet>(set: T, gen: Gen = 9): T {
+	if (!/^choice/.test(toID(set.item))) return set;
+	const bad = choiceBadMoves(set, gen);
+	if (!bad.length) return set;
+	if (bad.length === 1 && !speciesData(toID(set.species), gen)?.req) {
+		const repl = buildSet(toID(set.species), gen).moves.find(m => moveData(m, gen)?.category !== 'Status' && !set.moves.map(toID).includes(m));
+		if (repl) { set.moves = set.moves.map(m => m === bad[0] ? repl : m); return set; }
+	}
+	const rule = ruleById(loadSettings().battleRule);
+	set.item = ['leftovers', 'sitrusberry', 'lumberry', 'lifeorb', 'expertbelt', 'shellbell'].find(i => RAW.items[i] && itemAllowed(rule, i)) || '';
+	return set;
+}
+
 /** 세트를 지금 규칙의 포켓몬 풀 사양에 맞춤: 그 세대에 없는 기술·특성·도구를 바꿈 (랭크배틀·팩토리·무작위 상대 등) */
 const SAFE_ITEMS = ['leftovers', 'sitrusberry', 'lifeorb', 'focussash', 'choicescarf', 'lumberry', 'expertbelt', 'choiceband', 'choicespecs', 'blacksludge', 'rockyhelmet'];
 export function conformSet<T extends PSet>(set: T, gen: Gen = 9): T {
@@ -276,7 +295,7 @@ export function conformSet<T extends PSet>(set: T, gen: Gen = 9): T {
 	if (set.item && !itemAllowed(rule, set.item)) set.item = SAFE_ITEMS.find(i => itemAllowed(rule, i) && RAW.items[i]) || '';
 	// 모습에 꼭 필요한 도구(오거폰 가면·아르세우스 플레이트 등)는 항상
 	if (sd.req && !RAW.items[sd.req]?.mega) set.item = sd.req;
-	return set;
+	return fixChoiceSet(set, gen);
 }
 
 export interface PoolOptions {
@@ -331,7 +350,9 @@ export function dedupeItems(team: PSet[]) {
 	for (const set of team) {
 		if (used.has(set.item)) {
 			const rule = ruleById(loadSettings().battleRule);
-			const alt = ITEM_ALTS.find(i => !used.has(i) && RAW.items[i] && itemAllowed(rule, i));
+			// 변화기가 있는 세트에는 구애 도구를 대신 주지 않음
+			const noChoice = choiceBadMoves({ ...set, item: 'choicescarf' }, 9).length > 0;
+			const alt = ITEM_ALTS.find(i => !used.has(i) && RAW.items[i] && itemAllowed(rule, i) && !(noChoice && /^choice/.test(i)));
 			set.item = alt || '';
 		}
 		if (set.item) used.add(set.item);
