@@ -3,7 +3,7 @@ import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import { ask, Screen, toast } from './ui/core';
 import { ChoiceScreen, InfoScreen } from './ui/screens';
-import { battle, chooseTeam, playerName, playerSprite, withLevel, BACK } from './modes';
+import { battle, chooseTeam, playerName, playerSprite, withLevel, BACK, BgmRow } from './modes';
 import { OnlineRoom, RemoteSession, matchmake, newRoomCode, normCode, APP_VERSION, type StartInfo, type RoomInfo, type PreviewInfo } from './online';
 import { josa } from './josa';
 import { OnlinePick } from './ui/online-pick';
@@ -89,7 +89,7 @@ function pickPhase(room: OnlineRoom, pv: PreviewInfo, label: string, sent: boole
 			return <OnlinePick title={`${label} · ${fmtKo(pv.doubles, pv.pick)}`} mine={mine.team} myName={mine.name} oppName={opp.name} oppTeam={opp.team}
 				count={pv.pick} sent={sent} opp={st}
 				onDone={idx => { room.send({ t: 'pick', idx }); onSent(); }}
-				onLeave={() => finish({ cancel: true })} />;
+				onLeave={() => finish({ cancel: true })} prep={<BgmRow />} />;
 		};
 		ask<void>(() => <Wrap />).catch(() => finish({ cancel: true }));
 	});

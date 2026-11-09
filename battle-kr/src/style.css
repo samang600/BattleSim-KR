@@ -2481,3 +2481,15 @@ html { image-rendering: pixelated; }
 	.opk-foe-name { display: block; }
 	.opk-foe .opk-types { flex: none; }
 }
+
+/* 고르기 화면의 배틀 필드·음악 (모바일: 카드 아래, PC: 오른쪽 칸 — 필드 그림을 크게) */
+.opk-prep .prep-pickers { max-width: 420px; margin: 0 auto; }
+.opk-prep.wide { display: flex; flex-direction: column; gap: 8px; padding: 6px; }
+.opk-prep.wide .opk-name { margin: 0; }
+.opk-prep.wide .prep-pickers { max-width: none; gap: 8px; margin: 0; display: flex; flex-direction: column-reverse; }
+.opk-prep.wide .pick-panel { height: 44px; }
+.opk-prep.wide .pick-panel.has-bg { height: auto; aspect-ratio: 16 / 9; align-items: flex-end; padding-bottom: 6px; }
+.opk-prep.wide .pick-bg .arena-thumb:not(.unknown) .arena-bg { filter: none; }
+.opk-prep.wide .pick-panel.has-bg .pick-mid { background: rgba(8, 10, 30, .78); padding: 2px 10px; }
+.opk-tip { margin: 0; font-size: 12px; color: #9aa0d8; text-align: center; }
+.opk-detail .opk-name .opk-x { margin-left: auto; }
