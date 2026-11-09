@@ -2368,3 +2368,14 @@ html { image-rendering: pixelated; }
 	background: repeating-linear-gradient(90deg, transparent 0 30px, rgba(230,180,255,.1) 30px 32px), repeating-linear-gradient(0deg, transparent 0 30px, rgba(230,180,255,.08) 30px 32px); }
 /* 중력: 아래로 누르는 가로 줄 */
 .weather-ov.gravity { background: repeating-linear-gradient(0deg, transparent 0 10px, rgba(0,0,0,.12) 10px 12px); }
+
+/* 온라인 대전 (online-ui.tsx) */
+.hm-more .hm-tile:last-child:nth-child(3n+1) { grid-column: span 3; }   /* 7번째(온라인) 칸은 한 줄 전체 */
+.online-wait { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px 6px; margin: 8px 0; text-align: center;
+	border: 12px solid transparent; border-image: var(--toast) 4 fill / 12px stretch; image-rendering: pixelated; color: #fff; }
+.online-wait .hint, .online-wait .muted { margin: 0; }
+.room-code { font-size: 40px; letter-spacing: 8px; padding: 8px 18px; background: #0e1a30; color: #ffe27a;
+	box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0e1a30; margin: 6px 0; font-family: inherit; }
+.room-code.searching { letter-spacing: 4px; animation: blink 1s steps(2) infinite; }
+.code-input { display: block; width: 100%; box-sizing: border-box; font: inherit; font-size: 32px; letter-spacing: 8px; text-align: center; text-transform: uppercase;
+	padding: 10px; margin: 10px 0 14px; background: #0e1a30; color: #fff; border: 0; box-shadow: 0 0 0 2px #fff; outline: none; }

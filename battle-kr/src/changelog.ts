@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.56.0', date: '2026-11-09', title: '온라인 대전 (테스트)', items: [
+		['new', '친구 대전: 방을 만들어 6자리 코드를 알려 주면 친구와 대전 (방장이 정한 규칙·형식)'],
+		['new', '랜덤 대전: 같은 시간에 기다리는 사람과 무작위 팀으로 대전 (싱글·더블)'],
+		['up', '같은 앱 버전끼리만 연결돼요. 잠깐 끊겨도 다시 붙으면 이어서 진행'],
+	] },
 	{ ver: '2.55.2', date: '2026-11-09', title: '화면 다듬기', items: [
 		['up', 'PC: 대화창을 배틀 화면 바로 아래에 같은 폭으로, 글자도 크게'],
 		['up', '특성·도구 발동 띠가 배틀 화면 테두리 안에서 나타나요'],

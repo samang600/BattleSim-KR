@@ -23,6 +23,8 @@ export interface SessionConfig {
 	partnerFlags?: boolean[];
 	/** 상대 선택을 AI 대신 정함 (배틀팰리스: 성격대로). null 이면 평소 AI */
 	p2Auto?: (battle: any, req: any) => string | null;
+	/** 온라인 대전: 양쪽 선택을 모두 밖(서버가 중계한 순서)에서 넣음 (applyInput). AI 는 돌지 않음 */
+	remote?: boolean;
 }
 
 export class Session {
@@ -97,7 +99,7 @@ export class Session {
 				if (side === 'p1') this.p1Request = req;
 				else if (side === 'p2') this.p2Request = req;
 			} else if (rest.startsWith('|error|')) {
-				if (side === 'p1') this.lastError = rest.slice(7);
+				if (side === 'p1' || this.cfg.remote) this.lastError = rest.slice(7);
 			}
 		} else if (type === 'end') {
 			this.ended = true;
@@ -130,6 +132,7 @@ export class Session {
 	}
 
 	private runAI() {
+		if (this.cfg.remote) return;
 		for (let guard = 0; guard < 8 && !this.ended; guard++) {
 			const req = this.p2Request;
 			if (!req || req.wait || req === this.p2Answered) return;
@@ -198,6 +201,33 @@ export class Session {
 		this.record.p1.push(choice);
 		this.battle.sendUpdates();
 		this.runAI();
+		return this.flush();
+	}
+
+	/** (온라인) 이 선택이 지금 가능한지 — 시뮬레이터에 넣어 보고 바로 지움 (턴은 진행하지 않음) */
+	canChoose(side: 'p1' | 'p2', choice: string): boolean {
+		if (choice === 'forfeit') return true;
+		this.syncSimRequest(side);
+		const sd: any = this.battle[side];
+		let ok = false;
+		try { ok = !!sd.choose(choice); } catch { ok = false; }
+		if (!ok) this.lastError = sd.choice?.error || '';
+		try { sd.clearChoice(); } catch {}
+		return ok;
+	}
+	/** (온라인) 서버가 중계한 순서대로 한쪽 선택을 넣음. 두 쪽이 모이면 턴이 진행되고 그 줄을 돌려줌. 넣을 수 없으면 null */
+	applyInput(side: 'p1' | 'p2', choice: string): string[] | null {
+		if (this.ended) return [];
+		if (choice === 'forfeit') {
+			this.record[side].push('forfeit');
+			this.battle.forceWin(side === 'p1' ? 'p2' : 'p1');
+			this.battle.sendUpdates();
+			return this.flush();
+		}
+		this.syncSimRequest(side);
+		if (!this.battle.choose(side, choice)) return null;
+		this.record[side].push(choice);
+		this.battle.sendUpdates();
 		return this.flush();
 	}
 

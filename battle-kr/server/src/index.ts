@@ -1,27 +1,26 @@
-/** 배틀시뮬 KR 온라인 배틀 서버 (Cloudflare Workers + Durable Objects)
+/** 배틀시뮬 KR 온라인 대전 서버 (Cloudflare Workers + Durable Objects, 무료 요금제)
  *
- *  GET  /                 → 상태 확인
- *  POST /room             → 친구 배틀 방 만들기 {code}
- *  GET  /ws?room=CODE     → WebSocket (방 = Durable Object 하나)
+ *  친구 대전·랜덤 대전은 '선택 중계' 방식: 두 앱이 같은 시드·팀으로 같은 배틀을 돌리고, 서버는 선택을 받은 순서대로 양쪽에 돌려준다.
+ *  (판정은 앱 엔진이 하므로 앱 버전이 같아야 함 — 입장 때 확인. 서버 판정 방식은 src/match.ts, 랭크전용으로 남겨 둠)
  *
- *  메시지 (JSON)
- *   앱 → 서버  {t:'join', name, token, team, ruleId?, doubles?}   // 처음 들어온 사람이 방 규칙을 정함
- *              {t:'choose', choice}  ·  {t:'forfeit'}
- *   서버 → 앱  {t:'room', code, side, players, ruleId, doubles, status}
- *              {t:'lines', lines}  ·  {t:'request', req}  ·  {t:'end', winner}  ·  {t:'error', msg}
- *              {t:'opp', online}   // 상대 접속 상태
- *  잠든 뒤 깨어나면(hibernation) 저장한 시드·팀·선택 기록으로 배틀을 다시 만든다.
+ *  GET /            상태 확인
+ *  GET /ws?room=CODE   방 (Durable Object 하나)
+ *    앱 → {t:'peek'}                      방 정보만 (입장 전)
+ *         {t:'join', name, token, team, ruleId?, doubles?, version}   처음 들어온 사람(방장)이 규칙·형식을 정함
+ *         {t:'choose', choice}            내 선택 ('forfeit' = 기권)
+ *    서버 → {t:'room', ...}  {t:'start', side, seed, ruleId, doubles, p1:{name,team}, p2:{name,team}}
+ *           {t:'input', side, choice, n}  (n = 몇 번째 선택, 1부터)   {t:'inputs', list}  (재접속 때 지금까지 전부)   {t:'error', msg}
+ *  GET /queue       랜덤 대전 매칭 (Lobby)
+ *    앱 → {t:'queue', doubles, version, token}   서버 → {t:'matched', code}
  */
-import '../../src/ps/registry';
 import { DurableObject } from 'cloudflare:workers';
-import { Match, type MatchSetup, type Out, type Side } from './match';
 
-interface Env { ROOMS: DurableObjectNamespace<Room> }
+interface Env { ROOMS: DurableObjectNamespace<Room>; LOBBY: DurableObjectNamespace<Lobby> }
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
 const json = (o: any, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
-/** 헷갈리는 글자(0·O·1·I) 뺀 방 코드 6자리 */
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => CODE_CHARS[b % CODE_CHARS.length]).join('');
+const ROOM_TTL = 6 * 3600 * 1000;   // 방은 6시간 뒤 지움
 
 export default {
 	async fetch(req: Request, env: Env): Promise<Response> {
@@ -29,134 +28,139 @@ export default {
 		if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
 		if (url.pathname === '/') return json({ ok: true, service: 'battlesim-kr', time: Date.now() });
 		if (url.pathname === '/room' && req.method === 'POST') return json({ code: newCode() });
+		const ws = req.headers.get('Upgrade') === 'websocket';
 		if (url.pathname === '/ws') {
 			const code = (url.searchParams.get('room') || '').toUpperCase();
 			if (!/^[A-Z0-9]{4,8}$/.test(code)) return json({ error: '방 코드가 올바르지 않아요' }, 400);
-			if (req.headers.get('Upgrade') !== 'websocket') return json({ error: 'WebSocket 으로 연결해 주세요' }, 426);
+			if (!ws) return json({ error: 'WebSocket 으로 연결해 주세요' }, 426);
 			return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(req);
+		}
+		if (url.pathname === '/queue') {
+			if (!ws) return json({ error: 'WebSocket 으로 연결해 주세요' }, 426);
+			return env.LOBBY.get(env.LOBBY.idFromName('lobby')).fetch(req);
 		}
 		return json({ error: 'not found' }, 404);
 	},
 };
 
-interface Player { name: string; token: string; team: any[] }
-interface RoomState { code: string; ruleId: string; doubles: boolean; players: { p1?: Player; p2?: Player }; seed?: [number, number, number, number]; inputs: [Side, string][]; ended?: boolean; winner?: string; created: number }
+type Side = 'p1' | 'p2';
+interface Player { name: string; token: string; team: any[]; version: string; sprite?: string }
+interface RoomState { code: string; ruleId: string; doubles: boolean; players: { p1?: Player; p2?: Player };
+	seed?: number[]; inputs: [Side, string][]; ended?: boolean; created: number }
 
 export class Room extends DurableObject<Env> {
 	private st: RoomState | null = null;
-	private match: Match | null = null;
-
-	private async load(code?: string): Promise<RoomState> {
-		if (!this.st) this.st = (await this.ctx.storage.get<RoomState>('room')) || { code: code || '', ruleId: 'mzdt_one.natdex.no.no', doubles: false, players: {}, inputs: [], created: Date.now() };
+	private async load(code = ''): Promise<RoomState> {
+		if (!this.st) this.st = (await this.ctx.storage.get<RoomState>('room')) || { code, ruleId: 'mzdt_one.natdex.no.no', doubles: false, players: {}, inputs: [], created: Date.now() };
+		if (!this.st.code && code) this.st.code = code;
 		return this.st;
 	}
 	private async save() { await this.ctx.storage.put('room', this.st!); }
-
-	/** 메모리의 배틀이 없으면(잠들었다 깸) 기록으로 다시 만듦 */
-	private ensureMatch(): { p1: string[]; p2: string[] } | null {
-		const s = this.st!;
-		if (!s.seed || !s.players.p1 || !s.players.p2) return null;
-		if (this.match) return null;
-		const r = Match.rebuild(this.setupOf(s), s.inputs);
-		this.match = r.match;
-		return r.log;
-	}
-	private setupOf(s: RoomState): MatchSetup {
-		return { ruleId: s.ruleId, doubles: s.doubles, seed: s.seed!, p1: { name: s.players.p1!.name, team: s.players.p1!.team }, p2: { name: s.players.p2!.name, team: s.players.p2!.team } };
-	}
-	/** 진영별 소켓 (진영은 join 때 소켓에 붙여 둠 — 잠들었다 깨도 유지) */
-	private sockets(side?: Side) { return this.ctx.getWebSockets().filter(ws => !side || (ws.deserializeAttachment() as any)?.side === side); }
-	private send(side: Side, msg: any) { const s = JSON.stringify(msg); for (const ws of this.sockets(side)) try { ws.send(s); } catch {} }
+	private sideOf(ws: WebSocket): Side | null { return (ws.deserializeAttachment() as any)?.side ?? null; }
+	private sockets(side?: Side) { return this.ctx.getWebSockets().filter(ws => !side || this.sideOf(ws) === side); }
+	private send(ws: WebSocket, m: any) { try { ws.send(JSON.stringify(m)); } catch {} }
 	private roomInfo(side: Side | null) {
 		const s = this.st!;
 		return { t: 'room', code: s.code, side, ruleId: s.ruleId, doubles: s.doubles, status: s.ended ? 'ended' : s.seed ? 'battle' : 'waiting',
-			players: { p1: s.players.p1?.name || null, p2: s.players.p2?.name || null },
+			players: { p1: s.players.p1?.name || null, p2: s.players.p2?.name || null }, version: s.players.p1?.version,
 			online: { p1: this.sockets('p1').length > 0, p2: this.sockets('p2').length > 0 } };
 	}
-	private deliver(o: Out) {
-		for (const side of ['p1', 'p2'] as Side[]) {
-			if (o[side].length) this.send(side, { t: 'lines', lines: o[side] });
-			if (o.req[side]) this.send(side, { t: 'request', req: o.req[side] });
-		}
-		if (o.ended) for (const side of ['p1', 'p2'] as Side[]) this.send(side, { t: 'end', winner: o.winner });
+	private broadcastRoom() { for (const ws of this.ctx.getWebSockets()) this.send(ws, this.roomInfo(this.sideOf(ws))); }
+	private startMsg(side: Side) {
+		const s = this.st!;
+		return { t: 'start', side, seed: s.seed, ruleId: s.ruleId, doubles: s.doubles,
+			p1: { name: s.players.p1!.name, team: s.players.p1!.team, sprite: s.players.p1!.sprite }, p2: { name: s.players.p2!.name, team: s.players.p2!.team, sprite: s.players.p2!.sprite } };
 	}
 
 	async fetch(req: Request): Promise<Response> {
-		const code = (new URL(req.url).searchParams.get('room') || '').toUpperCase();
-		await this.load(code);
+		await this.load((new URL(req.url).searchParams.get('room') || '').toUpperCase());
 		const pair = new WebSocketPair();
-		// 잠들어도 연결은 유지 (hibernation)
-		this.ctx.acceptWebSocket(pair[1]);
+		this.ctx.acceptWebSocket(pair[1]);   // 잠들어도 연결 유지 (hibernation)
+		if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(Date.now() + ROOM_TTL);
 		return new Response(null, { status: 101, webSocket: pair[0] });
 	}
+	async alarm() { for (const ws of this.ctx.getWebSockets()) try { ws.close(1000, '방이 닫혔어요'); } catch {} await this.ctx.storage.deleteAll(); this.st = null; }
 
 	async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
 		const s = await this.load();
 		let m: any;
 		try { m = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch { return; }
-		const err = (msg: string) => ws.send(JSON.stringify({ t: 'error', msg }));
+		const err = (msg: string) => this.send(ws, { t: 'error', msg });
 
+		if (m.t === 'peek') return this.send(ws, this.roomInfo(null));
 		if (m.t === 'join') {
-			const token = String(m.token || '').slice(0, 64), name = String(m.name || '트레이너').slice(0, 16);
+			const token = String(m.token || '').slice(0, 64), version = String(m.version || '');
 			if (!token) return err('token 이 필요해요');
-			// 같은 토큰이면 재접속 (진영 유지)
 			let side: Side | null = s.players.p1?.token === token ? 'p1' : s.players.p2?.token === token ? 'p2' : null;
 			if (!side) {
 				if (s.players.p1 && s.players.p2) return err('방이 꽉 찼어요');
+				if (s.players.p1 && s.players.p1.version !== version) return err(`앱 버전이 달라서 함께 대전할 수 없어요 (방장 v${s.players.p1.version} · 나 v${version}). 둘 다 최신 버전으로 맞춰 주세요.`);
 				const team = Array.isArray(m.team) ? m.team.slice(0, 6) : [];
 				if (!team.length) return err('팀이 비어 있어요');
 				side = s.players.p1 ? 'p2' : 'p1';
-				if (side === 'p1') { if (m.ruleId) s.ruleId = String(m.ruleId); s.doubles = !!m.doubles; }
-				s.players[side] = { name, token, team };
+				let name = String(m.name || '트레이너').slice(0, 16);
+				if (side === 'p2' && name === s.players.p1!.name) name += ' (2)';   // 승자 판정이 이름으로 되므로 겹치지 않게
+				if (side === 'p1') { if (m.ruleId) s.ruleId = String(m.ruleId).slice(0, 80); s.doubles = !!m.doubles; }
+				s.players[side] = { name, token, team, version, sprite: String(m.sprite || '').slice(0, 40) };
 				await this.save();
 			}
-			ws.serializeAttachment({ side });   // 이 소켓의 진영 (잠들었다 깨도 남음)
-			// 두 명이 모이면 배틀 시작
+			ws.serializeAttachment({ side });
 			if (!s.seed && s.players.p1 && s.players.p2) {
-				s.seed = Array.from(crypto.getRandomValues(new Uint16Array(4))) as any;
+				s.seed = Array.from(crypto.getRandomValues(new Uint16Array(4)));
 				await this.save();
-				this.match = new Match(this.setupOf(s));
-				const o = this.match.start();
 				this.broadcastRoom();
-				this.deliver(o);
+				for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) this.send(w, this.startMsg(sd));
 				return;
 			}
 			this.broadcastRoom();
-			if (s.seed) {
-				// 재접속: 지금까지의 줄과 마지막 요청을 다시 보냄
-				const log = this.ensureMatch();
-				const full = log ? log[side] : Match.rebuild(this.setupOf(s), s.inputs).log[side];
-				ws.send(JSON.stringify({ t: 'lines', lines: full, replay: true }));
-				const r = this.match?.lastReq[side];
-				if (r && !s.ended) ws.send(JSON.stringify({ t: 'request', req: r }));
-				if (s.ended) ws.send(JSON.stringify({ t: 'end', winner: s.winner || '' }));
+			if (s.seed) {   // 재접속: 시작 정보와 지금까지의 선택
+				this.send(ws, this.startMsg(side));
+				this.send(ws, { t: 'inputs', list: s.inputs });
 			}
 			return;
 		}
-
-		const side = (ws.deserializeAttachment() as any)?.side as Side | undefined;
-		if (!side) return err('먼저 join 해 주세요');
-		if (m.t === 'choose' || m.t === 'forfeit') {
-			if (!s.seed || s.ended) return err('배틀 중이 아니에요');
-			this.ensureMatch();
-			const o = this.match!.choose(side, m.t === 'forfeit' ? 'forfeit' : String(m.choice || ''));
-			if (!o) return err(this.match!.lastError || '선택할 수 없는 행동이에요');
-			s.inputs = this.match!.inputs;
-			if (o.ended) { s.ended = true; s.winner = o.winner; }
+		const side = this.sideOf(ws);
+		if (!side) return err('먼저 입장해 주세요');
+		if (m.t === 'choose') {
+			if (!s.seed) return err('아직 상대가 없어요');
+			if (s.ended) return err('끝난 배틀이에요');
+			const choice = String(m.choice || '').slice(0, 200);
+			if (!choice) return;
+			s.inputs.push([side, choice]);
+			if (choice === 'forfeit') s.ended = true;
 			await this.save();
-			this.deliver(o);
+			const msg = { t: 'input', side, choice, n: s.inputs.length };
+			for (const w of this.ctx.getWebSockets()) if (this.sideOf(w)) this.send(w, msg);
 			return;
 		}
-		if (m.t === 'ping') ws.send(JSON.stringify({ t: 'pong' }));
+		if (m.t === 'ended') { s.ended = true; await this.save(); return; }
+		if (m.t === 'ping') this.send(ws, { t: 'pong' });
 	}
-
-	private broadcastRoom() {
-		for (const ws of this.ctx.getWebSockets()) {
-			const side = (ws.deserializeAttachment() as any)?.side ?? null;
-			try { ws.send(JSON.stringify(this.roomInfo(side))); } catch {}
-		}
-	}
-
 	async webSocketClose(ws: WebSocket) { try { ws.close(); } catch {} this.broadcastRoom(); }
-	async webSocketError(ws: WebSocket) { this.broadcastRoom(); }
+	async webSocketError() { this.broadcastRoom(); }
+}
+
+/** 랜덤 대전 매칭: 같은 형식(싱글·더블)·같은 앱 버전끼리 먼저 온 순서로 짝지음 */
+export class Lobby extends DurableObject<Env> {
+	async fetch(req: Request): Promise<Response> {
+		const pair = new WebSocketPair();
+		this.ctx.acceptWebSocket(pair[1]);
+		return new Response(null, { status: 101, webSocket: pair[0] });
+	}
+	async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
+		let m: any;
+		try { m = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch { return; }
+		if (m.t !== 'queue') return;
+		const me = { doubles: !!m.doubles, version: String(m.version || ''), token: String(m.token || ''), at: Date.now() };
+		const other = this.ctx.getWebSockets().find(w => {
+			if (w === ws) return false;
+			const a = w.deserializeAttachment() as any;
+			return a && a.doubles === me.doubles && a.version === me.version && a.token !== me.token;
+		});
+		if (!other) { ws.serializeAttachment(me); ws.send(JSON.stringify({ t: 'waiting' })); return; }
+		const code = newCode();
+		other.serializeAttachment(null);
+		for (const w of [other, ws]) { try { w.send(JSON.stringify({ t: 'matched', code })); w.close(1000, 'matched'); } catch {} }
+	}
+	async webSocketClose(ws: WebSocket) { try { ws.close(); } catch {} }
 }

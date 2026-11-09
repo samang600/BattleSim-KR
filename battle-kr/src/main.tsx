@@ -6,6 +6,7 @@ import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, as
 import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
+import { runOnline } from './online-ui';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
 import { runPalace, runDaily, runBossRush, todayDaily } from './frontier';
 import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
@@ -32,9 +33,10 @@ const MODES = [
 	{ id: 'named', name: '네임드', sub: '관장 · 챔피언 · 애니메이션', run: runNamed, color: '#14968c', mon: 'dragonite' },
 	{ id: 'free', name: '프리 배틀', sub: '싱글 · 더블 바로 대전', run: () => runFree(), color: '#56708e', mon: 'lucario' },
 	{ id: 'daily', name: '오늘의 도전', sub: '', run: runDaily, color: '#d8a018', mon: 'pikachu' },
+	{ id: 'online', name: '온라인 대전', sub: '친구 · 랜덤 (테스트)', run: runOnline, color: '#2a8fb0', mon: 'rotom' },
 ];
 const FEATURED = ['tower', 'factory', 'rank'];
-const MORE = ['palace', 'pwt', 'boss', 'named', 'free', 'daily'];
+const MORE = ['palace', 'pwt', 'boss', 'named', 'free', 'daily', 'online'];
 
 function TitleScreen({ onStart }: { onStart: () => void }) {
 	return <div class="title-screen" onClick={onStart}>
@@ -69,7 +71,7 @@ function Home({ go }: { go: (v: string) => void }) {
 		pwt: cupWins ? `우승 ${cupWins}회` : `${CUPS.length}개 대회`, named: `${namedWins}/${NAMED.length}`, free: '',
 		boss: conq || Object.values(st.boss).some(Boolean) ? `정복 ${conq}지방` : '',
 		rank: `시즌 ${season.no} · ${rp ? rankLabel(rp) : '참가 전'}`,
-		daily: `${daily.theme}${today !== undefined ? ` · ${today}/7` : ''}`,
+		daily: `${daily.theme}${today !== undefined ? ` · ${today}/7` : ''}`, online: '',
 	};
 	const achDone = ACHIEVEMENTS.filter(a => (st.ach[a.id] || 0) > 0).length;
 	const tile = (id: string, big: boolean) => { const m = MODES.find(x => x.id === id)!;

@@ -2,6 +2,7 @@
 import { h, Fragment } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Session } from '../engine';
+import type { RemoteSession } from '../online';
 import { KoreanText, parseLine, effectInfo, type ParsedLine } from '../text';
 import { moveData, moveKo, speciesData, speciesKo, toID, abilityKo, itemKo, natureKo, STAT_SHORT, STAT_KO, typeKo, abilityDesc,
 	itemDesc, RAW, floats, type Gen } from '../data';
@@ -45,6 +46,8 @@ export interface BattleSetup {
 	p2Auto?: (battle: any, req: any) => string | null;
 	/** 화면 위 안내 (예: '포켓몬이 스스로 싸우고 있다') */
 	autoMsg?: string;
+	/** 온라인 대전: 상대 선택을 서버에서 받는 세션 (src/online.ts). 있으면 AI 대신 상대를 기다림 */
+	online?: RemoteSession;
 }
 export interface BattleResult { win: boolean; forfeit: boolean; turns: number; p1Left: number; p2Left: number; quit?: boolean }
 
@@ -688,6 +691,15 @@ function typeTint(type: string) {
 		return 0;
 	}
 
+	/** 온라인: 재생 중에 새 줄이 오면 끝난 뒤 이어서 재생 */
+	const playQ = useRef<{ busy: boolean; q: string[][] }>({ busy: false, q: [] });
+	async function playQueued(lines: string[]) {
+		const Q = playQ.current;
+		Q.q.push(lines);
+		if (Q.busy) return;
+		Q.busy = true;
+		try { while (Q.q.length && !deadRef.current) await play(Q.q.shift()!); } finally { Q.busy = false; }
+	}
 	async function play(lines: string[]) {
 		setPhase('playing');
 		// 메가진화: "키스톤이 반응했다" 메시지를 먼저 보여 주고, 그다음 빛기둥 → 모습 교체
@@ -842,7 +854,7 @@ function typeTint(type: string) {
 		setGimmick('');
 		setPendingMove(null);
 		const req = sessionRef.current!.p1Request;
-		if (!req || req.wait) { setPhase('playing'); return; }
+		if (!req || req.wait) { setPhase('playing'); if (setup.online && !sessionRef.current!.ended) setMessage(`${setup.p2.name}${josaSubject(setup.p2.name)} 고르기를 기다리는 중…`); return; }
 		if (setup.replay) { void replayStep(); return; }
 		const autoC = setup.auto?.(sessionRef.current!.battle, req);
 		if (autoC) {   // 배틀팰리스: 포켓몬이 스스로 고름
@@ -964,6 +976,7 @@ function typeTint(type: string) {
 			beginInput();
 			return;
 		}
+		if (setup.online) { setPhase('playing'); setMessage(`${setup.p2.name}${josaSubject(setup.p2.name)} 고르기를 기다리는 중…`); return; }
 		play(lines);
 	}
 
@@ -988,6 +1001,7 @@ function typeTint(type: string) {
 		cancelAnims();
 		stopMusic();
 		if (!ended && !setup.noRecord) updateRecords(r => { r.battles++; });
+		if (!ended && setup.online) s.forfeit();   // 온라인: 나가면 기권 (상대 화면도 끝남)
 		const alive = (side: 'p1' | 'p2') => s.battle[side].pokemon.filter((p: any) => !p.fainted).length;
 		const win = ended && s.winner === setup.p1.name;
 		onEnd({ win, forfeit: !win, turns: s.battle.turn, p1Left: alive('p1'), p2Left: alive('p2'), quit: true });
@@ -996,11 +1010,12 @@ function typeTint(type: string) {
 	async function forfeit() {
 		if (!(await confirmBox('기권', '정말 기권할까요? 이 승부는 패배로 기록됩니다.', '기권', '취소'))) return;
 		const lines = sessionRef.current!.forfeit();
+		if (setup.online) { setPhase('playing'); setMessage('기권했습니다…'); return; }   // 서버가 중계해 돌려주면 끝남
 		await play(lines);
 	}
 
 	useEffect(() => {
-		const s = new Session({
+		const s: any = setup.online ?? new Session({
 			gen: setup.gen, doubles: setup.doubles, aiSkill: setup.aiSkill, inverse: !!setup.inverse,
 			...(setup.ruleId ? { ruleId: setup.ruleId } : {}), p2Auto: setup.p2Auto,
 			...(setup.replay ? { seed: setup.replay.seed, ruleId: setup.replay.ruleId, replayP2: setup.replay.p2 } : {}),
@@ -1009,6 +1024,11 @@ function typeTint(type: string) {
 			p2: { name: setup.p2.name, team: toSimTeam(setup.p2.team, !!setup.cheat) as any },
 		});
 		sessionRef.current = s;
+		if (setup.online) {
+			// 상대 선택이 와서 턴이 진행되면 그 줄을 차례로 재생
+			setup.online.onLines = lines => { void playQueued(lines); };
+			setup.online.onDesync = msg => { toast(msg); setPhase('ended'); setMessage(msg); stopMusic(); };
+		}
 		syncFxSpeed();
 		textRef.current = new KoreanText({
 			gen: setup.gen, ownSide: 'p1', doubles: setup.doubles,
@@ -1395,7 +1415,7 @@ function typeTint(type: string) {
 			return <div class="controls end">
 				<button class="btn primary big" onClick={finish}>계속</button>
 				<button class="btn ghost" onClick={() => setShowLog(true)}>배틀 기록</button>
-				{!setup.replay && !replaySaved && <button class="btn ghost" onClick={saveThisReplay}>리플레이 저장</button>}
+				{!setup.replay && !setup.online && !replaySaved && <button class="btn ghost" onClick={saveThisReplay}>리플레이 저장</button>}
 			</div>;
 		}
 		if (phase !== 'input' || !req) {
@@ -1744,13 +1764,14 @@ function FieldModal({ session, scene, onClose }: { session: Session; scene: any;
 	const w = b.field.weatherState, t = b.field.terrainState;
 	const pw = Object.entries(b.field.pseudoWeather || {}) as [string, any][];
 	const sideInfo = (side: any, label: string) => {
+		const sid: 'p1' | 'p2' = side === b.p1 ? 'p1' : 'p2';   // 화면 쪽 진영 (온라인 손님은 엔진 진영과 반대)
 		const conds = Object.entries(side.sideConditions || {}) as [string, any][];
 		return <div class="field-side">
 			<b>{label}</b>
 			{!conds.length && <span class="muted"> 없음</span>}
 			{conds.map(([id, st]) => <div class="field-row"><span>{SIDE_COND_KO[id] || (id.startsWith('gmax') ? moveKo(id) : id)}{st.layers > 1 ? ` ×${st.layers}` : ''}</span><span class="muted">{shown(id, st)}</span></div>)}
-			{(scene?.[side.id]?.active || []).filter((m: any) => m && !m.fainted && !m.hidden).map((m: any) => {
-				const own = side.id === 'p1';
+			{(scene?.[sid]?.active || []).filter((m: any) => m && !m.fainted && !m.hidden).map((m: any) => {
+				const own = sid === 'p1';
 				// 남은 턴 수는 내 편만 (엔진에서 같은 포켓몬을 찾아서). 다이맥스 남은 턴은 상대 것도 보임(본가에서도 보이는 정보)
 				const ep = side.active.find((p: any) => p && p.name === m.nick);
 				const vols = [...(m.vol || [])].filter((id: string) => VOLATILE_KO[id]).map((id: string) => `${VOLATILE_KO[id]}${(own || id === 'dynamax') && ep?.volatiles?.[id]?.duration ? `(${ep.volatiles[id].duration}턴 남음)` : ''}`);

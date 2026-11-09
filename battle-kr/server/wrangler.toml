@@ -2,12 +2,20 @@
 name = "battlesim-kr"
 main = "dist/worker.js"
 compatibility_date = "2025-09-01"
-no_bundle = true   # 엔진 묶기는 build.mjs(앱과 같은 쇼다운 shim)로 미리 함
+no_bundle = true   # 묶기는 build.mjs 로 미리 함
 
 [[durable_objects.bindings]]
 name = "ROOMS"
 class_name = "Room"
 
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "Lobby"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]   # 무료 요금제는 SQLite 저장 방식만
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Lobby"]
