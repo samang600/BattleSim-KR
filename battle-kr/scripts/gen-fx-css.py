@@ -137,6 +137,9 @@ pat['electric'] = tile([
 	'................',
 	'................',
 	'................'], {'a': ('#fff8b0', .35), 'b': (D, .18)})
+pat['yume'] = tile(scatter(24, 24, 4, [['.a.a.', 'aaaaa', '.aaa.', '..a..'], ['b']], 5), {'a': ('#ffe0f4', .3), 'b': ('#ffffff', .5)})
+pat['yami'] = tile(scatter(24, 24, 3, [['.a.a.', 'aaaaa', '.aaa.', '..a..'], ['b']], 9), {'a': ('#ff4aa0', .3), 'b': ('#ff9ad0', .6)})
+pat['menhera'] = tile(scatter(24, 24, 4, [['aabb'], ['.c.', 'ccc', '.c.']], 13), {'a': ('#ffd0e4', .45), 'b': ('#ffffff', .5), 'c': ('#ffffff', .35)})
 pat['rainbow'] = tile([
 	'a...',
 	'....',
@@ -155,6 +158,10 @@ BOLT = tile([
 	'.....a......',
 	'....a.......'], {'a': ('#fffbd0', .9)})
 
+HPHEART = tile(scatter(32, 24, 2, [['.a.a.', 'aaaaa', '.aaa.', '..a..']], 3), {'a': ('#ffffff', .7)})
+HPPILL = tile(scatter(32, 24, 2, [['aabb'], ['.c.', 'ccc', '.c.']], 8), {'a': ('#ff9ac8', .9), 'b': ('#ffffff', .95), 'c': ('#ffffff', .8)})
+PSTAR = tile(scatter(40, 20, 3, [['.a.', 'aba', '.a.']], 15), {'a': ('#ff8ac8', .8), 'b': ('#ffffff', 1)})
+
 HP = [
 	# 키, 이름, 띠, 움직임
 	('ruby', ['#e8506a', '#b8203e', '#8a1430', '#5a0a1e'], None),
@@ -168,6 +175,9 @@ HP = [
 	('sakura', ['#ffb0d0', '#d0689a', '#a84a7a', '#6e2a52'], 'petal'),
 	('metal', ['#c8d0dc', '#6e7886', '#545e6c', '#343a46'], 'shine'),
 	('electric', ['#ffe860', '#b89010', '#8a6a0a', '#4a3a06'], 'bolt'),
+	('yume', ['#f0d8ff', '#b88ae0', '#9a6ad0', '#6a48a8'], 'hearts'),
+	('yami', ['#ff6ab0', '#4a1450', '#341048', '#1a0a24'], 'pstars'),
+	('menhera', ['#ffe0ee', '#e870a8', '#d05890', '#9a3a6a'], 'pills'),
 ]
 
 
@@ -200,6 +210,13 @@ for key, cs, fx in HP:
 	elif fx == 'petal':
 		u2, w2, h2 = PETALS
 		out.append(f'{sel} {{ background: {u2} 0 0 / {w2}px {h2}px repeat; animation: hpDrift 4s steps(32) infinite; --dx: {w2}px; --dy: {h2}px; }}')
+	elif fx in ('hearts', 'pills'):
+		u2, w2, h2 = (HPHEART if fx == 'hearts' else HPPILL)
+		dy = f'-{h2}px' if fx == 'hearts' else f'{h2}px'
+		out.append(f'{sel} {{ background: {u2} 0 0 / {w2}px {h2}px repeat; animation: hpDrift 3.6s steps(24) infinite; --dx: 0px; --dy: {dy}; }}')
+	elif fx == 'pstars':
+		u2, w2, h2 = PSTAR
+		out.append(f'{sel} {{ background: {u2} 0 0 / {w2}px {h2}px repeat; animation: hpSpark 2.4s steps(1) infinite; }}')
 	elif fx == 'bolt':
 		u2, w2, h2 = BOLT
 		out.append(f'{sel} {{ background: {u2} 70% 50% / {w2}px {h2}px no-repeat, {u2} 20% 30% / {w2}px {h2}px no-repeat; animation: hpFlash 2.6s steps(1) infinite; }}')

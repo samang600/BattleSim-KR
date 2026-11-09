@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.64.0', date: '2026-11-09', title: '테마 음악·HP 창', items: [
+		['new', '「솜사탕 꿈나라」「한밤의 하트」「분홍 처방전」 테마의 새 음악 3곡과 HP 창 테마 3종'],
+	] },
 	{ ver: '2.63.0', date: '2026-11-09', title: '파스텔·하트 테마', items: [
 		['new', '교환소 새 배경 「솜사탕 꿈나라」「한밤의 하트」「분홍 처방전」 (하트·별·알약이 떠다니는 움직임)'],
 		['new', '같은 테마의 트레이너 카드 배경·테두리 3종씩'],

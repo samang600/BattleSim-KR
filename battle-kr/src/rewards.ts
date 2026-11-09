@@ -223,6 +223,9 @@ export const ITEMS: Item[] = [
 	{ id: 'hp:night', slot: 'hp', name: '밤하늘', price: 70, v: 'night', desc: '별 무늬 · 별 반짝임' },
 	{ id: 'hp:electric', slot: 'hp', name: '번개', price: 80, v: 'electric', desc: '번개 무늬 · 번쩍임' },
 	{ id: 'hp:lava', slot: 'hp', name: '용암', price: 90, v: 'lava', desc: '갈라진 바위 · 불똥 솟음' },
+	{ id: 'hp:yume', slot: 'hp', name: '솜사탕 꿈나라', price: 70, v: 'yume', desc: '하트 무늬 · 하트가 떠오름' },
+	{ id: 'hp:yami', slot: 'hp', name: '한밤의 하트', price: 70, v: 'yami', desc: '하트 무늬 · 분홍 별 반짝임' },
+	{ id: 'hp:menhera', slot: 'hp', name: '분홍 처방전', price: 70, v: 'menhera', desc: '알약 무늬 · 알약이 내려옴' },
 	{ id: 'hp:rainbow', slot: 'hp', name: '무지개', price: 120, v: 'rainbow', desc: '여섯 빛깔 띠 · 빛 지나감' },
 	// 배틀 배경 · 음악 (새로 그리고 작곡한 것 — 기존 배경·음악은 계속 무료)
 	{ id: 'bg:sunset', slot: 'bg', name: '노을 언덕', price: 80, v: 'sunset' },
@@ -244,6 +247,9 @@ export const ITEMS: Item[] = [
 	{ id: 'bgm:g3deepsea', slot: 'bgm', name: '해저 신전', price: 120, v: 'g3deepsea', desc: '가단조 · 신비롭게 일렁이는 곡' },
 	{ id: 'bgm:g3skypillar', slot: 'bgm', name: '구름 위 탑', price: 120, v: 'g3skypillar', desc: '내림마장조 · 영웅적으로 솟는 곡' },
 	{ id: 'bgm:g3neon', slot: 'bgm', name: '네온 시티', price: 120, v: 'g3neon', desc: '사단조 · 엇박으로 달리는 곡' },
+	{ id: 'bgm:g3yume', slot: 'bgm', name: '솜사탕 꿈나라', price: 120, v: 'g3yume', desc: '사장조 · 몽글몽글 꿈속 산책' },
+	{ id: 'bgm:g3yami', slot: 'bgm', name: '한밤의 하트', price: 120, v: 'g3yami', desc: '다단조 · 귀엽고 어두운 오르골' },
+	{ id: 'bgm:g3menhera', slot: 'bgm', name: '분홍 처방전', price: 120, v: 'g3menhera', desc: '가단조 · 달콤씁쓸한 분홍 팝' },
 	// 트레이너 모습 (일반 트레이너군 — 네임드 인물 제외)
 	...trainerItems(),
 ];
