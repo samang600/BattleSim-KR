@@ -1504,11 +1504,15 @@ function typeTint(type: string) {
 			<span class="mtag more" aria-label="더 보기 (필드 상황)">+</span>
 		</span>;
 	};
-	// 상태 줄이 넘치면 [+] 표시 (그릴 때마다 다시 잼)
+	// 상태 줄이 넘치면: 다 안 들어가는 칸은 통째로 숨기고, 보이는 마지막 칸 뒤에 [+] (그릴 때마다 다시 잼)
 	useLayoutEffect(() => {
 		document.querySelectorAll<HTMLElement>('.battle .info-tags').forEach(el => {
+			const chips = [...el.children].filter(c => !c.classList.contains('more')) as HTMLElement[];
+			chips.forEach(c => { c.style.display = ''; });
 			el.classList.remove('over');
-			if (el.scrollWidth > el.clientWidth + 1) el.classList.add('over');
+			if (el.scrollWidth <= el.clientWidth + 1) return;
+			el.classList.add('over');
+			for (let i = chips.length - 1; i > 0 && el.scrollWidth > el.clientWidth + 1; i--) chips[i].style.display = 'none';
 		});
 	});
 	const infoBox = (mon: Mon | null, own: boolean, i: number) => {

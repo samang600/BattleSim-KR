@@ -2607,3 +2607,6 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 /* 큰 메뉴 칸 설명: 좁은 휴대폰에서는 잘라 내지 않고 두 줄까지 */
 .hm-big .hm-text small, .hm-big .hm-text em { white-space: normal; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .info-tags .mtag.more { right: 2px; box-shadow: -2px 0 0 1px #1a2030, 2px 0 0 1px #1a2030; }
+/* [+]: 덮어 그리지 않고, 보이는 마지막 칸 바로 뒤에 붙음 (넘치는 칸은 battle.tsx 에서 통째로 숨김) */
+.info-tags .mtag.more { position: static; align-self: center; flex: none; right: auto; top: auto; margin-left: 2px; box-shadow: none; }
+.info-tags.over .mtag.more { display: block; }
