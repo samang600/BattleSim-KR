@@ -253,6 +253,17 @@ u, w, h = SKYCLOUD; layer('skypillar', 'after', u, w, h, '8%', '76%', f'arDrift 
 u, w, h = WIN; layer('neon', 'before', u, w, h, '10%', '62%', 'arTwinkle 2.4s steps(1) infinite')
 u, w, h = RAIN; layer('neon', 'after', u, w, h, '0', '0', f'arDrift 1.2s steps(16) infinite; --dx: -8px; --dy: {h}px')
 ar.append('@keyframes arRay { 0%, 100% { background-position: 0 0; } 50% { background-position: 24px 0; } }')
+HEARTS = tile(scatter(64, 64, 3, [['.a.a.', 'aaaaa', '.aaa.', '..a..'], ['.b.b.', 'bbbbb', '.bbb.', '..b..'], ['c']], 71), {'a': ('#ff9ac8', .85), 'b': ('#c8a8ff', .85), 'c': ('#ffffff', .9)})
+PUFF = tile(scatter(192, 14, 2, [['...aaaa......', '.aaaaaaaaaa..', 'aaaaaaaaaaaaa', '.bbbbbbbbbbb.']], 33), {'a': ('#ffffff', .8), 'b': ('#f0dcf4', .8)})
+DARKH = tile(scatter(56, 56, 3, [['.a.a.', 'aaaaa', '.aaa.', '..a..'], ['b']], 19), {'a': ('#ff4aa0', .7), 'b': ('#ff9ad0', .9)})
+PINKSTAR = tile(scatter(48, 32, 4, [['.a.', 'aba', '.a.'], ['b']], 23), {'a': ('#ff8ac8', .7), 'b': ('#ffffff', .95)})
+PILLS = tile(scatter(64, 64, 4, [['aabb', 'aabb'], ['.c.', 'ccc', '.c.']], 47), {'a': ('#ff8ac0', .85), 'b': ('#ffffff', .95), 'c': ('#8ad0f0', .85)})
+u, w, h = HEARTS; layer('yume', 'before', u, w, h, '0', '30%', f'arDrift 9s steps(64) infinite; --dx: 16px; --dy: -{h}px')
+u, w, h = PUFF; layer('yume', 'after', u, w, h, '10%', '62%', f'arDrift 50s steps(192) infinite; --dx: {w}px; --dy: 0px')
+u, w, h = PINKSTAR; layer('yami', 'before', u, w, h, '0', '50%', 'arTwinkle 2.8s steps(1) infinite')
+u, w, h = DARKH; layer('yami', 'after', u, w, h, '20%', '0', f'arDrift 12s steps(56) infinite; --dx: 0px; --dy: -{h}px; opacity: .6')
+u, w, h = PILLS; layer('menhera', 'before', u, w, h, '0', '40%', f'arDrift 14s steps(64) infinite; --dx: -16px; --dy: {h}px')
+u, w, h = PINKSTAR; layer('menhera', 'after', u, w, h, '0', '0', 'arTwinkle 3.4s steps(1) infinite; opacity: .7')
 ar += [
 	'.arena-bg { overflow: hidden; }',
 	'@keyframes arDrift { to { background-position: var(--dx) var(--dy); } }',
