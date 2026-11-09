@@ -92,7 +92,9 @@ export function speciesKo(nameOrId: string) {
 	const head = D.species[toID(nameOrId.split('-')[0])];
 	return head?.n || nameOrId;
 }
-export function moveKo(nameOrId: string) {
+export function moveKo(nameOrId: string): string {
+	// 변화기의 Z기술 (Z-Recover 등): 본가 표기처럼 'Z' + 기술 이름 (Z자기재생)
+	if (/^Z-/.test(nameOrId)) return 'Z' + moveKo(nameOrId.slice(2));
 	let id = toID(nameOrId);
 	if (id.startsWith('hiddenpower')) {
 		const t = nameOrId.replace(/^Hidden Power\s*/i, '').replace(/\s*\d+$/, '').trim();

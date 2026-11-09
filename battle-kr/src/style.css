@@ -2383,3 +2383,65 @@ html { image-rendering: pixelated; }
 /* 개발자 빌드 표시 (웹 /dev/) — 누름은 그대로 통과 */
 .dev-tag { position: fixed; left: 0; bottom: 0; z-index: 9999; pointer-events: none; padding: 2px 6px; font-size: 11px; line-height: 14px;
 	background: #c0282a; color: #fff; opacity: .85; }
+
+/* ── 온라인 대전 참가 포켓몬 고르기 (ui/online-pick.tsx) — 왼쪽 내 팀(보라)·오른쪽 상대(분홍), 고른 카드는 연두 ── */
+.opk { position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column; gap: 8px; padding: 8px 10px 12px; overflow-y: auto; color: #fff;
+	background: linear-gradient(180deg, #0c1030 0 18%, #121842 18% 46%, #182058 46% 76%, #1e2868 76% 100%); }
+.opk::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: .35;
+	background: repeating-linear-gradient(90deg, transparent 0 22px, #2a3480 22px 24px); }
+.opk > * { position: relative; }
+.opk-top { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.opk-back { flex: none; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; font: inherit; font-size: 22px; color: #fff; background: #2a3270; border: 0; clip-path: var(--clip1);
+	box-shadow: inset -2px -2px 0 #141a44, inset 2px 2px 0 #4a56a8; }
+.opk-back:active { transform: translate(2px, 2px); box-shadow: inset 2px 2px 0 #141a44, inset -2px -2px 0 #4a56a8; }
+.opk-timer { padding: 2px 8px; font-size: 18px; color: #ff8fa8; background: #0a0d24; clip-path: var(--clip1); box-shadow: inset 0 0 0 2px #3a4290; }
+.opk-timer.low { color: #ffef5a; animation: blink 1s steps(2) infinite; }
+.opk-title { flex: 1; text-align: right; font-size: 14px; color: #c8ccff; text-shadow: 2px 2px 0 #000; }
+.opk-msg { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; font-size: 16px; line-height: 22px; background: #0e1236; clip-path: var(--clip2);
+	box-shadow: inset 0 0 0 2px #000, inset 0 0 0 4px #5a64c0; text-shadow: 2px 2px 0 #000; }
+.opk-msg small { font-size: 12px; color: #9aa0d8; }
+.opk-cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; align-items: start; }
+.opk-col { display: flex; flex-direction: column; gap: 6px; }
+.opk-name { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; padding: 4px 10px; font-size: 14px; clip-path: var(--clip2);
+	white-space: nowrap; overflow: hidden; text-shadow: 2px 2px 0 #000; }
+.opk-name small { font-size: 11px; opacity: .9; }
+.opk-name.me { background: linear-gradient(180deg, #8a7af0 0 50%, #7262dc 50%); box-shadow: inset 0 0 0 2px #1a1240; }
+.opk-name.foe { background: linear-gradient(180deg, #f480a4 0 50%, #e0628c 50%); box-shadow: inset 0 0 0 2px #3a0c1a; }
+.opk-name.away { filter: grayscale(.8); }
+/* 내 카드 */
+.opk-card { position: relative; display: flex; align-items: center; gap: 4px; height: 66px; padding: 0 4px 0 0; cursor: pointer; clip-path: var(--clip2);
+	background: linear-gradient(180deg, #6e5cd6 0 34%, #5e4cc4 34% 70%, #5040b0 70% 100%);
+	box-shadow: inset 0 0 0 2px #1a1240, inset 2px 2px 0 4px #9c8cf0, inset -4px -4px 0 0 #3a2c8c; }
+.opk-card:active { transform: translate(2px, 2px); }
+.opk-card.on { background: linear-gradient(180deg, #e4fc64 0 34%, #ccec3c 34% 70%, #b2d424 70% 100%); color: #1c2408;
+	box-shadow: inset 0 0 0 2px #2a3a08, inset 2px 2px 0 4px #f6ffb0, inset -4px -4px 0 0 #8aa810; }
+.opk-card.out { filter: grayscale(1); opacity: .45; }
+.opk-no { flex: none; width: 22px; align-self: stretch; display: flex; align-items: center; justify-content: center; font-size: 22px; font-style: italic; font-weight: bold;
+	color: #fff; text-shadow: 2px 2px 0 #1a1240; }
+.opk-card.on .opk-no { color: #1c2408; text-shadow: 2px 2px 0 #f6ffb0; }
+.opk-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.opk-txt b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
+.opk-card.on .opk-txt b { text-shadow: none; }
+.opk-txt small { display: flex; align-items: center; gap: 2px; font-size: 11px; white-space: nowrap; overflow: hidden; padding: 0 4px 0 2px; width: max-content; max-width: 100%;
+	background: rgba(10, 6, 40, .35); }
+.opk-card.on .opk-txt small { background: rgba(40, 60, 0, .15); }
+.opk-spr { flex: none; display: flex; align-items: center; justify-content: center; image-rendering: pixelated; }
+.opk-info { position: absolute; top: 4px; right: 4px; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-style: italic;
+	color: #fff; background: #1a1240; clip-path: var(--clip1); }
+.opk-card.on .opk-info { background: #2a3a08; }
+.opk-sex { font-style: normal; font-size: 12px; margin-left: 4px; padding: 0 2px; background: #fff; clip-path: var(--clip1); }
+.opk-sex.m { color: #2a68e0; } .opk-sex.f { color: #e03a60; }
+/* 상대 카드 */
+.opk-foe { display: flex; align-items: center; gap: 4px; height: 66px; padding: 0 6px 0 2px; clip-path: var(--clip2);
+	background: linear-gradient(180deg, #d84a74 0 34%, #c43a64 34% 70%, #ae2c56 70% 100%);
+	box-shadow: inset 0 0 0 2px #3a0c1a, inset 2px 2px 0 4px #f088a8, inset -4px -4px 0 0 #861c40; }
+.opk-types { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px; justify-content: flex-end; align-items: center; }
+/* 아래 버튼 */
+.opk-bottom { margin-top: auto; position: sticky; bottom: 0; padding-top: 4px; }
+.opk-go { width: 100%; display: flex; align-items: center; justify-content: center; gap: 14px; height: 48px; font: inherit; font-size: 18px; color: #fff; border: 0; clip-path: var(--clip2);
+	background: linear-gradient(180deg, #ff6a5a 0 34%, #ea4a3c 34% 70%, #cc3226 70% 100%); text-shadow: 2px 2px 0 #5a0c06;
+	box-shadow: inset 0 0 0 2px #3a0804, inset 2px 2px 0 4px #ffaa98, inset -4px -4px 0 0 #9a2016; }
+.opk-go i { font-style: normal; font-size: 14px; padding: 2px 8px; background: rgba(0,0,0,.3); }
+.opk-go:active:not(:disabled) { transform: translate(2px, 2px); }
+.opk-go:disabled { background: linear-gradient(180deg, #4a4e7a 0 50%, #3c406a 50%); color: #c8cae0; text-shadow: 2px 2px 0 #000;
+	box-shadow: inset 0 0 0 2px #10122c, inset 2px 2px 0 4px #6a6e9a; }

@@ -6,19 +6,25 @@
  */
 import { Session } from './engine';
 import { toSimTeam, type PSet } from './sets';
+import { josa } from './josa';
 
 declare const __APP_VERSION__: string;
 declare const __DEV_BUILD__: boolean;
 const DEV = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
 export const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
-export const SERVER = 'battlesim-kr.samang600.workers.dev';
+/** 개발자 빌드(웹 /dev/)는 개발용 서버(battlesim-kr-dev)를 씀 — 정식 앱의 대전과 섞이지 않게, 서버 바뀐 것을 먼저 시험 */
+export const SERVER = DEV ? 'battlesim-kr-dev.samang600.workers.dev' : 'battlesim-kr.samang600.workers.dev';
 const wsUrl = (path: string) => `wss://${SERVER}${path}`;
 
 type Side = 'p1' | 'p2';
 export interface StartInfo { t: 'start'; side: Side; seed: [number, number, number, number]; ruleId: string; doubles: boolean;
 	p1: { name: string; team: PSet[] }; p2: { name: string; team: PSet[] } }
-export interface RoomInfo { t: 'room'; code: string; side: Side | null; ruleId: string; doubles: boolean; status: 'waiting' | 'battle' | 'ended';
-	players: { p1: string | null; p2: string | null }; online: { p1: boolean; p2: boolean }; version?: string }
+export interface RoomInfo { t: 'room'; code: string; side: Side | null; ruleId: string; doubles: boolean; pick: number; status: 'waiting' | 'battle' | 'ended';
+	players: { p1: string | null; p2: string | null }; online: { p1: boolean; p2: boolean }; picked: { p1: boolean; p2: boolean };
+	/** 연결이 끊긴 쪽: 이 시각까지 돌아오지 않으면 기권 처리 */ away: { p1?: number; p2?: number }; version?: string }
+/** 둘 다 들어오면: 서로 전체 엔트리 (참가 포켓몬 고르기) */
+export interface PreviewInfo { t: 'preview'; side: Side; pick: number; doubles: boolean; ruleId: string; picked: boolean;
+	p1: { name: string; team: PSet[]; sprite?: string }; p2: { name: string; team: PSet[]; sprite?: string } }
 
 /** 기기마다 하나 (재접속 때 같은 진영으로 돌아오는 열쇠) */
 export function deviceToken(): string {
@@ -40,12 +46,12 @@ export const normCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '')
 export class OnlineRoom {
 	ws: WebSocket | null = null;
 	closed = false;
-	handlers: { room?: (r: RoomInfo) => void; start?: (s: StartInfo) => void; input?: (side: Side, choice: string, n: number) => void;
+	handlers: { room?: (r: RoomInfo) => void; preview?: (p: PreviewInfo) => void; start?: (s: StartInfo) => void; input?: (side: Side, choice: string, n: number) => void;
 		inputs?: (list: [Side, string][]) => void; error?: (msg: string) => void; status?: (connected: boolean) => void } = {};
 	private join: any;
 	private retries = 0;
 	constructor(public code: string) {}
-	connect(join: { name: string; team?: PSet[]; ruleId?: string; doubles?: boolean; peek?: boolean }) {
+	connect(join: { name: string; team?: PSet[]; ruleId?: string; doubles?: boolean; pick?: number; peek?: boolean }) {
 		this.join = join;
 		this.open();
 	}
@@ -60,6 +66,7 @@ export class OnlineRoom {
 		ws.onmessage = ev => {
 			let m: any; try { m = JSON.parse(String(ev.data)); } catch { return; }
 			if (m.t === 'room') this.handlers.room?.(m);
+			else if (m.t === 'preview') this.handlers.preview?.(m);
 			else if (m.t === 'start') this.handlers.start?.(m);
 			else if (m.t === 'input') this.handlers.input?.(m.side, m.choice, m.n);
 			else if (m.t === 'inputs') this.handlers.inputs?.(m.list);
@@ -80,10 +87,10 @@ export class OnlineRoom {
 }
 
 /** 랜덤 대전 매칭: 같은 형식·같은 앱 버전끼리 짝지어 방 코드를 받음 */
-export function matchmake(doubles: boolean, onCode: (code: string) => void, onError: (msg: string) => void): () => void {
+export function matchmake(doubles: boolean, pick: number, onCode: (code: string) => void, onError: (msg: string) => void): () => void {
 	const ws = new WebSocket(wsUrl('/queue'));
 	let done = false;
-	ws.onopen = () => ws.send(JSON.stringify({ t: 'queue', doubles, version: APP_VERSION, token: deviceToken() }));
+	ws.onopen = () => ws.send(JSON.stringify({ t: 'queue', doubles, pick, version: APP_VERSION, token: deviceToken() }));
 	ws.onmessage = ev => {
 		let m: any; try { m = JSON.parse(String(ev.data)); } catch { return; }
 		if (m.t === 'matched') { done = true; onCode(m.code); try { ws.close(); } catch {} }
@@ -143,8 +150,13 @@ export class RemoteSession {
 	private receive(side: Side, choice: string, n: number) {
 		if (n <= this.applied) return;             // 이미 넣은 것 (재접속 때 다시 온 기록)
 		this.applied = n;
-		const out = this.local.applyInput(side, choice);
+		let out = this.local.applyInput(side, choice);
 		if (out === null) { this.onDesync?.('상대와 배틀 진행이 어긋났어요 (앱 버전이 다를 수 있어요)'); return; }
+		// 기권·연결 끊김: 승패 줄 앞에 무슨 일인지 알림
+		if (choice.startsWith('forfeit') && out.length) {
+			const name = this.info[side].name;
+			out = [`|-message|${choice === 'forfeit disconnect' ? josa(name, 'conjunctive') + '의 연결이 끊어졌다!' : josa(name, 'subject') + ' 기권했다!'}`, ...out];
+		}
 		if (out.length) this.onLines?.(this.view(out)!);
 	}
 }

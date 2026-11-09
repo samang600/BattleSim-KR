@@ -218,7 +218,7 @@ export class Session {
 	/** (온라인) 서버가 중계한 순서대로 한쪽 선택을 넣음. 두 쪽이 모이면 턴이 진행되고 그 줄을 돌려줌. 넣을 수 없으면 null */
 	applyInput(side: 'p1' | 'p2', choice: string): string[] | null {
 		if (this.ended) return [];
-		if (choice === 'forfeit') {
+		if (choice.startsWith('forfeit')) {   // 'forfeit' 기권 · 'forfeit disconnect' 연결 끊김 (서버가 넣음)
 			this.record[side].push('forfeit');
 			this.battle.forceWin(side === 'p1' ? 'p2' : 'p1');
 			this.battle.sendUpdates();

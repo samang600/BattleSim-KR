@@ -19,3 +19,19 @@ new_sqlite_classes = ["Room"]   # 무료 요금제는 SQLite 저장 방식만
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["Lobby"]
+
+# 개발용 서버 (웹 개발자 빌드 /dev/ 가 씀): `npx wrangler deploy --env dev` → battlesim-kr-dev.<계정>.workers.dev
+[env.dev]
+name = "battlesim-kr-dev"
+
+[[env.dev.durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[env.dev.durable_objects.bindings]]
+name = "LOBBY"
+class_name = "Lobby"
+
+[[env.dev.migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room", "Lobby"]
