@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.68.1', date: '2026-11-10', title: '온라인 대전 보상', items: [
+		['up', '온라인 대전 보상이 한 판에 5 BP 로 늘었어요 (이기든 지든, 하루 10판까지)'],
+	] },
 	{ ver: '2.68.0', date: '2026-11-10', title: '앱 자동 업데이트', items: [
 		['new', '안드로이드 앱이 켜질 때 새 버전 화면을 자동으로 받아 두고, 다시 시작하면 바로 바뀌어요 — 이제 APK 를 새로 깔지 않아도 돼요'],
 		['up', '설정 › 앱 업데이트에서 지금 버전 보기·업데이트 확인. 저장 데이터는 그대로예요'],

@@ -108,10 +108,10 @@ ACHIEVEMENTS.push(
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 onBattleEnd((setup, battle, win) => {
 	if (setup.replay) return;
-	if (setup.online) {   // 온라인: 이기든 지든 한 판에 1 (하루 10판까지)
+	if (setup.online) {   // 온라인: 이기든 지든 한 판에 5 (하루 10판까지)
 		const w = loadWallet(); const today = dayKey();
 		if (w.onDay !== today) { w.onDay = today; w.onN = 0; }
-		if (w.onN < 10) { w.onN++; saveWallet(w); earnBP(1, '온라인 대전'); }
+		if (w.onN < 10) { w.onN++; saveWallet(w); earnBP(5, '온라인 대전'); }
 		return;
 	}
 	if (setup.cheat || setup.inverse || setup.noRecord) return;

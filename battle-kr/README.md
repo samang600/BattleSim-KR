@@ -3,7 +3,7 @@
 스마트폰에서 바로 하는 한국어 포켓몬 배틀 앱. 배틀 계산은 이 저장소의 **Pokémon Showdown 시뮬레이터(`sim/`)를 그대로** 브라우저에서 돌립니다.
 
 ## 받기
-- **안드로이드**: [`release/BattleSimKR-v2.68.0.apk`](release/BattleSimKR-v2.68.0.apk) (약 2MB, 칩튠 배경음악 포함) 를 받아 설치 (출처를 알 수 없는 앱 허용 필요, 안드로이드 7.0 이상)
+- **안드로이드**: [`release/BattleSimKR-v2.68.1.apk`](release/BattleSimKR-v2.68.1.apk) (약 2MB, 칩튠 배경음악 포함) 를 받아 설치 (출처를 알 수 없는 앱 허용 필요, 안드로이드 7.0 이상)
 - 그림·울음소리·기술 애니메이션은 기본적으로 인터넷에서 그때그때 받습니다. **설정 → 오프라인 데이터 → 한 번에 받기**(약 24MB 내려받기, 풀면 약 60MB)를 누르면 앱 저장소에 받아 두어 인터넷 없이도 모두 나옵니다.
 - **웹 (설치 없이)**: **https://samang600.github.io/BattleSim-KR/** — 아이폰·PC·안드로이드 브라우저에서 바로 실행 (홈 화면에 추가 → 앱처럼 실행). 웹은 `web` 브랜치를 빌드해 올립니다(`.github/workflows/pages.yml`, main 에 푸시하거나 수동 실행 때). 웹에 올릴 때는 `web` 브랜치를 main 으로 옮긴 뒤 워크플로를 다시 실행합니다(main 에 푸시해도 웹은 `web` 브랜치 그대로). 지금 웹은 v2.54.6.
   - 방문자 수는 GoatCounter(쿠키 없음)로 집계합니다: https://samang600.goatcounter.com — 웹 배포 주소에서만 세고 안드로이드 앱은 세지 않습니다.
@@ -97,6 +97,7 @@
 - **v2.63.0**: 배경 `yume`(솜사탕 꿈나라)·`yami`(한밤의 하트)·`menhera`(분홍 처방전) 120 BP + 움직임(gen-fx-css.py), 같은 테마 카드 배경 50 BP·테두리 40 BP.
 - **v2.64.0**: 같은 테마 음악 `g3yume`·`g3yami`·`g3menhera`(120 BP)와 HP 창 `yume`·`yami`·`menhera`(70 BP, 하트·별·알약 움직임).
 - **v2.65.0**: 칩튠 시퀀서에 곡마다 음색 `v`(리드 파형 p12·p25·p50·tri·saw·wave, 엔벨로프 sus·pluck·swell, 비브라토 깊이·빠르기, 포르타멘토, 옥타브 겹침, 메아리, 스윙)와 드럼 o·c·t·l·r 추가. music/gen3.py 의 song2 가 3/4(12칸) 마디와 반주 스타일(boogie·pedal·octfunk·march·waltz·offbeat·chordarp·drone·oct, 아르페지오 updown·bell)을 지원. 교환소 11곡을 장르별로 새로 작곡.
+- **v2.68.1**: 온라인 대전 보상 한 판 1 → 5 BP (이기든 지든, 하루 10판까지 — `rewards.ts` onBattleEnd).
 - **v2.68.0 앱 자동 업데이트(OTA)**: 앱이 켜질 때(그리고 6시간마다) 정식 웹의 `version.json`(build.mjs 가 만듦: 버전·`native`·파일별 크기·sha256)을 보고, 버전이 더 높고 `native ≤ MainActivity.NATIVE_API` 면 바뀐 파일만 받아 sha256 확인 후 `files/ota/<버전>` 에 둠(`OtaCore.java`). 화면은 늘 `file:///android_asset/www/` 주소로 열고 받은 파일을 그 요청에 대신 내어 줘서 localStorage 가 그대로. 새 화면이 두 번 연속 `bootOk` 를 못 부르면 앱 안 화면으로 되돌리고 그 버전은 막음. 배틀·고르기·온라인 방이 아닐 때 '다시 시작' 확인. **새 기능을 앱에 퍼뜨리려면: 버전을 올려 web 브랜치(정식 웹)에 배포하면 됨** — APK 는 네이티브 기능을 바꿀 때만(그때 `OTA_NATIVE`·`NATIVE_API` 같이 올림). 시험: `bash android/ota-test/run.sh`.
 - **v2.67.0 온라인 로비**: 온라인 대전 첫 화면이 로비 — 열린 방 목록(서버 `GET /lobby`, 방이 바뀔 때마다 목록 갱신), 방 만들기(제목·공개/비밀번호·형식·규칙), 방 안 채팅(2초에 1줄)·방장 규칙 변경·파티 변경·준비 → 엔트리 고르기 → 배틀 → 같은 방 재대전. 코드로 들어가기·랜덤 대전은 그대로. 고르기 화면 상대 칸은 작은 아이콘, 칭호 빼서 줄 높이 맞춤. 서버 설명은 `server/README.md`·`server/LOBBY-TODO.md`.
 - **v2.66.0**: 업적 보상은 자동 지급 대신 수첩 › 업적에서 받기(`wallet.achClaim`, `claimAch`, 예전에 받은 단계는 받은 것으로 옮김). 수집 업적 6개(ownTrainer·ownTitle·ownCard·ownHp·ownStage·bpTotal)는 rewards.ts 에서 ACHIEVEMENTS 에 추가.
