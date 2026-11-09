@@ -38,13 +38,16 @@ export function PickScreen({ title, team, gen, count, opponent, hint, onDone, on
 		else if (picked.length < count) setPicked([...picked, i]);
 	};
 	const need = Math.min(count, team.length);
-	return <Screen title={title} onBack={onBack}>
+	// 넓은 화면(PC·휴대폰 가로): 왼쪽에 상대·안내·음악/배경, 오른쪽에 내 카드 여러 열 (style.css .pick-screen)
+	return <Screen title={title} onBack={onBack} cls="pick-screen">
+		<div class="pick-side">
 		{opponent && <div class="preview">
 			<div class="preview-title">상대: {opponent.name}</div>
 			<div class="preview-row">{opponent.team.map(s => <MiniSprite species={s.species} gen={gen} size={44} shiny={s.shiny} />)}</div>
 		</div>}
 		<p class="hint">{hint || `${count}마리를 순서대로 고르세요. 처음 고른 포켓몬이 먼저 나갑니다.`} 카드를 누르면 능력치를 볼 수 있어요.</p>
 		{prep}
+		</div>
 		<div class="card-list">
 			{team.map((s, i) => <SetCard set={s} gen={gen} selected={picked.includes(i)}
 				order={picked.includes(i) ? picked.indexOf(i) + 1 : undefined} onClick={() => setView(i)} />)}
@@ -69,17 +72,22 @@ export function InfoScreen({ title, heading, lines, sprites, gen, actions, banne
 	/** 배틀 전 음악·배경 고르기 (내용 맨 아래, 현재 연승 줄 밑 얇은 줄) */ prep?: ComponentChildren;
 }) {
 	const [view, setView] = useState<number | null>(null);
-	return <Screen title={title}>
+	// 넓은 화면(PC·휴대폰 가로): 왼쪽(is-main) 배너·트레이너·포켓몬, 오른쪽(is-side) 안내·음악/배경·버튼 (style.css .info-scr)
+	return <Screen title={title} cls="info-scr">
 		<div class="info-screen">
+			<div class="is-main">
 			{banner && <div class="banner">{banner}</div>}
 			{trainer && <img class="trainer-big" src={SPRITE_URL(trainer)} alt="" onError={trainerImgError} />}
 			{heading && <h2>{heading}</h2>}
 			{sprites && <div class="preview-row big grid" style={{ gridTemplateColumns: `repeat(${sprites.length === 4 ? 2 : Math.min(3, sprites.length)}, auto)` }}>{sprites.map((s, i) => <span class={sets ? 'clickable' : ''} onClick={() => sets && setView(i)}><Sprite species={s} gen={gen || 5} size={64} shiny={sets?.[i]?.shiny} /></span>)}</div>}
 			{sets && <p class="muted small">포켓몬을 누르면 능력치를 볼 수 있어요.</p>}
 			{sets && view !== null && <MonSheet set={sets[view]} gen={gen || 9} onClose={() => setView(null)} actions={[{ label: '닫기', kind: 'ghost', onClick: () => setView(null) }]} />}
+			</div>
+			<div class="is-side">
 			{lines?.map(l => <p class="pre">{l}</p>)}
 			{children}
 			{prep}
+			</div>
 		</div>
 		<div class="sticky-bottom col">
 			{actions.map(a => <button class={'btn big ' + (a.kind || 'primary')} onClick={a.onClick}>{a.label}</button>)}

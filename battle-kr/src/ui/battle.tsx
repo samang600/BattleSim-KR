@@ -9,7 +9,7 @@ import { moveData, moveKo, speciesData, speciesKo, toID, abilityKo, itemKo, natu
 import { toSimTeam, conceptBall, type PSet } from '../sets';
 import { loadSettings, updateRecords, saveReplay, newId } from '../store';
 import { emitBattleEnd } from '../battle-hooks';
-import { TeraFilters, Sprite, CropSprite, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
+import { TeraFilters, Sprite, CropSprite, PokeIcon, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
 import { MonSheet, type LiveInfo } from './screens';
 import { estimateDamage, typeEffOf, chooseAI } from '../ai';
 import { State } from '../../../sim/state';
@@ -1407,9 +1407,8 @@ function typeTint(type: string) {
 				const disabled = theirs || (reviving ? (!fainted || chosen.has(i + 1)) : (isActive || fainted || trapped || chosen.has(i + 1)));
 				return <button key={i} class={'switch-btn' + (isActive ? ' active' : '') + (disabled ? ' off' : '')}
 					{...hov(() => ownTip(i))} onClick={() => setSheet({ idx: i, canSwitch: !disabled })}>
-					<span class="sw-sprite"><Sprite species={species} gen={gen} size={40} anim={false} shiny={/, shiny/.test(p.details)} /></span>
 					<span class="sw-info">
-						<b>{nick}</b>
+						<span class="sw-top"><PokeIcon species={species} /><b>{nick}</b></span>
 						<HPBar hp={hp.hp} maxhp={hp.maxhp || 1} />
 						<small>{fainted ? '기절' : `${hp.hp}/${hp.maxhp}`} {hp.status && hp.status !== 'fnt' && <StatusBadge status={hp.status} />}{isActive && !fainted && ' · 배틀 중'}{theirs && ` · ${setup.partner!.name}의 포켓몬`}</small>
 					</span>
@@ -1490,31 +1489,48 @@ function typeTint(type: string) {
 		</div>;
 	};
 
-	/** 이름 옆 작은 상태 표시 (더블·멀티 HP 창과 대상 고르기 카드): 상태이상 · 테라스탈 타입 · 다이맥스 */
-	const monTags = (mon: Mon) => (mon.status || mon.tera || mon.vol.has('dynamax')) ? <span class="mon-tags">
-		{mon.status && <StatusBadge status={mon.status} />}
-		{mon.tera && <span class="mtag tera" style={{ background: TYPE_COLOR[mon.tera] }}>{typeKo(mon.tera)}</span>}
-		{mon.vol.has('dynamax') && <span class="mtag dmax">다이맥스</span>}
-	</span> : null;
+	/** 작은 상태 표시: 상태이상 → 테라스탈 타입(다이맥스) → 능력 변화. 싱글은 HP 창 이름 아래 줄, 더블·멀티는 이름 옆, 대상 카드에도.
+	 *  한 줄에 다 안 들어가면 끝에 [+] (HP 창을 누르면 필드 상황 — 거기서 전부 보임). 넘침 판정은 아래 useLayoutEffect */
+	const BOOST_ORD = ['atk', 'def', 'spa', 'spd', 'spe', 'accuracy', 'evasion'];
+	const BOOST_LB: { [k: string]: string } = { atk: '공격', def: '방어', spa: '특공', spd: '특방', spe: '스피드', accuracy: '명중', evasion: '회피' };
+	const monTags = (mon: Mon, cls = '', boosts = true) => {
+		const bs = boosts ? BOOST_ORD.filter(k => mon.boosts[k]) : [];
+		if (!(mon.status || mon.tera || mon.vol.has('dynamax') || bs.length)) return null;
+		return <span class={'mon-tags info-tags' + (cls ? ' ' + cls : '')}>
+			{mon.status && <StatusBadge status={mon.status} />}
+			{mon.tera && <span class="mtag tera" style={{ background: TYPE_COLOR[mon.tera] }}>{typeKo(mon.tera)}</span>}
+			{mon.vol.has('dynamax') && <span class="mtag dmax">다이맥스</span>}
+			{bs.map(k => <span class={'mtag boost ' + (mon.boosts[k] > 0 ? 'up' : 'down')}>{BOOST_LB[k]}{mon.boosts[k] > 0 ? '+' : ''}{mon.boosts[k]}</span>)}
+			<span class="mtag more" aria-label="더 보기 (필드 상황)">+</span>
+		</span>;
+	};
+	// 상태 줄이 넘치면 [+] 표시 (그릴 때마다 다시 잼)
+	useLayoutEffect(() => {
+		document.querySelectorAll<HTMLElement>('.battle .info-tags').forEach(el => {
+			el.classList.remove('over');
+			if (el.scrollWidth > el.clientWidth + 1) el.classList.add('over');
+		});
+	});
 	const infoBox = (mon: Mon | null, own: boolean, i: number) => {
 		if (!mon || (mon.fainted && !mon.anim)) return <div class="info empty" key={i} />;
 		// 포켓몬마다 새 상자 (교체 때 HP 바가 이전 포켓몬 값에서 늘거나 주는 것처럼 보이지 않게)
 		const ownIdx = own ? (sessionRef.current?.battle.p1.pokemon || []).findIndex((p: any) => p.name === mon.nick) : -1;
-		return <div class={'info ' + (own ? 'own' : 'foe') + ' i' + i} key={mon.ident + ':' + i} onClick={() => setDetail({ mon, own })}
+		return <div class={'info ' + (own ? 'own' : 'foe') + ' i' + i} key={mon.ident + ':' + i}
+			onClick={e => (e.currentTarget as HTMLElement).querySelector('.info-tags.over') ? setFieldOpen(true) : setDetail({ mon, own })}
 			{...hov(() => own && ownIdx >= 0 ? ownTip(ownIdx) : foeTip(mon))}>
 			<div class="info-top">
 				<b class="info-name">{mon.nick}</b>
 				{mon.gender && <span class={'gender ' + mon.gender}>{mon.gender === 'M' ? '♂' : '♀'}</span>}
 				<span class="lv">Lv{mon.level}</span>
-				{setup.doubles && monTags(mon)}
+				{setup.doubles && monTags(mon, 'inline')}
 			</div>
+			{!setup.doubles && monTags(mon, 'row')}
 			<HPBar hp={mon.hp} maxhp={mon.maxhp} />
 			<div class="info-bottom">
-				<StatusBadge status={mon.status} />
-				{mon.tera && <span class="tera-badge" style={{ background: TYPE_COLOR[mon.tera] }}>테라 {typeKo(mon.tera)}</span>}
+				<span />
 				{own ? <span class="hp-num">{mon.hp}/{mon.maxhp}</span> : <span class="hp-num">{mon.maxhp ? Math.ceil(mon.hp / mon.maxhp * 100) : 0}%</span>}
 			</div>
-			{/* 랭크 변화·혼란 등 기타 상태는 '필드' 메뉴에서 (HP 창에는 상태이상·테라만) */}
+			{/* 혼란 등 기타 상태는 '필드' 메뉴에서 */}
 		</div>;
 	};
 

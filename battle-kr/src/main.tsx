@@ -8,7 +8,7 @@ import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
 import { runOnline } from './online-ui';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
-import { runPalace, runDaily, runBossRush, todayDaily } from './frontier';
+import { runPalace, runIppitsu, runDaily, runBossRush, todayDaily } from './frontier';
 import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
 import { TrainerBook, SymbolIcon } from './ui/book';
 import { WhatsNew, pendingChanges } from './ui/whats-new';
@@ -28,6 +28,7 @@ const MODES = [
 	{ id: 'factory', name: '배틀팩토리', sub: '렌탈 · 교환 · 팩토리 헤드', run: runFactory, color: '#e07a1c', mon: 'metagross' },
 	{ id: 'rank', name: '랭크 매치', sub: '1주 시즌 · 6→3 · 6→4', run: runRank, color: '#c0283c', mon: 'incineroar' },
 	{ id: 'palace', name: '배틀팰리스', sub: '성격대로 스스로', run: runPalace, color: '#23a05a', mon: 'blissey' },
+	{ id: 'ippitsu', name: '일필도', sub: '한 마리로 1:1 · 49번째 무한다이노', run: runIppitsu, color: '#b8402a', mon: 'eternatus' },
 	{ id: 'pwt', name: 'PWT', sub: '월드 토너먼트', run: runPWT, color: '#c03aa8', mon: 'hydreigon' },
 	{ id: 'boss', name: '보스 러시', sub: '지방 정복 · 악의 조직 · 챔피언', run: runBossRush, color: '#6a30b8', mon: 'mewtwo' },
 	{ id: 'named', name: '네임드', sub: '관장 · 챔피언 · 애니메이션', run: runNamed, color: '#14968c', mon: 'dragonite' },
@@ -36,7 +37,7 @@ const MODES = [
 	{ id: 'online', name: '온라인 대전', sub: '친구 · 랜덤 (테스트)', run: runOnline, color: '#2a8fb0', mon: 'rotom' },
 ];
 const FEATURED = ['tower', 'factory', 'rank'];
-const MORE = ['palace', 'pwt', 'boss', 'named', 'free', 'daily', 'online'];
+const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'online'];
 
 function TitleScreen({ onStart }: { onStart: () => void }) {
 	return <div class="title-screen" onClick={onStart}>

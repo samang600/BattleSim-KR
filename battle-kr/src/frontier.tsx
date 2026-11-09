@@ -1,13 +1,15 @@
-/** 새 도전 모드: 배틀팰리스 · 오늘의 도전 · 지방 정복 · 보스 러시 · 고스트 배틀 */
+/** 새 도전 모드: 배틀팰리스 · 일필도 · 오늘의 도전 · 지방 정복 · 보스 러시 */
 import { h } from 'preact';
 import { ask } from './ui/core';
 import { PickScreen, InfoScreen, ChoiceScreen } from './ui/screens';
-import { randomTeam, cloneSet, dedupeItems, rng, type PSet } from './sets';
+import { randomTeam, randomSetFor, cloneSet, dedupeItems, rng, type PSet } from './sets';
 import { NAMED, REGIONS, REGION_COLOR, regionLabel, randomTrainer, namedSprite, namedLines, namedTitle, type NamedTrainer } from './trainers';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { loadSettings, load, save, remove, updateRecords, loadRecords } from './store';
 import { ruleById, recTag } from './rules';
 import { aiPickEntry } from './smogon';
+import { chooseAI } from './ai';
+import { Dex } from '../../sim/dex';
 import { speciesKo, spriteId, toID, ALL_TYPES, typeKo } from './data';
 import { BACK, battle, chooseTeam, withLevel, namedTeam, playerName, playerSprite, BgmRow, josa, confirmQuit, towerOpponent, ROLE_ORDER, namedMusic, isDoubles, type Fmt } from './modes';
 import { updateStats, loadStats, setMax, BOSS_LEN } from './stats';
@@ -121,6 +123,98 @@ export async function runPalace() {
 		save(key, state);
 		if (s % 7 === 0) {
 			const v = await ask<'go' | 'rest'>(r => <InfoScreen title="배틀팰리스" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`} lines={['포켓몬들의 체력이 회복되었다.']}
+				actions={[{ label: '계속', onClick: () => r('go') }, { label: '여기서 쉬기', kind: 'ghost', onClick: () => r('rest') }]} />);
+			if (v === 'rest') return;
+		}
+	}
+}
+
+// ═════════ 일필도: 포켓몬 한 마리로 1:1 연승 도전. 49번째는 무한다이맥스 무한다이노(내 포켓몬에게 불리한 타입으로 테라스탈) ═════════
+const IPPITSU_KEY = () => `ippitsu${rt()}`;
+interface IppitsuState { mon: PSet; streak: number }
+/** 무한다이노가 테라스탈할 타입: 내 포켓몬의 공격 기술(없으면 타입)로 가장 큰 효과를 받는 타입 */
+export function weakTeraAgainst(mon: PSet): string {
+	const atk = mon.moves.map(m => Dex.moves.get(m)).filter(m => m.exists && m.category !== 'Status').map(m => m.type);
+	const types = atk.length ? [...new Set(atk)] : Dex.species.get(mon.species).types;
+	let best = 'Normal', bestScore = -99;
+	for (const t of ALL_TYPES.filter(x => x !== 'Stellar')) {
+		const hits = types.map(mt => Dex.getImmunity(mt, [t]) ? Dex.getEffectiveness(mt, [t]) : -9);
+		const score = Math.max(...hits) * 10 + hits.filter(h => h > 0).length;
+		if (score > bestScore) { bestScore = score; best = t; }
+	}
+	return best;
+}
+export async function runIppitsu() {
+	const key = IPPITSU_KEY();
+	let state = load<IppitsuState | null>(key, null);
+	if (state) {
+		const v = await ask<'resume' | 'new' | typeof BACK>(r => <InfoScreen title="일필도" heading={`${state!.streak}연승 중인 도전이 있습니다`} sprites={[state!.mon.species]} sets={[state!.mon]} gen={9}
+			actions={[{ label: '이어서 도전', onClick: () => r('resume') }, { label: '새로 시작', kind: 'ghost', onClick: () => r('new') }, { label: '돌아가기', kind: 'ghost', onClick: () => r(BACK) }]} />);
+		if (v === BACK) return;
+		if (v === 'new') state = null;
+	}
+	if (!state) {
+		const team = await chooseTeam(9, '일필도 · 팀 선택', true, false, 50);
+		if (team === BACK) return;
+		const picked = team.length > 1 ? await ask<PSet[] | typeof BACK>(r => <PickScreen title="일필도 · 포켓몬 한 마리" team={team} gen={9} count={1}
+			hint="한 마리로 끝까지 싸웁니다. 배틀마다 HP·PP는 회복돼요. 21번째에 타워 타이쿤, 49번째에는 무한다이노가 기다립니다." onBack={() => r(BACK)} onDone={r} />) : team;
+		if (picked === BACK || !picked.length) return;
+		state = { mon: cloneSet(picked[0]), streak: 0 };
+		save(key, state);
+	}
+	while (true) {
+		const no = state.streak + 1;
+		const final = no === 49;
+		const base: any = towerOpponent(state.streak, 'singles', [state.mon], false, 'normal');
+		let opp: any;
+		if (final) {
+			const tera = weakTeraAgainst(state.mon);
+			const boss = { ...randomSetFor('eternatuseternamax', 9, 50, false, 1), species: 'Eternatus-Eternamax', teraType: tera };
+			opp = { name: '무한다이노', title: '', sprite: '', team: [boss], skill: 0.97, line: '하늘을 뒤덮은 붉은 빛… 무한다이맥스의 힘이 덮쳐 온다!',
+				lines: { ace: '무한의 힘이 소용돌이친다!', lose: '무한다이노가 힘을 잃고 쓰러졌다!', win: '거대한 힘 앞에 쓰러지고 말았다…' }, tera };
+		} else {
+			// 상대도 한 마리: 네임드·타이쿤은 에이스(마지막), 일반 트레이너는 첫 번째
+			const pick = base.special || base.boss ? base.team[base.team.length - 1] : base.team[0];
+			opp = { ...base, team: [pick] };
+		}
+		opp.team = withLevel(opp.team, 50);
+		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title="일필도 · 1:1" banner={`${no}번째 승부`} prep={<BgmRow />}
+			heading={final ? '⚠ 무한다이노가 나타났다!' : `${opp.title ? opp.title + ' ' : ''}${opp.name}${josa(opp.name)} 승부를 걸어왔다!`} trainer={final ? undefined : opp.sprite}
+			lines={[final ? `${typeKo(opp.tera)} 타입으로 테라스탈한 무한다이맥스 무한다이노 — 마지막 승부!` : `현재 ${state!.streak}연승 · 다음 상대: ${speciesKo(toID(opp.team[0].species))}`]}
+			sprites={final ? opp.team.map((s: PSet) => s.species) : [state!.mon.species]} sets={final ? opp.team : [state!.mon]} gen={9}
+			actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '쉬기 (저장 후 나가기)', kind: 'ghost', onClick: () => r('rest') }, { label: '도전 그만두기', kind: 'danger', onClick: () => r('quit') }]} />),
+			'quit', `지금까지의 ${state!.streak}연승 도전이 끝납니다. 정말 그만둘까요?`);
+		if (go === 'rest') return;
+		if (go === 'quit') { remove(key); return; }
+		// 마지막 승부: 무한다이노가 첫 턴에 테라스탈 (테라스탈이 없는 규칙이어도 이 배틀만 허용)
+		let teraDone = false;
+		const ruleParts = ruleById(loadSettings().battleRule).id.split('.');
+		if (final && !ruleParts[0].split('_')[0].includes('t')) ruleParts[0] = ruleParts[0].replace(/^([a-z]*)/, '$1t');
+		const res = await battle({
+			gen: 9, doubles: false, aiSkill: opp.skill, bg: (final ? 'champion' : 'tower') as any, label: `일필도 ${no}번째`, music: (final ? 'boss' : opp.music) as any,
+			...(final ? { ruleId: ruleParts.join('.'), p2Auto: (b: any, req: any) => {
+				if (teraDone || !req?.active?.[0]?.canTerastallize) return null;
+				teraDone = true;
+				const c = chooseAI(b, req, 'p2', opp.skill);
+				return /^move \d+/.test(c) ? c.match(/^move \d+( -?\d+)?/)![0] + ' terastallize' : c;
+			} } : {}),
+			p1: { name: playerName(), team: [state.mon], sprite: playerSprite() },
+			p2: { name: opp.name, title: opp.title, team: opp.team, line: opp.line, sprite: opp.sprite, lines: { intro: opp.line, ...opp.lines } },
+		});
+		if (!res.win) {
+			remove(key); updateRecords(r => { r.current[key] = 0; });
+			await ask<void>(r => <InfoScreen title="일필도" heading="도전 종료" banner={`${state!.streak}연승`} lines={[`최고 기록: ${loadRecords().best[key] || 0}연승`]} actions={[{ label: '메뉴로', onClick: () => r() }]} />);
+			return;
+		}
+		state.streak++;
+		const s = state.streak;
+		updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
+		save(key, state);
+		if (final) {
+			await ask<void>(r => <InfoScreen title="일필도" banner="🏆 일필도 달성!" heading="무한다이노를 쓰러뜨렸다!" sprites={[state!.mon.species]} sets={[state!.mon]} gen={9}
+				lines={[`${speciesKo(toID(state!.mon.species))} 한 마리로 49연승!`, '이후로도 계속 도전할 수 있어요.']} actions={[{ label: '계속', onClick: () => r() }]} />);
+		} else if (s % 7 === 0) {
+			const v = await ask<'go' | 'rest'>(r => <InfoScreen title="일필도" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`} lines={['다음 세트로!']}
 				actions={[{ label: '계속', onClick: () => r('go') }, { label: '여기서 쉬기', kind: 'ghost', onClick: () => r('rest') }]} />);
 			if (v === 'rest') return;
 		}

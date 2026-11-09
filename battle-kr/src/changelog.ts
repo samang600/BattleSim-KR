@@ -6,6 +6,12 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.56.1', date: '2026-11-09', title: '일필도 · 화면 정리', items: [
+		['new', '일필도: 포켓몬 한 마리로 1:1 연승 도전. 49번째에는 테라스탈한 무한다이맥스 무한다이노!'],
+		['up', '교체 칸: 작은 도트 아이콘과 이름, 그 아래 HP 바 (오른쪽이 잘리지 않게)'],
+		['up', 'HP 창 이름 아래에 상태이상·테라·능력 변화. 다 안 들어가면 [+] — 누르면 필드 상황'],
+		['up', 'PC·휴대폰 가로: 참가 포켓몬 고르기·트레이너 등장 화면을 2단으로'],
+	] },
 	{ ver: '2.56.0', date: '2026-11-09', title: '온라인 대전 (테스트)', items: [
 		['new', '친구 대전: 방을 만들어 6자리 코드를 알려 주면 친구와 대전 (방장이 정한 규칙·형식)'],
 		['new', '랜덤 대전: 같은 시간에 기다리는 사람과 무작위 팀으로 대전 (싱글·더블)'],

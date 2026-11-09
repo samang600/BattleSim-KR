@@ -7,6 +7,7 @@ import { partBase } from '../offline';
 import SPRITE_PAD from '../gen/sprite-pad.json';
 import SPRITE_SCALE from '../gen/sprite-scale.json';
 import ZA_MEGA from '../gen/za-mega-ids.json';
+import ICON_INDEX from '../gen/icon-index.json';
 import { getUserSprite, userSpriteKey } from '../user-sprites';
 /** 정지 도트 그림의 아래 투명 여백(px) [앞, 뒤] — 발판에 딱 서도록 그만큼 내림 (scripts/sprite-pad.py) */
 const PAD = SPRITE_PAD as { [id: string]: number[] };
@@ -184,6 +185,20 @@ export function Screen({ title, onBack, right, children, cls, top }: {
 	</div>;
 }
 
+/** 작은 도트 아이콘 (쇼다운 박스 아이콘 40×30, public/pokeicons.png · scripts/fetch-icons.py) */
+export function pokeIconNum(species: string): number {
+	const id = toID(species), idx = (ICON_INDEX as any).idx as { [k: string]: number };
+	if (idx[id]) return idx[id];
+	const sp = RAW.species[id];
+	const base = sp?.base ? toID(sp.base) : '';
+	if (base && idx[base]) return idx[base];
+	const num = sp?.num || 0;
+	return num > 0 && num <= 1025 ? num : 0;
+}
+export function PokeIcon({ species, cls }: { species: string; cls?: string }) {
+	const n = pokeIconNum(species);
+	return <span class={'poke-icon' + (cls ? ' ' + cls : '')} style={{ backgroundPosition: `-${(n % 12) * 40}px -${Math.floor(n / 12) * 30}px` }} aria-hidden="true" />;
+}
 export function HPBar({ hp, maxhp, showText }: { hp: number; maxhp: number; showText?: boolean }) {
 	const pct = maxhp ? Math.max(0, Math.min(100, hp / maxhp * 100)) : 0;
 	const color = pct > 50 ? 'var(--hp-good)' : pct > 20 ? 'var(--hp-mid)' : 'var(--hp-low)';
