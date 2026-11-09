@@ -2937,3 +2937,10 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .ach-cats button.has-claim::after, .claim-dot { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 4px; vertical-align: 6px; background: #ff4a4a; box-shadow: 0 0 0 1px #3a0a0a; }
 .claim-dot { font-style: normal; }
 .ach-claim span { display: flex; align-items: center; gap: 2px; }
+
+/* 고르기 화면 상대 칸: 스프라이트 대신 작은 아이콘 (40×30) */
+.opk-spr.foe-ico { width: 44px; }
+/* 고르기 화면 아래 '선택 완료': 화면이 짧아 아래에 붙어 있을 때 뒤의 음악·배경 칸이 비쳐 보이지 않게 불투명한 띠 */
+.opk-bottom { z-index: 2; padding-bottom: 6px; margin-inline: -10px; padding-inline: 10px;
+	background: linear-gradient(180deg, rgba(30, 40, 104, 0) 0, #1e2868 4px); }
+.opk-go:disabled { opacity: 1; }
