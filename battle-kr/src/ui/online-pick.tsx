@@ -4,7 +4,7 @@
 import { h } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { CropSprite, TypeBadge, ItemIcon } from './core';
-import { MonSheet, MonDetail } from './screens';
+import { MonDetail } from './screens';
 import { speciesData, itemKo, toID } from '../data';
 import type { PSet } from '../sets';
 import { josa } from '../josa';
@@ -86,11 +86,11 @@ export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent,
 					const o = picked.indexOf(i);
 					return <div role="button" class={'opk-card' + (o >= 0 ? ' on' : '') + (done && o < 0 ? ' out' : '')} onClick={() => { toggle(i); if (wide) setView(i); }} onMouseEnter={() => wide && setHover(i)} onMouseLeave={() => setHover(null)}>
 						<span class="opk-no">{o >= 0 ? o + 1 : ''}</span>
+						<span class="opk-spr"><CropSprite species={s.species} gen={9} size={56} shiny={s.shiny} /></span>
 						<span class="opk-txt">
 							<b>{s.name || speciesData(toID(s.species), 9)?.n || s.species}{sexMark(s)}</b>
 							<small>{s.item ? <><ItemIcon item={s.item} size={16} />{itemKo(s.item)}</> : '도구 없음'}</small>
 						</span>
-						<span class="opk-spr"><CropSprite species={s.species} gen={9} size={56} shiny={s.shiny} /></span>
 						<span class="opk-info" role="button" aria-label="능력치" onClick={e => { e.stopPropagation(); setView(i); }}><InfoIcon /></span>
 					</div>;
 				})}
@@ -114,10 +114,16 @@ export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent,
 			{done ? <button class="opk-go" disabled>상대를 기다리는 중…</button>
 				: <button class="opk-go" disabled={picked.length !== need} onClick={() => finish(picked)}><i>◎ {picked.length}/{need}</i>선택 완료</button>}
 		</div>
-		{view !== null && !wide && <MonSheet set={mine[view]} gen={9} onClose={() => setView(null)} actions={done ? [{ label: '닫기', kind: 'ghost', onClick: () => setView(null) }] : [
+		{view !== null && !wide && <div class="opk-pop-bg" onClick={() => setView(null)}>
+			<div class="opk-pop" role="dialog" onClick={e => e.stopPropagation()}>
+				<div class="opk-name me">{mine[view].name || speciesData(toID(mine[view].species), 9)?.n} Lv{mine[view].level || 50}{picked.includes(view) && <small>{picked.indexOf(view) + 1}번째</small>}
+					<button class="opk-x" onClick={() => setView(null)} aria-label="닫기">×</button></div>
+				<div class="opk-pop-body"><MonDetail set={mine[view]} gen={9} actions={done ? [{ label: '닫기', kind: 'ghost', onClick: () => setView(null) }] : [
 			picked.includes(view) ? { label: '선택 해제', kind: 'ghost', onClick: () => { toggle(view); setView(null); } }
 				: { label: `선택 (${picked.length + 1}번째)`, disabled: picked.length >= need, onClick: () => { toggle(view); setView(null); } },
 			{ label: '닫기', kind: 'ghost', onClick: () => setView(null) },
-		]} />}
+		]} /></div>
+			</div>
+		</div>}
 	</div>;
 }
