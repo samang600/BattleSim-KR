@@ -230,7 +230,9 @@ function moveSoundRaw(type: string, category: string) {
 
 // ── 배경음악: 4채널 시퀀서 (이 앱용으로 새로 작곡한 루프) ──
 // 트랙 파일이 있으면 그걸 씀: bgm/<이름>.mp3 (battle, boss, title, victory, tower, pwt) — 직접 음악 파일을 넣어 바꿀 수 있음
-interface Track { bpm: number; /** 반복할 때 돌아갈 칸 (인트로 길이) */ intro?: number; lead: (number | null)[]; harm?: (number | null)[]; bass: (number | null)[]; arp?: (number | null)[]; drums: string; loop: boolean; leadType?: OscillatorType; swing?: number }
+interface Track { bpm: number; /** 반복할 때 돌아갈 칸 (인트로 길이) */ intro?: number; lead: (number | null)[]; harm?: (number | null)[]; bass: (number | null)[]; arp?: (number | null)[]; drums: string; loop: boolean; leadType?: OscillatorType; swing?: number; /** 곡마다 음색·연주법 (chip-gen3 의 v) */ v?: ChipVoice }
+/** 곡마다 다른 음색: 리드 파형·엔벨로프·비브라토·포르타멘토·옥타브 겹침, 화음/아르페지오/베이스 파형, 메아리, 스윙 */
+interface ChipVoice { lead?: string; env?: 'sus' | 'pluck' | 'swell'; vib?: number; vibRate?: number; slide?: number; oct?: number; harm?: string; arp?: number; arpVol?: number; bassv?: string; echo?: [number, number, number]; swing?: number }
 const R = null;
 // 간단 표기: 문자열 → 음 배열. "a4 r b4 ..." 식, 각 토큰 = 16분음표, 숫자 접미는 길이(이어짐), '-'는 지속
 const NOTE: { [k: string]: number } = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
@@ -249,7 +251,7 @@ function seq(str: string): (number | null)[] {
 // 작곡한 곡의 칩튠판 (music/to_chip.py 가 작곡 데이터에서 자동 편곡): 칸마다 ' ' 쉼, '!' 지속, 그 밖 chr(MIDI+14)
 const decodeCh = (s: string) => Array.from(s, ch => ch === ' ' ? null : ch === '!' ? -1 : ch.charCodeAt(0) - 14);
 const CHIP: { [k: string]: Track } = Object.fromEntries(Object.entries({ ...(CHIP_RAW as { [k: string]: any }), ...(CHIP_GEN3 as { [k: string]: any }) }).map(([k, r]) =>
-	[k, { bpm: r.bpm, intro: r.intro, loop: true, leadType: r.leadType, lead: decodeCh(r.lead), harm: decodeCh(r.harm), bass: decodeCh(r.bass), arp: decodeCh(r.arp), drums: r.drums }]));
+	[k, { bpm: r.bpm, intro: r.intro, loop: true, leadType: r.leadType, v: r.v, lead: decodeCh(r.lead), harm: decodeCh(r.harm), bass: decodeCh(r.bass), arp: decodeCh(r.arp), drums: r.drums }]));
 const chipStyle = () => bgmStyle() === 'chip';
 const TRACKS: { [k: string]: Track } = {
 	// 일반 배틀: d단조, 빠른 베이스 8분 + 긴장감 있는 반음 진행
@@ -492,24 +494,42 @@ function lfsrNoise(c: AudioContext, short: boolean): AudioBuffer {
 	return b;
 }
 type GbaVoice = 'lead' | 'harm' | 'arp' | 'bass';
-function gbaTone(c: AudioContext, freq: number, dur: number, voice: GbaVoice, vol: number, at: number, bus: GainNode) {
+interface ToneOpt { wave?: string; env?: 'sus' | 'pluck' | 'swell'; vib?: number; vibRate?: number; from?: number }
+/** 파형: p12·p25·p50 = 펄스(듀티), tri·saw = 삼각·톱니, wave = 파형 메모리(부드러운 소리) */
+function setWave(c: AudioContext, o: OscillatorNode, w: string) {
+	if (w === 'tri') o.type = 'triangle';
+	else if (w === 'saw') o.type = 'sawtooth';
+	else if (w === 'wave') o.setPeriodicWave(waveRamBass(c));
+	else o.setPeriodicWave(pulseWave(c, w === 'p12' ? 0.125 : w === 'p50' ? 0.5 : 0.25));
+}
+function gbaTone(c: AudioContext, freq: number, dur: number, voice: GbaVoice, vol: number, at: number, bus: GainNode, opt: ToneOpt = {}) {
 	const t = c.currentTime + at;
 	const o = c.createOscillator();
-	o.setPeriodicWave(voice === 'bass' ? waveRamBass(c) : pulseWave(c, voice === 'lead' ? 0.25 : voice === 'arp' ? 0.125 : 0.5));
-	o.frequency.setValueAtTime(freq, t);
-	// 리드는 조금 뒤에 비브라토 (3세대 곡의 긴 음처럼)
-	if (voice === 'lead' && dur > 0.25) {
+	setWave(c, o, opt.wave || (voice === 'bass' ? 'wave' : voice === 'lead' ? 'p25' : voice === 'arp' ? 'p12' : 'p50'));
+	if (opt.from && opt.from !== freq) { o.frequency.setValueAtTime(opt.from, t); o.frequency.exponentialRampToValueAtTime(freq, t + Math.min(0.06, dur * 0.5)); }
+	else o.frequency.setValueAtTime(freq, t);
+	// 리드는 조금 뒤에 비브라토 (3세대 곡의 긴 음처럼) — 곡마다 깊이·빠르기
+	const vib = voice === 'lead' ? (opt.vib ?? 1) : 0;
+	if (vib > 0 && dur > 0.25) {
 		const lfo = c.createOscillator(), lg = c.createGain();
-		lfo.frequency.value = 5.5; lg.gain.setValueAtTime(0, t); lg.gain.setValueAtTime(0, t + 0.18); lg.gain.linearRampToValueAtTime(freq * 0.012, t + 0.32);
+		lfo.frequency.value = opt.vibRate || 5.5; lg.gain.setValueAtTime(0, t); lg.gain.setValueAtTime(0, t + 0.18); lg.gain.linearRampToValueAtTime(freq * 0.012 * vib, t + 0.32);
 		lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t + dur + 0.03);
 	}
 	const g = c.createGain();
-	// 엔벨로프: 빠른 시작 → 조금 줄어 유지 → 끝에서 끊김 (GB 채널의 계단식 엔벨로프 느낌)
+	const env = opt.env || 'sus';
+	if (env === 'pluck') {   // 오르골·코토처럼 튕기고 사라짐
+		g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol * 1.3, t + 0.003);
+		g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.08, Math.min(dur + 0.15, 0.5)));
+		o.connect(g); g.connect(bus); o.start(t); o.stop(t + Math.max(0.1, Math.min(dur + 0.17, 0.52)));
+		return;
+	}
+	// 엔벨로프: 빠른 시작(swell 은 천천히 부풂) → 조금 줄어 유지 → 끝에서 끊김 (GB 채널의 계단식 엔벨로프 느낌)
 	const sus = voice === 'bass' ? 0.85 : voice === 'arp' ? 0.4 : 0.7;
+	const atk = env === 'swell' ? Math.min(dur * 0.5, 0.22) : 0.004;
 	g.gain.setValueAtTime(0.0001, t);
-	g.gain.linearRampToValueAtTime(vol, t + 0.004);
-	g.gain.linearRampToValueAtTime(vol * sus, t + Math.min(dur, 0.08));
-	g.gain.setValueAtTime(vol * sus, t + Math.max(0.005, dur - 0.012));
+	g.gain.linearRampToValueAtTime(env === 'swell' ? vol * sus : vol, t + atk);
+	if (env !== 'swell') g.gain.linearRampToValueAtTime(vol * sus, t + Math.min(dur, 0.08));
+	g.gain.setValueAtTime(vol * sus, t + Math.max(atk + 0.001, dur - 0.012));
 	g.gain.linearRampToValueAtTime(0.0001, t + dur);
 	o.connect(g); g.connect(bus);
 	o.start(t); o.stop(t + dur + 0.02);
@@ -523,16 +543,31 @@ function gbaDrum(c: AudioContext, kind: string, at: number, bus: GainNode) {
 		o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.13);
 		return;
 	}
-	const src = c.createBufferSource(); src.buffer = lfsrNoise(c, kind === 'h');
-	src.playbackRate.value = kind === 'h' ? 1 : 0.5;
-	const g = c.createGain(), d = kind === 'h' ? 0.035 : 0.12, v = kind === 'h' ? 0.07 : 0.2;
+	if (kind === 't' || kind === 'l') {   // 탐 (높은·낮은): 펄스 음높이가 짧게 떨어짐
+		const o = c.createOscillator(), g = c.createGain(), f = kind === 't' ? 330 : 190;
+		o.setPeriodicWave(pulseWave(c, 0.5)); o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.55, t + 0.12);
+		g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+		o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.16);
+		return;
+	}
+	if (kind === 'r') {   // 림샷: 아주 짧은 높은 펄스
+		const o = c.createOscillator(), g = c.createGain();
+		o.setPeriodicWave(pulseWave(c, 0.125)); o.frequency.setValueAtTime(1600, t);
+		g.gain.setValueAtTime(0.09, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+		o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.05);
+		return;
+	}
+	if (kind === 'c') { [0, 0.012, 0.024].forEach(d => gbaDrum(c, 'x', at + d, bus)); return; }   // 박수: 짧은 잡음 세 번
+	const src = c.createBufferSource(); src.buffer = lfsrNoise(c, kind === 'h' || kind === 'o');
+	src.playbackRate.value = kind === 'h' || kind === 'o' ? 1 : kind === 'x' ? 0.8 : 0.5;
+	const g = c.createGain(), d = kind === 'h' ? 0.035 : kind === 'o' ? 0.16 : kind === 'x' ? 0.05 : 0.12, v = kind === 'h' ? 0.07 : kind === 'o' ? 0.06 : kind === 'x' ? 0.12 : 0.2;
 	g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
 	src.connect(g); g.connect(bus); src.start(t, Math.random() * 0.5); src.stop(t + d + 0.02);
 }
 /** GBA 사운드 엔진의 잔향처럼 짧은 메아리 (곡마다 하나) */
-function gbaEcho(c: AudioContext, into: GainNode): GainNode {
+function gbaEcho(c: AudioContext, into: GainNode, e: [number, number, number] = [0.11, 0.3, 0.22]): GainNode {
 	const inp = c.createGain(), dl = c.createDelay(0.5), fb = c.createGain(), lp = c.createBiquadFilter(), wet = c.createGain();
-	dl.delayTime.value = 0.11; fb.gain.value = 0.3; lp.type = 'lowpass'; lp.frequency.value = 3200; wet.gain.value = 0.22;
+	dl.delayTime.value = e[0]; fb.gain.value = e[1]; lp.type = 'lowpass'; lp.frequency.value = 3200; wet.gain.value = e[2];
 	inp.connect(into); inp.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(wet); wet.connect(into);
 	return inp;
 }
@@ -543,7 +578,9 @@ function startSynth(name: string, c: AudioContext, track?: Track) {
 	// 작곡한 곡의 칩튠판은 관현악 mp3 와 비슷한 크기로 들리게 키움 (측정 약 18dB 작음 → 12dB 키움, 크게 설정에서도 1을 넘지 않게)
 	synthBus = c.createGain(); synthBus.gain.value = Object.values(CHIP).includes(tr) ? 4 : 1; synthBus.connect(musicBus!);
 	const gba = Object.values(CHIP).includes(tr);
-	const bus = gba ? gbaEcho(c, synthBus) : synthBus;
+	const V: ChipVoice = tr.v || {};
+	const bus = gba ? gbaEcho(c, synthBus, V.echo) : synthBus;
+	let prevLead = 0, prevEnd = 0;
 	step = 0; nextTime = c.currentTime + 0.05;
 	const stepDur = 60 / tr.bpm / 4;
 	const len = tr.lead.length;
@@ -558,15 +595,24 @@ function startSynth(name: string, c: AudioContext, track?: Track) {
 			const l = tr.lead[i];
 			if (gba) {
 				// GBA 풍: 리드 25% 펄스(비브라토) · 화음 50% 펄스 · 베이스 파형 메모리 · 아르페지오 12.5% 펄스 · LFSR 드럼
-				if (l !== null && l !== -1) gbaTone(c, N(l), stepDur * noteLen(tr.lead, i) * 0.92, 'lead', 0.12, at, bus);
+				// 스윙: 박의 뒤쪽 8분(셋째 16분)을 늦춤
+				const sw = V.swing ? (i % 4 === 2 ? V.swing : i % 4 === 3 ? V.swing / 2 : 0) * stepDur : 0;
+				const at2 = at + sw;
+				if (l !== null && l !== -1) {
+					const f = N(l), dur = stepDur * noteLen(tr.lead, i) * 0.92;
+					const from = V.slide && prevLead && nextTime - prevEnd < stepDur * 0.6 ? prevLead : 0;
+					gbaTone(c, f, dur, 'lead', 0.12, at2, bus, { wave: V.lead, env: V.env, vib: V.vib, vibRate: V.vibRate, from });
+					if (V.oct) gbaTone(c, f * 2, dur, 'lead', 0.045, at2, bus, { wave: V.lead, env: V.env, vib: V.vib, vibRate: V.vibRate });
+					prevLead = f; prevEnd = nextTime + dur;
+				}
 				const hh = tr.harm?.[i % (tr.harm.length || 1)];
-				if (hh !== null && hh !== undefined && hh !== -1) gbaTone(c, N(hh), stepDur * noteLen(tr.harm!, i % tr.harm!.length) * 0.95, 'harm', 0.055, at, bus);
+				if (hh !== null && hh !== undefined && hh !== -1) gbaTone(c, N(hh), stepDur * noteLen(tr.harm!, i % tr.harm!.length) * 0.95, 'harm', 0.055, at2, bus, { wave: V.harm, env: V.env === 'pluck' ? 'pluck' : 'sus' });
 				const bb = tr.bass[i % tr.bass.length];
-				if (bb !== null && bb !== -1) gbaTone(c, N(bb), stepDur * Math.max(1, noteLen(tr.bass, i % tr.bass.length)) * 0.9, 'bass', 0.26, at, bus);
+				if (bb !== null && bb !== -1) gbaTone(c, N(bb), stepDur * Math.max(1, noteLen(tr.bass, i % tr.bass.length)) * 0.9, 'bass', V.bassv === 'p50' ? 0.12 : 0.26, at2, bus, { wave: V.bassv });
 				const aa = tr.arp?.[i % (tr.arp.length || 1)];
-				if (aa !== null && aa !== undefined && aa !== -1) gbaTone(c, N(aa), stepDur * 0.6, 'arp', 0.04, at, bus);
+				if (aa !== null && aa !== undefined && aa !== -1) gbaTone(c, N(aa), stepDur * (noteLen(tr.arp!, i % tr.arp!.length) > 1 ? noteLen(tr.arp!, i % tr.arp!.length) * 0.9 : 0.6), 'arp', 0.04 * (V.arpVol || 1), at2, bus, { wave: V.arp ? (V.arp === 0.5 ? 'p50' : V.arp === 0.25 ? 'p25' : 'p12') : undefined });
 				const dd = tr.drums[i % tr.drums.length];
-				if (dd === 'k' || dd === 's' || dd === 'h') gbaDrum(c, dd, at, bus);
+				if (dd && 'kshoctlr'.includes(dd)) gbaDrum(c, dd, at2, bus);
 				nextTime += stepDur; step++;
 				continue;
 			}

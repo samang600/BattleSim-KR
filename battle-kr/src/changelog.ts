@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.65.0', date: '2026-11-09', title: '교환소 음악 새로 작곡', items: [
+		['up', '교환소 음악 11곡을 곡마다 다른 장르로 새로 작곡 — 셔플·록·요 음계·타블라·하프타임·앰비언트·행진곡·신스펑크·왈츠·스윙·전파 팝'],
+		['up', '곡마다 악기 소리(펄스 굵기·삼각파·톱니파·오르골처럼 튕기기·천천히 부풀기)와 메아리, 드럼(탐·박수·림샷·열린 하이햇)이 달라요'],
+		['up', '배틀·시설 음악도 곡마다 리드 음색을 조금씩 다르게'],
+	] },
 	{ ver: '2.64.0', date: '2026-11-09', title: '테마 음악·HP 창', items: [
 		['new', '「솜사탕 꿈나라」「한밤의 하트」「분홍 처방전」 테마의 새 음악 3곡과 HP 창 테마 3종'],
 	] },

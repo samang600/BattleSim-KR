@@ -122,20 +122,20 @@ SONGS = {
 # 3세대 배틀 곡에서 흔한 장치(장르 공통 기법)를 넣음 — 선율·진행은 모두 이 앱용 새 작곡:
 #  · 둘째 펄스가 리드를 3도/6도 아래로 따라가는 대선율 ('third')  · 반 박 엇박 화음 찌르기 ('stab')
 #  · 구간 마지막 마디의 드럼 필인  · 갤럽(8분+16분 둘) 베이스  · 브리지에서 관계조/나란한조로 조바꿈
-def bars(text):
-    """'|' 로 마디를 나눈 선율 — 마디마다 16칸인지 확인"""
+def bars(text, bar=16):
+    """'|' 로 마디를 나눈 선율 — 마디마다 bar 칸(4/4 = 16, 3/4 = 12)인지 확인"""
     out = []
     for i, b in enumerate(text.split('|')):
-        m = melody(b); assert len(m) == 16, (i, len(m), b); out += m
+        m = melody(b); assert len(m) == bar, (i, len(m), b); out += m
     return out
 
-def third_below(lead, chords):
+def third_below(lead, chords, bar=16):
     """리드 음마다 같은 마디 화음의 구성음 중 3~9반음 아래(3도·6도 우선)를 고름 — 지속도 그대로"""
     out = []; cur = None
     for s, n in enumerate(lead):
         if n is None: out.append(None); cur = None; continue
         if n == -1: out.append(-1 if cur is not None else None); continue
-        r, iv = chord(chords[s // 16]); pcs = {(r + x) % 12 for x in iv}
+        r, iv = chord(chords[s // bar]); pcs = {(r + x) % 12 for x in iv}
         cand = [n - d for d in range(3, 10) if (n - d) % 12 in pcs]
         cur = min(cand, key=lambda x: abs((n - x) - 4)) if cand else None
         out.append(cur)
@@ -148,8 +148,27 @@ def stab_bar(name):
     a, b = base + iv[1], base + iv[2]; z = None
     return [z, z, a, z, z, z, b, z, z, z, a, z, z, z, b, z]
 
+def harm_style(name, style, lead_bar):
+    """화음 채널 반주 (16칸 기준, 3/4 는 앞 12칸만 씀)"""
+    r, iv = chord(name); base = 60 + r % 12
+    if base > 66: base -= 12
+    z = None; t3, t5 = base + iv[1], base + iv[2]; top = base + (iv[3] if len(iv) > 3 else 12)
+    if style == 'pad': return harm_bar(name)
+    if style == 'stab': return stab_bar(name)
+    if style == 'offbeat':   # 뒤박마다 짧게 (레게·컨트리 기타처럼)
+        return [z, z, t3, z, z, z, t5, z, z, z, t3, z, z, z, t5, z]
+    if style == 'chordarp':  # 8분으로 펼친 화음 1-3-5-3
+        return [base, -1, t3, -1, t5, -1, t3, -1, base, -1, t3, -1, t5, -1, top, -1]
+    if style == 'waltz':     # 3/4: 둘째·셋째 박에 화음
+        return [z, z, z, z, t3, -1, z, z, t5, -1, z, z, z, z, z, z]
+    if style == 'drone':     # 근음을 길게 깔기
+        return [base] + [-1] * 15
+    if style == 'oct':       # 리드를 한 옥타브 아래로 겹침 (금관·파워 코드 느낌)
+        return [x - 12 if x not in (None, -1) else x for x in lead_bar]
+    return [None] * 16
+
 def bass2(name, style):
-    r, iv = chord(name); lo = 33 + (r - 9) % 12; f = lo + iv[2]
+    r, iv = chord(name); lo = 33 + (r - 9) % 12; f = lo + iv[2]; t = lo + iv[1]
     if style == 'gallop':  # 박마다 근음 8분 + 16분 둘 (근음·옥타브)
         return [lo, -1, lo, lo + 12] * 4
     if style == 'synco':   # 엇박 옥타브
@@ -158,39 +177,68 @@ def bass2(name, style):
         return [lo, -1, lo + 12, -1] * 3 + [lo + 12, lo + 11, lo + 10, lo + 7]
     if style == 'half':    # 브리지: 2분 근음·5도
         return [lo] + [-1] * 7 + [f] + [-1] * 7
+    if style == 'sustain':  # 온음표 근음
+        return [lo] + [-1] * 15
+    if style == 'boogie':  # 부기: 근음·3도·5도·6도·b7·6도·5도·3도 (8분)
+        return [lo, -1, t, -1, f, -1, lo + 9, -1, lo + 10, -1, lo + 9, -1, f, -1, t, -1]
+    if style == 'pedal':   # 근음을 쉬엄쉬엄 두드림 (드론)
+        return [lo, -1, lo, -1, None, None, lo, -1, lo, -1, lo, -1, None, None, lo, lo + 12]
+    if style == 'octfunk':  # 펑크: 엇박 옥타브 16분
+        return [lo, -1, None, lo + 12, None, lo, None, lo + 12, lo, -1, None, lo + 12, None, lo, lo + 12, None]
+    if style == 'march':   # 행진: 근음·5도 4분
+        return [lo, -1, None, None, f - 12 if f - 12 >= 28 else f, -1, None, None] * 2
+    if style == 'waltz':   # 3/4: 첫 박 근음만
+        return [lo, -1, -1, -1] + [None] * 12
     return bass_bar(name, style)
 
-def song2(bpm, sections, drums, fill):
-    """sections: (이름, 화음들, 선율, {'harm': third|pad|stab|none, 'bass': 스타일, 'arp': bool, 'drum': 키})
-    drums: {키: 16칸 패턴}, fill: 구간 마지막 마디 드럼 (인트로 제외)"""
+def arp2(name, style):
+    if style in (True, 'up'): return arp_bar(name, True)
+    if not style or style == 'none': return [None] * 16
+    r, iv = chord(name); base = 72 + r % 12
+    if base > 78: base -= 12
+    p = [base + iv[0], base + iv[1], base + iv[2], base + (iv[3] if len(iv) > 3 else 12)]
+    if style == 'updown':  # 오르내리는 16분 (반짝임)
+        seq = [p[0], p[1], p[2], p[3], p[2] + 12, p[3], p[2], p[1]]
+        return seq * 2
+    if style == 'bell':    # 1·3박에만 높은 종소리
+        return [p[2] + 12, -1, -1, -1, None, None, None, None, p[1] + 12, -1, -1, -1, None, None, None, None]
+    return arp_bar(name, True)
+
+def song2(bpm, sections, drums, fill, voice=None, bar=16):
+    """sections: (이름, 화음들, 선율, {'harm': third|pad|stab|offbeat|chordarp|waltz|drone|oct|none,
+    'bass': 스타일, 'arp': up|updown|bell|none, 'drum': 키}). bar: 한 마디 칸 수 (16 = 4/4, 12 = 3/4).
+    drums: {키: bar 칸 패턴}, fill: 구간 마지막 마디 드럼 (인트로 제외), voice: 곡 음색(앱 시퀀서의 v)"""
     lead, harm, bass, arp, dr = [], [], [], [], ''
     intro_len = 0
     for kind, chords, mel, o in sections:
-        m = bars(mel); assert len(m) == 16 * len(chords), (kind, len(m) // 16, len(chords))
+        m = bars(mel, bar); assert len(m) == bar * len(chords), (kind, len(m) // bar, len(chords))
         lead += m
         h = o.get('harm', 'third')
-        if h == 'third': harm += third_below(m, chords)
+        if h == 'third': harm += third_below(m, chords, bar)
         for j, ch in enumerate(chords):
-            if h == 'pad': harm += harm_bar(ch)
-            elif h == 'stab': harm += stab_bar(ch)
-            elif h == 'none': harm += [None] * 16
-            bass += bass2(ch, o.get('bass', 'oct8'))
-            arp += arp_bar(ch, o.get('arp', False))
+            lb = m[j * bar:(j + 1) * bar] + [None] * (16 - bar)
+            if h != 'third': harm += harm_style(ch, h, lb)[:bar]
+            bass += bass2(ch, o.get('bass', 'oct8'))[:bar]
+            arp += arp2(ch, o.get('arp', False))[:bar]
             last = j == len(chords) - 1 and kind != 'intro'
-            dr += fill if last else drums[o.get('drum', 'main')]
+            pat = fill if last else drums[o.get('drum', 'main')]
+            assert len(pat) == bar, (kind, pat)
+            dr += pat
         if kind == 'intro': intro_len = len(lead)
     enc = lambda a: ''.join(' ' if x is None else '!' if x == -1 else chr(x + 14) for x in a)
-    return {'bpm': bpm, 'intro': intro_len, 'leadType': 'pulse25', 'lead': enc(lead), 'harm': enc(harm), 'bass': enc(bass), 'arp': enc(arp), 'drums': dr}
+    out = {'bpm': bpm, 'intro': intro_len, 'leadType': 'pulse25', 'lead': enc(lead), 'harm': enc(harm), 'bass': enc(bass), 'arp': enc(arp), 'drums': dr}
+    if voice: out['v'] = voice
+    return out
 
-def consonance(name, sections):
-    """점검: 박 머리(1·3박)에 오는 리드 음이 화음 구성음이 아닌 곳 — 비율이 높으면 선율 손보기"""
+def consonance(name, sections, bar=16):
+    """점검: 박 머리(4/4 는 1·3박, 3/4 는 1박)에 오는 리드 음이 화음 구성음이 아닌 곳 — 비율이 높으면 선율 손보기"""
     bad = tot = 0
     for kind, chords, mel, _ in sections:
-        m = bars(mel)
-        for s in range(0, len(m), 8):
+        m = bars(mel, bar)
+        for s in range(0, len(m), 8 if bar == 16 else bar):
             n = m[s]
             if n is None or n == -1: continue
-            r, iv = chord(chords[s // 16]); tot += 1
+            r, iv = chord(chords[s // bar]); tot += 1
             if n % 12 not in {(r + x) % 12 for x in iv}: bad += 1
     return f'{name}: 강박 비화음 {bad}/{tot}'
 
@@ -341,150 +389,167 @@ NEW = {
          'c6.2 b5.2 a5.2 c6.2 e6.4 a6.4|a6.2 g6.2 f#6.2 e6.2 d6.4 f#6.4|g6.6 f#6.2 g6.4 b6.4|a6.2 r.2 a6.2 r.2 f#6.2 d6.2 c6.4',
          {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
     ], {'main': 'k.h.s.hhk.h.s.h.', 'b': 'k.hhs.h.k.hhs.hs', 'intro': 'k...s...k.k.s.ss'}, 'k.s.k.s.s.ssssss'),
-    # 노을 언덕 (D장조 152, 교환소): 탁 트인 들판을 달리는 느낌 — 펼친 화음으로 솟는 인트로, 5도·옥타브로 뛰어오르는 선율, B 는 F#m 으로 살짝 그늘졌다가 A7 로 돌아옴
-    'g3sunset': (152, [
-        ('intro', ['D', 'A'],
-         'd5.2 f#5.2 a5.2 d6.2 f#6.4 e6.4|c#6.2 a5.2 e5.2 a5.2 c#6.4 e6.4', {'harm': 'third', 'bass': 'walk', 'drum': 'intro'}),
-        ('A', ['D', 'Bm', 'G', 'A', 'D', 'Bm', 'Em', 'A7'],
-         'f#6.4 e6.2 d6.2 a5.4 d6.4|d6.6 c#6.2 b5.4 f#5.4|g5.2 b5.2 d6.2 g6.2 b6.4 a6.4|a6.6 g6.2 e6.4 c#6.4|'
-         'd6.2 e6.2 f#6.2 a6.2 d7.4 a6.4|b6.4 a6.2 f#6.2 d6.4 b5.4|g6.2 f#6.2 e6.2 g6.2 b6.4 g6.4|e6.2 f#6.2 g6.2 e6.2 c#6.4 a5.4', {'harm': 'third', 'bass': 'synco'}),
-        ('B', ['G', 'A', 'F#m', 'Bm', 'G', 'A', 'D', 'A7'],
-         'b5.4 d6.4 g6.6 f#6.2|e6.4 c#6.4 a5.6 b5.2|c#6.4 f#6.4 a6.6 g#6.2|f#6.8 d6.4 b5.4|'
-         'g5.2 a5.2 b5.2 d6.2 g6.4 d6.4|a5.2 b5.2 c#6.2 e6.2 a6.4 e6.4|f#6.6 e6.2 d6.4 a5.4|g6.2 r.2 g6.2 r.2 e6.2 c#6.2 a5.4',
-         {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k.h.s.hkk.h.s.hh', 'b': 'k.hhs.hkk.hks.hs', 'intro': 'k...s...k.k.s.ss'}, 'k.s.k.s.s.ssssss'),
-    # 별빛 결전 (E단조 168, 교환소): 밤하늘 아래 몰아치는 승부 — 끊어 치는 옥타브 인트로, 높이 치솟는 A, B 는 C·D 로 열렸다가 B7 반복 찌르기로 조임
-    'g3star': (168, [
-        ('intro', ['Em', 'Em', 'C', 'B7'],
-         'e5.1 e5.1 r.2 b5.1 b5.1 r.2 e6.2 r.2 g6.4|e5.1 e5.1 r.2 b5.1 b5.1 r.2 g6.2 f#6.2 e6.4|c6.4 g5.4 e5.4 g5.4|b5.2 d#6.2 f#6.2 a6.2 b6.8',
-         {'harm': 'none', 'bass': 'drive', 'drum': 'intro'}),
-        ('A', ['Em', 'C', 'D', 'B7', 'Em', 'Am', 'C', 'B7'],
-         'e6.2 r.1 e6.1 g6.2 b6.2 e7.4 d7.2 b6.2|c7.4 b6.2 g6.2 e6.4 c6.4|d6.2 r.1 d6.1 f#6.2 a6.2 d7.4 c7.2 a6.2|b6.6 a6.2 f#6.4 d#6.4|'
-         'g6.2 f#6.2 e6.2 b5.2 e6.4 g6.4|a6.2 g6.2 e6.2 c6.2 a5.4 e6.4|g6.2 e6.2 c6.2 e6.2 g6.4 c7.4|b6.2 a6.2 f#6.2 d#6.2 b5.8', {'harm': 'third', 'bass': 'gallop'}),
-        ('B', ['C', 'D', 'Bm', 'Em', 'Am', 'B7', 'Em', 'B7'],
-         'e6.6 g6.2 c7.8|f#6.6 a6.2 d7.8|d7.4 b6.4 f#6.4 b6.4|g6.12 e6.4|'
-         'c7.2 b6.2 a6.2 e6.2 c7.4 a6.4|d#7.2 b6.2 f#6.2 b6.2 a6.4 f#6.4|g6.2 a6.2 b6.2 e7.2 g7.4 e7.4|f#7.2 r.2 f#7.2 r.2 d#7.2 b6.2 a6.4',
-         {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k.hks.hkk.hks.hk', 'b': 'kkhks.hkk.hks.ss', 'intro': 'k.k.k.k.s.s.ssss'}, 'k.s.k.s.ssssssss'),
-    # 벚꽃 정원 (F장조 132, 교환소): 꽃잎이 흩날리는 산책 — 3도 대선율과 워킹 베이스, B 는 Dm·Gm 으로 살짝 아련해졌다가 C7 로 돌아옴
-    'g3sakura': (132, [
-        ('intro', ['F', 'C'],
-         'c6.2 a5.2 f5.2 a5.2 c6.4 f6.4|e6.2 c6.2 g5.2 c6.2 e6.4 g6.4', {'harm': 'third', 'bass': 'walk', 'drum': 'intro'}),
-        ('A', ['F', 'Dm', 'Bb', 'C', 'F', 'Am', 'Bb', 'C7'],
-         'a5.4 c6.2 d6.2 c6.4 a5.4|d6.6 e6.2 f6.4 a5.4|bb5.2 c6.2 d6.2 f6.2 bb6.4 a6.4|g6.6 f6.2 e6.4 c6.4|'
-         'f6.4 a6.2 g6.2 f6.4 c6.4|e6.6 d6.2 c6.4 a5.4|d6.2 c6.2 bb5.2 d6.2 f6.4 d6.4|e6.8 g5.4 bb5.4', {'harm': 'third', 'bass': 'walk'}),
-        ('B', ['Dm', 'Am', 'Bb', 'F', 'Gm', 'C', 'F', 'C7'],
-         'f6.6 e6.2 d6.4 a5.4|c6.6 b5.2 a5.4 e5.4|d6.4 f6.4 bb6.6 a6.2|a6.8 f6.4 c6.4|'
-         'g5.2 a5.2 bb5.2 d6.2 g6.4 d6.4|e6.2 f6.2 g6.2 e6.2 c6.4 e6.4|f6.6 g6.2 a6.4 c7.4|bb6.2 r.2 bb6.2 r.2 g6.2 e6.2 c6.4',
-         {'harm': 'pad', 'bass': 'half', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k...h.h.s...h.h.', 'b': 'k.h.s.h.k.h.s.hh', 'intro': 'k.......s...s.s.'}, 'k...h.h.s.h.s.ss'),
-    # 사막 유적 (D단조 160, 교환소): 뜨거운 바람의 유적 — 증2도(Bb-C#) 느낌의 선율, 엇박 베이스, B 는 Gm·C·F 로 열렸다가 A7 로 조임
-    'g3desert': (160, [
-        ('intro', ['Dm', 'A7'],
-         'd5.2 f5.2 a5.2 d6.2 f6.4 e6.2 d6.2|a5.2 c#6.2 e6.2 g6.2 a6.4 bb6.2 a6.2', {'harm': 'none', 'bass': 'half', 'drum': 'intro'}),
-        ('A', ['Dm', 'Bb', 'A', 'Dm', 'Gm', 'Bb', 'A', 'A7'],
-         'd6.4 e6.2 f6.2 a6.4 f6.4|f6.2 e6.2 d6.2 bb5.2 d6.4 f6.4|e6.6 f6.2 e6.2 c#6.2 a5.4|d6.12 r.4|'
-         'bb5.4 d6.2 g6.2 bb6.4 a6.2 g6.2|f6.6 d6.2 bb5.4 f5.4|a5.2 bb5.2 c#6.2 e6.2 a6.4 g6.2 e6.2|c#6.2 e6.2 g6.2 bb6.2 a6.8', {'harm': 'third', 'bass': 'synco'}),
-        ('B', ['Gm', 'A', 'Dm', 'Bb', 'Gm', 'C', 'F', 'A7'],
-         'g6.6 a6.2 bb6.4 g6.4|a6.6 g6.2 e6.4 c#6.4|d6.4 f6.4 a6.4 d7.4|d7.6 c7.2 bb6.8|'
-         'bb6.2 a6.2 g6.2 d6.2 g6.4 bb6.4|c7.2 bb6.2 g6.2 e6.2 c6.4 e6.4|f6.6 e6.2 f6.4 a6.4|a6.2 r.2 a6.2 r.2 g6.2 e6.2 c#6.4',
-         {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k..hs.h.k.hhs.h.', 'b': 'k.hks.hkk.hks.hs', 'intro': 'k..h..h.k..h..hs'}, 'k.s.k.s.s.ssssss'),
-    # 오로라 (B단조 176, 교환소): 극지의 밤하늘 아래 큰 승부 — 펼친 화음 인트로, 높이 솟는 A, B 는 F#m·Em 을 지나 F# 장화음으로 끝맺음
-    'g3aurora': (176, [
-        ('intro', ['Bm', 'G', 'A', 'F#'],
-         'b4.2 f#5.2 b5.2 d6.2 f#6.4 b6.4|g6.2 d6.2 b5.2 d6.2 g6.4 b6.4|a6.2 e6.2 c#6.2 e6.2 a6.4 c#7.4|a#6.4 f#6.4 c#7.8',
-         {'harm': 'none', 'bass': 'drive', 'drum': 'intro'}),
-        ('A', ['Bm', 'G', 'D', 'A', 'Bm', 'Em', 'G', 'F#'],
-         'f#6.2 r.1 f#6.1 b6.2 d7.2 f#7.4 e7.2 d7.2|d7.6 b6.2 g6.4 d6.4|a6.2 r.1 a6.1 d7.2 f#7.2 a7.4 f#7.2 d7.2|e7.6 c#7.2 a6.8|'
-         'b6.2 c#7.2 d7.2 f#7.2 d7.4 c#7.2 b6.2|g6.6 f#6.2 e6.4 b5.4|d6.2 g6.2 b6.2 d7.2 g7.4 d7.4|f#7.2 e7.2 c#7.2 a#6.2 f#6.8', {'harm': 'third', 'bass': 'gallop'}),
-        ('B', ['G', 'A', 'F#m', 'Bm', 'Em', 'A', 'D', 'F#'],
-         'b6.6 a6.2 g6.8|c#7.6 b6.2 a6.8|a6.4 c#7.4 f#7.4 c#7.4|d7.12 b6.4|'
-         'e7.2 d7.2 b6.2 g6.2 e6.4 g6.4|a6.2 b6.2 c#7.2 e7.2 a7.4 e7.4|f#7.6 e7.2 d7.4 a6.4|c#7.2 r.2 c#7.2 r.2 a#6.2 c#7.2 f#7.4',
-         {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k.hks.hkk.hks.hk', 'b': 'k.hhs.hkkkhhs.hs', 'intro': 'k.k.k.k.s.s.ssss'}, 'k.s.k.s.ssssssss'),
-    # 해저 신전 (A단조 144, 교환소): 물빛이 일렁이는 깊은 바다의 신전 — 펼친 화음 인트로, 3도 대선율과 워킹 베이스, B 는 F·G 로 올라갔다가 E7 로 돌아옴
-    'g3deepsea': (144, [
-        ('intro', ['Am', 'F'],
-         'e5.2 a5.2 c6.2 e6.2 a6.4 g6.2 e6.2|f6.2 c6.2 a5.2 c6.2 f6.4 e6.4', {'harm': 'pad', 'bass': 'half', 'drum': 'intro'}),
-        ('A', ['Am', 'Dm', 'G', 'C', 'F', 'Dm', 'E', 'E7'],
-         'a5.4 c6.2 e6.2 a6.6 g6.2|f6.4 e6.2 d6.2 a5.8|b5.2 d6.2 g6.4 d6.2 b5.2 g5.4|c6.6 e6.2 g6.8|'
-         'a6.4 g6.2 f6.2 c6.4 f6.4|d6.2 e6.2 f6.2 a6.2 d7.4 c7.2 a6.2|b6.6 g#6.2 e6.4 b5.4|d6.2 e6.2 g#6.2 b6.2 e7.8', {'harm': 'third', 'bass': 'walk'}),
-        ('B', ['F', 'G', 'Em', 'Am', 'Dm', 'E', 'Am', 'E7'],
-         'c7.6 a6.2 f6.8|d7.6 b6.2 g6.8|g6.4 b6.4 e7.4 b6.4|a6.12 e6.4|'
-         'f6.2 e6.2 d6.2 a5.2 d6.4 f6.4|g#6.2 a6.2 b6.2 e7.2 g#7.4 e7.4|a6.6 b6.2 c7.4 e7.4|d7.2 r.2 d7.2 r.2 b6.2 g#6.2 e6.4',
-         {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k...h.h.s..kh.h.', 'b': 'k.h.s.h.k.hhs.hs', 'intro': 'k.......s.......'}, 'k.s.k.s.s.ssssss'),
-    # 구름 위 탑 (Eb장조 168, 교환소): 구름 바다 위 높은 탑의 결전 — 솟구치는 영웅적 장조, 갤럽 베이스, B 는 Fm·Bb7 로 조였다가 다시 Eb 로
-    'g3skypillar': (168, [
-        ('intro', ['Eb', 'Bb'],
-         'eb5.2 g5.2 bb5.2 eb6.2 g6.4 bb6.4|bb5.2 d6.2 f6.2 bb6.2 d7.8', {'harm': 'none', 'bass': 'drive', 'drum': 'intro'}),
-        ('A', ['Eb', 'Cm', 'Ab', 'Bb', 'Eb', 'Gm', 'Ab', 'Bb7'],
-         'g6.4 bb6.2 g6.2 eb6.4 bb5.4|c6.2 d6.2 eb6.2 g6.2 c7.8|c7.6 bb6.2 ab6.4 eb6.4|f6.6 g6.2 f6.4 d6.4|'
-         'eb6.2 f6.2 g6.2 bb6.2 eb7.4 d7.2 bb6.2|d7.6 bb6.2 g6.4 d6.4|eb6.2 f6.2 ab6.2 c7.2 eb7.4 c7.4|d7.2 c7.2 bb6.2 ab6.2 f6.8', {'harm': 'third', 'bass': 'gallop'}),
-        ('B', ['Ab', 'Bb', 'Gm', 'Cm', 'Fm', 'Bb', 'Eb', 'Bb7'],
-         'ab6.6 bb6.2 c7.8|bb6.6 c7.2 d7.8|d7.4 bb6.4 g6.4 bb6.4|c7.12 g6.4|'
-         'ab6.2 g6.2 f6.2 c6.2 f6.4 ab6.4|bb6.2 c7.2 d7.2 f7.2 bb7.4 f7.4|g7.6 f7.2 eb7.4 bb6.4|ab6.2 r.2 ab6.2 r.2 f6.2 d6.2 bb5.4',
-         {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k.hks.hkk.hks.hk', 'b': 'kkhks.hkk.hks.ss', 'intro': 'k.k.k.k.s.s.ssss'}, 'k.s.k.s.ssssssss'),
-    # 네온 시티 (G단조 172, 교환소): 밤거리 네온 아래 승부 — 끊어 치는 리듬 인트로, 엇박 베이스, B 는 Eb·F 로 열렸다가 D7 반복 찌르기
-    'g3neon': (172, [
-        ('intro', ['Gm', 'Gm', 'Eb', 'D7'],
-         'g5.1 r.1 g5.1 r.1 bb5.2 d6.2 r.2 g6.2 f6.2 d6.2|g5.1 r.1 g5.1 r.1 bb5.2 d6.2 r.2 bb6.2 a6.2 g6.2|eb6.4 g6.4 bb6.4 g6.4|f#6.2 a6.2 c7.2 d7.2 f#7.8',
-         {'harm': 'none', 'bass': 'synco', 'drum': 'intro'}),
-        ('A', ['Gm', 'Eb', 'Cm', 'D', 'Gm', 'Bb', 'Cm', 'D7'],
-         'g6.2 r.1 g6.1 bb6.2 d7.2 g7.4 f7.2 d7.2|eb7.4 d7.2 bb6.2 g6.4 eb6.4|c6.2 r.1 c6.1 eb6.2 g6.2 c7.4 bb6.2 g6.2|a6.6 f#6.2 d6.4 a5.4|'
-         'bb6.2 a6.2 g6.2 d6.2 g6.4 bb6.4|d7.6 c7.2 bb6.4 f6.4|eb6.2 g6.2 c7.2 eb7.2 g7.4 eb7.4|f#7.2 e7.2 d7.2 c7.2 a6.8', {'harm': 'third', 'bass': 'synco'}),
-        ('B', ['Eb', 'F', 'Dm', 'Gm', 'Cm', 'D', 'Gm', 'D7'],
-         'g6.6 bb6.2 eb7.8|a6.6 c7.2 f7.8|f7.4 d7.4 a6.4 d7.4|bb6.12 g6.4|'
-         'eb7.2 d7.2 c7.2 g6.2 c7.4 eb7.4|f#7.2 e7.2 d7.2 a6.2 d7.4 f#7.4|g7.6 f7.2 d7.4 bb6.4|c7.2 r.2 c7.2 r.2 a6.2 f#6.2 d6.4',
-         {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k.hks.hk.khks.hk', 'b': 'kkhks.hkk.hks.ss', 'intro': 'k..hs..hk..hs.ss'}, 'k.s.k.s.ssssssss'),
-    # 솜사탕 꿈나라 (G장조 136, 교환소): 몽글몽글 꿈속 산책 — 장7화음 인트로, 3도 대선율·워킹 베이스, B 는 Em·Am7 로 살짝 아련하게
-    'g3yume': (136, [
-        ('intro', ['Gmaj7', 'Cmaj7'],
-         'd6.2 b5.2 g5.2 b5.2 d6.4 f#6.4|e6.2 c6.2 g5.2 c6.2 e6.4 b6.4', {'harm': 'pad', 'bass': 'half', 'drum': 'intro'}),
-        ('A', ['G', 'Em7', 'Cmaj7', 'D', 'G', 'Bm', 'C', 'D7'],
-         'b5.4 d6.2 g6.2 b6.6 a6.2|g6.4 f#6.2 e6.2 b5.8|c6.2 e6.2 g6.4 b6.2 a6.2 g6.4|f#6.6 e6.2 d6.4 a5.4|'
-         'g6.2 a6.2 b6.2 d7.2 g7.4 f#7.2 d7.2|f#7.6 d7.2 b6.4 f#6.4|e6.2 g6.2 c7.2 e7.2 g7.4 e7.4|f#7.2 e7.2 d7.2 c7.2 a6.8', {'harm': 'third', 'bass': 'walk'}),
-        ('B', ['Em', 'Cmaj7', 'G', 'D', 'Am7', 'D', 'G', 'D7'],
-         'b6.6 g6.2 e6.8|e7.6 c7.2 g6.8|g6.4 b6.4 d7.4 b6.4|a6.12 f#6.4|'
-         'c7.2 b6.2 a6.2 e6.2 a6.4 c7.4|d7.2 e7.2 f#7.2 a7.2 d7.4 a6.4|b6.6 c7.2 d7.4 g7.4|c7.2 r.2 c7.2 r.2 a6.2 f#6.2 d6.4',
-         {'harm': 'pad', 'bass': 'half', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k...h.h.s...h.h.', 'b': 'k.h.s.h.k.h.s.hh', 'intro': 'k.......s...s.s.'}, 'k...h.h.s.h.s.ss'),
-    # 한밤의 하트 (C단조 148, 교환소): 귀엽고도 어두운 오르골 — 반음 끌림(Ab→G), 옥타브 베이스, B 는 Ab·Bb 로 열렸다가 G7 로 조임
-    'g3yami': (148, [
-        ('intro', ['Cm', 'G7'],
-         'c6.2 eb6.2 g6.2 c7.2 eb7.4 d7.2 c7.2|b6.2 d7.2 f7.2 g7.2 b6.8', {'harm': 'none', 'bass': 'half', 'drum': 'intro'}),
-        ('A', ['Cm', 'Ab', 'Fm', 'G', 'Cm', 'Eb', 'Fm', 'G7'],
-         'g6.4 eb6.2 g6.2 c7.6 b6.2|c7.4 bb6.2 ab6.2 eb6.8|f6.2 ab6.2 c7.4 ab6.2 g6.2 f6.4|g6.6 ab6.2 g6.4 d6.4|'
-         'eb6.2 d6.2 c6.2 g5.2 c6.4 eb6.4|g6.6 f6.2 eb6.4 bb5.4|ab6.2 g6.2 f6.2 c6.2 f6.4 ab6.4|b6.2 c7.2 d7.2 f7.2 g7.8', {'harm': 'third', 'bass': 'oct8'}),
-        ('B', ['Ab', 'Bb', 'Gm', 'Cm', 'Fm', 'G', 'Cm', 'G7'],
-         'eb7.6 c7.2 ab6.8|d7.6 bb6.2 f6.8|g6.4 bb6.4 d7.4 bb6.4|c7.12 g6.4|'
-         'c7.2 bb6.2 ab6.2 f6.2 c7.4 ab6.4|b6.2 c7.2 d7.2 g7.2 b7.4 g7.4|eb7.6 d7.2 c7.4 g6.4|f7.2 r.2 f7.2 r.2 d7.2 b6.2 g6.4',
-         {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k..hs.h.k..hs.h.', 'b': 'k.hhs.hkk.hhs.hs', 'intro': 'k.......k...s...'}, 'k.s.k.s.s.ssssss'),
-    # 분홍 처방전 (A단조 164, 교환소): 달콤씁쓸한 분홍 팝 — C 장조로 밝게 시작해 Am·Em 으로 기우는 A, B 는 F·G 로 솟았다가 E7 로
-    'g3menhera': (164, [
-        ('intro', ['Am', 'E7'],
-         'a5.2 c6.2 e6.2 a6.2 c7.4 b6.2 a6.2|g#6.2 b6.2 d7.2 e7.2 g#6.8', {'harm': 'pad', 'bass': 'drive', 'drum': 'intro'}),
-        ('A', ['C', 'G', 'Am', 'Em', 'F', 'C', 'Dm', 'E7'],
-         'e6.4 g6.2 e6.2 c6.6 d6.2|d6.4 b5.2 d6.2 g6.8|a6.2 g6.2 e6.2 c6.2 e6.4 a6.4|g6.6 f#6.2 e6.4 b5.4|'
-         'a6.2 c7.2 f7.4 c7.2 a6.2 f6.4|g6.6 e6.2 c6.4 g5.4|f6.2 e6.2 d6.2 a5.2 d6.4 f6.4|g#6.2 a6.2 b6.2 d7.2 e7.8', {'harm': 'third', 'bass': 'synco'}),
-        ('B', ['F', 'G', 'Em', 'Am', 'Dm', 'G', 'C', 'E7'],
-         'c7.6 a6.2 f6.8|d7.6 b6.2 g6.8|b6.4 g6.4 e6.4 g6.4|a6.12 e6.4|'
-         'd7.2 c7.2 a6.2 f6.2 a6.4 d7.4|b6.2 c7.2 d7.2 g7.2 b7.4 g7.4|g7.6 e7.2 c7.4 g6.4|d7.2 r.2 d7.2 r.2 b6.2 g#6.2 e6.4',
-         {'harm': 'stab', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
-    ], {'main': 'k.hks.hkk.hks.h.', 'b': 'kkhks.hkk.hks.ss', 'intro': 'k.k.k.k.s.s.ssss'}, 'k.s.k.s.ssssssss'),
+    # ── 교환소 곡: 곡마다 음색·박자·리듬·드럼·음계를 다르게 (v = 앱 시퀀서 음색) ──
+    # 노을 언덕 (D믹솔리디안 132, 셔플): 서부 휘파람 — 포르타멘토 50% 펄스, 부기 베이스, 뒤박 기타, 느긋한 셔플
+    'g3sunset': (132, [
+        ('intro', ['D', 'A7'], 'a5.4 f#5.2 a5.2 d6.8|e6.4 c#6.2 e6.2 a6.8', {'harm': 'none', 'bass': 'boogie', 'drum': 'intro'}),
+        ('A', ['D', 'G', 'D', 'A7', 'D', 'C', 'G', 'A7'],
+         'f#6.6 e6.2 d6.4 a5.4|b5.6 d6.2 g6.8|a6.4 f#6.2 a6.2 d7.6 c7.2|c#7.4 a6.2 g6.2 e6.8|'
+         'd6.2 e6.2 f#6.2 a6.2 d7.8|c7.6 g6.2 e6.8|d7.4 b6.4 g6.4 b6.4|a6.12 r.4', {'harm': 'offbeat', 'bass': 'boogie'}),
+        ('B', ['G', 'D', 'Em', 'A', 'G', 'D', 'C', 'A7'],
+         'g6.8 b6.4 d7.4|f#7.8 d7.4 a6.4|e7.6 d7.2 b6.8|c#7.8 e7.8|'
+         'd7.4 b6.4 g6.4 a6.4|f#6.6 g6.2 a6.8|g6.4 e6.4 c6.4 e6.4|g6.2 r.2 g6.2 r.2 e6.2 c#6.2 a5.4', {'harm': 'pad', 'bass': 'boogie', 'drum': 'b'}),
+    ], {'main': 'k..hs..hk.hhs..h', 'b': 'k..hs..hk..hs.hh', 'intro': 'k...s...k...s...'}, 'k..hs.s.s.ssssss',
+     {'lead': 'p50', 'vib': 1.4, 'slide': 1, 'swing': 0.6, 'echo': [0.18, 0.3, 0.25], 'harm': 'p25', 'bassv': 'wave'}),
+    # 별빛 결전 (E단조 184, 록): 톱니파 리드 + 한 옥타브 아래 겹침, 3+3+2 리프, 탐 필인, 반음계로 치솟는 B
+    'g3star': (184, [
+        ('intro', ['Em', 'Em', 'C', 'D'],
+         'e5.1 e5.1 e6.2 e5.1 e5.1 d6.2 e5.1 e5.1 b5.2 e5.1 e5.1 g5.2|e5.1 e5.1 e6.2 e5.1 e5.1 d6.2 e5.1 e5.1 b5.2 e5.1 e5.1 g5.2|'
+         'c6.2 e6.2 g6.2 c7.2 e7.2 g7.2 c7.4|d7.2 a6.2 f#6.2 d6.2 a5.2 f#5.2 d5.4', {'harm': 'none', 'bass': 'drive', 'drum': 'intro'}),
+        ('A', ['Em', 'Em', 'C', 'D', 'Em', 'Em', 'Am', 'B7'],
+         'b5.3 g5.3 e5.2 b5.3 g6.3 f#6.2|e6.3 d6.3 b5.2 g5.8|c6.3 e6.3 g6.2 c7.3 b6.3 g6.2|a6.3 f#6.3 d6.2 a6.8|'
+         'b6.3 g6.3 e6.2 b6.3 e7.3 d7.2|e7.6 d7.2 b6.8|c7.3 a6.3 e6.2 a6.3 c7.3 e7.2|d#7.4 f#7.4 a7.4 b7.4', {'harm': 'oct', 'bass': 'drive'}),
+        ('B', ['C', 'D', 'Em', 'Em', 'C', 'D', 'B7', 'B7'],
+         'g6.1 g#6.1 a6.2 b6.4 c7.8|a6.1 a#6.1 b6.2 c#7.4 d7.8|e7.4 d7.2 b6.2 g6.4 b6.4|e7.16|'
+         'e7.2 d7.2 c7.2 g6.2 e6.4 g6.4|f#6.2 a6.2 d7.2 f#7.2 a7.8|b6.2 d#7.2 f#7.2 a7.2 b7.8|a7.2 f#7.2 d#7.2 b6.2 a6.2 f#6.2 d#6.4',
+         {'harm': 'stab', 'bass': 'gallop', 'drum': 'b'}),
+    ], {'main': 'k.hks.hkk.hks.hk', 'b': 'k.k.s.k.kks.s.k.', 'intro': 'k.k.k.k.t.t.l.l.'}, 't.t.l.l.s.s.ssss',
+     {'lead': 'saw', 'vib': 0.6, 'vibRate': 7, 'echo': [0.09, 0.2, 0.15], 'harm': 'p25', 'bassv': 'p50'}),
+    # 벚꽃 정원 (요 음계 104): 코토처럼 튕기는 12.5% 펄스, 다섯 음(파·솔·시b·도·레)만, 긴 메아리, 림샷만 가볍게
+    'g3sakura': (104, [
+        ('intro', ['Bb', 'F'], 'd6.2 bb5.2 f5.4 f6.2 d6.2 bb5.4|c6.8 f6.4 c6.4', {'harm': 'pad', 'bass': 'sustain', 'drum': 'intro'}),
+        ('A', ['F', 'Dm', 'Bb', 'C', 'F', 'Gm', 'Bb', 'C'],
+         'f6.4 g6.2 f6.2 c6.8|d6.6 c6.2 d6.8|f6.4 d6.4 bb5.4 d6.4|c6.6 d6.2 g6.8|'
+         'f6.2 g6.2 bb6.2 c7.2 f6.8|g6.6 f6.2 d6.8|d6.2 f6.2 bb6.4 f6.4 d6.4|c6.12 r.4', {'harm': 'pad', 'bass': 'sustain', 'arp': 'bell'}),
+        ('B', ['Dm', 'Bb', 'F', 'C', 'Dm', 'Gm', 'C', 'F'],
+         'd7.6 c7.2 d7.8|f7.6 d7.2 bb6.8|c7.4 bb6.2 g6.2 f6.8|g6.6 bb6.2 c7.8|'
+         'f6.2 g6.2 f6.2 d6.2 f6.8|g6.4 bb6.4 d7.4 bb6.4|c7.6 bb6.2 g6.8|f6.8 c6.4 f5.4', {'harm': 'third', 'bass': 'half', 'arp': 'bell', 'drum': 'b'}),
+    ], {'main': 'r...h...r.r.h...', 'b': 'k...h.r.k.r.h...', 'intro': '................'}, 'r.r.r.rrk.......',
+     {'lead': 'p12', 'env': 'pluck', 'vib': 0, 'echo': [0.24, 0.35, 0.3], 'harm': 'tri', 'arp': 0.125, 'bassv': 'tri'}),
+    # 사막 유적 (D 프리지안 도미넌트 112): 피리처럼 깊게 떠는 리드와 미끄러짐, 근음 드론 베이스, 탐으로 친 타블라 리듬
+    'g3desert': (112, [
+        ('intro', ['D', 'D'], 'd6.1 eb6.1 f#6.2 g6.2 eb6.2 d6.8|a6.1 bb6.1 a6.2 g6.2 f#6.2 a6.4 d6.4', {'harm': 'none', 'bass': 'pedal', 'drum': 'intro'}),
+        ('A', ['D', 'Eb', 'D', 'Cm', 'Gm', 'Eb', 'D', 'D7'],
+         'a6.4 bb6.2 a6.2 f#6.4 d6.4|g6.4 f#6.2 eb6.2 bb5.8|f#6.2 g6.2 a6.4 d7.6 c7.2|c7.4 bb6.2 a6.2 g6.8|'
+         'bb6.2 a6.2 g6.4 d6.4 g6.4|eb7.6 d7.2 bb6.8|a6.2 bb6.2 a6.2 g6.2 f#6.8|c7.2 bb6.2 a6.2 f#6.2 d6.8', {'harm': 'drone', 'bass': 'pedal'}),
+        ('B', ['Gm', 'D', 'Cm', 'D', 'Eb', 'D', 'Cm', 'D'],
+         'g6.8 bb6.4 d7.4|d7.2 eb7.2 d7.2 c7.2 a6.8|eb7.6 d7.2 c7.8|a6.2 bb6.2 a6.2 g6.2 f#6.4 a6.4|'
+         'g7.6 f#7.2 eb7.8|d7.4 c7.2 bb6.2 a6.8|g6.4 eb6.4 c6.4 eb6.4|d6.16', {'harm': 'none', 'bass': 'pedal', 'drum': 'b'}),
+    ], {'main': 't..tl.t.t.tll.t.', 'b': 'k..tl.t.k.tlt.tt', 'intro': 't...l...t...l.tl'}, 'tttlltl.tltltltl',
+     {'lead': 'p25', 'vib': 2.5, 'vibRate': 7, 'slide': 1, 'echo': [0.2, 0.4, 0.3], 'harm': 'p50', 'bassv': 'wave'}),
+    # 오로라 (B단조 140, 하프타임): 천천히 부푸는 긴 음, 반짝이며 오르내리는 16분 아르페지오, 넓은 메아리, 3박에 스네어
+    'g3aurora': (140, [
+        ('intro', ['Bm', 'G', 'D', 'A'], 'f#6.16|d6.16|f#6.8 a6.8|c#7.16', {'harm': 'pad', 'bass': 'sustain', 'arp': 'updown', 'drum': 'intro'}),
+        ('A', ['Bm', 'G', 'D', 'A', 'Bm', 'G', 'Em', 'F#'],
+         'b6.8 d7.4 c#7.4|b6.12 g6.4|a6.8 f#6.4 a6.4|e6.12 r.4|d7.8 f#7.4 e7.4|d7.8 b6.4 g6.4|g6.8 b6.4 e7.4|f#6.4 a#6.4 c#7.8',
+         {'harm': 'pad', 'bass': 'half', 'arp': 'updown'}),
+        ('B', ['G', 'A', 'F#m', 'Bm', 'G', 'A', 'F#', 'F#'],
+         'g7.6 f#7.2 d7.8|e7.6 c#7.2 a6.8|c#7.8 a6.4 f#6.4|b6.16|b6.4 d7.4 g7.4 d7.4|c#7.4 e7.4 a7.4 e7.4|a#7.8 f#7.4 c#7.4|f#7.16',
+         {'harm': 'third', 'bass': 'oct8', 'arp': 'updown', 'drum': 'b'}),
+    ], {'main': 'k...h...s...h.h.', 'b': 'k.h.k.h.s.h.h.hk', 'intro': 'k...............'}, 'k...s...s.s.ssss',
+     {'lead': 'p25', 'env': 'swell', 'vib': 1, 'echo': [0.27, 0.45, 0.35], 'harm': 'p50', 'arp': 0.125, 'arpVol': 1.5, 'bassv': 'wave'}),
+    # 해저 신전 (D도리안 88): 삼각파 리드가 천천히 부풀고, 펼친 화음이 물결처럼, 드럼은 거의 없이 아주 긴 메아리
+    'g3deepsea': (88, [
+        ('intro', ['Dm7', 'G'], 'a5.8 c6.8|b5.8 d6.8', {'harm': 'chordarp', 'bass': 'sustain', 'drum': 'intro'}),
+        ('A', ['Dm', 'G', 'Dm', 'G', 'Fmaj7', 'C', 'Em7', 'Am7'],
+         'd6.4 f6.4 a6.8|b6.6 a6.2 g6.8|f6.4 e6.4 d6.8|d6.12 r.4|e6.4 f6.4 a6.4 c7.4|e7.8 c7.4 g6.4|d7.6 b6.2 g6.8|a6.12 r.4',
+         {'harm': 'chordarp', 'bass': 'sustain'}),
+        ('B', ['G', 'Am7', 'Dm', 'C', 'G', 'Am7', 'Em7', 'A'],
+         'g6.8 b6.8|c7.8 e7.8|f7.8 d7.4 a6.4|g6.12 e6.4|b6.4 a6.4 g6.4 d6.4|e6.4 g6.4 a6.4 c7.4|b6.8 g6.8|c#7.8 e7.8',
+         {'harm': 'chordarp', 'bass': 'half', 'arp': 'bell', 'drum': 'b'}),
+    ], {'main': 'k.......h.....h.', 'b': 'k.....h.k...h.h.', 'intro': '................'}, 'k...h...h.h.hhhh',
+     {'lead': 'tri', 'env': 'swell', 'vib': 0.8, 'vibRate': 4, 'echo': [0.33, 0.5, 0.4], 'harm': 'wave', 'arp': 0.25, 'bassv': 'tri'}),
+    # 구름 위 탑 (Bb장조 116, 행진): 점음표 팡파르, 50% 펄스 + 한 옥타브 위 겹침(금관), 근음·5도 행진 베이스, 스네어 연타
+    'g3skypillar': (116, [
+        ('intro', ['Bb', 'F'], 'f5.3 f5.1 bb5.3 bb5.1 d6.4 f6.4|f6.3 eb6.1 d6.3 c6.1 c6.8', {'harm': 'oct', 'bass': 'march', 'drum': 'intro'}),
+        ('A', ['Bb', 'Eb', 'Bb', 'F', 'Gm', 'Eb', 'F', 'F7'],
+         'd6.3 d6.1 f6.3 d6.1 bb6.8|g6.3 f6.1 eb6.3 g6.1 bb6.8|f6.3 d6.1 bb5.3 d6.1 f6.4 bb6.4|a6.3 g6.1 f6.3 a6.1 c7.8|'
+         'bb6.3 a6.1 g6.3 bb6.1 d7.8|eb7.3 d7.1 c7.3 bb6.1 g6.8|f6.3 g6.1 a6.3 bb6.1 c7.4 a6.4|eb7.4 c7.4 a6.4 f6.4', {'harm': 'third', 'bass': 'march'}),
+        ('B', ['Eb', 'F', 'Dm', 'Gm', 'Cm', 'F', 'Bb', 'Bb'],
+         'bb6.8 g6.8|a6.8 c7.8|d7.8 a6.8|bb6.12 d7.4|c7.8 eb7.8|f7.8 c7.4 a6.4|bb6.3 bb6.1 d7.3 d7.1 f7.8|bb7.12 r.4',
+         {'harm': 'pad', 'bass': 'half', 'arp': 'up', 'drum': 'b'}),
+    ], {'main': 'k.s.ss.sk.s.s.ss', 'b': 'k...s...k...s.s.', 'intro': 'k.ssssssk.ssssss'}, 'k.ssk.sss.ssssss',
+     {'lead': 'p50', 'vib': 0.5, 'oct': 1, 'echo': [0.12, 0.25, 0.2], 'harm': 'p50', 'bassv': 'p50'}),
+    # 네온 시티 (A단조 118, 신스펑크): 12.5% 펄스 리드가 미끄러지고, 펑크 옥타브 베이스, 네 박 킥·박수·열린 하이햇, 가벼운 스윙
+    'g3neon': (118, [
+        ('intro', ['Am', 'F', 'C', 'G'],
+         'a5.2 r.2 a5.1 a5.1 c6.2 r.2 e6.2 g6.2 e6.2|f5.2 r.2 f5.1 f5.1 a5.2 r.2 c6.2 e6.2 c6.2|'
+         'c6.2 r.2 c6.1 c6.1 e6.2 r.2 g6.2 b6.2 g6.2|g5.2 r.2 g5.1 g5.1 b5.2 r.2 d6.2 f6.2 d6.2', {'harm': 'none', 'bass': 'octfunk', 'drum': 'intro'}),
+        ('A', ['Am', 'F', 'C', 'G', 'Am', 'F', 'Dm', 'E'],
+         'e6.3 e6.3 a6.2 r.2 g6.2 e6.4|f6.3 f6.3 c7.2 r.2 a6.2 f6.4|g6.3 g6.3 e7.2 r.2 d7.2 c7.4|b6.3 b6.3 d7.2 r.2 b6.2 g6.4|'
+         'c7.2 b6.2 a6.2 e6.2 a6.4 c7.2 e7.2|f7.6 e7.2 c7.8|d7.2 f7.2 a7.4 f7.2 d7.2 a6.4|g#6.4 b6.4 e7.8', {'harm': 'offbeat', 'bass': 'octfunk'}),
+        ('B', ['Dm', 'Am', 'F', 'E', 'Dm', 'Am', 'F', 'E7'],
+         'a6.12 f6.4|e7.12 c7.4|c7.6 a6.2 f6.8|b6.6 g#6.2 e6.8|'
+         'd7.2 r.2 d7.2 r.2 f7.2 a7.2 f7.4|e7.2 r.2 e7.2 r.2 c7.2 e7.2 a7.4|a7.4 g7.2 f7.2 c7.8|b6.2 d7.2 g#7.4 e7.8',
+         {'harm': 'pad', 'bass': 'octfunk', 'arp': 'up', 'drum': 'b'}),
+    ], {'main': 'k.o.c.o.k.o.c.ok', 'b': 'k.okc.o.k.okc.oo', 'intro': 'k...k...k...k.k.'}, 'k.c.k.c.cccccccc',
+     {'lead': 'p12', 'vib': 0, 'slide': 1, 'swing': 0.35, 'echo': [0.17, 0.25, 0.2], 'harm': 'p25', 'bassv': 'p50'}),
+    # 솜사탕 꿈나라 (G리디안 168, 3/4 왈츠): 오르골처럼 튕기는 높은 리드, 첫 박 베이스 + 둘째·셋째 박 화음, 긴 메아리
+    'g3yume': (168, [
+        ('intro', ['Gmaj7', 'A'], 'd7.2 b6.2 g6.2 b6.2 d7.4|c#7.2 a6.2 e6.2 a6.2 c#7.4', {'harm': 'none', 'bass': 'waltz', 'drum': 'intro'}),
+        ('A', ['G', 'A', 'G', 'A', 'Em', 'A', 'D', 'D'],
+         'b6.4 d7.4 g7.4|a6.4 c#7.4 e7.4|g7.2 f#7.2 d7.4 b6.4|c#7.8 a6.4|b6.4 e7.2 d7.2 b6.4|c#7.4 e7.2 c#7.2 a6.4|f#7.4 e7.2 d7.2 a6.4|d7.12',
+         {'harm': 'waltz', 'bass': 'waltz'}),
+        ('B', ['Cmaj7', 'Bm', 'Am7', 'D', 'Cmaj7', 'Bm', 'A', 'D'],
+         'e7.4 g7.4 b7.4|d7.8 f#7.4|c7.4 e7.4 g7.4|f#7.8 a6.4|g7.2 e7.2 c7.4 e7.4|f#7.2 d7.2 b6.4 d7.4|e7.4 c#7.4 a6.4|d7.8 r.4',
+         {'harm': 'waltz', 'bass': 'waltz', 'arp': 'bell', 'drum': 'b'}),
+    ], {'main': 'k...h...h...', 'b': 'k...h.h.h...', 'intro': 'k...........'}, 'k...h.h.hhhh',
+     {'lead': 'p12', 'env': 'pluck', 'vib': 0, 'echo': [0.22, 0.45, 0.4], 'harm': 'tri', 'arp': 0.125, 'bassv': 'tri'}, 12),
+    # 한밤의 하트 (C단조 106, 스윙): 장난감 피아노처럼 튕기며 느리게 떠는 리드, 반음씩 내려가는 선율, 부기 베이스, 나폴리 화음(Db)
+    'g3yami': (106, [
+        ('intro', ['Cm', 'G7'], 'c6.3 eb6.1 g6.3 f#6.1 g6.8|f6.3 d6.1 b5.3 d6.1 g5.8', {'harm': 'none', 'bass': 'boogie', 'drum': 'intro'}),
+        ('A', ['Cm', 'Ab', 'Cm', 'G7', 'Fm', 'Cm', 'Ab', 'G7'],
+         'g6.3 f#6.1 g6.3 eb6.1 c6.8|c7.3 b6.1 c7.3 ab6.1 eb6.8|eb6.2 d6.2 eb6.2 g6.2 c7.4 b6.4|b6.3 bb6.1 a6.3 ab6.1 g6.8|'
+         'ab6.3 g6.1 f6.3 c6.1 f6.8|g6.3 eb6.1 c6.3 eb6.1 g6.8|ab6.2 c7.2 eb7.4 c7.4 ab6.4|g6.2 r.2 f6.2 r.2 d6.2 b5.2 g5.4',
+         {'harm': 'chordarp', 'bass': 'boogie'}),
+        ('B', ['Ab', 'Db', 'Cm', 'G', 'Ab', 'Db', 'G7', 'G7'],
+         'eb7.8 c7.8|db7.8 f7.8|g7.6 eb7.2 c7.8|b6.6 d7.2 g7.8|c7.3 b6.1 c7.3 eb7.1 ab7.8|f7.3 e7.1 f7.3 ab7.1 db7.8|f7.4 d7.4 b6.4 g6.4|b6.2 c7.2 d7.2 f7.2 g7.8',
+         {'harm': 'pad', 'bass': 'half', 'arp': 'bell', 'drum': 'b'}),
+    ], {'main': 'k..hs..hk..hs..h', 'b': 'k..hs.hhk..hs.sh', 'intro': 'k.......s.......'}, 'k..hs..hs.s.ssss',
+     {'lead': 'p25', 'env': 'pluck', 'vib': 3, 'vibRate': 3, 'swing': 0.66, 'echo': [0.2, 0.35, 0.3], 'harm': 'p12', 'bassv': 'tri'}),
+    # 분홍 처방전 (A장조 186, 전파 팝): IV-V-iii-vi 진행, 같은 음 연타 선율, 옥타브 겹친 밝은 리드, 박수 낀 빠른 비트
+    'g3menhera': (186, [
+        ('intro', ['D', 'E', 'C#m', 'F#m'],
+         'f#6.2 a6.2 d7.2 a6.2 f#6.2 a6.2 d7.4|g#6.2 b6.2 e7.2 b6.2 g#6.2 b6.2 e7.4|e6.2 g#6.2 c#7.2 g#6.2 e6.2 g#6.2 c#7.4|f#6.2 a6.2 c#7.2 a6.2 f#6.4 r.4',
+         {'harm': 'none', 'bass': 'oct8', 'arp': 'up', 'drum': 'intro'}),
+        ('A', ['D', 'E', 'C#m', 'F#m', 'D', 'E', 'A', 'A'],
+         'a6.2 a6.2 a6.2 b6.2 a6.4 f#6.4|g#6.2 g#6.2 g#6.2 a6.2 b6.8|c#7.2 c#7.2 c#7.2 b6.2 g#6.4 e6.4|a6.6 g#6.2 f#6.8|'
+         'f#6.2 a6.2 d7.2 e7.2 f#7.4 e7.4|e7.2 d7.2 b6.2 g#6.2 b6.4 e7.4|c#7.4 e7.4 a7.4 e7.4|a7.12 r.4', {'harm': 'stab', 'bass': 'oct8', 'arp': 'up'}),
+        ('B', ['Bm', 'C#m', 'D', 'E', 'Bm', 'C#m', 'D', 'E7'],
+         'd7.6 c#7.2 b6.8|e7.6 d7.2 c#7.8|f#7.4 e7.4 d7.4 a6.4|b6.12 g#6.4|'
+         'b6.2 c#7.2 d7.2 f#7.2 b7.4 a7.4|g#7.4 e7.4 c#7.4 e7.4|f#7.2 r.2 f#7.2 r.2 a7.2 f#7.2 d7.4|g#7.2 r.2 g#7.2 r.2 e7.2 d7.2 b6.4',
+         {'harm': 'oct', 'bass': 'drive', 'arp': 'up', 'drum': 'b'}),
+    ], {'main': 'k.hhkchhk.hhkchh', 'b': 'kkhhkchhk.hhkchc', 'intro': 'k.k.k.k.k.k.kkkk'}, 'c.c.c.c.cccccccc',
+     {'lead': 'p50', 'vib': 0.4, 'oct': 1, 'echo': [0.1, 0.2, 0.15], 'harm': 'p25', 'arp': 0.125, 'bassv': 'p50'}),
 }
 for k, (bpm, secs, *dr) in NEW.items():
-    print(consonance(k, secs))
-    SONGS[k] = song2(bpm, secs, dr[0] if dr else DR, dr[1] if dr else DR_FILL)
+    bar = dr[3] if len(dr) > 3 else 16
+    print(consonance(k, secs, bar))
+    SONGS[k] = song2(bpm, secs, dr[0] if dr else DR, dr[1] if dr else DR_FILL, dr[2] if len(dr) > 2 else None, bar)
+
+# 그 밖의 곡도 음색을 조금씩 다르게 (같은 소리로 들리지 않게)
+VOICES = {
+    'lobby': {'lead': 'p50', 'vib': 0.5, 'echo': [0.15, 0.3, 0.25], 'harm': 'tri', 'bassv': 'tri'},
+    'g3gym': {'lead': 'p50', 'vib': 1},
+    'g3frontier': {'lead': 'p50', 'oct': 1, 'harm': 'p25'},
+    'g3rival': {'lead': 'p12', 'slide': 1, 'vib': 0.8},
+    'g3evil': {'lead': 'saw', 'vib': 0.5, 'bassv': 'p50', 'echo': [0.14, 0.35, 0.25]},
+    'g3champion': {'lead': 'p25', 'oct': 1, 'vib': 1.2},
+    'g3brain': {'lead': 'p12', 'vib': 0.6, 'harm': 'p25'},
+    'pwthall': {'lead': 'p50', 'vib': 0.4, 'harm': 'p25'},
+    'g3palace': {'lead': 'tri', 'env': 'swell', 'vib': 1, 'echo': [0.24, 0.4, 0.3], 'harm': 'wave'},
+    'g3factory': {'lead': 'p12', 'vib': 0, 'echo': [0.09, 0.15, 0.1], 'bassv': 'p50'},
+    'g3rank': {'lead': 'saw', 'vib': 0.8},
+    'g3rush': {'lead': 'p50', 'oct': 1, 'vib': 1.5, 'vibRate': 6.5},
+    'g3daily': {'lead': 'p50', 'env': 'pluck', 'vib': 0, 'echo': [0.18, 0.3, 0.25]},
+}
+for k, v in VOICES.items():
+    if k in SONGS: SONGS[k].setdefault('v', v)
 
 if __name__ == '__main__':
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), '../src/gen/chip-gen3.json')
     for k, v in SONGS.items():
         n = len(v['lead']); assert all(len(v[c]) == n for c in ('harm', 'bass', 'arp', 'drums')), k
-        print(k, f"{v['bpm']}bpm", f"{n // 16}마디", f"{n * 60 / v['bpm'] / 4:.0f}초", 'intro', v['intro'])
+        print(k, f"{v['bpm']}bpm", f"{n // (12 if k == 'g3yume' else 16)}마디", f"{n * 60 / v['bpm'] / 4:.0f}초", 'intro', v['intro'])
     json.dump(SONGS, open(out, 'w'), ensure_ascii=False)
     print('→', out)
