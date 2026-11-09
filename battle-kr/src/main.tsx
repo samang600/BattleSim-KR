@@ -36,7 +36,7 @@ const MODES = [
 	{ id: 'named', name: '네임드', sub: '관장 · 챔피언 · 애니메이션', run: runNamed, color: '#14968c', mon: 'dragonite' },
 	{ id: 'free', name: '프리 배틀', sub: '싱글 · 더블 바로 대전', run: () => runFree(), color: '#56708e', mon: 'lucario' },
 	{ id: 'daily', name: '오늘의 도전', sub: '', run: runDaily, color: '#d8a018', mon: 'pikachu' },
-	{ id: 'online', name: '온라인 대전', sub: '친구 · 랜덤 (테스트)', run: runOnline, color: '#2a8fb0', mon: 'rotom' },
+	{ id: 'online', name: '온라인 대전', sub: '로비 · 친구 · 랜덤', run: runOnline, color: '#2a8fb0', mon: 'rotom' },
 ];
 const FEATURED = ['tower', 'factory', 'rank'];
 const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'online'];

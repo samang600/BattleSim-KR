@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.67.0', date: '2026-11-09', title: '온라인 로비', items: [
+		['new', '온라인 대전이 로비식으로: 열린 방 목록에서 골라 들어가기, 방 만들기(공개 방 · 🔒 비밀번호 방)'],
+		['new', '방 안에서 채팅, 방장은 규칙·형식 바꾸기, 파티 바꾸기, 둘 다 「준비 완료」하면 엔트리 보고 고르기 → 배틀 → 같은 방에서 재대전'],
+		['up', '고르기 화면: 상대 칸은 작은 아이콘으로, 양쪽 줄 높이 맞춤'],
+	] },
 	{ ver: '2.66.0', date: '2026-11-09', title: '수집 업적 · 업적 보상 받기', items: [
 		['new', '수집 업적 6개: 트레이너 모습·칭호·카드 꾸미기·HP 창·배경과 음악 모으기, BP 모으기'],
 		['up', '업적 BP 보상은 수첩 › 업적에서 눌러서 받아요 (모두 받기 가능, 받을 게 있으면 빨간 점)'],

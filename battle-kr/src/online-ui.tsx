@@ -145,7 +145,7 @@ function LobbyScreen({ done }: { done: (a: LobbyAction) => void }) {
 	const [rooms, setRooms] = useState<RoomCard[] | null>(null);
 	const [ok, setOk] = useState(true);
 	useEffect(() => watchLobby(setRooms, setOk), []);
-	return <Screen title="온라인 로비 (테스트)" onBack={() => done(BACK)} cls="wide-scr lobby-scr" top>
+	return <Screen title="온라인 로비" onBack={() => done(BACK)} cls="wide-scr lobby-scr" top>
 		<div class="lb-actions">
 			<button class="btn primary" onClick={() => done({ create: true })}>＋ 방 만들기</button>
 			<button class="btn" onClick={() => done({ code: true })}>🔑 코드로 들어가기</button>
