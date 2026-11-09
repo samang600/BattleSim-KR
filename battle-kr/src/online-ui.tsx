@@ -2,6 +2,11 @@
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import { ask, Screen, toast } from './ui/core';
+import { loadWallet, itemById } from './rewards';
+/** 온라인으로 보내는 모습 칸: '모습|칭호id' (서버는 40자까지 그대로 전달) */
+const spriteWithTitle = () => { const t = loadWallet().eq.title; return (playerSprite() + (t ? '|' + t.slice(2) : '')).slice(0, 40); };
+/** 받은 모습 칸 → [모습, 칭호 이름] */
+export const splitSprite = (v?: string): [string, string] => { const [sp, t] = String(v || '').split('|'); return [sp || 'acetrainer', t ? itemById('t:' + t)?.name || '' : '']; };
 import { ChoiceScreen, InfoScreen } from './ui/screens';
 import { battle, chooseTeam, playerName, playerSprite, withLevel, BACK, BgmRow } from './modes';
 import { OnlineRoom, RemoteSession, matchmake, newRoomCode, normCode, APP_VERSION, type StartInfo, type RoomInfo, type PreviewInfo } from './online';
@@ -86,7 +91,7 @@ function pickPhase(room: OnlineRoom, pv: PreviewInfo, label: string, sent: boole
 		room.handlers.error = msg => finish({ error: msg });
 		const Wrap = () => {
 			const [st, ss] = useState(status); setStatus = ss;
-			return <OnlinePick title={`${label} · ${fmtKo(pv.doubles, pv.pick)}`} mine={mine.team} myName={mine.name} oppName={opp.name} oppTeam={opp.team}
+			return <OnlinePick title={`${label} · ${fmtKo(pv.doubles, pv.pick)}`} mine={mine.team} myName={mine.name} oppName={opp.name} oppTitle={splitSprite((opp as any).sprite)[1]} oppTeam={opp.team}
 				count={pv.pick} sent={sent} opp={st}
 				onDone={idx => { room.send({ t: 'pick', idx }); onSent(); }}
 				onLeave={() => finish({ cancel: true })} prep={<BgmRow />} />;
@@ -112,7 +117,7 @@ async function play(room: OnlineRoom, start: StartInfo, label: string) {
 	const res = await battle({
 		gen: 9, doubles: start.doubles, aiSkill: 0, bg: 'pwt', music: 'pwt', label, noRecord: true, ruleId: start.ruleId, online: rs,
 		p1: { name: me.name, team: me.team, sprite: playerSprite() },
-		p2: { name: opp.name, title: '', team: opp.team, sprite: (opp as any).sprite || 'acetrainer' },
+		p2: { name: opp.name, title: '', team: opp.team, sprite: splitSprite((opp as any).sprite)[0] },
 	});
 	room.close();
 	const draw = rs.ended && !rs.winner;
@@ -153,7 +158,7 @@ async function host() {
 	const ruleId = loadSettings().battleRule;
 	const code = newRoomCode();
 	const room = new OnlineRoom(code);
-	room.connect({ name: playerName(), team: withLevel(team, LEVEL), ruleId, doubles, pick: fmt.pick, sprite: playerSprite() } as any);
+	room.connect({ name: playerName(), team: withLevel(team, LEVEL), ruleId, doubles, pick: fmt.pick, sprite: spriteWithTitle() } as any);
 	const w = await waitStart(room, (cancel, info) => <Screen title="친구 대전 · 방 만들기" onBack={cancel} cls="wide-scr">
 		<div class="online-wait">
 			<p class="hint">친구에게 이 방 코드를 알려 주세요. 친구가 들어오면 바로 시작해요.</p>
@@ -189,7 +194,7 @@ async function join() {
 	if (team === BACK) { peek.close(); return; }
 	const room = new OnlineRoom(code);
 	peek.close();
-	room.connect({ name: playerName(), team: withLevel(team, LEVEL), sprite: playerSprite() } as any);
+	room.connect({ name: playerName(), team: withLevel(team, LEVEL), sprite: spriteWithTitle() } as any);
 	const w = await waitStart(room, (cancel) => <Screen title="친구 대전" onBack={cancel} cls="wide-scr">
 		<div class="online-wait"><p class="hint">들어가는 중…</p><button class="btn ghost" onClick={cancel}>취소</button></div>
 	</Screen>);
@@ -216,7 +221,7 @@ async function random() {
 	});
 	if (!code) return;
 	const room = new OnlineRoom(code);
-	room.connect({ name: playerName(), team, ruleId: RANDOM_RULE, doubles, pick: fmt.pick, sprite: playerSprite() } as any);
+	room.connect({ name: playerName(), team, ruleId: RANDOM_RULE, doubles, pick: fmt.pick, sprite: spriteWithTitle() } as any);
 	const w = await waitStart(room, (cancel) => <Screen title="랜덤 대전" onBack={cancel} cls="wide-scr">
 		<div class="online-wait"><p class="hint">상대를 찾았어요! 배틀을 준비하는 중…</p><button class="btn ghost" onClick={cancel}>취소</button></div>
 	</Screen>);

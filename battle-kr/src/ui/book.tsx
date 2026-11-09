@@ -8,6 +8,8 @@ import { speciesKo, RAW } from '../data';
 import { REGIONS, regionLabel } from '../trainers';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { rankLabel, seasonOf, seasonLeft } from '../modes';
+import { cardSkin, cardSkinClass, starGlyph, equippedTitle, CardExtras, BpCoin } from './shop';
+import { loadWallet, bookCover } from '../rewards';
 
 const TIER_COL = ['#5a6478', '#c07a3a', '#c8d0dc', '#f0c020', '#9ae8f0'];
 /** 도트 메달 (단계 색) */
@@ -24,7 +26,7 @@ export function TrainerBook({ onBack, initial = 'card' }: { onBack: () => void; 
 	const [tab, setTab] = useState(initial);
 	const st = loadStats(), rec = loadRecords(), set = loadSettings();
 	const TABS: [string, string][] = [['card', '카드'], ['ach', '업적'], ['mons', '포켓몬'], ['dex', '도감']];
-	return <Screen title="트레이너 수첩" onBack={onBack} top>
+	return <Screen title="트레이너 수첩" onBack={onBack} top cls={'book-scr' + (bookCover(st) ? ' cover-' + bookCover(st) : '')}>
 		<div class="seg book-tabs">{TABS.map(([k, n]) => <button class={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{n}</button>)}</div>
 		{tab === 'card' && <Card st={st} rec={rec} set={set} />}
 		{tab === 'ach' && <Achievements st={st} />}
@@ -36,17 +38,20 @@ export function TrainerBook({ onBack, initial = 'card' }: { onBack: () => void; 
 function Card({ st, rec, set }: any) {
 	const done = ACHIEVEMENTS.filter(a => (st.ach[a.id] || 0) > 0).length;
 	const season = seasonOf();
+	const w = loadWallet();
 	const rp = (k: string) => Object.entries(rec.rp || {}).filter(([x]) => x.startsWith(k)).reduce((a, [, v]) => Math.max(a, v as number), 0);
 	const stars = Math.min(5, (st.sym.tower ? 1 : 0) + (st.sym.factory ? 1 : 0) + (st.sym.rank ? 1 : 0) + (Object.keys(st.conquest).length >= 3 ? 1 : 0) + (rp('') >= 1200 ? 1 : 0));
 	return <div class="book-card">
-		<div class="bk-tcard">
+		<div class={'bk-tcard' + cardSkinClass(w)} style={cardSkin(w)}>
 			<img class="bk-tcard-img" src={SPRITE_URL(set.playerSprite || 'lucas')} onError={trainerImgError} />
 			<div class="bk-tcard-body">
-				<b>{set.playerName || '플레이어'}</b>
-				<span class="bk-tcard-stars">{'★'.repeat(stars)}<i>{'★'.repeat(5 - stars)}</i></span>
+				<b>{set.playerName || '플레이어'}{equippedTitle(w) && <i class="hm-title">{equippedTitle(w)}</i>}</b>
+				<span class="bk-tcard-stars">{starGlyph(w).repeat(stars)}<i>{starGlyph(w).repeat(5 - stars)}</i></span>
+				<small class="bk-bp"><BpCoin size={10} /> {w.bp} BP · 지금까지 {w.total} BP</small>
 				<small>전적 {rec.wins}승 {rec.battles - rec.wins}패 · 업적 {done}/{ACHIEVEMENTS.length}</small>
 				<small>쓴 포켓몬 {Object.keys(st.used).length}종 · 쓰러뜨린 포켓몬 {Object.keys(st.beaten).length}종</small>
 			</div>
+			<CardExtras />
 		</div>
 		<h3 class="sec">심볼</h3>
 		<div class="sym-row">{(['tower', 'factory', 'rank'] as SymbolKind[]).map(k => <div class="sym-cell"><SymbolIcon kind={k} lv={st.sym[k] || 0} size={48} /><b>{SYMBOL_INFO[k].name}</b><small>{SYMBOL_INFO[k].facility} · {st.sym[k] === 2 ? '금' : st.sym[k] ? '은' : '미획득'}</small><small class="sym-how">{k === 'rank' ? '은: 챔피언급 도달 · 금: 시즌을 챔피언급으로 마감' : '은: 21번째 · 금: 49번째 브레인 격파'}</small></div>)}</div>
@@ -92,7 +97,7 @@ function MonStats({ st }: any) {
 	return <div>
 		<div class="seg">{([['u', '출전'], ['w', '승리'], ['ko', '쓰러뜨림'], ['mvp', 'MVP']] as const).map(([k, n]) => <button class={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{n}</button>)}</div>
 		<p class="muted small">포켓몬별 업적(챔피언스 방식): 10승 ★ · 50승 ★★ · 100승 ★★★. MVP 는 이긴 배틀에서 가장 많이 쓰러뜨린 포켓몬.</p>
-		<div class="mon-stats">{rows.slice(0, 80).map(([sid, m]) => <div class="mon-stat">
+		<div class="mon-stats">{rows.slice(0, 80).map(([sid, m]) => <div class={'mon-stat' + (m.w >= 100 ? ' w100' : '')}>
 			<MiniSprite species={sid} size={40} />
 			<div class="ms-body"><b>{speciesKo(sid)} <span class="ms-star">{m.w >= 100 ? '★★★' : m.w >= 50 ? '★★' : m.w >= 10 ? '★' : ''}</span></b>
 				<small>출전 {m.u} · 승리 {m.w} ({m.u ? Math.round(m.w / m.u * 100) : 0}%) · 쓰러뜨림 {m.ko} · 쓰러짐 {m.f} · MVP {m.mvp}</small></div>

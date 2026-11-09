@@ -21,6 +21,8 @@ import { CUPS, NAMED } from './trainers';
 import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, setMoveSfxVolume } from './sound';
 import { PLAYER_SPRITES, SPRITE_URL, trainerImgError } from './trainer-lines';
 import { UserSpritesModal } from './ui/user-sprites';
+import { ShopScreen, BpCoin, cardSkin, cardSkinClass, equippedTitle, useWallet } from './ui/shop';
+import { ownedVals } from './rewards';
 import { onUserSpritesChange } from './user-sprites';
 
 const MODES = [
@@ -28,7 +30,7 @@ const MODES = [
 	{ id: 'factory', name: '배틀팩토리', sub: '렌탈 · 교환 · 팩토리 헤드', run: runFactory, color: '#e07a1c', mon: 'metagross' },
 	{ id: 'rank', name: '랭크 매치', sub: '1주 시즌 · 6→3 · 6→4', run: runRank, color: '#c0283c', mon: 'incineroar' },
 	{ id: 'palace', name: '배틀팰리스', sub: '성격대로 스스로', run: runPalace, color: '#23a05a', mon: 'blissey' },
-	{ id: 'ippitsu', name: '일필도', sub: '한 마리로 1:1 · 49번째 무한다이노', run: runIppitsu, color: '#b8402a', mon: 'eternatus' },
+	{ id: 'ippitsu', name: '일필도', sub: '한 마리로 1:1 연승', run: runIppitsu, color: '#b8402a', mon: 'eternatus' },
 	{ id: 'pwt', name: 'PWT', sub: '월드 토너먼트', run: runPWT, color: '#c03aa8', mon: 'hydreigon' },
 	{ id: 'boss', name: '보스 러시', sub: '지방 정복 · 악의 조직 · 챔피언', run: runBossRush, color: '#6a30b8', mon: 'mewtwo' },
 	{ id: 'named', name: '네임드', sub: '관장 · 챔피언 · 애니메이션', run: runNamed, color: '#14968c', mon: 'dragonite' },
@@ -75,6 +77,8 @@ function Home({ go }: { go: (v: string) => void }) {
 		daily: `${daily.theme}${today !== undefined ? ` · ${today}/7` : ''}`, online: '',
 	};
 	const achDone = ACHIEVEMENTS.filter(a => (st.ach[a.id] || 0) > 0).length;
+	const wallet = useWallet();
+	const title = equippedTitle(wallet);
 	const tile = (id: string, big: boolean) => { const m = MODES.find(x => x.id === id)!;
 		return <button class={'mode-tile hm-tile' + (big ? ' hm-big' : '')} style={{ '--mc': m.color } as any} onClick={() => go('mode:' + m.id)}>
 			<span class="hm-mon"><Sprite species={m.mon} gen={9} size={96} anim={false} /></span>
@@ -82,10 +86,10 @@ function Home({ go }: { go: (v: string) => void }) {
 		</button>; };
 	return <div class="home hm">
 		<div class="hm-top">
-			<button class="home-head hm-card" onClick={() => go('book')} aria-label="트레이너 수첩">
+			<button class={'home-head hm-card' + cardSkinClass(wallet)} style={cardSkin(wallet)} onClick={() => go('book')} aria-label="트레이너 수첩">
 				<img class="hm-face" src={SPRITE_URL(settings.playerSprite || 'lucas')} onError={trainerImgError} alt="" />
 				<span class="hm-who">
-					<b>{settings.playerName}</b>
+					<b>{settings.playerName}{title && <i class="hm-title">{title}</i>}</b>
 					<small>{rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · ${Math.round(rec.wins / rec.battles * 100)}%` : ''} · 업적 {achDone}/{ACHIEVEMENTS.length}</small>
 					<span class="hm-syms">{(['tower', 'factory', 'rank'] as const).map(k => <SymbolIcon kind={k} lv={st.sym[k] || 0} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
 				</span>
@@ -98,10 +102,15 @@ function Home({ go }: { go: (v: string) => void }) {
 		{suspended && <div class="notice hm-notice">쉬는 중인 도전이 있어요. 해당 모드에 들어가면 이어서 할 수 있습니다.</div>}
 		<div class="hm-main">
 			<div class="hm-featured">{FEATURED.map(id => tile(id, true))}</div>
-			<div class="hm-more">{MORE.map(id => tile(id, false))}</div>
+			<div class="hm-more">{MORE.map(id => tile(id, false))}
+				<button class="mode-tile hm-tile hm-shop" onClick={() => go('shop')}>
+					<span class="hm-mon shop-coin"><BpCoin size={48} /></span>
+					<span class="hm-text"><b>BP 교환소</b><small>칭호 · 카드 · 연출 · 배경 · 음악</small><em>{wallet.bp} BP</em></span>
+				</button>
+			</div>
 		</div>
 		<div class="hm-nav">
-			<button class="btn menu" onClick={() => go('teams')}>📋 팀 편집</button>
+			<button class="btn menu hm-teams" onClick={() => go('teams')}>📋 팀 편집</button>
 			<button class="btn menu" onClick={() => go('book')}>🏅 수첩</button>
 			<button class="btn menu" onClick={() => go('records')}>📊 기록</button>
 			<button class="btn menu" onClick={() => go('calc')}>🧮 계산기</button>
@@ -224,8 +233,9 @@ function backupLoad() {
 
 /** 주인공 모습: ◀ 그림·이름 ▶ 한 줄로 넘기며 고름 (이웃한 모습도 작게 보여 줌) */
 function AvatarPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-	const n = PLAYER_SPRITES.length, i = Math.max(0, PLAYER_SPRITES.findIndex(p => p.id === value));
-	const at = (d: number) => PLAYER_SPRITES[(i + d + n) % n];
+	const list = [...PLAYER_SPRITES, ...ownedVals('trainer').map(o => ({ id: o.v, name: o.name }))];
+	const n = list.length, i = Math.max(0, list.findIndex(p => p.id === value));
+	const at = (d: number) => list[(i + d + n) % n];
 	return <div class="win pick-panel avatar-panel">
 		<button class="pick-arrow" aria-label="주인공 모습 이전" onClick={() => onChange(at(-1).id)}><i class="tri l" /></button>
 		<img class="av-side" src={SPRITE_URL(at(-1).id)} alt="" onClick={() => onChange(at(-1).id)} />
@@ -410,6 +420,7 @@ function App() {
 	if (route === 'records') return <Records onBack={() => setRoute('home')} onPlay={playReplay} />;
 	if (route === 'calc') return <CalcScreen onBack={() => setRoute('home')} />;
 	if (route === 'book') return <TrainerBook onBack={() => setRoute('home')} />;
+	if (route === 'shop') return <ShopScreen onBack={() => setRoute('home')} />;
 	if (route === 'settings') return <SettingsScreen onBack={() => setRoute('home')} />;
 	return <>{<Home go={go} />}{news && <WhatsNew onClose={() => setNews(false)} />}</>;
 }

@@ -10,6 +10,7 @@ import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { loadTeams, loadSettings, saveSettings, load, save, remove, updateRecords, loadRecords, type SavedTeam } from './store';
 import { BGM_CHOICES, playMusic, stopMusic } from './sound';
 import { awardSymbol, SYMBOL_INFO, updateStats, type SymbolKind } from './stats';
+import { earnBP, setClearBP, BRAIN_BP, SEASON_BP, ownedVals } from './rewards';
 import { ruleById, recTag } from './rules';
 /** 지금 규칙의 기록 표시 (규칙마다 기록·도전을 따로) */
 const rt = () => recTag(loadSettings().battleRule);
@@ -80,13 +81,13 @@ export function BgmRow() {
 	const [v, setV] = useState(loadSettings().battleBgm || 'random');
 	const [bg, setBg] = useState(loadSettings().battleBg || 'auto');
 	return <div class="prep-pickers">
-		<ArrowPicker label="음악" icon="♪" items={BGM_CHOICES} value={v} onChange={k => {
+		<ArrowPicker label="음악" icon="♪" items={[...BGM_CHOICES, ...ownedVals('bgm').map(o => [o.v, o.name] as [string, string])]} value={v} onChange={k => {
 			saveSettings({ ...loadSettings(), battleBgm: k }); setV(k);
 			stopMusic();
 			if (k === 'none') return;
 			setTimeout(() => playMusic(k === 'random' || k === 'shuffle' ? 'lobby' : k), 0);
 		}} />
-		<ArrowPicker label="배경" items={ARENA_CHOICES} value={bg} onChange={k => { saveSettings({ ...loadSettings(), battleBg: k }); setBg(k); }}
+		<ArrowPicker label="배경" items={[...ARENA_CHOICES, ...ownedVals('bg').map(o => [o.v, o.name] as [string, string])]} value={bg} onChange={k => { saveSettings({ ...loadSettings(), battleBg: k }); setBg(k); }}
 			bg={k => <div class={'arena-thumb bg-' + (k === 'auto' || k === 'random' ? 'field' : k) + (k === 'auto' || k === 'random' ? ' unknown' : '')}><div class="arena-bg" /></div>} />
 	</div>;
 }
@@ -327,7 +328,7 @@ export async function runTower() {
 		const oppEntry = fmt === 'doubles64' ? aiPickEntry(opp.team, state.team, 4, true, opp.skill, true) : opp.team;
 		const res = await battle({
 			gen: 9, doubles: isDoubles(fmt), aiSkill: opp.skill, bg: opp.boss || (opp as any).special ? 'champion' : 'tower',
-			label: `배틀타워 ${state.streak + 1}번째`, noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse, music: opp.boss ? 'boss' : (opp as any).music,
+			label: `배틀타워 ${state.streak + 1}번째`, diff: opts.diff, noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse, music: opp.boss ? 'boss' : (opp as any).music,
 			p1: { name: playerName(), team: state.partner ? multiTeam(myEntry, state.partner.team).team : myEntry, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppEntry, line: opp.line, sprite: opp.sprite, sprite2: opp.sprite2, lines: { intro: opp.line, ...opp.lines } },
 			partner: partnerT && state.partner ? { name: partnerT.name, theirs: multiTeam(myEntry, state.partner.team).flags, skill: 0.9, sprite: namedSprite(partnerT) } : undefined,
 		});
@@ -337,6 +338,8 @@ export async function runTower() {
 			const s = state.streak;
 			if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 			save(TOWER_KEY(fmt, opts), state);
+			if (opp.boss && !noRec(opts)) earnBP(opp.boss === '금' ? BRAIN_BP.gold : BRAIN_BP.silver, '타워 타이쿤 격파');
+			if (s % 7 === 0 && !noRec(opts)) earnBP(setClearBP(s), '세트 클리어');
 			if (opp.boss && !noRec(opts) && awardSymbol('tower', opp.boss === '금')) await symbolScreen('tower', opp.boss === '금');
 			if (s % 7 === 0) {
 				// 7연승(세트 클리어)마다 팀을 바꿀 수 있음 — 연승은 그대로 이어짐
@@ -496,7 +499,7 @@ export async function runFactory() {
 			hint={`${hint} 6마리 중 이번 배틀에 낼 4마리를 순서대로 고르세요.`} onDone={r} />) : state.team;
 		const oppEntry = fmt === 'doubles64' ? aiPickEntry(oppTeam, state.team, 4, true, opp.skill) : oppTeam;
 		const res = await battle({
-			gen: 9, doubles: isDoubles(fmt), aiSkill: opp.skill, bg: isHead ? 'champion' : 'factory', music: isHead ? 'boss' : 'factory' as any, label: `배틀팩토리 ${no}번째`, noRecord: noRec(opts), inverse: opts.inverse,
+			gen: 9, doubles: isDoubles(fmt), aiSkill: opp.skill, bg: isHead ? 'champion' : 'factory', music: isHead ? 'boss' : 'factory' as any, label: `배틀팩토리 ${no}번째`, diff: opts.diff, noRecord: noRec(opts), inverse: opts.inverse,
 			p1: { name: playerName(), team: myEntry, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppEntry, line: opp.line, sprite: opp.sprite, sprite2: opp.sprite2, lines: { intro: opp.line, ...opp.lines } },
 		});
 		state.next = undefined;
@@ -511,6 +514,8 @@ export async function runFactory() {
 		state.streak++;
 		const s = state.streak;
 		if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
+		if (isHead && !noRec(opts)) earnBP(no === 49 ? BRAIN_BP.gold : BRAIN_BP.silver, '팩토리 헤드 격파');
+		if (s % 7 === 0 && !noRec(opts)) earnBP(setClearBP(s), '세트 클리어');
 		if (isHead && !noRec(opts) && awardSymbol('factory', no === 49)) await symbolScreen('factory', no === 49);
 		// 이긴 결과를 바로 저장 (교환·렌탈 화면에서 앱을 꺼도 같은 승부를 다시 하지 않게)
 		save(FACTORY_KEY(fmt, level, opts), state);
@@ -828,8 +833,10 @@ export function settleSeason(): string | null {
 			const tt = rankTier(v, lastEnd), t = tt.name;
 			if (tt.cls === '챔피언급') awardSymbol('rank', true);   // 시즌을 챔피언급으로 마감 → 챔피언 심볼(금)
 			ended.push({ id: last, fmt: k, rp: v, tier: t });
+			const sbp = SEASON_BP[tt.cls] || 2;
+			earnBP(sbp, '랭크 시즌 마감', true);
 			rp2[k] = Math.round(v * 0.6);
-			msgs.push(`${k.startsWith('doubles') ? '더블' : '싱글'} ${t} (${v} RP) → 새 시즌 ${rp2[k]} RP`);
+			msgs.push(`${k.startsWith('doubles') ? '더블' : '싱글'} ${t} (${v} RP) → 새 시즌 ${rp2[k]} RP · 보상 ${sbp} BP`);
 		}
 		if (ended.length) updateStats(s => { s.seasons.push(...ended); });
 		updateRecords(r => { r.rp = { ...(r.rp || {}), ...rp2 }; r.rankStreak = {}; (r as any).season = cur; });

@@ -40,5 +40,6 @@
 | `src/sets.ts` | 무작위 세트·메가 맞춤(`fitSetToMega`)·볼 컨셉·노력치 표시 |
 | `src/trainers.ts` `src/trainer-lore.ts` `src/trainer-lines.ts` | 네임드/일반 트레이너, 대사(나무위키 기준, 없으면 인물에 맞춰 보충) |
 | `src/sound.ts` | 효과음·배경음악, `BGM_CHOICES`, `pickBattleMusic` |
+| `src/rewards.ts` `src/ui/shop.tsx` | 보상: BP 지갑·얻는 규칙·교환소 상품·주간 과제 / 교환소 화면·카드 꾸미기·승리 연출 (꾸미기 전용, 배틀 능력 영향 없음) |
 | `src/style.css` | 전체 스타일(도트 테두리 변수 포함) |
 | `scripts/gen-arenas.py` | 배틀 배경 그림 생성 |

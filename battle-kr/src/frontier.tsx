@@ -13,6 +13,7 @@ import { Dex } from '../../sim/dex';
 import { speciesKo, spriteId, toID, ALL_TYPES, typeKo } from './data';
 import { BACK, battle, chooseTeam, withLevel, namedTeam, playerName, playerSprite, BgmRow, josa, confirmQuit, towerOpponent, ROLE_ORDER, namedMusic, isDoubles, type Fmt } from './modes';
 import { updateStats, loadStats, setMax, BOSS_LEN } from './stats';
+import { earnBP, setClearBP, BRAIN_BP } from './rewards';
 
 const rt = () => recTag(loadSettings().battleRule);
 /** 이 배틀만 기믹 없는 규칙 (팰리스: 포켓몬이 스스로 싸우므로) */
@@ -121,6 +122,8 @@ export async function runPalace() {
 		const s = state.streak;
 		updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 		save(key, state);
+		if (maven) earnBP(no === 49 ? BRAIN_BP.gold : BRAIN_BP.silver, '팰리스 메이븐 격파');
+		if (s % 7 === 0) earnBP(setClearBP(s), '세트 클리어');
 		if (s % 7 === 0) {
 			const v = await ask<'go' | 'rest'>(r => <InfoScreen title="배틀팰리스" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`} lines={['포켓몬들의 체력이 회복되었다.']}
 				actions={[{ label: '계속', onClick: () => r('go') }, { label: '여기서 쉬기', kind: 'ghost', onClick: () => r('rest') }]} />);
@@ -216,6 +219,8 @@ export async function runIppitsu() {
 		const s = state.streak;
 		updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 		save(key, state);
+		if (final) earnBP(30, '무한다이노 격파');
+		else if (s % 7 === 0) earnBP(setClearBP(s), '세트 클리어');
 		if (final) {
 			await ask<void>(r => <InfoScreen title="일필도" banner="🏆 일필도 달성!" heading="무한다이노를 쓰러뜨렸다!" sprites={[state!.mon.species]} sets={[state!.mon]} gen={9}
 				lines={[`${speciesKo(toID(state!.mon.species))} 한 마리로 49연승!`, '이후로도 계속 도전할 수 있어요.']} actions={[{ label: '계속', onClick: () => r() }]} />);
@@ -282,6 +287,7 @@ export async function runDaily() {
 			const y = new Date(); y.setDate(y.getDate() - 1);
 			s.dailyStreak = s.dailyLast === dateKey(y) ? s.dailyStreak + 1 : 1; s.dailyLast = d.date;
 			setMax(s, 'dailyStreakMax', s.dailyStreak);
+			if (s.dailyStreak % 7 === 0) setTimeout(() => earnBP(10, `오늘의 도전 ${s.dailyStreak}일 연속`), 0);
 		}
 		s.daily[d.date] = s.daily[d.date] || 0;
 	});
@@ -310,6 +316,7 @@ export async function runDaily() {
 	}
 	remove(DAILY_KEY);
 	const wins = r0.idx;
+	if (wins >= 7 && !load<any>('stats', {}).flags?.['dailyDone:' + d.date]) { updateStats(s => { s.flags['dailyDone:' + d.date] = 1; }, false); earnBP(5, '오늘의 도전 완주'); }
 	await ask<void>(r => <InfoScreen title="오늘의 도전" banner={wins >= 7 ? '🏆 완주!' : `${wins}승`} heading={wins >= 7 ? '오늘의 도전을 완주했다!' : ended === 'quit' ? '오늘의 도전을 그만뒀다' : '오늘의 도전 종료'}
 		lines={[`오늘 최고 기록: ${Math.max(best, wins)}승 / 7`, `연속 참가 ${load<any>('stats', {}).dailyStreak || 1}일째`]} actions={[{ label: '확인', onClick: () => r() }]} />);
 }
@@ -394,6 +401,7 @@ export async function runBossRush() {
 		if (r0.kind === 'course') s.boss[r0.id] = Math.max(s.boss[r0.id] || 0, r0.idx);
 		if (end === 'clear' && r0.kind === 'region') s.conquest[r0.id] = Math.max(s.conquest[r0.id] || 0, r0.hard ? 2 : 1) as 1 | 2;
 	});
+	if (end === 'clear') earnBP(r0.kind === 'region' ? (r0.hard ? 25 : 15) : 15, r0.kind === 'region' ? '지방 정복' : '보스 러시 완주');
 	if (end === 'clear') await ask<void>(r => <InfoScreen title="보스 러시" banner="🏆 완주!" heading={r0.kind === 'region' ? `${regionLabel(r0.id as any)}의 정점에 섰다!` : `${rushName(r0)}를 돌파했다!`}
 		sprites={r0.team.map(s => s.species)} sets={r0.team} gen={9} lines={[`${list.length}연전 완주${r0.hard ? ' (어려움)' : ''}`]} actions={[{ label: '확인', onClick: () => r() }]} />);
 }

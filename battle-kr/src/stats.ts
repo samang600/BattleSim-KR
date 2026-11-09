@@ -216,14 +216,17 @@ export function achTier(a: Ach, l: number) { if (!l) return 0; if (a.steps.lengt
 export function achDesc(a: Ach, l: number) { const n = a.steps[Math.min(l, a.steps.length - 1)]; return a.desc.replace('{n}', String(n)); }
 
 let checking = false;
+/** 업적 단계를 새로 얻었을 때 (보상 BP — rewards.ts 가 등록, 순환 import 를 피하려고 콜백) */
+let onAchBP: ((tiers: number[]) => void) | null = null;
+export function setAchHook(f: (tiers: number[]) => void) { onAchBP = f; }
 export function checkAchievements(quiet = false) {
 	if (checking) return; checking = true;
 	try {
-		const s = loadStats(); const news: string[] = [];
+		const s = loadStats(); const news: string[] = []; const newTiers: number[] = [];
 		for (const a of ACHIEVEMENTS) {
 			const l = achLevel(a, a.value(s));
-			if (l > (s.ach[a.id] || 0)) { s.ach[a.id] = l; news.push(`${a.name}${a.steps.length > 1 ? ' ' + TIER_NAME[achTier(a, l)] : ''}`); }
+			if (l > (s.ach[a.id] || 0)) { for (let k = (s.ach[a.id] || 0) + 1; k <= l; k++) newTiers.push(achTier(a, k)); s.ach[a.id] = l; news.push(`${a.name}${a.steps.length > 1 ? ' ' + TIER_NAME[achTier(a, l)] : ''}`); }
 		}
-		if (news.length) { save(KEY, s); if (!quiet && loadSettings()) toast(`🏆 업적 달성: ${news.slice(0, 2).join(', ')}${news.length > 2 ? ` 외 ${news.length - 2}개` : ''}`); }
+		if (news.length) { save(KEY, s); onAchBP?.(newTiers); if (!quiet && loadSettings()) toast(`🏆 업적 달성: ${news.slice(0, 2).join(', ')}${news.length > 2 ? ` 외 ${news.length - 2}개` : ''}`); }
 	} finally { checking = false; }
 }

@@ -5,7 +5,7 @@
   g3frontier 배틀 프런티어풍 (F장조 160): 금관 팡파르 느낌의 장조, 믹솔리디안 Bb·C7
   pwthall    PWT 대진표 대기 (Bb장조 132): 경기장 행진풍 (NEW 의 song2 형식)
   g3palace 배틀팰리스 (D도리안 138) · g3factory 배틀팩토리 (E단조 158) · g3rank 랭크 매치 (B단조 170)
-  g3rush 보스 러시 (F단조 182) · g3daily 오늘의 도전 (G장조 150)
+  g3rush 보스 러시 (F단조 182) · g3daily 오늘의 도전 (G장조 150) · g3sunset 노을 언덕 (D장조 152) · g3star 별빛 결전 (E단조 168)
 형식: 인트로 → A(8마디) → B(8마디) → A 로 반복 (intro 칸부터)
 출력: <앱>/src/gen/chip-gen3.json (chip-tracks.json 과 같은 형식: 16분음표 한 칸에 한 글자, ' ' 쉼, '!' 지속, 그 밖 chr(MIDI+14))
 사용: python3 gen3.py [출력 경로]"""
@@ -341,6 +341,31 @@ NEW = {
          'c6.2 b5.2 a5.2 c6.2 e6.4 a6.4|a6.2 g6.2 f#6.2 e6.2 d6.4 f#6.4|g6.6 f#6.2 g6.4 b6.4|a6.2 r.2 a6.2 r.2 f#6.2 d6.2 c6.4',
          {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
     ], {'main': 'k.h.s.hhk.h.s.h.', 'b': 'k.hhs.h.k.hhs.hs', 'intro': 'k...s...k.k.s.ss'}, 'k.s.k.s.s.ssssss'),
+    # 노을 언덕 (D장조 152, 교환소): 탁 트인 들판을 달리는 느낌 — 펼친 화음으로 솟는 인트로, 5도·옥타브로 뛰어오르는 선율, B 는 F#m 으로 살짝 그늘졌다가 A7 로 돌아옴
+    'g3sunset': (152, [
+        ('intro', ['D', 'A'],
+         'd5.2 f#5.2 a5.2 d6.2 f#6.4 e6.4|c#6.2 a5.2 e5.2 a5.2 c#6.4 e6.4', {'harm': 'third', 'bass': 'walk', 'drum': 'intro'}),
+        ('A', ['D', 'Bm', 'G', 'A', 'D', 'Bm', 'Em', 'A7'],
+         'f#6.4 e6.2 d6.2 a5.4 d6.4|d6.6 c#6.2 b5.4 f#5.4|g5.2 b5.2 d6.2 g6.2 b6.4 a6.4|a6.6 g6.2 e6.4 c#6.4|'
+         'd6.2 e6.2 f#6.2 a6.2 d7.4 a6.4|b6.4 a6.2 f#6.2 d6.4 b5.4|g6.2 f#6.2 e6.2 g6.2 b6.4 g6.4|e6.2 f#6.2 g6.2 e6.2 c#6.4 a5.4', {'harm': 'third', 'bass': 'synco'}),
+        ('B', ['G', 'A', 'F#m', 'Bm', 'G', 'A', 'D', 'A7'],
+         'b5.4 d6.4 g6.6 f#6.2|e6.4 c#6.4 a5.6 b5.2|c#6.4 f#6.4 a6.6 g#6.2|f#6.8 d6.4 b5.4|'
+         'g5.2 a5.2 b5.2 d6.2 g6.4 d6.4|a5.2 b5.2 c#6.2 e6.2 a6.4 e6.4|f#6.6 e6.2 d6.4 a5.4|g6.2 r.2 g6.2 r.2 e6.2 c#6.2 a5.4',
+         {'harm': 'pad', 'bass': 'oct8', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k.h.s.hkk.h.s.hh', 'b': 'k.hhs.hkk.hks.hs', 'intro': 'k...s...k.k.s.ss'}, 'k.s.k.s.s.ssssss'),
+    # 별빛 결전 (E단조 168, 교환소): 밤하늘 아래 몰아치는 승부 — 끊어 치는 옥타브 인트로, 높이 치솟는 A, B 는 C·D 로 열렸다가 B7 반복 찌르기로 조임
+    'g3star': (168, [
+        ('intro', ['Em', 'Em', 'C', 'B7'],
+         'e5.1 e5.1 r.2 b5.1 b5.1 r.2 e6.2 r.2 g6.4|e5.1 e5.1 r.2 b5.1 b5.1 r.2 g6.2 f#6.2 e6.4|c6.4 g5.4 e5.4 g5.4|b5.2 d#6.2 f#6.2 a6.2 b6.8',
+         {'harm': 'none', 'bass': 'drive', 'drum': 'intro'}),
+        ('A', ['Em', 'C', 'D', 'B7', 'Em', 'Am', 'C', 'B7'],
+         'e6.2 r.1 e6.1 g6.2 b6.2 e7.4 d7.2 b6.2|c7.4 b6.2 g6.2 e6.4 c6.4|d6.2 r.1 d6.1 f#6.2 a6.2 d7.4 c7.2 a6.2|b6.6 a6.2 f#6.4 d#6.4|'
+         'g6.2 f#6.2 e6.2 b5.2 e6.4 g6.4|a6.2 g6.2 e6.2 c6.2 a5.4 e6.4|g6.2 e6.2 c6.2 e6.2 g6.4 c7.4|b6.2 a6.2 f#6.2 d#6.2 b5.8', {'harm': 'third', 'bass': 'gallop'}),
+        ('B', ['C', 'D', 'Bm', 'Em', 'Am', 'B7', 'Em', 'B7'],
+         'e6.6 g6.2 c7.8|f#6.6 a6.2 d7.8|d7.4 b6.4 f#6.4 b6.4|g6.12 e6.4|'
+         'c7.2 b6.2 a6.2 e6.2 c7.4 a6.4|d#7.2 b6.2 f#6.2 b6.2 a6.4 f#6.4|g6.2 a6.2 b6.2 e7.2 g7.4 e7.4|f#7.2 r.2 f#7.2 r.2 d#7.2 b6.2 a6.4',
+         {'harm': 'stab', 'bass': 'drive', 'arp': True, 'drum': 'b'}),
+    ], {'main': 'k.hks.hkk.hks.hk', 'b': 'kkhks.hkk.hks.ss', 'intro': 'k.k.k.k.s.s.ssss'}, 'k.s.k.s.ssssssss'),
 }
 for k, (bpm, secs, *dr) in NEW.items():
     print(consonance(k, secs))

@@ -687,6 +687,77 @@ def daily():
     return im
 
 
+def sunset():
+    """노을 언덕 (교환소): 주황·분홍 노을, 지는 해, 겹친 언덕의 실루엣, 갈대 풀밭"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 62, ['#3a2a5a', '#5a3a6a', '#8a4a6a', '#c05a5a', '#e07a4a', '#f0a050', '#f8c868'])
+    d.ellipse([150, 36, 186, 72], fill='#ffd878'); d.ellipse([156, 42, 180, 66], fill='#fff0b0')
+    for y in range(46, 62, 4):   # 해를 가로지르는 구름 줄
+        d.rectangle([140 - y % 7, y, 200 + y % 5, y + 1], fill='#e88a5a')
+    rnd = random.Random(21)
+    for _ in range(4):
+        cx, cy = rnd.randint(0, W), rnd.randint(8, 30)
+        d.rectangle([cx - 14, cy, cx + 18, cy + 2], fill='#b85a6a'); d.rectangle([cx - 8, cy - 2, cx + 10, cy], fill='#d8786a')
+    for i, (col, base, amp, per) in enumerate([('#7a3a5a', 64, 12, 31), ('#5a2a4a', 70, 9, 23)]):
+        pts = [(0, H)]
+        for x in range(0, W + 8, 8):
+            pts.append((x, base - amp * abs(math.sin(x / per + i))))
+        pts.append((W, H))
+        d.polygon(pts, fill=col)
+    bands(d, 76, H, ['#c87a3a', '#b86e34', '#a8622e', '#985828', '#884e24', '#784420'])
+    for y in range(80, H, 4):   # 풀 결 (점)
+        for x in range((y * 5) % 9, W, 9):
+            d.point((x, y), fill='#d88a44')
+    rr = random.Random(5)
+    for _ in range(26):   # 갈대 무더기: 짧은 줄기 2~3개 + 이삭
+        x, y = rr.randint(2, W - 6), rr.randint(84, H - 4)
+        for k in range(rr.randint(2, 3)):
+            hgt = rr.randint(4, 7)
+            d.line([(x + k * 2, y), (x + k * 2, y - hgt)], fill='#6a3a1a')
+            d.point((x + k * 2, y - hgt - 1), fill='#f8c070')
+    ellipse_platform(d, 196, 82, 46, 9, '#e8b070', '#c88a48', '#8a5428')
+    ellipse_platform(d, 62, 132, 62, 11, '#e8b070', '#c88a48', '#8a5428')
+    return im
+
+
+def starry():
+    """별빛 호수 (교환소): 깊은 밤하늘의 별·은하수 띠, 달, 별을 비추는 호수, 물가의 풀밭"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 64, ['#0a0e2a', '#10163a', '#161e4a', '#1c2858', '#243266', '#2c3c72'])
+    rnd = random.Random(42)
+    for x in range(0, W, 2):   # 은하수 (사선 띠, 2px 점)
+        yc = 52 - x * 0.18
+        for _ in range(2):
+            y = int(yc + rnd.randint(-6, 6))
+            if 0 <= y < 60: d.point((x, y), fill=rnd.choice(['#5a6aa8', '#7a8ac8', '#4a5a98']))
+    for _ in range(60):
+        x, y = rnd.randint(0, W - 1), rnd.randint(0, 58)
+        d.point((x, y), fill=rnd.choice(['#ffffff', '#c8d8ff', '#fff0b0']))
+    for _ in range(6):   # 큰 별 (십자)
+        x, y = rnd.randint(4, W - 5), rnd.randint(4, 40)
+        d.point((x, y), fill='#ffffff'); d.point((x - 1, y), fill='#a8b8f8'); d.point((x + 1, y), fill='#a8b8f8'); d.point((x, y - 1), fill='#a8b8f8'); d.point((x, y + 1), fill='#a8b8f8')
+    d.ellipse([200, 10, 220, 30], fill='#f8f4d8'); d.ellipse([206, 8, 226, 28], fill='#10163a')   # 초승달
+    pts = [(0, 64)] + [(x, 60 - 6 * abs(math.sin(x / 29))) for x in range(0, W + 8, 8)] + [(W, 64)]
+    d.polygon(pts, fill='#141c3a')   # 먼 산 실루엣
+    bands(d, 64, 84, ['#1a2a5a', '#1e3064', '#22366e', '#263c78'])
+    for y in range(66, 84, 3):   # 호수에 비친 별·달
+        for x in range((y * 11) % 17, W, 17):
+            d.line([(x, y), (x + 2, y)], fill='#4a5aa0')
+    d.rectangle([210, 66, 216, 67], fill='#c8c8a8'); d.rectangle([208, 70, 218, 71], fill='#a8a890'); d.rectangle([211, 74, 215, 75], fill='#888878')
+    bands(d, 84, H, ['#1e4a3a', '#1a4234', '#163a2e', '#123228', '#0e2a22', '#0a221c'])
+    for y in range(86, H, 3):
+        for x in range((y * 5) % 9, W, 9):
+            d.point((x, y), fill='#2e6a4e')
+    for _ in range(10):   # 반딧불
+        x, y = rnd.randint(4, W - 4), rnd.randint(86, H - 6)
+        d.point((x, y), fill='#e8f870')
+    ellipse_platform(d, 196, 90, 46, 9, '#3a7a5a', '#2a5a44', '#163a2c')
+    ellipse_platform(d, 62, 132, 62, 11, '#3a7a5a', '#2a5a44', '#163a2c')
+    return im
+
+
 def extend_top(im, extra, stars=True):
     w, h = im.size
     out = Image.new('RGB', (w, h + extra))
@@ -707,7 +778,7 @@ if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [('field', field), ('tower', tower), ('factory', factory), ('pwt', stadium), ('champion', champion),
                      ('cave', cave), ('beach', beach), ('snow', snow), ('volcano', volcano), ('gym', gym),
-                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily)]:
+                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry)]:
         im = fn()
         if name != 'title':
             im = extend_top(im, 48, stars=name not in ('cave', 'gym', 'palace', 'rush'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림

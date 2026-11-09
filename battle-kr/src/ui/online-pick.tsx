@@ -40,7 +40,7 @@ function useWide() {
 
 export interface OnlinePickProps {
 	title: string;
-	mine: PSet[]; oppName: string; oppTeam: PSet[]; myName: string;
+	mine: PSet[]; oppName: string; oppTitle?: string; oppTeam: PSet[]; myName: string;
 	count: number;
 	/** 이미 골라 보낸 상태 (재접속 등) */
 	sent?: boolean;
@@ -54,7 +54,7 @@ export interface OnlinePickProps {
 
 const sexMark = (s: PSet) => s.gender === 'M' ? <i class="op-sex m">♂</i> : s.gender === 'F' ? <i class="op-sex f">♀</i> : null;
 
-export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent, opp, onDone, onLeave, prep }: OnlinePickProps) {
+export function OnlinePick({ title, mine, oppName, oppTitle, oppTeam, myName, count, sent, opp, onDone, onLeave, prep }: OnlinePickProps) {
 	const need = Math.min(count, mine.length);
 	const [picked, setPicked] = useState<number[]>([]);
 	const [done, setDone] = useState(!!sent);
@@ -106,7 +106,7 @@ export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent,
 				})}
 			</div>
 			<div class="opk-col foe">
-				<div class={'opk-name foe' + (opp === 'away' ? ' away' : '')}>{oppName}<small>{opp === 'done' ? '선택 완료' : opp === 'away' ? '연결 끊김' : '고르는 중'}</small></div>
+				<div class={'opk-name foe' + (opp === 'away' ? ' away' : '')}>{oppName}{oppTitle && <i class="opk-ttl">{oppTitle}</i>}<small>{opp === 'done' ? '선택 완료' : opp === 'away' ? '연결 끊김' : '고르는 중'}</small></div>
 				{oppTeam.map(s => {
 					const sd = speciesData(toID(s.species), 9);
 					return <div class="opk-foe">

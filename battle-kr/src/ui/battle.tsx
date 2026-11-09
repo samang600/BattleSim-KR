@@ -9,6 +9,8 @@ import { moveData, moveKo, speciesData, speciesKo, toID, abilityKo, itemKo, natu
 import { toSimTeam, conceptBall, type PSet } from '../sets';
 import { loadSettings, updateRecords, saveReplay, newId } from '../store';
 import { emitBattleEnd } from '../battle-hooks';
+import { loadWallet, itemById } from '../rewards';
+import { WinFx } from './shop';
 import { TeraFilters, Sprite, CropSprite, PokeIcon, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
 import { MonSheet, type LiveInfo } from './screens';
 import { estimateDamage, typeEffOf, chooseAI } from '../ai';
@@ -32,6 +34,8 @@ export interface BattleSetup {
 	cheat?: boolean;
 	/** 거꾸로 배틀 */
 	inverse?: boolean;
+	/** 난이도 (보상 BP: 쉬움은 절반) */
+	diff?: string;
 	/** 리플레이 재생: 저장된 시드·규칙·양쪽 선택으로 같은 배틀을 자동 진행 */
 	replay?: { seed: [number, number, number, number]; ruleId: string; p1: string[]; p2: string[] };
 	bg?: 'tower' | 'factory' | 'pwt' | 'field' | 'champion' | 'cave' | 'beach' | 'snow' | 'volcano' | 'gym';
@@ -317,6 +321,10 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	});
 	const fullscreen = useFullscreen();
 	const [fieldOpen, setFieldOpen] = useState(false);
+	// 보상 꾸미기 (rewards.ts): 승리 연출·HP 창 테마·볼 연출
+	const [wallet] = useState(() => loadWallet());
+	const [winFx, setWinFx] = useState('');
+	const hpTheme = wallet.eq.hp ? itemById(wallet.eq.hp)?.v?.split(',') : null;
 	useEffect(() => {
 		const el = arenaRef.current; if (!el) return;
 		const fit = () => {
@@ -485,6 +493,7 @@ function typeTint(type: string) {
 				// 상대·멀티 파트너가 볼을 정하지 않은 포켓몬(기본 몬스터볼)은 컨셉에 맞거나 무작위인 볼로 (트레이너·포켓몬마다 늘 같은 볼)
 				const partnerMon = own && !!setup.partner?.theirs?.[bi];
 				if ((!own || partnerMon) && ball === 'pokeball') ball = conceptBall(d.species, own ? setup.partner?.name || 'partner' : setup.p2.name || '');
+				else if (own && !partnerMon && !setup.replay && wallet.eq.ball) ball = itemById(wallet.eq.ball)?.v || ball;   // 교환소 볼 연출
 				const t = FX.ballOut(layer, from, to, scale, ball) / FX.fxSpeed();
 				setTimeout(() => { mon.hidden = false; mon.anim = 'enter'; rerender(); sfx('ballOpen'); cry(toID(mon.species)); setTimeout(() => { if (mon.anim === 'enter') { mon.anim = ''; rerender(); } }, 500); }, t);
 				return t + 450 / FX.fxSpeed();
@@ -808,6 +817,7 @@ function typeTint(type: string) {
 		if (s.ended) {
 			setPhase('ended');
 			const win = s.winner === setup.p1.name;
+			if (win && !setup.replay && wallet.eq.win) setWinFx(wallet.eq.win);
 			if (!setup.noRecord) updateRecords(r => { r.battles++; if (win) r.wins++; });
 			emitBattleEnd(setup, s.battle, win);
 			if (win) playMusic('victory'); else stopMusic();
@@ -1662,7 +1672,8 @@ function typeTint(type: string) {
 	const slots = setup.doubles ? [0, 1] : [0];
 	// 메시지가 나오는 동안(입력 차례가 아닐 때)은 화면 어디를 눌러도 다음 메시지로 (버튼·창은 제외) — 수동 진행에서 아래 빈 곳을 눌러도 넘어가게
 	const tapAnywhere = (e: any) => { if (phase === 'input') return; if ((e.target as HTMLElement)?.closest?.('button, a, input, .modal, .modal-bg')) return; skipRef.current?.(); };
-	return <div class={'battle bg-' + arenaBg + (setup.doubles ? ' doubles' : ' singles')} style={{ '--spd': FX.fxSpeed() } as any} onClick={tapAnywhere}>
+	return <div class={'battle bg-' + arenaBg + (setup.doubles ? ' doubles' : ' singles') + (hpTheme ? ' hp-themed' : '')} style={{ '--spd': FX.fxSpeed(), ...(hpTheme ? { '--h1': hpTheme[0], '--h2': hpTheme[1] } : {}) } as any} onClick={tapAnywhere}>
+		{winFx && phase === 'ended' && <WinFx kind={winFx} />}
 		<div class="hud-top">
 			{setup.online ? <OnlineClock rs={setup.online} onTimeout={onlineTimeout} /> : <span class="badge">{setup.label || ''}</span>}
 			<span class="badge">{scene.turn ? `${scene.turn}턴` : ''}</span>

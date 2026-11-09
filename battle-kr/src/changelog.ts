@@ -6,6 +6,13 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.57.0', date: '2026-11-09', title: 'BP 교환소', items: [
+		['new', '배틀에서 이기고 세트 클리어·브레인 격파·업적·주간 과제를 달성하면 BP 가 쌓여요'],
+		['new', 'BP 교환소 (메인 오른쪽 아래): 칭호·트레이너 카드 꾸미기·트레이너 모습·볼 연출·승리 연출·HP 창 테마'],
+		['new', '새 배틀 배경 「노을 언덕」「별빛 호수」, 새 배틀 음악 「노을 언덕」「별빛 결전」'],
+		['new', '업적 전용 보상: 심볼 칭호·테두리, 지방 정복 배지, 단짝 포켓몬, 수첩 표지 색'],
+		['up', '온라인 대전에서 상대의 칭호가 보여요'],
+	] },
 	{ ver: '2.56.2', date: '2026-11-09', title: '화면 다듬기', items: [
 		['up', 'PC 배틀 양옆 파티 칸·교체 칸에 작은 도트 아이콘'],
 		['up', 'PC·가로 화면: 메뉴·온라인 대전 화면을 넓게 (두 줄 · PC 1.5배)'],
