@@ -6,7 +6,8 @@ import { onBattleEnd } from './battle-hooks';
 import { loadStats, analyze, setAchHook, type Stats } from './stats';
 import { speciesData, toID, RAW, typeKo } from './data';
 import TRAINER_CLASSES from './gen/trainer-classes.json';
-import { REGIONS } from './trainers';
+import { REGIONS, NAMED, namedSprite } from './trainers';
+import { PLAYER_SPRITES } from './trainer-lines';
 
 // ───────── 지갑 ─────────
 export interface Wallet {
@@ -15,7 +16,7 @@ export interface Wallet {
 	/** 장착: 칸(slot) → 상품 id */ eq: { [slot: string]: string };
 	/** 쉬움 난이도 반 BP 누적 */ frac: number;
 	/** 온라인 대전 하루 상한 */ onDay: string; onN: number;
-	/** 주간 과제: 주 id · 진행 · 받은 보상 */ week: { id: string; prog: { [k: string]: number }; got: { [k: string]: 1 } };
+	/** 일일 미션: 날 id · 진행 · 받은 보상 (예전 이름 그대로 week) */ week: { id: string; prog: { [k: string]: number }; got: { [k: string]: 1 } };
 	/** 최근 얻은 내역 */ log: { t: number; n: number; why: string }[];
 	/** 대표 포켓몬 (메인 화면) */ buddy?: { sp: string; shiny?: boolean };
 }
@@ -85,7 +86,7 @@ onBattleEnd((setup, battle, win) => {
 		return;
 	}
 	if (setup.cheat || setup.inverse || setup.noRecord) return;
-	weeklyFromBattle(setup, battle, win);
+	dailyFromBattle(setup, battle, win);
 	if (!win) return;
 	const label: string = setup.label || '';
 	if (/^프리/.test(label) || !label) return;   // 프리 배틀은 없음
@@ -134,6 +135,15 @@ const TYPE_TITLES: Item[] = [
 	...TYPES_ALL.map(t => TX('gym:' + t, `${typeKo(t)} 타입 체육관 관장`, `${typeKo(t)} 타입 포켓몬으로 50승`, s => (s.c['typeWin:' + t] || 0) >= 50, 'type:' + t, '체육관 관장')),
 	...TYPES_ALL.map(t => TX('e4:' + t, `${typeKo(t)} 타입 사천왕`, `${typeKo(t)} 타입 포켓몬으로 150승`, s => (s.c['typeWin:' + t] || 0) >= 150, 'type:' + t, '사천왕')),
 ];
+/** 트레이너 모습: 일반 트레이너군 · 네임드 트레이너(지방별) · 그 밖의 인물 (기본 주인공은 무료라 제외) */
+const OTHER_PEOPLE: [string, string][] = [
+	['lillie', '릴리에'], ['lillie-z', '릴리에 (Z)'], ['hau', '하우'], ['gladion', '글라디오'], ['lusamine', '루자미네'], ['hop', '호프'], ['sonia', '소니아'],
+	['penny', '보탄'], ['cheren', '체렌'], ['bianca', '벨'], ['wally', '민진'], ['barry', '용식'], ['shauna', '사나'], ['tierno', '티에르노'], ['trevor', '트로바'],
+	['oak', '오박사'], ['elm', '공박사'], ['birch', '털보박사'], ['rowan', '마박사'], ['juniper', '주박사'], ['sycamore', '플라타느 박사'], ['kukui', '쿠쿠이 박사'],
+	['burnet', '버넷 박사'], ['magnolia', '매그놀리아 박사'], ['sada', '팔데아 박사 (스칼렛)'], ['turo', '팔데아 박사 (바이올렛)'],
+	['ash', '지우'], ['ash-alola', '지우 (알로라)'], ['anabel', '리라'], ['az', 'AZ'], ['ingo', '노보리'], ['emmet', '클라우드'], ['rei', '테루'], ['akari', '쇼우'], ['nurse', '간호순'],
+];
+const ROLE_PRICE: { [r: string]: number } = { leader: 60, elite: 80, champion: 100, hero: 60, rival: 60, admin: 60, boss: 80 };
 /** 기본 칭호 (아무것도 안 골랐을 때 자동으로 붙음) */
 export const DEFAULT_TITLE = 't:rookie';
 export const ITEMS: Item[] = [
@@ -224,16 +234,24 @@ export const ITEMS: Item[] = [
 ];
 function trainerItems(): Item[] {
 	const out: Item[] = [];
-	const seen = new Set<string>();
+	const seen = new Set<string>(PLAYER_SPRITES.map(p => p.id));
+	let n = 0;
 	for (const c of (TRAINER_CLASSES as any).classes as any[]) {
+		if (n >= 48) break;
 		for (const [list, sex] of [[c.sprites_m, '♂'], [c.sprites_f, '♀']] as [string[], string][]) {
-			const sp = list?.[0]; if (!sp || seen.has(sp)) continue;
+			const sp = list?.[0]; if (!sp || seen.has(sp) || n >= 48) continue;
 			seen.add(sp);
 			const both = c.sprites_m?.length && c.sprites_f?.length;
-			out.push({ id: 'tr:' + sp, slot: 'trainer', name: c.name + (both ? ' ' + sex : ''), price: 30 + (out.length % 4) * 10, v: sp });
-			if (out.length >= 48) return out;
+			out.push({ id: 'tr:' + sp, slot: 'trainer', name: c.name + (both ? ' ' + sex : ''), price: 30 + (n % 4) * 10, v: sp, grp: '일반 트레이너' });
+			n++;
 		}
 	}
+	for (const r of REGIONS) for (const t of NAMED.filter(t => t.region === r)) {
+		const sp = namedSprite(t); if (seen.has(sp)) continue;
+		seen.add(sp);
+		out.push({ id: 'tr:' + sp, slot: 'trainer', name: t.name, desc: t.title, price: ROLE_PRICE[t.role] || 60, v: sp, grp: r === '애니메이션' ? '네임드 · 애니메이션' : '네임드 · ' + r });
+	}
+	for (const [sp, name] of OTHER_PEOPLE) { if (seen.has(sp)) continue; seen.add(sp); out.push({ id: 'tr:' + sp, slot: 'trainer', name, price: 50, v: sp, grp: '그 밖의 인물' }); }
 	return out;
 }
 export const itemById = (id: string) => ITEMS.find(i => i.id === id);
@@ -282,40 +300,37 @@ export function partnerMon(s = loadStats()) { let best: string | null = null, w 
 /** 수첩 표지 색: 도감(써 본 포켓몬) 25·50·75% */
 export function bookCover(s = loadStats()) { const p = dexPct(s); return p >= 75 ? 'gold' : p >= 50 ? 'silver' : p >= 25 ? 'bronze' : ''; }
 
-// ───────── 주간 과제 (매주 월요일, 모두 같은 과제) ─────────
+// ───────── 일일 미션 (매일 자정, 모두 같은 미션) ─────────
 interface Mission { id: string; text: string; goal: number; bp: number }
 const TYPES = ['Fire', 'Water', 'Grass', 'Electric', 'Psychic', 'Dragon', 'Dark', 'Fighting', 'Steel', 'Fairy', 'Ghost', 'Ground', 'Ice', 'Flying', 'Bug', 'Rock', 'Poison', 'Normal'];
-function weekNo(now = new Date()) {
-	const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
-	return Math.floor((mon.getTime() - new Date(2026, 0, 5).getTime()) / (7 * 864e5)) + 1;
-}
-export function weeklyMissions(no = weekNo()): Mission[] {
-	let h = no * 2654435761 >>> 0; const r = () => { h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0; h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+function dayNo(now = new Date()) { return Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - new Date(2026, 0, 5).getTime()) / 864e5); }
+export function dailyMissions(no = dayNo()): Mission[] {
+	let h = (no + 7919) * 2654435761 >>> 0; const r = () => { h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0; h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 	const t = TYPES[Math.floor(r() * TYPES.length)];
 	const pool: Mission[] = [
-		{ id: 'type:' + t, text: `${typeKo(t)} 타입 포켓몬이 참가해 3승`, goal: 3, bp: 15 },
-		{ id: 'se', text: '효과가 굉장한 기술 20번 맞히기', goal: 20, bp: 15 },
-		{ id: 'ko', text: '상대 포켓몬 20마리 쓰러뜨리기', goal: 20, bp: 15 },
-		{ id: 'wins', text: '아무 배틀 10승', goal: 10, bp: 15 },
-		{ id: 'battles', text: '배틀 15판 하기 (승패 상관없음)', goal: 15, bp: 10 },
-		{ id: 'doubles', text: '더블 배틀 5판', goal: 5, bp: 10 },
-		{ id: 'gimmick', text: '메가진화·테라스탈·Z기술·다이맥스 5번 쓰기', goal: 5, bp: 10 },
-		{ id: 'named', text: '네임드·PWT·보스 러시 상대에게 3승', goal: 3, bp: 15 },
+		{ id: 'type:' + t, text: `${typeKo(t)} 타입 포켓몬이 참가해 1승`, goal: 1, bp: 3 },
+		{ id: 'se', text: '효과가 굉장한 기술 5번 맞히기', goal: 5, bp: 3 },
+		{ id: 'ko', text: '상대 포켓몬 6마리 쓰러뜨리기', goal: 6, bp: 3 },
+		{ id: 'wins', text: '아무 배틀 3승', goal: 3, bp: 3 },
+		{ id: 'battles', text: '배틀 3판 하기 (승패 상관없음)', goal: 3, bp: 2 },
+		{ id: 'doubles', text: '더블 배틀 1판', goal: 1, bp: 2 },
+		{ id: 'gimmick', text: '메가진화·테라스탈·Z기술·다이맥스 1번 쓰기', goal: 1, bp: 2 },
+		{ id: 'named', text: '네임드·PWT·보스 러시 상대에게 1승', goal: 1, bp: 3 },
 	];
 	const out: Mission[] = [pool[0]];
 	const rest = pool.slice(1);
 	while (out.length < 3) out.push(rest.splice(Math.floor(r() * rest.length), 1)[0]);
 	return out;
 }
-export const WEEK_ALL_BP = 20;
-function weekState(w: Wallet) { const id = 'W' + weekNo(); if (w.week.id !== id) w.week = { id, prog: {}, got: {} }; return w.week; }
-export function weeklyStatus() { const w = loadWallet(); const wk = weekState(w); return weeklyMissions().map(m => ({ ...m, prog: Math.min(m.goal, wk.prog[m.id] || 0), done: !!wk.got[m.id] })); }
-function weeklyFromBattle(setup: any, battle: any, win: boolean) {
-	const w = loadWallet(); const wk = weekState(w);
-	const ms = weeklyMissions();
+export const DAY_ALL_BP = 5;
+function dayState(w: Wallet) { const id = 'D' + dayNo(); if (w.week.id !== id) w.week = { id, prog: {}, got: {} }; return w.week; }
+export function dailyStatus() { const w = loadWallet(); const d = dayState(w); return dailyMissions().map(m => ({ ...m, prog: Math.min(m.goal, d.prog[m.id] || 0), done: !!d.got[m.id] })); }
+function dailyFromBattle(setup: any, battle: any, win: boolean) {
+	const w = loadWallet(); const d = dayState(w);
+	const ms = dailyMissions();
 	const f = analyze(setup, battle, win);
 	const label: string = setup.label || '';
-	const add = (id: string, n: number) => { if (ms.some(m => m.id === id) && n > 0) wk.prog[id] = (wk.prog[id] || 0) + n; };
+	const add = (id: string, n: number) => { if (ms.some(m => m.id === id) && n > 0) d.prog[id] = (d.prog[id] || 0) + n; };
 	const myTypes = new Set(Object.keys(f.mine).flatMap(sid => speciesData(sid, 9)?.t || []));
 	for (const m of ms) if (m.id.startsWith('type:') && win && myTypes.has(m.id.slice(5))) add(m.id, 1);
 	if (setup.doubles) add('doubles', 1);
@@ -323,8 +338,8 @@ function weeklyFromBattle(setup: any, battle: any, win: boolean) {
 	add('ko', f.kos); add('se', f.se); add('battles', 1); add('gimmick', f.gim.length);
 	if (win && !FACILITY.test(label) && !/^(프리|랭크|오늘의)/.test(label)) add('named', 1);
 	const earned: [number, string][] = [];
-	for (const m of ms) if (!wk.got[m.id] && (wk.prog[m.id] || 0) >= m.goal) { wk.got[m.id] = 1; earned.push([m.bp, '주간 과제']); }
-	if (earned.length && ms.every(m => wk.got[m.id]) && !wk.got.all) { wk.got.all = 1; earned.push([WEEK_ALL_BP, '주간 과제 모두']); }
+	for (const m of ms) if (!d.got[m.id] && (d.prog[m.id] || 0) >= m.goal) { d.got[m.id] = 1; earned.push([m.bp, '일일 미션']); }
+	if (earned.length && ms.every(m => d.got[m.id]) && !d.got.all) { d.got.all = 1; earned.push([DAY_ALL_BP, '일일 미션 모두']); }
 	saveWallet(w);
 	for (const [n, why] of earned) earnBP(n, why);
 }

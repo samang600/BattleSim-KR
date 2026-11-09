@@ -2,7 +2,7 @@ import './ps/registry';
 import { recTag, ruleById as ruleByIdR } from './rules';
 import { h, render, type VNode } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton } from './ui/core';
+import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton, Modal } from './ui/core';
 import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
@@ -22,8 +22,7 @@ import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, s
 import { PLAYER_SPRITES, SPRITE_URL, trainerImgError } from './trainer-lines';
 import { UserSpritesModal } from './ui/user-sprites';
 import { ShopScreen, BpCoin, cardSkin, cardSkinClass, TitleChip, useWallet } from './ui/shop';
-import { titleItem } from './rewards';
-import { ownedVals } from './rewards';
+import { titleItem, ownedVals, loadWallet, ITEMS } from './rewards';
 import { onUserSpritesChange } from './user-sprites';
 
 const MODES = [
@@ -232,17 +231,41 @@ function backupLoad() {
 }
 
 /** 주인공 모습: ◀ 그림·이름 ▶ 한 줄로 넘기며 고름 (이웃한 모습도 작게 보여 줌) */
+/** 주인공 모습: 화살표로 넘기거나, 가운데를 누르면 전부 격자로 보기 (기본 주인공 + 교환소에서 얻은 모습, 묶음별) */
+function avatarGroups(): [string, { id: string; name: string }[]][] {
+	const w = loadWallet();
+	const out: [string, { id: string; name: string }[]][] = [['기본 주인공', PLAYER_SPRITES]];
+	for (const it of ITEMS) if (it.slot === 'trainer' && w.own[it.id]) {
+		const g = it.grp || '교환소'; let row = out.find(r => r[0] === g);
+		if (!row) { row = [g, []]; out.push(row); }
+		row[1].push({ id: it.v!, name: it.name });
+	}
+	return out;
+}
 function AvatarPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-	const list = [...PLAYER_SPRITES, ...ownedVals('trainer').map(o => ({ id: o.v, name: o.name }))];
+	const [grid, setGrid] = useState(false);
+	const groups = avatarGroups();
+	const list = groups.flatMap(g => g[1]);
 	const n = list.length, i = Math.max(0, list.findIndex(p => p.id === value));
 	const at = (d: number) => list[(i + d + n) % n];
-	return <div class="win pick-panel avatar-panel">
+	return <>{<div class="win pick-panel avatar-panel">
 		<button class="pick-arrow" aria-label="주인공 모습 이전" onClick={() => onChange(at(-1).id)}><i class="tri l" /></button>
 		<img class="av-side" src={SPRITE_URL(at(-1).id)} alt="" onClick={() => onChange(at(-1).id)} />
-		<div class="av-mid"><img src={SPRITE_URL(at(0).id)} alt="" /><b class="ap-name">{at(0).name}</b><span class="av-count">{i + 1}/{n}</span></div>
+		<button class="av-mid" onClick={() => setGrid(true)} aria-label="주인공 모습 전부 보기"><img src={SPRITE_URL(at(0).id)} alt="" /><b class="ap-name">{at(0).name}</b><span class="av-count">{i + 1}/{n} ▦</span></button>
 		<img class="av-side" src={SPRITE_URL(at(1).id)} alt="" onClick={() => onChange(at(1).id)} />
 		<button class="pick-arrow" aria-label="주인공 모습 다음" onClick={() => onChange(at(1).id)}><i class="tri r" /></button>
-	</div>;
+	</div>}
+		{grid && <Modal title="주인공 모습" onClose={() => setGrid(false)}>
+			<div class="av-grid-wrap">
+				{groups.map(([g, items]) => <section>
+					<h4 class="shop-grp">{g} <small>{items.length}</small></h4>
+					<div class="av-grid">{items.map(p => <button class={'av-cell' + (p.id === value ? ' on' : '')} onClick={() => { onChange(p.id); setGrid(false); }}>
+						<img src={SPRITE_URL(p.id)} onError={trainerImgError} alt="" loading="lazy" /><span>{p.name}</span></button>)}</div>
+				</section>)}
+				<p class="muted small av-more">BP 교환소에서 트레이너·네임드 트레이너·여러 인물의 모습을 더 얻을 수 있어요.</p>
+			</div>
+		</Modal>}
+	</>;
 }
 
 let ruleNoticeShown = false;

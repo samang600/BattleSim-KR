@@ -2,7 +2,7 @@
 import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { Screen, MiniSprite, toast, Modal, HPBar, TYPE_COLOR } from './core';
-import { loadWallet, onWallet, titleItem, DEFAULT_TITLE, ITEMS, SLOT_INFO, owns, buy, equip, itemById, weeklyStatus, WEEK_ALL_BP, regionBadges, partnerMon, type Item, type Slot, type Wallet } from '../rewards';
+import { loadWallet, onWallet, titleItem, DEFAULT_TITLE, ITEMS, SLOT_INFO, owns, buy, equip, itemById, dailyStatus, DAY_ALL_BP, regionBadges, partnerMon, type Item, type Slot, type Wallet } from '../rewards';
 import { loadStats } from '../stats';
 import { loadSettings } from '../store';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
@@ -198,7 +198,7 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
 	const [tab, setTab] = useState('title');
 	const [sel, setSel] = useState<Item | null>(null);
 	const settings = loadSettings();
-	const weekly = weeklyStatus();
+	const daily = dailyStatus();
 	const tabDef = TABS.find(t => t.id === tab)!;
 	const card = (it: Item) => {
 		const have = owns(it, w, st), on = have && isOnItem(it, w, settings);
@@ -218,8 +218,8 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
 				<em>지금까지 {w.total} BP</em>
 			</div>
 			<div class="shop-week">
-				<div class="wk-title">이번 주 과제 <small>모두 하면 +{WEEK_ALL_BP}</small></div>
-				{weekly.map(m => <div class={'wk-row' + (m.done ? ' done' : '')}>
+				<div class="wk-title">일일 미션 <small>모두 하면 +{DAY_ALL_BP} · 자정에 바뀌어요</small></div>
+				{daily.map(m => <div class={'wk-row' + (m.done ? ' done' : '')}>
 					<span class="wk-text">{m.text}</span>
 					<span class="wk-bar"><i style={{ width: `${m.prog / m.goal * 100}%` }} /></span>
 					<span class="wk-num">{m.done ? '완료' : `${m.prog}/${m.goal}`}</span>
@@ -227,11 +227,11 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
 				</div>)}
 			</div>
 		</div>
-		<p class="hint shop-hint">배틀에서 이기고 연승·업적·과제를 달성하면 BP 가 쌓여요. 상품을 누르면 크게 미리 볼 수 있어요. 모두 꾸미기용이라 배틀 능력에는 영향이 없어요.</p>
+		<p class="hint shop-hint">배틀에서 이기고 연승·업적·일일 미션을 달성하면 BP 가 쌓여요. 상품을 누르면 크게 미리 볼 수 있어요. 모두 꾸미기용이라 배틀 능력에는 영향이 없어요.</p>
 		<div class="seg shop-tabs">{TABS.map(t => <button class={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>{t.name}</button>)}</div>
 		{tabDef.slots.map(slot => {
 			const list = ITEMS.filter(i => i.slot === slot);
-			const groups = slot === 'title' ? groupBy(list) : [['', list] as [string, Item[]]];
+			const groups = list.some(i => i.grp) ? groupBy(list) : [['', list] as [string, Item[]]];
 			return <section class="shop-sec">
 				{tabDef.slots.length > 1 && <h3 class="sec">{SLOT_INFO[slot].name} <small class="muted">{SLOT_INFO[slot].desc}</small></h3>}
 				{tabDef.slots.length === 1 && <p class="muted small">{SLOT_INFO[slot].desc}</p>}

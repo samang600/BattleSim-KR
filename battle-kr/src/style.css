@@ -2877,3 +2877,16 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .pv-price { display: inline-flex; align-items: center; gap: 4px; color: #ffe070; font-size: 15px; } .pv-price small { font-size: 11px; color: #c8b890; } .pv-price.poor { color: #a89880; }
 .pv-btns { display: flex; gap: 8px; } .pv-btns .btn { flex: 1; }
 .pv-btns .btn.ghost { flex: 0 0 auto; min-width: 88px; }
+
+/* ═════ v2.61: 주인공 모습 격자 고르기 ═════ */
+.avatar-panel button.av-mid { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 0; }
+.av-grid-wrap { overflow-y: auto; max-height: 70vh; padding: 0 2px 6px; }
+.av-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; padding: 4px; }
+.av-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; color: #fff; font: inherit; cursor: pointer; border: 0;
+	background: linear-gradient(180deg, #3a4a6e 0 2px, #2a3858 2px 60%, #22304a 60%); box-shadow: 0 0 0 2px #0a0f18; }
+.av-cell img { width: 64px; height: 64px; object-fit: contain; image-rendering: pixelated; }
+.av-cell span { font-size: 11px; line-height: 13px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.av-cell.on { box-shadow: 0 0 0 2px #0a0f18, 0 0 0 4px #ffd84a; background: linear-gradient(180deg, #3a6a5a 0 2px, #2a5848 2px 60%, #224a3c 60%); }
+.av-cell:active { transform: translate(2px, 2px); }
+.av-more { text-align: center; margin: 8px 0 0; }
+.shop-grid.slot-trainer .sx-desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

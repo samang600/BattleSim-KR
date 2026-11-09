@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.61.0', date: '2026-11-09', title: '일일 미션 · 트레이너 모습 확장', items: [
+		['new', '이번 주 과제 → 일일 미션: 매일 자정에 바뀌는 미션 3개 (모두 하면 보너스)'],
+		['new', '교환소 트레이너 모습에 네임드 트레이너(지방별)와 릴리에·박사님 같은 인물 추가'],
+		['up', '설정의 주인공 모습: 가운데 그림을 누르면 전부 격자로 보고 고를 수 있어요'],
+	] },
 	{ ver: '2.60.1', date: '2026-11-09', title: '교환소 정리', items: [
 		['fix', '교환소에서 볼 연출·승리 연출을 뺐어요 — 이미 산 것은 BP 로 돌려드려요'],
 	] },
