@@ -1,7 +1,7 @@
 # 움직이는 도트 그림 묶음 (개발자 빌드 시험용)
 
 배틀시뮬 KR 개발자 빌드(/dev/)의 「움직이는 도트 (시험)」 설정이 쓰는 그림. GitHub Pages 배포 때 `ani/` 가 사이트의 `/ani/` 로 복사된다.
-main 브랜치의 `battle-kr/scripts/make-ani-sprites.py` 로 만든다 (프레임 띠 PNG → 움직이는 WebP, 앞 1,318 · 뒤 1,317).
+main 브랜치의 `battle-kr/scripts/make-ani-sprites.py` 로 만든다 (프레임 띠 PNG → 움직이는 WebP, 앞 1,318 · 뒤 1,317 · 이로치 앞 1,318 · 이로치 뒤 1,309).
 
 ## 출처·만든 이 (CREDITS)
 원본 묶음: Pokémon Essentials 용 **Animated Pokemon System** 의 그림 묶음 — Lucidious89 (https://eeveeexpo.com/resources/1544/).
