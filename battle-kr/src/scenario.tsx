@@ -6,7 +6,7 @@
  *  데이터: scenario-data.ts · 배경: scripts/gen-fields.py · 초상화: portraits-ai 브랜치(Pages /portraits/)
  *  저장: localStorage <접두사>scenario-kanto2 */
 import { h, Fragment } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { ask, Screen, Sprite, PokeIcon, TypeBadge, ItemIcon, toast, confirmBox } from './ui/core';
 import { battle, playerName, playerSprite, BACK } from './modes';
 import { load, save, remove } from './store';
@@ -18,6 +18,7 @@ import LEVELUP from './gen/levelup.json';
 import { TIMES, TIME_CLS, WHO, LOCS, locOf, TRAINERS, WILDS, ITEMS, SHOPS, STARTERS, RIVAL_OF, LV_CAP, expNeed,
 	MISTY_AT, MISTY_DOING, mistyTeam, MISTY_TALKS, type Who, type Trainer } from './scenario-data';
 import { SCRIPTS, EV_TITLE } from './scenario-script';
+import * as EM from './scenario-emotes.js';
 
 const LU = LEVELUP as unknown as { [id: string]: { e?: [string, number]; m: [number, string][] } };
 const PORTRAIT_BASE = 'https://samang600.github.io/BattleSim-KR/portraits/';
@@ -116,7 +117,23 @@ type Line = [who: string | Who | null, text: string, emo?: string];
 /** 지난 대사 (기록 보기) · 자동 넘김 설정 */
 const LOG: { name: string; text: string }[] = [];
 let autoOn = (() => { try { return localStorage.getItem('pkbkr-sc-auto') === '1'; } catch { return false; } })();
-const EMO_MARK: { [k: string]: string } = { joy: '♪', shy: '///', surprise: '!', love: '♥', think: '…', smug: '✦', sad: '', angry: '' };
+/** 감정 이모티콘: pixelfx 로 그린 움직이는 얼굴 (scenario-emotes.js) — 캔버스에 50ms 한 칸씩 */
+function Emote({ kind }: { kind: string }) {
+	const ref = useRef<HTMLCanvasElement>(null);
+	const mod = EM.EMOTES[kind];
+	useEffect(() => {
+		const cv = ref.current, ctx = cv?.getContext('2d');
+		if (!mod || !cv || !ctx) return;
+		const [w, h] = mod.meta.size, [ox, oy] = mod.meta.origin;
+		const fx = EM.createFx(mod, { x: ox, y: oy }), frame = EM.createFrame(w, h), img = ctx.createImageData(w, h);
+		const tick = () => { fx.update(0.05); EM.clearFrame(frame); fx.draw(frame); EM.composite(frame, img.data, null); ctx.putImageData(img, 0, 0); };
+		tick();
+		const id = setInterval(tick, 50);
+		return () => clearInterval(id);
+	}, [kind]);
+	if (!mod) return null;
+	return <canvas ref={ref} class="sc-emo" width={mod.meta.size[0]} height={mod.meta.size[1]} />;
+}
 /** 대화 장면: 배경(시간대 색) + 큰 초상(감정 기호·움직임) + 이름 띠 + 대화창(한 글자씩). who 가 null 이면 해설
  *  위 단추: 기록(지난 대사) · 자동(다 나오면 알아서 넘김) · 건너뛰기 */
 function Dialog({ lines, bg, tint, done, choice }: { lines: Line[]; bg: string; tint: number; done: (i: number) => void; choice?: string[] }) {
@@ -131,7 +148,7 @@ function Dialog({ lines, bg, tint, done, choice }: { lines: Line[]; bg: string; 
 		<div class={'st-bg sc-bg fld-' + bg} /><div class={'sc-tint ' + TIME_CLS[tint]} />
 		{w && <div class="st-portrait sc-stp" key={w.name}>
 			<div class={'sc-act' + (emo ? ' mv-' + emo : '')} key={i}><Portrait id={w.portrait} sprite={w.sprite} cls="big" emo={emo} /></div>
-			{emo && <i class={'sc-emo em-' + emo} key={'e' + i}>{EMO_MARK[emo]}</i>}
+			{emo && <Emote kind={emo} key={'e' + i} />}
 		</div>}
 		<div class="st-box">
 			{w && <div class="st-name"><span>{w.name}{w.title && <small> {w.title}</small>}</span><i class="st-deco" /></div>}

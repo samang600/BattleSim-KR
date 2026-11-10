@@ -3438,14 +3438,9 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 @keyframes mvDroop { to { transform: translateY(10px) scale(1, .98); filter: saturate(.8) brightness(.92); } }
 @keyframes mvSway { 25% { transform: rotate(-1.5deg); } 75% { transform: rotate(1.5deg); } }
 @keyframes mvLean { 50% { transform: scale(1.04); } }
-.sc-emo { position: absolute; right: 12%; top: 6%; min-width: 46px; height: 46px; padding: 0 8px; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 26px; line-height: 1;
-	background: #fff; color: #14182a; box-shadow: 0 0 0 2px #14182a, 4px 4px 0 rgba(0,0,0,.3); animation: emoPop .3s steps(4) both, emoBob 1s steps(2) .3s infinite; pointer-events: none; }
-@keyframes emoPop { from { transform: scale(0); } } @keyframes emoBob { 50% { transform: translateY(-4px); } }
-.em-joy { color: #e8721a; } .em-love { color: #ff3a7a; background: #ffe0ea; } .em-shy { color: #ff5a8a; background: #ffe0ea; font-size: 18px; letter-spacing: -1px; }
-.em-surprise { color: #d81a1a; font-size: 32px; } .em-think { font-size: 22px; } .em-smug { color: #c89a10; }
-.em-angry::before { content: ''; width: 28px; height: 28px; background: #e8262a; transform: rotate(45deg); clip-path: polygon(38% 0, 62% 0, 62% 38%, 100% 38%, 100% 62%, 62% 62%, 62% 100%, 38% 100%, 38% 62%, 0 62%, 0 38%, 38% 38%); }
-.em-sad::before { content: ''; width: 16px; height: 26px; background: #3a9af0; clip-path: polygon(50% 0, 100% 62%, 82% 100%, 18% 100%, 0 62%); }
+.sc-emo { position: absolute; right: 8%; top: 4%; width: 132px; height: 132px; image-rendering: pixelated; pointer-events: none; filter: drop-shadow(3px 3px 0 rgba(0,0,0,.35)); animation: emoPop .3s steps(4) both; }
+@keyframes emoPop { from { transform: scale(0); } }
 .sc-travel .sc-roads line.go { stroke: #ff5a5a; stroke-width: 2.2; stroke-dasharray: none; }
 .sc-travel .sc-node { cursor: default; }
 .sc-travel-me { position: absolute; width: 80px; height: 80px; margin: -52px 0 0 -40px; image-rendering: pixelated; pointer-events: none; clip-path: inset(18% 22% 30% 22%); transition: left .42s linear, top .42s linear; animation: shBob .4s steps(2) infinite; }
-@media (orientation: landscape) and (max-height: 540px) { .sc-emo { top: 2%; right: 30%; min-width: 34px; height: 34px; font-size: 20px; } .sc-travel .sc-mapwrap { height: calc(100% - 52px); } }
+@media (orientation: landscape) and (max-height: 540px) { .sc-emo { top: 0; right: 28%; width: 88px; height: 88px; } .sc-travel .sc-mapwrap { height: calc(100% - 52px); } }
