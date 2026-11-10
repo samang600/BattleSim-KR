@@ -15,6 +15,7 @@ import { MonSheet, type LiveInfo } from './screens';
 import { estimateDamage, typeEffOf, chooseAI } from '../ai';
 import { State } from '../../../sim/state';
 import * as FX from '../fx';
+if (typeof window !== 'undefined') (window as any).__fx = FX;   // 연출 확인용(개발자 도구에서 직접 재생)
 import { sfx, moveSound, playMusic, stopMusic, cry, preloadCries, pickBattleMusic, animSfxVolume, vibrate, setQuiet } from '../sound';
 import { saveSettings, loadSettings as loadSettings2 } from '../store';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
@@ -417,6 +418,8 @@ function typeTint(type: string) {
 			pendingHitRef.current = { at: impact, sound: 'hitExplode' };
 			return impact;
 		}
+		// 다이월: 붉은 육각 벽 (공격 연출과 따로)
+		if (mid === 'maxguard') return (1 / FX.fxSpeed()) * FX.maxGuard(layer, from, scale);
 		// 다이맥스 기술(맥스·거다이맥스): 전용 대형 연출
 		if (simMove?.isMax || /^(max|gmax)[a-z]/.test(mid)) {
 			const impact = (1 / FX.fxSpeed()) * FX.maxMove(layer, arena, type, from, hits, scale);

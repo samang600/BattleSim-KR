@@ -11,7 +11,7 @@ import { loadTeams, loadSettings, saveSettings, load, save, remove, updateRecord
 import { BGM_CHOICES, playMusic, stopMusic } from './sound';
 import { awardSymbol, SYMBOL_INFO, updateStats, type SymbolKind } from './stats';
 import { earnBP, setClearBP, BRAIN_BP, SEASON_BP, ownedVals } from './rewards';
-import { ruleById, recTag } from './rules';
+import { ruleById, recTag, speciesAllowed } from './rules';
 /** 지금 규칙의 기록 표시 (규칙마다 기록·도전을 따로) */
 const rt = () => recTag(loadSettings().battleRule);
 import { rosterForRule } from './legends';
@@ -120,12 +120,15 @@ async function chooseFormat(title: string, desc?: string, extended = false, opts
 }
 
 /** 내 팀 고르기: 저장된 팀 또는 렌탈. 일반 팀·렌탈은 level 로 맞추고, 치트 팀(cheat 허용 시)은 만든 레벨 그대로 */
-export async function chooseTeam(gen: Gen, title: string, allowRental = true, cheat = false, level = 50): Promise<PSet[] | typeof BACK> {
+export async function chooseTeam(gen: Gen, title: string, allowRental = true, cheat = false, level = 50, ruleIdIn?: string): Promise<PSet[] | typeof BACK> {
 	const lastId = load<string>('lastTeam', '');
+	// 지금 규칙에서 못 나오는 포켓몬(초전설·환상 불가 등)이 든 팀은 고를 수 없음 (치트 팀은 예외)
+	const rule = ruleById(ruleIdIn || loadSettings().battleRule);
+	const banned = (t: SavedTeam) => t.cheat ? [] : t.sets.filter(x => !speciesAllowed(rule, toID(x.species))).map(x => speciesKo(x.species));
 	// 치트 팀은 '치트 팀 허용'을 켰을 때만
 	const teams = loadTeams().filter(t => (cheat || !t.cheat) && t.sets.length >= (t.cheat ? 1 : 3)).sort((a, b) => (b.id === lastId ? 1 : 0) - (a.id === lastId ? 1 : 0));
 	const opts: { value: SavedTeam | 'rental'; label: string; desc?: string; icon?: any; badge?: string }[] = teams.map(t => ({
-		value: t, label: t.name, desc: t.sets.map(s => speciesKo(s.species)).join(' · '), badge: t.cheat ? '🃏 치트' : t.id === lastId ? '최근 사용' : undefined,
+		value: t, label: t.name, desc: banned(t).length ? `출전 불가: ${banned(t).join(' · ')}` : t.sets.map(s => speciesKo(s.species)).join(' · '), badge: t.cheat ? '🃏 치트' : banned(t).length ? '규칙 불가' : t.id === lastId ? '최근 사용' : undefined,
 		icon: <span class="mini"><img class="sprite" src={gen5Icon(spriteId(t.sets[0].species))} /></span>,
 	}));
 	if (allowRental) opts.push({ value: 'rental', label: '추천 렌탈 팀', desc: '무작위로 6마리를 빌립니다', icon: '🎲' });
@@ -134,6 +137,10 @@ export async function chooseTeam(gen: Gen, title: string, allowRental = true, ch
 		options={opts} onPick={r} />);
 	if (v === BACK) return BACK;
 	if (v === 'rental') return withLevel(randomTeam({ gen, size: 6, minBst: 480 }), level);
+	if (banned(v).length) {
+		await confirmBox('이 팀은 나갈 수 없어요', `지금 규칙(${rule.name})에서 쓸 수 없는 포켓몬이 있어요.\n${banned(v).join(' · ')}\n\n팀 편집에서 바꾸거나 설정에서 규칙을 바꿔 주세요.`, '확인', '');
+		return chooseTeam(gen, title, allowRental, cheat, level, ruleIdIn);
+	}
 	save('lastTeam', v.id);
 	return v.cheat ? v.sets.map(cloneSet) : withLevel(v.sets, level);
 }

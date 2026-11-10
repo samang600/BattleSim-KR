@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.69.1', date: '2026-11-10', title: '규칙 검사 · 팰리스 · 다이월', items: [
+		['fix', '초전설·환상 불가 규칙인데 그 포켓몬이 든 내 팀으로 나갈 수 있던 문제 — 팀 고르기에서 「규칙 불가」로 표시하고 막아요 (치트 팀 제외)'],
+		['fix', '배틀팰리스에서 상대가 구애 도구 때문에 배틀 내내 한 기술만 쓰던 문제 — 상대의 구애 도구를 다른 도구로 바꿔요'],
+		['new', '다이월 전용 연출 — 붉은 육각 벽이 맞물려 세워져요'],
+	] },
 	{ ver: '2.69.0', date: '2026-11-10', title: '온라인 대전 다듬기', items: [
 		['new', '온라인 대전도 리플레이로 저장 — 끝난 화면의 「리플레이 저장」, 기록 › 리플레이에서 다시 보기'],
 		['new', '앱이 꺼져도 대전으로 복귀 — 로비 위 「진행 중이던 대전」의 돌아가기 (끊긴 뒤 1분 안)'],

@@ -334,6 +334,40 @@ export function megaIcon(layer: HTMLElement, at: Pt, s: number) {
 	const timer = window.setInterval(tick, 50 / SPEED);
 }
 
+/** 다이월: 다이맥스 붉은 기운이 바닥에서 솟고, 육각 타일이 하나씩 맞물려 거대한 벽을 이룬 뒤 빛이 훑고 지나감 */
+export function maxGuard(layer: HTMLElement, at: Pt, s: number): number {
+	const C = '#e0245e', L = '#ff86b0', D = '#8a0f3a';
+	const u = Math.max(2, Math.round(s * 2));
+	// 1) 바닥 고리 + 솟는 붉은 입자
+	const ring = px(layer, at.x, at.y + 22 * s, 96 * s, 26 * s, 'transparent', `border:${u}px solid ${C};border-radius:50%`);
+	anim(ring, [{ transform: 'scale(.3)', opacity: 0 }, { transform: 'scale(1)', opacity: 1, offset: 0.25 }, { transform: 'scale(1.15)', opacity: 1, offset: 0.8 }, { transform: 'scale(1.3)', opacity: 0 }], { duration: 1100, easing: 'steps(10)' });
+	for (let i = 0; i < 14; i++) {
+		const el = px(layer, at.x + rnd(-44, 44) * s, at.y + 22 * s, 4 * s, 4 * s, i % 3 ? C : L);
+		anim(el, [{ transform: 'translate(0,0)', opacity: 0 }, { opacity: 1, offset: 0.15 }, { transform: `translate(0,${-rnd(50, 90) * s}px)`, opacity: 0 }], { duration: rnd(500, 800), delay: i * 30, easing: 'steps(8)' });
+	}
+	// 2) 육각 타일 벽 (가운데 줄 3 · 위아래 2 = 7장이 큰 육각을 이룸)
+	const w = 34 * s, h = 30 * s, hex = 'clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)';
+	const cells: [number, number][] = [[0, 0], [0, -1], [0, 1], [-0.75, -0.5], [0.75, -0.5], [-0.75, 0.5], [0.75, 0.5]];
+	cells.forEach(([cx, cy], i) => {
+		const x = at.x + cx * w, y = at.y - 12 * s + cy * h;
+		const edge = px(layer, x, y, w, h, D, hex);
+		const face = px(layer, x, y, w - 2 * u, h - 2 * u, i % 2 ? `${C}cc` : `${L}cc`, hex);
+		for (const el of [edge, face]) anim(el, [{ transform: 'scale(0)', opacity: 0 }, { transform: 'scale(1.15)', opacity: 1, offset: 0.12 }, { transform: 'scale(1)', opacity: 1, offset: 0.2 }, { transform: 'scale(1)', opacity: 1, offset: 0.82 }, { transform: 'scale(1.2)', opacity: 0 }],
+			{ duration: 1000 - i * 40, delay: 120 + i * 40, easing: 'steps(12)' });
+	});
+	// 3) 벽을 훑는 빛줄기 + 단단함을 알리는 반짝임
+	later(() => {
+		const glint = px(layer, at.x - 50 * s, at.y - 12 * s, 10 * s, 96 * s, '#ffffffcc', 'transform-origin:center');
+		anim(glint, [{ transform: 'translateX(0) skewX(-20deg)', opacity: 0 }, { opacity: 1, offset: 0.2 }, { transform: `translateX(${100 * s}px) skewX(-20deg)`, opacity: 0 }], { duration: 300, easing: 'steps(8)' });
+		for (let i = 0; i < 6; i++) {
+			const a = (i / 6) * Math.PI * 2;
+			const sp = px(layer, at.x + Math.cos(a) * 52 * s, at.y - 12 * s + Math.sin(a) * 46 * s, 4 * s, 4 * s, '#fff');
+			anim(sp, [{ transform: 'scale(0)', opacity: 1 }, { transform: 'scale(1.6)', opacity: 1, offset: 0.4 }, { transform: 'scale(0)', opacity: 0 }], { duration: 320, delay: i * 30, easing: 'steps(5)' });
+		}
+	}, 520);
+	return 620;
+}
+
 /** 다이맥스 기술: 사용자에게 기운이 모이고, 거대한 타입 색 구체가 날아가 큰 폭발 + 하늘에서 내리꽂는 빛기둥 + 화면 흔들림 */
 export function maxMove(layer: HTMLElement, arena: HTMLElement, type: string, from: Pt, hits: Pt[], s: number): number {
 	const col = TYPE_COLOR[type] || '#fff';

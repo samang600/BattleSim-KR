@@ -28,6 +28,16 @@ const PALACE: { [n: string]: [number, number, number, number, number, number] } 
 	Modest: [35, 45, 20, 86, 7, 7], Mild: [44, 50, 6, 34, 60, 6], Quiet: [56, 22, 22, 48, 32, 20], Bashful: [30, 58, 12, 41, 10, 49], Rash: [30, 13, 57, 76, 22, 2],
 	Calm: [40, 50, 10, 81, 6, 13], Gentle: [18, 70, 12, 91, 6, 3], Sassy: [88, 6, 6, 87, 6, 7], Careful: [42, 50, 8, 89, 6, 5], Quirky: [56, 22, 22, 45, 15, 40],
 };
+/** 팰리스에서는 교체가 없어 구애 도구를 들면 배틀 내내 한 기술만 쓰게 됨 → 상대 팀의 구애 도구는 다른 도구로 바꿈 */
+function palaceItems(team: PSet[]): PSet[] {
+	const used = new Set(team.map(s => toID(s.item)));
+	return team.map(s => {
+		if (!/^choice/.test(toID(s.item))) return s;
+		const alt = ['lifeorb', 'expertbelt', 'sitrusberry', 'lumberry', 'leftovers', 'focussash', 'shellbell', 'scopelens'].find(i => !used.has(i)) || 'sitrusberry';
+		used.add(alt);
+		return { ...s, item: alt };
+	});
+}
 const SELF_TARGETS = new Set(['self', 'allySide', 'allies', 'adjacentAllyOrSelf', 'allyTeam']);
 export function palaceChoice(battle: any, req: any, sideId: 'p1' | 'p2'): string | null {
 	if (!req || req.wait || req.teamPreview) return null;
@@ -87,7 +97,7 @@ export async function runPalace() {
 		const team = await chooseTeam(9, '배틀팰리스 · 팀 선택', true, false, 50);
 		if (team === BACK) return;
 		const n = fmt === 'doubles' ? 4 : 3;
-		const picked = team.length > n ? await ask<PSet[] | typeof BACK>(r => <PickScreen title="참가 포켓몬" team={team} gen={9} count={n} hint="성격이 싸우는 방식을 정합니다. 공격형(고집·대담 등)과 방어형을 섞어 보세요." onBack={() => r(BACK)} onDone={r} />) : team;
+		const picked = team.length > n ? await ask<PSet[] | typeof BACK>(r => <PickScreen title="참가 포켓몬" team={team} gen={9} count={n} hint="성격이 싸우는 방식을 정합니다. 공격형(고집·대담 등)과 방어형을 섞어 보세요. 구애 도구(머리띠·안경·스카프)를 들면 교체가 없어 한 기술만 쓰게 돼요." onBack={() => r(BACK)} onDone={r} />) : team;
 		if (picked === BACK) return;
 		state = { fmt, team: dedupeItems(picked.map(cloneSet)), streak: 0 };
 		save(PALACE_KEY(fmt), state);
@@ -100,7 +110,7 @@ export async function runPalace() {
 		const base: any = towerOpponent(state.streak, fmt, state.team, false, 'normal');
 		const opp = maven ? { ...base, name: '팰리스 메이븐', title: '', sprite: 'spenser', line: no === 49 ? '포켓몬과 마음이 통했는가? 전력으로 확인하겠다!' : '포켓몬을 믿는 마음, 보여 주게!',
 			lines: { ace: '내 포켓몬은 스스로 답을 찾는다!', lose: '훌륭하다… 그대와 포켓몬의 마음은 하나로군.', win: '포켓몬을 더 믿어 보게.' }, skill: 0.97 } : base;
-		opp.team = withLevel(opp.team, 50);
+		opp.team = palaceItems(withLevel(opp.team, 50));
 		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title={`배틀팰리스 · ${fmt === 'doubles' ? '더블' : '싱글'}`} banner={`${no}번째 승부`} prep={<BgmRow />}
 			heading={maven ? '⚠ 팰리스 메이븐 등장!' : `${opp.title ? opp.title + ' ' : ''}${opp.name}${josa(opp.name)} 승부를 걸어왔다!`} trainer={opp.sprite}
 			lines={[`현재 ${state!.streak}연승 · 포켓몬이 성격대로 스스로 싸웁니다`]} sprites={state!.team.map(s => s.species)} sets={state!.team} gen={9}

@@ -366,7 +366,7 @@ function RuleAndFmt({ info, onDone }: { info: RoomInfo; onDone: (rid?: string, f
 /** 방 규칙의 데이터로 팀 고르기 (추천 렌탈 팀도 방 규칙 풀에서) */
 async function chooseRoomTeam(ruleIdIn: string) {
 	applyRuleData(ruleById(ruleIdIn));
-	try { return await chooseTeam(9, '방에서 쓸 파티', true, false, LEVEL); }
+	try { return await chooseTeam(9, '방에서 쓸 파티', true, false, LEVEL, ruleIdIn); }
 	finally { applyRuleData(ruleById(loadSettings().battleRule)); }
 }
 /** 로비 방 안: 대기실 → (둘 다 준비) 고르기 → 배틀 → 다시 대기실 */
