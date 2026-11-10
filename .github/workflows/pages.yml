@@ -86,6 +86,16 @@ jobs:
           else
             cp -r ani-src/ani/. battle-kr/dist/ani/
           fi
+      # 트레이너 초상화 (portraits-ai 브랜치, 없으면 건너뜀) → /portraits/ : 시나리오 모드(개발자 빌드 시안)가 씀
+      - id: portraits
+        run: git ls-remote --exit-code --heads https://github.com/${{ github.repository }} portraits-ai && echo ok=1 >> $GITHUB_OUTPUT || echo ok=0 >> $GITHUB_OUTPUT
+      - if: steps.portraits.outputs.ok == '1'
+        uses: actions/checkout@v4
+        with:
+          ref: portraits-ai
+          path: portraits-src
+      - if: steps.portraits.outputs.ok == '1'
+        run: cp -r portraits-src/portraits battle-kr/dist/portraits
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

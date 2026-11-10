@@ -7,6 +7,7 @@ import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
 import { runOnline } from './online-ui';
+import { runScenario } from './scenario';
 import { replaySession } from './online';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
 import { runPalace, runIppitsu, runDaily, runBossRush, todayDaily } from './frontier';
@@ -39,8 +40,12 @@ const MODES = [
 	{ id: 'daily', name: '오늘의 도전', sub: '', run: runDaily, color: '#d8a018', mon: 'pikachu' },
 	{ id: 'online', name: '온라인 대전', sub: '로비 · 친구 · 랜덤', run: runOnline, color: '#2a8fb0', mon: 'rotom' },
 ];
+// 시나리오 모드 (시안): 개발자 빌드에서만
+declare const __DEV_BUILD__: boolean;
+const SCENARIO_ON = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
+if (SCENARIO_ON) MODES.push({ id: 'scenario', name: '시나리오', sub: '관동 앞부분 (시안)', run: runScenario, color: '#3a9a5a', mon: 'bulbasaur' });
 const FEATURED = ['tower', 'factory', 'rank'];
-const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'online'];
+const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'online', ...(SCENARIO_ON ? ['scenario'] : [])];
 
 function TitleScreen({ onStart }: { onStart: () => void }) {
 	return <div class="title-screen" onClick={onStart}>
