@@ -16,7 +16,8 @@ import { playMusic, sfx } from './sound';
 import type { PSet } from './sets';
 import LEVELUP from './gen/levelup.json';
 import { TIMES, TIME_CLS, WHO, LOCS, locOf, TRAINERS, WILDS, ITEMS, SHOPS, STARTERS, RIVAL_OF, LV_CAP, expNeed,
-	MISTY_AT, MISTY_DOING, mistyTeam, MISTY_FINAL, MISTY_TALKS, type Who, type Loc, type Trainer } from './scenario-data';
+	MISTY_AT, MISTY_DOING, mistyTeam, MISTY_TALKS, type Who, type Trainer } from './scenario-data';
+import { SCRIPTS, EV_TITLE } from './scenario-script';
 
 const LU = LEVELUP as unknown as { [id: string]: { e?: [string, number]; m: [number, string][] } };
 const PORTRAIT_BASE = 'https://samang600.github.io/BattleSim-KR/portraits/';
@@ -80,11 +81,25 @@ function addExp(m: Mon, xp: number, cap: number): string[] {
 }
 
 // ───────── 공용 화면 조각 ─────────
-/** 초상화: 픽셀 상반신(없으면 쇼다운 도트). face = 동그란 아이콘용 */
-function Portrait({ id, sprite, cls = '' }: { id: string; sprite: string; cls?: string }) {
+/** 표정 그림(<초상 id>_<감정>.png)이 있는지 — 한 번만 알아봄. 있으면 그 그림, 없으면 기본 그림 */
+const VARIANT: { [k: string]: boolean | undefined } = {};
+function useVariant(id: string, emo?: string): string {
+	const key = emo && id && !id.startsWith('d_') ? `${id}_${emo}` : '';
+	const [, tick] = useState(0);
+	useEffect(() => {
+		if (!key || VARIANT[key] !== undefined) return;
+		const im = new Image();
+		im.onload = () => { VARIANT[key] = true; tick(x => x + 1); }; im.onerror = () => { VARIANT[key] = false; };
+		im.src = `${PORTRAIT_BASE}${key}.png`;
+	}, [key]);
+	return key && VARIANT[key] ? key : id;
+}
+/** 초상화: 픽셀 상반신(없으면 쇼다운 도트). face = 동그란 아이콘용. emo = 표정(그림이 있으면 바뀜) */
+function Portrait({ id, sprite, cls = '', emo }: { id: string; sprite: string; cls?: string; emo?: string }) {
 	const [bad, setBad] = useState(false);
+	const src = useVariant(id, emo);
 	if (!id || bad) return sprite ? <img class={'sc-portrait dot ' + cls} src={SPRITE_URL(sprite)} onError={trainerImgError} alt="" /> : null;
-	return <img class={'sc-portrait px ' + (id.startsWith('d_') ? 'dotp ' : '') + cls} src={`${PORTRAIT_BASE}${id}.png`} onError={() => setBad(true)} alt="" />;
+	return <img class={'sc-portrait px ' + (id.startsWith('d_') ? 'dotp ' : '') + cls} src={`${PORTRAIT_BASE}${src}.png`} onError={() => setBad(true)} alt="" />;
 }
 /** 도구·배지 아이콘 (PokeAPI sprites). 못 불러오면 fb(직접 그린 것)로 */
 function Ico({ name, size = 32, fb }: { name: string; size?: number; fb?: any }) {
@@ -97,23 +112,41 @@ const BADGE_ICO: { [k: string]: string } = { 회색배지: 'badge1', 블루배�
 const tWho = (t: Trainer): Who => ({ name: t.name, title: t.title, portrait: 'd_' + t.sprite, sprite: t.sprite });
 const Hearts = ({ v, big }: { v: number; big?: boolean }) => <span class={'sc-hearts' + (big ? ' big' : '')}>{[0, 1, 2, 3].map(i => <i class="sc-heart"><b style={{ width: Math.max(0, Math.min(100, v - i * 100)) + '%' }} /></i>)}</span>;
 
-type Line = [who: string | Who | null, text: string];
-/** 대화 장면: 배경(시간대 색) + 큰 초상 + 이름 띠 + 대화창(한 글자씩). who 가 null 이면 해설(초상 없음, 가운데 글상자) */
+type Line = [who: string | Who | null, text: string, emo?: string];
+/** 지난 대사 (기록 보기) · 자동 넘김 설정 */
+const LOG: { name: string; text: string }[] = [];
+let autoOn = (() => { try { return localStorage.getItem('pkbkr-sc-auto') === '1'; } catch { return false; } })();
+const EMO_MARK: { [k: string]: string } = { joy: '♪', shy: '///', surprise: '!', love: '♥', think: '…', smug: '✦', sad: '', angry: '' };
+/** 대화 장면: 배경(시간대 색) + 큰 초상(감정 기호·움직임) + 이름 띠 + 대화창(한 글자씩). who 가 null 이면 해설
+ *  위 단추: 기록(지난 대사) · 자동(다 나오면 알아서 넘김) · 건너뛰기 */
 function Dialog({ lines, bg, tint, done, choice }: { lines: Line[]; bg: string; tint: number; done: (i: number) => void; choice?: string[] }) {
-	const [i, setI] = useState(0), [n, setN] = useState(0);
-	const [who, text] = lines[i], w = typeof who === 'string' ? WHO[who] : who, full = n >= text.length, last = i + 1 >= lines.length;
-	useEffect(() => { setN(0); }, [i]);
+	const [i, setI] = useState(0), [n, setN] = useState(0), [log, setLog] = useState(false), [auto, setAuto] = useState(autoOn);
+	const [who, text, emo] = lines[i], w = typeof who === 'string' ? WHO[who] : who, full = n >= text.length, last = i + 1 >= lines.length;
+	useEffect(() => { setN(0); LOG.push({ name: w?.name || '', text }); if (LOG.length > 200) LOG.shift(); }, [i]);
 	useEffect(() => { if (full) return; const t = setTimeout(() => setN(x => Math.min(text.length, x + 2)), 28); return () => clearTimeout(t); }, [n, i]);
 	const next = () => { if (!full) { setN(text.length); return; } if (!last) { sfx('select'); setI(i + 1); } else if (!choice) done(0); };
+	useEffect(() => { if (!auto || !full || log || (last && choice)) return; const t = setTimeout(next, 900 + text.length * 55); return () => clearTimeout(t); }, [auto, full, i, log]);
+	const stop = (f: () => void) => (e: Event) => { e.stopPropagation(); f(); };
 	return <div class={'story-talk sc-talk' + (w ? '' : ' narr') + (bg === 'black' ? ' black' : '')} onClick={next}>
 		<div class={'st-bg sc-bg fld-' + bg} /><div class={'sc-tint ' + TIME_CLS[tint]} />
-		{w && <div class="st-portrait sc-stp" key={w.name}><Portrait id={w.portrait} sprite={w.sprite} cls="big" /></div>}
+		{w && <div class="st-portrait sc-stp" key={w.name}>
+			<div class={'sc-act' + (emo ? ' mv-' + emo : '')} key={i}><Portrait id={w.portrait} sprite={w.sprite} cls="big" emo={emo} /></div>
+			{emo && <i class={'sc-emo em-' + emo} key={'e' + i}>{EMO_MARK[emo]}</i>}
+		</div>}
 		<div class="st-box">
 			{w && <div class="st-name"><span>{w.name}{w.title && <small> {w.title}</small>}</span><i class="st-deco" /></div>}
 			<div class="st-text">{text.slice(0, n)}{full && !(last && choice) && <span class="st-arrow">▼</span>}</div>
 		</div>
 		{last && full && choice && <div class="sc-choice" onClick={e => e.stopPropagation()}>{choice.map((c, k) => <button onClick={() => { sfx('select'); done(k); }}>{c}</button>)}</div>}
-		{!choice && <button class="st-skip" onClick={e => { e.stopPropagation(); done(0); }}>건너뛰기 ▶▶</button>}
+		<div class="sc-talkbtns">
+			<button onClick={stop(() => setLog(true))}>기록</button>
+			<button class={auto ? 'on' : ''} onClick={stop(() => { autoOn = !auto; try { localStorage.setItem('pkbkr-sc-auto', autoOn ? '1' : '0'); } catch {} setAuto(autoOn); })}>자동{auto ? ' ●' : ''}</button>
+		</div>
+		{!choice && <button class="st-skip" onClick={stop(() => done(0))}>건너뛰기 ▶▶</button>}
+		{log && <div class="sc-log" onClick={stop(() => setLog(false))}>
+			<h3>지난 대사 <small>화면을 누르면 닫힘</small></h3>
+			<div class="sc-log-list" ref={(el: any) => { if (el) el.scrollTop = el.scrollHeight; }}>{LOG.map(l => <p class={l.name ? '' : 'narr'}>{l.name && <b>{l.name}</b>}{l.text}</p>)}</div>
+		</div>}
 	</div>;
 }
 /** 화면 전환·카드: fade(검게) · iris(동그랗게 닫힘) · blinds(가로 띠) · battle(번쩍 + 빗금) · card(제목 카드) */
@@ -181,6 +214,59 @@ function engine(run: Run) {
 	return { L, say, choose, fx, card, got, pay, heart, tick, fight, reward, blackout };
 }
 type Eng = ReturnType<typeof engine>;
+
+/** 대본(scenario-script.ts)을 읽어 나감. 배틀에서 지면 거기서 멈추고 false */
+const fill = (run: Run, t: string) => t.replace(/\{me\}/g, playerName()).replace(/\{starter\}/g, run.starter ? speciesKo(run.starter) : '');
+const toLine = (run: Run, t: string): Line => { const m = /^([a-z]*)(?:\[(\w+)\])?: ([\s\S]*)$/.exec(t); return m ? [m[1] || null, fill(run, m[3]), m[2]] : [null, fill(run, t)]; };
+async function play(run: Run, E: Eng, id: string): Promise<boolean> {
+	let bg: string | null = null, buf: Line[] = [];
+	const at = () => bg || E.L().bg;
+	const flush = async () => { if (buf.length) { const b = buf; buf = []; await E.say(b, at()); } };
+	for (const c of SCRIPTS[id] || []) {
+		if (typeof c === 'string') { buf.push(toLine(run, c)); continue; }
+		await flush();
+		if ('bg' in c) bg = c.bg;
+		else if ('card' in c) await E.card(c.card[1], c.card[2], c.card[0], c.card[3] || 'black');
+		else if ('fight' in c) {
+			const team = mk(c.fight.team);
+			if (!(await E.fight({ ...c.fight, team }))) { await E.say([toLine(run, c.lose)], at()); return false; }
+			await E.reward(team, c.win, c.money);
+		}
+		else if ('got' in c) await E.got(c.got, c.n || 1);
+		else if ('pay' in c) { run.money += c.pay; persist(run); await ask<void>(r => <GetCard key={K()} title={won(c.pay)} sub={c.sub} coin done={r} />); }
+		else if ('heart' in c) await E.heart(c.heart);
+		else if ('badge' in c) { run.flags[c.flag] = 1; run.badges.push(c.badge); persist(run); await ask<void>(r => <GetCard key={K()} icon={c.icon} title={c.badge} sub={c.sub} done={r} />); }
+		else if ('flag' in c) { run.flags[c.flag] = 1; persist(run); }
+		else if ('toast' in c) toast(c.toast);
+		else if ('music' in c) playMusic(c.music);
+	}
+	await flush();
+	return true;
+}
+/** 지도 위 이동 연출 (웨스노스의 여정 지도처럼): 길을 따라 점선이 그어지고 내 트레이너가 한 곳씩 옮겨 감 */
+function routeBetween(run: Run, a: string, b: string): string[] {
+	const prev: { [id: string]: string } = { [a]: '' }, q = [a];
+	while (q.length) { const x = q.shift()!; if (x === b) break; for (const y of locOf(x).to) if (!(y in prev) && unlocked(run, y)) { prev[y] = x; q.push(y); } }
+	const out: string[] = []; for (let x = b; x; x = prev[x]) out.unshift(x);
+	return out[0] === a ? out : [a, b];
+}
+function Travel({ run, to, done }: { run: Run; to: string; done: () => void }) {
+	const path = routeBetween(run, run.loc, to).map(locOf);
+	const [k, setK] = useState(0);
+	useEffect(() => { const t = setTimeout(() => k + 1 < path.length ? setK(k + 1) : done(), k + 1 < path.length ? 430 : 420); return () => clearTimeout(t); }, [k]);
+	return <div class="sc-mapscr sc-travel" onClick={done}>
+		<div class="sh-top sc-top"><div class="sh-title">{locOf(run.loc).name} → {locOf(to).name}<em class="sc-mission">이동 중…</em></div>
+			<div class="sc-clock"><small>{run.day}일째</small><b class={TIME_CLS[run.time]}>{TIMES[run.time]}</b></div></div>
+		<div class="sc-mapwrap"><div class="sc-map">
+			<svg class="sc-roads" viewBox="0 0 100 100" preserveAspectRatio="none">
+				{LOCS.flatMap(a => a.to.filter(b => a.id < b).map(b => { const B = locOf(b); return <line x1={a.x} y1={a.y} x2={B.x} y2={B.y} class="off" />; }))}
+				{path.slice(0, k).map((a, i) => <line x1={a.x} y1={a.y} x2={path[i + 1].x} y2={path[i + 1].y} class="go" />)}
+			</svg>
+			{LOCS.map(l => <span class={'sc-node' + (l.town ? ' town' : '') + (l.id === to ? ' sel' : '') + (unlocked(run, l.id) ? '' : ' lock')} style={{ left: l.x + '%', top: l.y + '%' }}><i />{l.id === to && <span>{l.name}</span>}</span>)}
+			<img class="sc-travel-me" style={{ left: path[k].x + '%', top: path[k].y + '%' }} src={SPRITE_URL(playerSprite())} alt="" onError={trainerImgError} />
+		</div></div>
+	</div>;
+}
 
 function GetCard({ title, sub, icon, coin, done }: { title: string; sub: string; icon?: string; coin?: boolean; done: () => void }) {
 	return <div class="sc-get" onClick={done}><div class="sc-get-box">
@@ -459,56 +545,21 @@ function SeriesSelect({ saved, done }: { saved: Run | null; done: (a: 'go' | 'ne
 	</Screen>;
 }
 
-// ───────── 이야기: 프롤로그 ─────────
+// ───────── 이야기 (대사는 scenario-script.ts) ─────────
 async function prologue(run: Run, E: Eng) {
-	const me = playerName();
-	playMusic('g3star');
-	await E.say([[null, '포켓몬스터— 줄여서 포켓몬.'], [null, '이 세계 곳곳에는 포켓몬이라 불리는 신비한 생명체가 살고 있다.'], [null, '사람은 포켓몬과 함께 놀고, 함께 일하고, 때로는 힘을 합쳐 승부를 겨루며 살아간다.'], [null, `그리고 오늘—\n태초마을의 ${me}, 여행을 떠나는 날.`]], 'black');
-	await E.card('관동 편', '새하얀 시작의 색', 'PROLOGUE');
-	playMusic('lobby');
-	await E.say([['oak', `오오, ${me}! 기다리고 있었단다.`], ['oak', '나는 오박사. 사람들은 나를 포켓몬 박사라고 부르지.'], ['oak', '오늘부터 너도 포켓몬 트레이너란다. 저 탁자 위 몬스터볼 가운데 함께 여행할 한 마리를 고르렴!']], 'lab');
+	await play(run, E, 'pro1');
 	const i = await ask<number>(r => <PickMon title="처음 포켓몬" hint="함께 여행할 포켓몬을 한 마리 골라 주세요." opts={STARTERS.map(([sp, note]) => ({ m: { sp, lv: 5, exp: 0 }, note }))} done={r} />);
-	run.starter = STARTERS[i][0]; run.party = [{ sp: run.starter, lv: 5, exp: 0 }]; persist(run);
-	await E.say([['oak', `${josa(speciesKo(run.starter), '이', '')}구나! 아주 씩씩한 녀석이란다. 잘 돌봐 주렴.`], ['rival', '할아버지! 나는?! 기다리다 지쳤다고!'], ['oak', '그린이냐. 서두르지 말고 너도 하나 고르렴.'],
-		['rival', `그럼 난 이 녀석! …이봐 ${me}, 모처럼 받았는데 그냥 갈 순 없지. 누구 포켓몬이 더 센지 지금 겨뤄 보자고!`]], 'lab');
+	run.starter = STARTERS[i][0]; run.party = [{ sp: run.starter, lv: 5, exp: 0 }]; run.loc = 'pallet'; persist(run);
+	await play(run, E, 'pro2');
 	const rv = RIVAL_OF[run.starter];
-	run.loc = 'pallet';
 	const win = await E.fight({ name: '그린', title: '라이벌', sprite: 'blue', team: [{ sp: rv, lv: 5, exp: 0, mlv: 1 }], skill: 0.2, arena: 'field', music: 'battle' });
 	if (win) await E.reward([{ sp: rv, lv: 5, exp: 0 }], '그린에게 이겼다!', 0);
-	await E.say([['rival', win ? '칫…! 뭐, 처음이니까 봐준 거야!' : '하핫! 역시 내가 고른 포켓몬이 최고라니까!'], ['rival', '난 먼저 간다. 관동의 체육관 배지, 내가 전부 먼저 모을 테니까! 스멜 유 레이터!'],
-		['oak', '허허, 성미도 급하지. 자, 이건 내 선물이란다.']], 'lab');
-	await E.got('pokeball', 5);
-	run.money += 3000; persist(run);
-	await ask<void>(r => <GetCard key={K()} title="용돈 3,000원" sub="엄마가 챙겨 주신 용돈" coin done={r} />);
-	await E.say([['oak', '풀숲에서 야생 포켓몬을 이긴 뒤 그 볼을 던지면 동료로 맞이할 수 있단다.'], ['oak', '관동에는 여덟 개의 체육관이 있지. 가까운 곳은 북쪽 회색시티의 웅, 그리고 달맞이산 너머 블루시티의 이슬이란다.'],
-		['oak', '어디로 가든 네 마음이란다. 포켓몬과 함께 너만의 이야기를 만들어 보렴!']], 'lab');
-	run.flags.intro = 1; persist(run);
+	await play(run, E, win ? 'proWin' : 'proLose');
+	await play(run, E, 'pro3');
 	await E.fx('iris', 700, 'lab');
 }
-
-// ───────── 이야기: 이슬 루트 ─────────
-const GR = (t: [string, number][]) => mk(t);
-async function mistyMeet(run: Run, E: Eng) {
-	await E.card('블루시티', '물빛 신비의 색', 'CHAPTER · 만남', 'cerulean');
-	await E.say([[null, '수로를 따라 걷는데, 물속에서 무언가가 솟구쳐 올랐다.'], ['misty', '푸핫—! 역시 아침 수영은 최고야!'], ['misty', '…어? 거기 너. 처음 보는 얼굴인데. 혹시 체육관 도전자야?'],
-		['misty', '난 이슬. 이 블루 체육관의 관장이야. 물 포켓몬이라면 누구에게도 지지 않아!'], ['misty', '말괄량이 인어라고 들어 봤지? …안 들어 봤다고? 흥, 그럼 오늘 똑똑히 기억하고 가!'],
-		['misty', '체육관은 저기 물빛 지붕 건물이야. 내 제자들을 이기고 풀장 끝까지 오면, 내가 직접 상대해 줄게!']]);
-	run.flags.met = 1; persist(run);
-}
-async function mistyGym(run: Run, E: Eng) {
-	await E.say([['misty', '여기까지 왔구나! 제자들을 둘이나 이기다니, 제법인데?'], ['misty', '넌 포켓몬을 키울 때 어떤 방침이 있어? 내 방침은— 물 타입으로 밀고, 밀고, 또 미는 거야!'], ['misty', '자, 간다! 블루 체육관 관장 이슬, 진심으로 상대할게!']], 'pool');
-	const team = GR([['staryu', 18], ['starmie', 21]]);
-	if (!(await E.fight({ name: '이슬', title: '블루 체육관 관장', sprite: 'misty', team, skill: 0.6, arena: 'beach', music: 'boss' }))) {
-		await E.say([['misty', '후훗, 물의 흐름을 못 읽었네! 더 단련하고 다시 와. 기다릴게!']], 'pool'); return;
-	}
-	run.flags.badge2 = 1; run.badges.push('블루배지');
-	await E.reward(team, '관장 이슬에게 이겼다!', 2100);
-	await E.say([['misty', '와… 졌다. 완패야. 너, 정말 강하구나!'], ['misty', '약속대로 이걸 줄게. 포켓몬리그 공인 블루배지야!']], 'pool');
-	await ask<void>(r => <GetCard key={K()} icon="badge2" title="블루배지" sub="레벨 상한이 올랐다 · 가게 물건이 늘었다" done={r} />);
-	await E.say([['misty', '있잖아. 요즘 관동에선 둘이 한 팀으로 싸우는 태그 배틀이 유행이야.'], ['misty', '너 정도 실력이면… 가끔 내 파트너로 삼아 줘도 좋아. 가, 가끔이야!'], ['misty', '난 시간마다 있는 곳이 달라. 아침엔 수영, 낮엔 체육관, 저녁엔 산책… 찾아와서 말 걸어 줘.']], 'pool');
-	await E.card('이슬 루트', '인물 루트가 열렸다', 'ROUTE OPEN', 'cerulean');
-	await E.heart(40);
-}
+const mistyMeet = (run: Run, E: Eng) => play(run, E, 'meet');
+const mistyGym = (run: Run, E: Eng) => play(run, E, 'gym');
 /** 이슬에게 말 걸기: 이야기 · 선물 · 태그 · (하트가 차면) 초대 */
 async function mistyMenu(run: Run, E: Eng) {
 	if (!has(run, 'badge2')) { await E.say([['misty', has(run, 'c2') ? '풀장 끝에서 기다릴게. 어서 와!' : '체육관 도전은 제자들부터! 물빛 지붕 건물이야.']]); return; }
@@ -522,109 +573,35 @@ async function mistyMenu(run: Run, E: Eng) {
 		const [q, ans] = MISTY_TALKS[(run.day + run.ev) % MISTY_TALKS.length];
 		const a = await E.choose('misty', q, ans.map(x => x[0]));
 		run.talked = run.day; persist(run);
-		await E.say([['misty', ans[a][2]]]);
+		await E.say([['misty', ans[a][2], ans[a][1] >= 8 ? 'shy' : ans[a][1] >= 5 ? 'joy' : ans[a][1] <= 1 ? 'angry' : undefined]]);
 		await E.heart(ans[a][1]);
 	} else if (c === 1) {
 		if (!gifts.length) { await E.say([['misty', '선물? 빈손이잖아! …기대하게 만들지 마.']]); return; }
 		const g = await E.choose('misty', '어? 나한테 줄 게 있어?', [...gifts.map(id => `${ITEMS[id].name} ×${run.bag[id]}`), '그만두기']);
 		if (g >= gifts.length) return;
 		const id = gifts[g], like = ITEMS[id].misty!; give(run, id, -1); persist(run);
-		await E.say([['misty', like === 2 ? `${ITEMS[id].name}?! 이거 갖고 싶었는데… 고, 고마워. 소중히 할게!` : like === 1 ? `${ITEMS[id].name}구나. 고마워, 잘 받을게.` : `꺄악! 버, 벌레?! 이런 걸 왜 주는 거야! 당장 치워!!`]]);
+		await E.say([['misty', like === 2 ? `${ITEMS[id].name}?! 이거 갖고 싶었는데… 고, 고마워. 소중히 할게!` : like === 1 ? `${ITEMS[id].name}구나. 고마워, 잘 받을게.` : `꺄악! 버, 벌레?! 이런 걸 왜 주는 거야! 당장 치워!!`, like === 2 ? 'love' : like === 1 ? 'joy' : 'angry']]);
 		await E.heart(like === 2 ? 25 : like === 1 ? 10 : -15);
 	} else if (c === 2) {
 		run.tag = !run.tag; persist(run);
-		await E.say([['misty', run.tag ? '태그? 좋아, 오늘은 네 파트너가 되어 줄게. 내 물 포켓몬들 실력, 옆에서 똑똑히 봐 둬!' : '벌써 끝이야? 뭐, 나도 체육관 일이 있으니까. …또 불러.']]);
+		await E.say([['misty', run.tag ? '태그? 좋아, 오늘은 네 파트너가 되어 줄게. 내 물 포켓몬들 실력, 옆에서 똑똑히 봐 둬!' : '벌써 끝이야? 뭐, 나도 체육관 일이 있으니까. …또 불러.', run.tag ? 'joy' : 'sad']]);
 		if (run.tag) toast('이슬과 태그를 맺었다 — 길거리 트레이너와의 배틀이 멀티배틀이 돼요');
 	}
 }
 /** 하트가 가득 찼을 때: 다음 이야기로의 초대 */
 async function invite(run: Run, E: Eng) {
-	const k = run.ev + 1;
-	const lines: Line[][] = [
-		[['misty', '마침 잘 왔어! 부탁이 하나 있는데.'], ['misty', '블루시티 북쪽 골든볼브리지 알아? 트레이너 다섯을 연달아 이기면 상품을 준다는 다리야.'], ['misty', '올해는 둘이 한 팀으로 도전하는 태그전이래. 그러니까… 나랑 나가 줘! 골든볼브리지에서 기다릴게!']],
-		[['misty', '있잖아, 요즘 블루시티에 수상한 사람들이 돌아다닌대.'], ['misty', '검은 옷에 빨간 R… 다리에서 본 그 녀석들 같아. 관장으로서 가만둘 수 없어.'], ['misty', '블루시티에서 같이 순찰 좀 돌아 줄래? 준비되면 시내에서 나를 찾아와!']],
-		[['misty', '저, 저기 말이야.'], ['misty', '블루곶 알지? 25번도로 끝, 바다가 보이는 언덕. 노을이 정말 예쁘거든.'], ['misty', '저녁에… 거기로 와 줄래? 따, 딱히 별 뜻은 없어! 그냥 보여 주고 싶어서 그래!']],
-		[['misty', '…와 줬구나.'], ['misty', '요즘 계속 생각했어. 너랑 다니면서 내가 뭘 하고 싶은지.'], ['misty', '저녁에 블루곶으로 와. 관장이 아니라 트레이너 이슬로서— 너한테 전하고 싶은 게 있어.']],
-	];
-	await E.say(lines[k - 1]);
-	run.flags['inv' + k] = 1; run.tag = false; persist(run);
-	if (k === 1) toast('골든볼브리지에 갈 수 있게 되었다!');
+	await play(run, E, 'inv' + (run.ev + 1));
+	run.tag = false; persist(run);
 }
+/** 하트 이벤트 (지면 다음에 처음부터 다시) */
 async function mistyEvent(run: Run, E: Eng) {
-	const k = run.ev + 1, me = playerName();
-	const done = async (title: string) => { run.ev = k; run.flags['ev' + k] = 1; persist(run); await E.card(title, '하트 이벤트 클리어', `♥ ${k} / 4`, L().bg, 2200); };
-	const L = E.L;
-	const lose = async (line: string) => { await E.say([['misty', line]]); await E.tick(); };
-	if (k === 1) {
-		await E.card('골든볼브리지의 태그 승부', '이슬 루트', '♥ 1', 'bridge');
-		await E.say([['misty', '왔구나! 봐, 다리 위에 벌써 도전자들이 줄을 섰어.'], ['misty', '규칙은 간단해. 둘이서 한 팀, 상대도 둘. 내 아쿠스타랑 네 포켓몬이 나란히 싸우는 거야.'], ['misty', '호흡이 안 맞으면 바로 물에 빠뜨릴 거니까 각오해! 가자, 파트너!']]);
-		const rounds: [string, string, string, [string, number][]][] = [
-			['곤충채집소년 케일 & 짧은치마 아리', 'bugcatcher', 'lass', [['metapod', 17], ['pidgey', 17], ['kakuna', 17], ['oddish', 17]]],
-			['반바지 꼬마 티미 & 캠프보이 이든', 'youngster', 'camper', [['sandshrew', 18], ['mankey', 18], ['ekans', 18], ['geodude', 18]]],
-		];
-		for (const [name, s1, s2, t] of rounds) {
-			const team = GR(t);
-			if (!(await E.fight({ name, sprite: s1, sprite2: s2, team, skill: 0.4, tag: true, music: 'battle' }))) { await lose('아이참! 아직 호흡이 안 맞네. 다시 준비해서 와, 여기서 기다릴게!'); return; }
-			await E.reward(team, `${name} 팀에게 이겼다!`, 600);
-			if (name.startsWith('곤충')) await E.say([['misty', '으으, 벌레 포켓몬…! 내, 내 뒤로 오게 하지 마! …그래도 이겼으니 됐어. 다음!']]);
-		}
-		await E.say([[null, '다리 끝에서 정장 차림의 남자 둘이 박수를 치며 다가왔다.'], ['grunt', '축하한다! 골든볼브리지를 돌파한 너희에게 상품으로 금구슬을 주지!'], ['grunt', '그런데 말이지… 그 실력, 썩히긴 아깝군. 우리 로켓단에 들어오지 않겠나?'],
-			['misty', '로켓단?! 달맞이산에서 소란 피웠다는 그 녀석들이잖아!'], ['gruntf', '거절이야? 그럼 금구슬은 못 주지. 대신 혼쭐을 내 주마!']]);
-		const team = GR([['ekans', 19], ['rattata', 19], ['zubat', 19], ['raticate', 20]]);
-		if (!(await E.fight({ name: '조무래기들', title: '로켓단', sprite: 'rocketgrunt', sprite2: 'rocketgruntf', team, skill: 0.5, tag: true, music: 'evil' }))) { await lose('분해…! 저 녀석들, 그냥 둘 수 없어. 다시 도전하자!'); return; }
-		await E.reward(team, '로켓단을 쫓아냈다!', 800);
-		await E.say([['grunt', '으윽…! 기억해 둬라! 금구슬은… 가져가!'], ['misty', '흥, 꼴좋다! 내 도시 근처에서 얼쩡거리지 말라고!']]);
-		await E.got('nugget');
-		await E.say([['misty', '…있잖아. 솔직히 놀랐어. 내가 치고 나갈 때 네가 딱 받쳐 주더라.'], ['misty', '누구랑 이렇게 호흡이 맞은 건 처음이야. 관장은 늘 혼자 싸우니까.'], ['misty', '또 같이 싸워 줄 거지? …대답은 "응" 하나만 받을 거야!']]);
-		await done('골든볼브리지의 태그 승부');
-	} else if (k === 2) {
-		await E.card('블루시티 도둑 사건', '이슬 루트', '♥ 2', 'cerulean');
-		await E.say([['misty', '와 줬구나. 그럼 순찰을—'], [null, '"도, 도둑이야—!!"'], ['misty', '방금 들었어?! 저쪽 집이야, 가자!'],
-			['victim', '아이고, 이슬 관장님! 누가 우리 집 벽에 구멍을 뚫고 들어와서 아끼던 기술머신을 훔쳐 갔어요!'], ['victim', '「구멍파기」 기술머신이었는데… 검은 옷 입은 놈들이 뒷마당으로 달아났어요!'],
-			['misty', '벽에 구멍을… 내 도시에서 감히! ' + me + ', 뒷마당이야!']]);
-		await E.say([['grunt', '헉, 벌써 쫓아왔어? 이 기술머신만 있으면 어디든 구멍을 파고 들어갈 수 있다고!'], ['gruntf', '관장이 직접 납셨네. 둘 다 여기서 발을 묶어 주지!']]);
-		const team = GR([['machop', 21], ['drowzee', 21], ['ekans', 21], ['koffing', 21]]);
-		if (!(await E.fight({ name: '조무래기들', title: '로켓단', sprite: 'rocketgrunt', sprite2: 'rocketgruntf', team, skill: 0.55, tag: true, music: 'evil' }))) { await lose('놓쳤어…! 아직 멀리 못 갔을 거야. 준비해서 다시 쫓자!'); return; }
-		await E.reward(team, '도둑을 붙잡았다!', 1000);
-		await E.say([['grunt', '크윽… 기술머신은 돌려주마! 도망쳐!'], ['victim', '고맙습니다, 고맙습니다! 이건 변변찮지만 사례예요.']]);
-		await E.got('quickclaw');
-		await E.say([[null, '소동이 가라앉고, 둘은 수로 옆 난간에 나란히 기댔다.'], ['misty', '…관장이라는 건 말이야, 이 도시를 지키는 사람이기도 해.'], ['misty', '그래서 난 블루시티를 떠날 수가 없어. 도전자를 기다리고, 도시를 지키고.'],
-			['misty', '그런데 가끔은… 너처럼 여기저기 돌아다니는 트레이너가 부러워. 세상에는 내가 못 본 물 포켓몬이 얼마나 많을까.'], ['misty', '…아, 방금 건 잊어! 그보다 다음엔 블루곶에 가 보자. 길은 내가 알려 줄게.']]);
-		await done('블루시티 도둑 사건');
-		toast('블루곶에 갈 수 있게 되었다!');
-	} else if (k === 3) {
-		await E.card('블루곶의 노을', '이슬 루트', '♥ 3', 'cape');
-		await E.say([[null, '수평선으로 해가 내려앉고 있었다. 바다도 풀밭도 온통 주황빛이다.'], ['misty', '어때, 예쁘지? 여기가 내 비밀 장소야. …사실 연인들의 명소로 더 유명하지만.'], ['misty', '그, 그런 뜻으로 부른 건 아니야! 정말이야!'],
-			[null, '그때, 언덕 위 집에서 삐삐 한 마리가 허둥지둥 뛰어나왔다.'], ['clefairy', '거기 자네들! 마침 잘 왔네! 난 포켓몬이 아니야, 이수재라고!'], ['misty', '삐삐가 말을 했어?!'],
-			['clefairy', '전송 장치 실험을 하다 포켓몬이랑 붙어 버렸지 뭔가. 내가 장치에 들어갈 테니 컴퓨터의 분리 프로그램을 눌러 주게!'], [null, '…시키는 대로 단추를 누르자, 장치에서 청년이 걸어 나왔다.'],
-			['bill', '후우, 살았네! 난 이수재. 포켓몬 맡기기 시스템을 만든 사람이지. 정말 고맙—'], ['exec', '거기까지다, 이수재. 그 맡기기 시스템의 자료, 우리 로켓단이 가져가겠다.'],
-			['misty', '또 너희야?! 이번엔 간부까지 납셨네!'], ['exec', '조무래기들이 신세를 졌다더군. 블루시티 관장과 꼬마 트레이너… 한꺼번에 치워 주지.']]);
-		const team = GR([['raticate', 24], ['machop', 23], ['golbat', 24], ['drowzee', 23], ['koffing', 24]]);
-		if (!(await E.fight({ name: '간부 & 조무래기', title: '로켓단', sprite: 'ariana', sprite2: 'rocketgrunt', team, skill: 0.65, tag: true, music: 'evil' }))) { await lose('강해…! 하지만 여기서 물러설 순 없어. 저녁에 다시 오자, 이번엔 꼭 이겨!'); return; }
-		await E.reward(team, '로켓단 간부를 물리쳤다!', 1500);
-		await E.say([['exec', '…흥. 관장과 꼬마 주제에 제법이군. 오늘은 물러나 주지.'], ['bill', '덕분에 시스템을 지켰네! 이건 내 감사의 표시일세. 포켓몬에게 지니게 해 보게.']]);
-		await E.got('leftovers');
-		await E.say([[null, '이수재가 집으로 돌아가고, 곶에는 다시 파도 소리만 남았다.'], ['misty', '정말이지, 조용히 노을 좀 보려고 했는데.'], ['misty', '…그래도 네가 옆에 있어서 든든했어. 간부 앞에서도 하나도 안 무섭더라.'],
-			['misty', '저기, ' + me + '. 나 말이야, 꿈이 있어. 세계 제일의 물 포켓몬 트레이너가 되는 거.'], ['misty', '관장 자리에 앉아서 기다리기만 해선 닿을 수 없는 꿈인데… 너를 보고 있으면 자꾸 욕심이 나.'],
-			['misty', '…아, 해가 다 졌네. 오늘은 여기까지! 다음에… 진짜 하고 싶은 얘기를 할게.']]);
-		await done('블루곶의 노을');
-	} else {
-		await E.card('진심 승부', '이슬 루트 · 마지막 이야기', '♥ 4', 'cape');
-		await E.say([[null, '노을 진 블루곶. 이슬은 바다를 등지고 서 있었다. 평소의 수영복이 아닌, 승부에 나설 때의 눈빛으로.'], ['misty', '와 줘서 고마워, ' + me + '.'], ['misty', '체육관에서 너랑 싸웠을 때, 난 관장으로서 도전자를 시험한 거였어.'],
-			['misty', '하지만 지금은 달라. 너랑 같이 다리를 건너고, 도둑을 쫓고, 간부랑 맞서면서… 난 다시 도전하는 쪽이 되고 싶어졌어.'], ['misty', '그러니까 부탁이야. 관장 이슬이 아니라 트레이너 이슬로서— 내 전부를 받아 줘!']]);
-		const team = GR(MISTY_FINAL);
-		if (!(await E.fight({ name: '이슬', title: '말괄량이 인어', sprite: 'misty', team, skill: 0.85, music: 'champion' }))) { await lose('…내가 이겼네. 하지만 이건 네 진심이 아니지? 다시 와. 몇 번이든 기다릴게.'); return; }
-		await E.reward(team, '이슬과의 진심 승부에서 이겼다!', 3000);
-		playMusic('g3sunset');
-		await E.say([['misty', '하아… 하아… 졌다! 전부 쏟아부었는데, 그래도 졌어!'], ['misty', '그런데 이상하지? 하나도 분하지 않아. 오히려 가슴이 뻥 뚫린 것 같아.'], ['misty', '결심했어. 체육관은 제자들에게 잠깐 맡기고, 나도 여행을 떠날 거야. 더 넓은 바다를 보러.'],
-			['misty', '그리고 그 여행에… 네가 있었으면 좋겠어.'], ['misty', '파, 파트너로서 말이야! 태그 파트너! …지금은, 일단은 그 뜻으로 해 둘게.'], ['misty', '이건 내 보물이야. 네가 가졌으면 해.']]);
-		await E.got('mysticwater');
-		await E.say([['misty', '자, 가자 ' + me + '! 다음 바다는 어디야? 어디든 좋아— 너랑이라면!']]);
-		run.ev = 4; run.flags.ev4 = 1; run.tag = true; persist(run);
-		await E.fx('fade', 900);
-		await ask<void>(r => <Credits key={K()} run={run} done={r} />);
-		await E.card('이슬 루트 · 클리어', '이슬과 언제든 태그를 맺을 수 있어요', 'CONGRATULATIONS', 'cape', 3200);
-	}
+	const k = run.ev + 1;
+	if (!(await play(run, E, 'ev' + k))) { await E.tick(); return; }
+	run.ev = k; run.flags['ev' + k] = 1; if (k === 4) run.tag = true; persist(run);
+	if (k < 4) { await E.card(EV_TITLE[k - 1], '하트 이벤트 클리어', `♥ ${k} / 4`, E.L().bg, 2200); return; }
+	await E.fx('fade', 900);
+	await ask<void>(r => <Credits key={K()} run={run} done={r} />);
+	await E.card('이슬 루트 · 클리어', '이슬과 언제든 태그를 맺을 수 있어요', 'CONGRATULATIONS', 'cape', 3200);
 }
 
 // ───────── 진행 ─────────
@@ -650,7 +627,7 @@ export async function runScenario() {
 		if (a.k === 'map') {
 			const to = await ask<string | null>(r => <WorldMap run={run} done={r} />);
 			if (!to) continue;
-			await E.fx('iris', 650);
+			await ask<void>(r => <Travel key={K()} run={run} to={to} done={r} />);
 			run.loc = to; if (locOf(to).rest) run.town = to;
 			await E.tick();
 			banner = true;
@@ -683,18 +660,7 @@ export async function runScenario() {
 		if (n.k === 'gym') { await mistyGym(run, E); continue; }
 		if (n.k === 'misty') { await mistyMenu(run, E); continue; }
 		if (n.k === 'event') { await mistyEvent(run, E); banner = true; continue; }
-		if (n.k === 'brock') {
-			await E.say([['brock', '나는 회색 체육관 관장 웅!'], ['brock', '내 바위처럼 단단한 의지는 포켓몬에게도 깃들어 있다. 바위 타입의 굳건함을 보여 주마!']]);
-			const team = GR([['geodude', 12], ['onix', 14]]);
-			if (!(await E.fight({ name: '웅', title: '회색 체육관 관장', sprite: 'brock', team, skill: 0.55, arena: 'gym', music: 'boss' }))) { await E.say([['brock', '바위는 쉽게 부서지지 않는다. 더 단련하고 다시 오너라!']]); await E.tick(); continue; }
-			run.flags.badge1 = 1; run.flags.brock = 1; run.badges.push('회색배지');
-			await E.reward(team, '관장 웅에게 이겼다!', 1400);
-			await E.say([['brock', '너를 얕봤던 것 같군. 내 패배다. 포켓몬리그 공인 회색배지를 받아라!']]);
-			await ask<void>(r => <GetCard key={K()} icon="badge1" title="회색배지" sub="레벨 상한이 올랐다 · 달맞이산을 지날 수 있다" done={r} />);
-			await E.got('hardstone');
-			await E.say([['brock', '동쪽 달맞이산을 넘으면 블루시티다. 그곳 관장 이슬은… 성격은 불같지만 실력은 진짜지. 조심해라.']]);
-			continue;
-		}
+		if (n.k === 'brock') { if (!(await play(run, E, 'brock'))) await E.tick(); continue; }
 		if (n.k === 'wild') {
 			const w = WILDS.find(x => x.loc === run.loc)!, pool = run.time === 3 && w.night ? w.night : w.pool;
 			const [sp, lo, hi] = pool[Math.floor(Math.random() * pool.length)], foe: Mon = { sp, lv: lo + Math.floor(Math.random() * (hi - lo + 1)), exp: 0 };
@@ -728,7 +694,7 @@ export async function runScenario() {
 			if (t.once) run.flags[t.id] = 1; run.beaten[t.id] = run.day; if (mate && tag) run.beaten[mate.id] = run.day;
 			await E.reward(team, `${mate && tag ? `${t.name} 팀` : t.name}에게 이겼다!`, Math.max(...team.map(m => m.lv)) * (mate && tag ? 60 : 30) * (t.title ? 2 : 1));
 			await E.say([[who, t.after]]);
-			if (tag) { await E.say([['misty', ['나이스! 방금 연계, 완벽했어!', '후훗, 우리 꽤 잘 맞는데?', '봤지? 내 아쿠스타의 스피드!', '좋아, 이 기세로 다음도 가자!'][Math.floor(Math.random() * 4)]]]); await E.heart(10); }
+			if (tag) { await E.say([['misty', ['나이스! 방금 연계, 완벽했어!', '후훗, 우리 꽤 잘 맞는데?', '봤지? 내 아쿠스타의 스피드!', '좋아, 이 기세로 다음도 가자!'][Math.floor(Math.random() * 4)], 'joy']]); await E.heart(10); }
 			continue;
 		}
 		void loc;

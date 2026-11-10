@@ -3419,3 +3419,33 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .sc-menu button .sc-pico { margin-bottom: -2px; }
 /* 세로 화면에서는 가로 그림의 일부만 보이므로, 그림마다 보여 줄 자리를 정함 */
 .sc-bg.fld-pallet { background-position: 25% center; } .sc-bg.fld-route { background-position: 40% center; } .sc-bg.fld-viridian { background-position: 35% center; } .sc-bg.fld-forest { background-position: 50% center; } .sc-bg.fld-pewter { background-position: 60% center; } .sc-bg.fld-mtmoon { background-position: 30% center; } .sc-bg.fld-cerulean { background-position: 85% center; } .sc-bg.fld-bridge { background-position: 12% center; } .sc-bg.fld-cape { background-position: 55% center; } .sc-bg.fld-pool { background-position: 80% center; } .sc-bg.fld-lab { background-position: 80% center; }
+
+/* 시나리오: 대화 단추(기록·자동) · 지난 대사 · 감정 기호와 초상 움직임 · 지도 이동 연출 */
+.sc-talkbtns { position: absolute; left: 10px; top: calc(10px + var(--safe-top, 0px)); display: flex; gap: 6px; z-index: 2; }
+.sc-talkbtns button { padding: 4px 10px; font: inherit; font-size: 12px; color: #fff; border: 0; cursor: pointer; background: rgba(8,16,40,.8); box-shadow: 0 0 0 2px #3ac8ff; }
+.sc-talkbtns button.on { background: #1a6aa8; box-shadow: 0 0 0 2px #ffe070; color: #ffe070; }
+.sc-log { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; padding: calc(12px + var(--safe-top, 0px)) 14px calc(12px + var(--safe-bottom, 0px)); background: #060a16; color: #fff; }
+.sc-log h3 { margin: 0 0 8px; font-size: 16px; color: #7fe0ff; } .sc-log h3 small { font-size: 11px; color: #8a9ac0; margin-left: 6px; }
+.sc-log-list { flex: 1; overflow-y: auto; } .sc-log-list p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+.sc-log-list b { display: block; font-size: 12px; color: #ffd84a; } .sc-log-list p.narr { color: #b8c8e8; }
+.sc-act { display: flex; align-items: flex-end; justify-content: center; height: 100%; width: 100%; transform-origin: 50% 100%; }
+.sc-act.mv-joy { animation: mvHop .5s steps(6) 2; } .sc-act.mv-love { animation: mvHop .7s steps(6) 1; }
+.sc-act.mv-angry { animation: mvShake .32s steps(4) 3; } .sc-act.mv-surprise { animation: mvJump .3s steps(4) 1; }
+.sc-act.mv-sad { animation: mvDroop .6s steps(6) both; } .sc-act.mv-shy { animation: mvSway .9s steps(8) 1; } .sc-act.mv-smug { animation: mvLean .5s steps(5) 1; }
+@keyframes mvHop { 50% { transform: translateY(-14px); } }
+@keyframes mvShake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+@keyframes mvJump { 40% { transform: translateY(-22px) scale(1.03); } }
+@keyframes mvDroop { to { transform: translateY(10px) scale(1, .98); filter: saturate(.8) brightness(.92); } }
+@keyframes mvSway { 25% { transform: rotate(-1.5deg); } 75% { transform: rotate(1.5deg); } }
+@keyframes mvLean { 50% { transform: scale(1.04); } }
+.sc-emo { position: absolute; right: 12%; top: 6%; min-width: 46px; height: 46px; padding: 0 8px; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 26px; line-height: 1;
+	background: #fff; color: #14182a; box-shadow: 0 0 0 2px #14182a, 4px 4px 0 rgba(0,0,0,.3); animation: emoPop .3s steps(4) both, emoBob 1s steps(2) .3s infinite; pointer-events: none; }
+@keyframes emoPop { from { transform: scale(0); } } @keyframes emoBob { 50% { transform: translateY(-4px); } }
+.em-joy { color: #e8721a; } .em-love { color: #ff3a7a; background: #ffe0ea; } .em-shy { color: #ff5a8a; background: #ffe0ea; font-size: 18px; letter-spacing: -1px; }
+.em-surprise { color: #d81a1a; font-size: 32px; } .em-think { font-size: 22px; } .em-smug { color: #c89a10; }
+.em-angry::before { content: ''; width: 28px; height: 28px; background: #e8262a; transform: rotate(45deg); clip-path: polygon(38% 0, 62% 0, 62% 38%, 100% 38%, 100% 62%, 62% 62%, 62% 100%, 38% 100%, 38% 62%, 0 62%, 0 38%, 38% 38%); }
+.em-sad::before { content: ''; width: 16px; height: 26px; background: #3a9af0; clip-path: polygon(50% 0, 100% 62%, 82% 100%, 18% 100%, 0 62%); }
+.sc-travel .sc-roads line.go { stroke: #ff5a5a; stroke-width: 2.2; stroke-dasharray: none; }
+.sc-travel .sc-node { cursor: default; }
+.sc-travel-me { position: absolute; width: 80px; height: 80px; margin: -52px 0 0 -40px; image-rendering: pixelated; pointer-events: none; clip-path: inset(18% 22% 30% 22%); transition: left .42s linear, top .42s linear; animation: shBob .4s steps(2) infinite; }
+@media (orientation: landscape) and (max-height: 540px) { .sc-emo { top: 2%; right: 30%; min-width: 34px; height: 34px; font-size: 20px; } .sc-travel .sc-mapwrap { height: calc(100% - 52px); } }
