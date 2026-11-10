@@ -1,6 +1,6 @@
-# 움직이는 도트 그림 묶음 (개발자 빌드 시험용)
+# 움직이는 도트 그림 묶음 (정식 웹·앱)
 
-배틀시뮬 KR 개발자 빌드(/dev/)의 「움직이는 도트 (시험)」 설정이 쓰는 그림. GitHub Pages 배포 때 `ani/` 가 사이트의 `/ani/` 로 복사된다.
+배틀시뮬 KR 의 「움직이는 도트」 설정이 쓰는 그림. `zip/` 의 묶음 4개(앞·뒤·이로치 앞·이로치 뒤, 압축 없이 묶음)를 GitHub Pages 배포 때 풀어 사이트의 `/ani/front|back|front-shiny|back-shiny/` 로 올리고, 안드로이드 앱은 설정에서 이 zip 들을 직접 받아 둔다.
 main 브랜치의 `battle-kr/scripts/make-ani-sprites.py` 로 만든다 (프레임 띠 PNG → 움직이는 WebP, 앞 1,318 · 뒤 1,317 · 이로치 앞 1,318 · 이로치 뒤 1,309).
 
 ## 출처·만든 이 (CREDITS)
