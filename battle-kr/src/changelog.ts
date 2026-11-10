@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.70.5', date: '2026-11-10', title: '상대 현황 칸 정리', items: [
+		['up', '상대 현황 창의 칸을 정사각형으로 — 세로 화면은 2칸씩 3줄, 가로 화면은 3칸씩 2줄'],
+	] },
 	{ ver: '2.70.4', date: '2026-11-10', title: '상대 현황 한눈에', items: [
 		['up', '상대 현황 창을 3마리씩 2줄로 — 아이콘과 HP 만 보이고, 아직 확인 안 된 포켓몬은 어둡게 나와요'],
 	] },
