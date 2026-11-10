@@ -97,7 +97,7 @@
 - **v2.63.0**: 배경 `yume`(솜사탕 꿈나라)·`yami`(한밤의 하트)·`menhera`(분홍 처방전) 120 BP + 움직임(gen-fx-css.py), 같은 테마 카드 배경 50 BP·테두리 40 BP.
 - **v2.64.0**: 같은 테마 음악 `g3yume`·`g3yami`·`g3menhera`(120 BP)와 HP 창 `yume`·`yami`·`menhera`(70 BP, 하트·별·알약 움직임).
 - **v2.65.0**: 칩튠 시퀀서에 곡마다 음색 `v`(리드 파형 p12·p25·p50·tri·saw·wave, 엔벨로프 sus·pluck·swell, 비브라토 깊이·빠르기, 포르타멘토, 옥타브 겹침, 메아리, 스윙)와 드럼 o·c·t·l·r 추가. music/gen3.py 의 song2 가 3/4(12칸) 마디와 반주 스타일(boogie·pedal·octfunk·march·waltz·offbeat·chordarp·drone·oct, 아르페지오 updown·bell)을 지원. 교환소 11곡을 장르별로 새로 작곡.
-- **움직이는 도트 (개발자 빌드 시험)**: 설정 › 포켓몬 그림의 「움직이는 도트 (시험)」은 개발자 빌드(/dev/)에만 보임(`ANI_DOT_OK`, `settings.aniDot`). 그림은 `sprites-ani` 브랜치(움직이는 WebP 앞 1,318 · 뒤 1,317, 약 100MB, 출처·만든 이는 그 브랜치 README) → Pages `/ani/`. `scripts/make-ani-sprites.py` 가 Essentials 용 프레임 띠 묶음을 변환하고 `src/gen/ani-index.json` 을 만듦. 이로치·거다이맥스 모습은 없어 정지 도트로 나옴. 원본 묶음에 사용 조건이 적혀 있지 않아 정식 배포 전 확인 필요.
+- **움직이는 도트 (개발자 빌드 시험)**: 설정 › 포켓몬 그림의 「움직이는 도트 (시험)」은 개발자 빌드(/dev/)에만 보임(`ANI_DOT_OK`, `settings.aniDot`). 그림은 `sprites-ani` 브랜치(움직이는 WebP 앞 1,318 · 뒤 1,317 · 이로치 앞 1,318 · 이로치 뒤 1,309, 약 200MB, 출처·만든 이는 그 브랜치 README) → Pages `/ani/`. `scripts/make-ani-sprites.py` 가 Essentials 용 프레임 띠 묶음을 변환하고 `src/gen/ani-index.json` 을 만듦. 거다이맥스 모습은 없어 정지 도트로 나옴. 원본 묶음에 사용 조건이 적혀 있지 않아 정식 배포 전 확인 필요.
 - **v2.69.4**: PC 고르기 화면 오른쪽 능력치 상자(`.opk-detail`) — 이름 줄 고정·내용만 스크롤, 아래 버튼에 가리지 않는 높이.
 - **v2.69.3**: 넓은 화면의 참가 포켓몬 고르기(`PickScreen` → `OnlinePick offline`)에서 음악·배경 고르기를 넘기지 않은 모드(타워·팩토리·팰리스 등)도 오른쪽에 배틀 필드·음악이 나옴.
 - **v2.69.2**: 공중에 뜨는 포켓몬 목록(`data.ts` FLOATERS) 확장 — 솜솜코 계열·프테라·만타인·전설의 새 등 날아다니는 비행 타입과 부유 특성 없이 떠 있는 포켓몬.

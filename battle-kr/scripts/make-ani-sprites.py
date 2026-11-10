@@ -6,7 +6,7 @@
 하는 일:
   1. 묶음의 Front/Back 그림 이름(SPECIES, SPECIES_폼번호, SPECIES_female)을 앱의 포켓몬 id 로 짝지음 (폼 이름은 Essentials PBS 의 FormName)
   2. 프레임 띠를 움직이는 WebP(무손실)로 바꿈 — 모든 프레임에서 그림이 있는 범위만 남기고 아래를 맞춰 자름(발이 그림 맨 아래 = 바닥 여백 0)
-  3. <출력>/front/<그림id>.webp · back/<그림id>.webp 와 앱에 넣는 목록 src/gen/ani-index.json
+  3. <출력>/front · back · front-shiny · back-shiny/<그림id>.webp 와 앱에 넣는 목록 src/gen/ani-index.json
 
 사용: python3 make-ani-sprites.py <묶음.zip> <forms.json> <ids.json> <출력 폴더>
   forms.json: {"SPECIES_번호": "FormName"} (Essentials PBS pokemon_forms*.txt 에서 뽑음)
@@ -19,6 +19,8 @@ from PIL import Image
 ZIP, FORMS, IDS, OUT = sys.argv[1:5]
 P = 'Animated Pokemon Sprites/Graphics/Pokemon/'
 FRAME_MS = 60
+# 출력 폴더 → 묶음 안 폴더 (이로치는 -shiny)
+DIRS = {'front': 'Front', 'back': 'Back', 'front-shiny': 'Front shiny', 'back-shiny': 'Back shiny'}
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 SYN = {'alola': 'alolan', 'galar': 'galarian', 'hisui': 'hisuian', 'paldea': 'paldean', 'gmax': 'gigantamax', 'f': 'female',
@@ -70,7 +72,7 @@ def match(ids, forms, front):
 def convert(job):
 	side, src, sid = job
 	z = zipfile.ZipFile(ZIP)
-	im = Image.open(io.BytesIO(z.read(f'{P}{"Front" if side == "front" else "Back"}/{src}.png'))).convert('RGBA')
+	im = Image.open(io.BytesIO(z.read(f'{P}{DIRS[side]}/{src}.png'))).convert('RGBA')
 	h = im.height; n = max(1, im.width // h)
 	frames = [im.crop((i * h, 0, i * h + h, h)) for i in range(n)]
 	bb = None
@@ -94,20 +96,21 @@ def convert(job):
 if __name__ == '__main__':
 	ids, forms = json.load(open(IDS)), json.load(open(FORMS))
 	names = zipfile.ZipFile(ZIP).namelist()
-	have = {d: {os.path.basename(n)[:-4] for n in names if n.startswith(f'{P}{d}/') and n.lower().endswith('.png')} for d in ('Front', 'Back')}
+	have = {d: {os.path.basename(n)[:-4] for n in names if n.startswith(f'{P}{d}/') and n.lower().endswith('.png')} for d in DIRS.values()}
 	m, miss = match(ids, forms, have['Front'])
 	sid = {x['id']: x['sid'] for x in ids}
-	for d in ('front', 'back'): os.makedirs(os.path.join(OUT, d), exist_ok=True)
-	jobs = [('front', src, sid[i]) for i, src in m.items()] + [('back', src, sid[i]) for i, src in m.items() if src in have['Back']]
+	for d in DIRS: os.makedirs(os.path.join(OUT, d), exist_ok=True)
+	jobs = [(side, src, sid[i]) for side, d in DIRS.items() for i, src in m.items() if src in have[d]]
 	jobs = list({(a, c): (a, b, c) for a, b, c in jobs}.values())   # 같은 그림 id 는 한 번
 	with Pool() as pool: res = pool.map(convert, jobs, chunksize=8)
-	front = sorted(s for d, s, n, _ in res if d == 'front' and n)
-	back = set(s for d, s, n, _ in res if d == 'back' and n)
-	# 앱 목록: 앞모습이 있는 그림 id (뒷모습이 없는 것만 따로)
-	idx = {'ms': FRAME_MS, 'ids': front, 'noBack': sorted(s for s in front if s not in back)}
+	got = {side: set(s for d, s, n, _ in res if d == side and n) for side in DIRS}
+	front = sorted(got['front'])
+	# 앱 목록: 앞모습이 있는 그림 id + 없는 것만 따로 (뒷모습 · 이로치 앞 · 이로치 뒤)
+	idx = {'ms': FRAME_MS, 'ids': front, 'noBack': sorted(s for s in front if s not in got['back']),
+		'noShiny': sorted(s for s in front if s not in got['front-shiny']), 'noBackShiny': sorted(s for s in front if s not in got['back-shiny'])}
 	json.dump(idx, open(os.path.join(HERE, '..', 'src', 'gen', 'ani-index.json'), 'w'), separators=(',', ':'))
 	json.dump(idx, open(os.path.join(OUT, 'index.json'), 'w'), separators=(',', ':'))
 	tot = collections.Counter();
 	for d, s, n, sz in res: tot[d] += sz
 	print('짝지음', len(m), '/', len(ids), '· 못 찾음', miss)
-	print('앞', len(front), '뒤', len(back), '· 크기(MB)', {k: round(v / 1e6, 1) for k, v in tot.items()}, '· 1프레임(정지)', sum(1 for d, s, n, _ in res if n == 1))
+	print({k: len(v) for k, v in got.items()}, '· 없음', {k: len(idx[k]) for k in ('noBack', 'noShiny', 'noBackShiny')}, '· 크기(MB)', {k: round(v / 1e6, 1) for k, v in tot.items()}, '· 1프레임(정지)', sum(1 for d, s, n, _ in res if n == 1))

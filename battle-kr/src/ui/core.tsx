@@ -75,12 +75,13 @@ export function CatIcon({ cat }: { cat: string }) {
 declare const __DEV_BUILD__: boolean;
 export const ANI_DOT_OK = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
 export const ANI_BASE = 'https://samang600.github.io/BattleSim-KR/ani/';
-const ANI_IDS = new Set((ANI_INDEX as any).ids as string[]), ANI_NOBACK = new Set((ANI_INDEX as any).noBack as string[]);
-/** 이 그림의 움직이는 도트 주소 (설정이 꺼져 있거나 없는 그림·이로치면 '') */
+const ANI_IDS = new Set((ANI_INDEX as any).ids as string[]);
+const ANI_NO = { back: new Set((ANI_INDEX as any).noBack as string[]), shiny: new Set(((ANI_INDEX as any).noShiny || []) as string[]), backShiny: new Set(((ANI_INDEX as any).noBackShiny || []) as string[]) };
+/** 이 그림의 움직이는 도트 주소 (설정이 꺼져 있거나 없는 그림이면 '') */
 export function aniDotUrl(id: string, back: boolean, shiny: boolean, settings = loadSettings()): string {
-	if (!ANI_DOT_OK || !settings.aniDot || settings.animatedSprites || shiny || !online()) return '';
-	if (!ANI_IDS.has(id) || (back && ANI_NOBACK.has(id))) return '';
-	return `${ANI_BASE}${back ? 'back' : 'front'}/${id}.webp`;
+	if (!ANI_DOT_OK || !settings.aniDot || settings.animatedSprites || !online()) return '';
+	if (!ANI_IDS.has(id) || (shiny ? (back ? ANI_NO.backShiny : ANI_NO.shiny) : back ? ANI_NO.back : new Set<string>()).has(id)) return '';
+	return `${ANI_BASE}${back ? 'back' : 'front'}${shiny ? '-shiny' : ''}/${id}.webp`;
 }
 const preloaded: { [url: string]: HTMLImageElement } = {};
 /** 배틀 시작 전에 그림을 미리 받아 둔다 (교체 때 그림이 늦게 뜨는 것 방지) */
