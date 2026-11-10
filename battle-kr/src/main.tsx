@@ -44,7 +44,7 @@ const MODES = [
 // 시나리오 모드 (시안): 개발자 빌드에서만
 declare const __DEV_BUILD__: boolean;
 const SCENARIO_ON = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
-if (SCENARIO_ON) MODES.push({ id: 'scenario', name: '시나리오', sub: '관동 앞부분 (시안)', run: runScenario, color: '#3a9a5a', mon: 'bulbasaur' });
+if (SCENARIO_ON) MODES.push({ id: 'scenario', name: '시나리오', sub: '관동 편 · 이슬 루트', run: runScenario, color: '#3a9a5a', mon: 'bulbasaur' });
 const FEATURED = ['tower', 'factory', 'rank'];
 const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'online', ...(SCENARIO_ON ? ['scenario'] : [])];
 
