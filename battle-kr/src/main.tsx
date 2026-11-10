@@ -2,7 +2,7 @@ import './ps/registry';
 import { recTag, ruleById as ruleByIdR } from './rules';
 import { h, render, type VNode } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton, Modal } from './ui/core';
+import { ANI_DOT_OK, bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton, Modal } from './ui/core';
 import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
@@ -392,8 +392,9 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		<OfflinePack />
 		<h3 class="sec">포켓몬 그림</h3>
 		<div class="seg">
-			<button class={s.animatedSprites ? 'on' : ''} onClick={() => up({ animatedSprites: true })}>움직이는 그림</button>
-			<button class={!s.animatedSprites ? 'on' : ''} onClick={() => up({ animatedSprites: false })}>정지 도트 그림 (기본)</button>
+			<button class={s.animatedSprites ? 'on' : ''} onClick={() => up({ animatedSprites: true, aniDot: false })}>움직이는 그림</button>
+			<button class={!s.animatedSprites && !(ANI_DOT_OK && s.aniDot) ? 'on' : ''} onClick={() => up({ animatedSprites: false, aniDot: false })}>정지 도트 그림 (기본)</button>
+			{ANI_DOT_OK && <button class={!s.animatedSprites && s.aniDot ? 'on' : ''} onClick={() => up({ animatedSprites: false, aniDot: true })}>움직이는 도트 (시험)</button>}
 		</div>
 		<p class="muted small">포켓몬 그림은 인터넷에 연결되어 있을 때 표시됩니다. (오프라인이면 이름 카드로 표시)</p>
 		<h3 class="sec">정보</h3>

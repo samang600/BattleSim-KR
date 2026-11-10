@@ -1,4 +1,5 @@
 /** 공용 UI 조각과 화면 전환 도우미 */
+import ANI_INDEX from '../gen/ani-index.json';
 import { h, render, type ComponentChildren, type VNode } from 'preact';
 import { useState, useRef, useLayoutEffect, useEffect } from 'preact/hooks';
 import { spriteId, typeKo, speciesData, toID, RAW, type Gen } from '../data';
@@ -70,14 +71,26 @@ export function CatIcon({ cat }: { cat: string }) {
 	return <span class={'cat-icon ' + cat.toLowerCase()} title={label}>{label}</span>;
 }
 
+// ── 움직이는 도트 그림 (개발자 빌드 시험): scripts/make-ani-sprites.py 가 만든 움직이는 WebP, GitHub Pages 의 /ani/ 에서 받음 ──
+declare const __DEV_BUILD__: boolean;
+export const ANI_DOT_OK = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
+export const ANI_BASE = 'https://samang600.github.io/BattleSim-KR/ani/';
+const ANI_IDS = new Set((ANI_INDEX as any).ids as string[]), ANI_NOBACK = new Set((ANI_INDEX as any).noBack as string[]);
+/** 이 그림의 움직이는 도트 주소 (설정이 꺼져 있거나 없는 그림·이로치면 '') */
+export function aniDotUrl(id: string, back: boolean, shiny: boolean, settings = loadSettings()): string {
+	if (!ANI_DOT_OK || !settings.aniDot || settings.animatedSprites || shiny || !online()) return '';
+	if (!ANI_IDS.has(id) || (back && ANI_NOBACK.has(id))) return '';
+	return `${ANI_BASE}${back ? 'back' : 'front'}/${id}.webp`;
+}
 const preloaded: { [url: string]: HTMLImageElement } = {};
 /** 배틀 시작 전에 그림을 미리 받아 둔다 (교체 때 그림이 늦게 뜨는 것 방지) */
 export function preloadSprite(species: string, back: boolean, shiny?: boolean) {
 	const settings = loadSettings();
 	const id = spriteId(species);
 	const sh = shiny ? '-shiny' : '';
-	if (!settings.animatedSprites || !online()) return; // 앱 안의 그림은 받을 필요 없음
-	const url = `${SPRITE_HOST}/ani${back ? '-back' : ''}${sh}/${id}.gif`;
+	const dot = aniDotUrl(id, back, !!shiny, settings);
+	if ((!settings.animatedSprites && !dot) || !online()) return; // 앱 안의 그림은 받을 필요 없음
+	const url = dot || `${SPRITE_HOST}/ani${back ? '-back' : ''}${sh}/${id}.gif`;
 	if (preloaded[url]) return;
 	const im = new Image(); im.decoding = 'async'; im.src = url; preloaded[url] = im;
 }
@@ -89,10 +102,11 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, te
 	const settings = loadSettings();
 	const id = species === 'substitute' ? 'substitute' : spriteId(species);
 	const useAnim = (anim ?? settings.animatedSprites);
-	const candidates = spriteCandidates(species, id, !!back, !!shiny, useAnim, gen);
+	const dot = anim === false ? '' : aniDotUrl(id, !!back, !!shiny, settings);
+	const candidates = dot ? [dot, ...spriteCandidates(species, id, !!back, !!shiny, useAnim, gen)] : spriteCandidates(species, id, !!back, !!shiny, useAnim, gen);
 	const [idx, setIdx] = useState(0);
-	const [key, setKey] = useState(id + back + shiny + gen + useAnim);
-	const curKey = id + back + shiny + gen + useAnim;
+	const [key, setKey] = useState(id + back + shiny + gen + useAnim + !!dot);
+	const curKey = id + back + shiny + gen + useAnim + !!dot;
 	if (key !== curKey) { setKey(curKey); setIdx(0); }
 	if (idx >= candidates.length && id === 'substitute') {
 		return <div class={'sub-doll ' + (cls || '')}>대타</div>;
@@ -107,10 +121,11 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, te
 	const cur = candidates[idx] || '';
 	// 배틀 그림: 정지 도트 그림이면 측정해 둔 바닥 여백을, 움직이는 그림이면 대략값을 CSS 변수로
 	const us = cur.startsWith('data:') ? getUserSprite(userSpriteKey(id, !!back, !!shiny)) : null;
-	const pad = (cls === 'front' || cls === 'back') ? us?.src === cur ? us.pad : (/\/gen5(-back)?(-shiny)?\/[^/]+\.png$/.test(cur) || cur.startsWith('data:image/png') || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? (PAD[id]?.[back ? 1 : 0] ?? 8) : 4) : undefined;
+	const isDot = cur.startsWith(ANI_BASE);   // 움직이는 도트: 발이 그림 맨 아래(여백 0), 크기 그대로
+	const pad = (cls === 'front' || cls === 'back') ? isDot ? 0 : us?.src === cur ? us.pad : (/\/gen5(-back)?(-shiny)?\/[^/]+\.png$/.test(cur) || cur.startsWith('data:image/png') || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? (PAD[id]?.[back ? 1 : 0] ?? 8) : 4) : undefined;
 	// 배틀 그림 크기 보정: 바뀐 모습 배율 × (3D 설정인데 3D 그림이 없어 도트 그림으로 나오면 3D 그림 크기에 맞춰 1.3배)
 	const isAni = /\.gif$/.test(cur);
-	const ks = pad !== undefined ? (cur.includes(`/${id}.`) || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? SCALE[id]?.[isAni ? 1 : 0] ?? 1 : 1) * (useAnim && !isAni ? 1.3 : 1) : 1;
+	const ks = isDot ? 1 : pad !== undefined ? (cur.includes(`/${id}.`) || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? SCALE[id]?.[isAni ? 1 : 0] ?? 1 : 1) * (useAnim && !isAni ? 1.3 : 1) : 1;
 	const st = { maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': pad + 'px' } : {}), ...(ks !== 1 ? { '--ks': ks } : {}) } as any;
 	// 테라스탈: 그림 모양대로 반투명 보석 결을 겹치는 SVG 필터 (TeraFilters) — 다른 사이트 그림에도 쓸 수 있음
 	return <img class={'sprite ' + (cls || '')} src={cur} alt={species} loading="lazy" style={tera ? { ...st, filter: `url(#tera-${tera})` } : st} onError={() => setIdx(idx + 1)} draggable={false} />;
