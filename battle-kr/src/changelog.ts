@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.70.2', date: '2026-11-10', title: '상대 현황 버튼', items: [
+		['new', '휴대폰(세로·가로) 배틀 화면 위 「상대 ▸」 버튼으로 상대 파티 현황을 볼 수 있어요 — HP·상태·확인된 특성·도구·기술, 누르면 자세히'],
+	] },
 	{ ver: '2.70.1', date: '2026-11-10', title: '직접 업데이트', items: [
 		['up', '안드로이드 앱: 업데이트 알림을 놓쳐도 설정 맨 위 「앱 업데이트」에서 새 버전을 받고 바로 적용할 수 있어요'],
 		['up', '새 버전이 있으면 메인 화면 위에 노란 띠가 떠요 — 눌러서 받기·적용'],

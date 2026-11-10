@@ -323,6 +323,7 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	});
 	const fullscreen = useFullscreen();
 	const [fieldOpen, setFieldOpen] = useState(false);
+	const [foeOpen, setFoeOpen] = useState(false);   // 상대 파티 현황 창 (좁은 화면: 양옆 패널 대신)
 	// 보상 꾸미기 (rewards.ts): 승리 연출·HP 창 테마·볼 연출
 	const [wallet] = useState(() => loadWallet());
 	const hpTheme = wallet.eq.hp ? itemById(wallet.eq.hp)?.v : '';
@@ -1727,6 +1728,7 @@ function typeTint(type: string) {
 			<button class="badge speed-btn" onClick={e => { e.stopPropagation(); cycleSpeed(); }}>{SPEED_LABEL[settings.speed]}</button>
 			<button class={'badge text-btn' + (settings.textManual ? ' manual' : '')} onClick={e => { e.stopPropagation(); toggleManual(); }} aria-label="메시지 진행">{settings.textManual ? '▶ 수동' : '▶ 자동'}</button>
 			<button class="badge field-btn" onClick={e => { e.stopPropagation(); setFieldOpen(true); }}>필드 ▸</button>
+			{!wide && <button class="badge foe-btn" onClick={e => { e.stopPropagation(); setFoeOpen(true); }}>상대 ▸</button>}
 			<button class="badge menu-btn" onClick={e => { e.stopPropagation(); setMenuOpen(true); }} aria-label="메뉴">☰ 메뉴</button>
 		</div>
 		<div class="arena-wings" aria-hidden="true" />
@@ -1787,12 +1789,33 @@ function typeTint(type: string) {
 				<button class="btn big" onClick={() => setMenuOpen(false)}>배틀로 돌아가기</button>
 				<button class="btn big" onClick={() => { setMenuOpen(false); setShowLog(true); }}>배틀 기록</button>
 				<button class="btn big" onClick={() => { setMenuOpen(false); setFieldOpen(true); }}>필드 상황</button>
+				{!wide && <button class="btn big" onClick={() => { setMenuOpen(false); setFoeOpen(true); }}>상대 포켓몬 현황</button>}
 				<button class="btn big" onClick={() => cycleSpeed()}>배속 {SPEED_LABEL[settings.speed]}</button>
 				<button class="btn big" onClick={() => toggleManual()}>메시지 진행: {settings.textManual ? '수동 (화면을 눌러 넘김)' : '자동'}</button>
 				{canFullscreen() && <button class="btn big" onClick={() => { setMenuOpen(false); toggleFullscreen(); }}>{fullscreen ? '전체화면 끄기' : '전체화면'}</button>}
 				{phase === 'input' && <button class="btn big" onClick={() => { setMenuOpen(false); forfeit(); }}>기권</button>}
 				<button class="btn big danger" onClick={quitToMenu}>메인 메뉴로</button>
 			</div>
+		</Modal>}
+		{foeOpen && !detail && <Modal title={`${setup.p2.name}의 포켓몬`} onClose={() => setFoeOpen(false)}>
+			<div class="foe-list">
+				{Array.from({ length: scene.p2.teamSize }, (_, i) => {
+					const m = scene.p2.team[i];
+					if (!m) return <div class="foe-row unk"><span class="ball unk" /><span class="muted">아직 나오지 않음</span></div>;
+					const sd = speciesData(toID(m.species), gen);
+					const pct = m.fainted ? 0 : Math.max(1, Math.round(100 * m.hp / Math.max(1, m.maxhp)));
+					return <button class={'foe-row' + (m.fainted ? ' fnt' : '') + (scene.p2.active.includes(m) ? ' act' : '')} onClick={() => setDetail({ mon: m, own: false })}>
+						<PokeIcon species={m.species} cls="foe-pic" />
+						<div class="foe-main">
+							<div class="foe-name"><b>{m.nick}</b> <span class="muted">Lv{m.level}</span> {sd?.t.map(t => <TypeBadge type={t} small />)}</div>
+							<div class="foe-hp"><HPBar hp={m.fainted ? 0 : m.hp} maxhp={m.maxhp || 1} /><span>{m.fainted ? '기절' : pct + '%'}</span>{m.status && !m.fainted && <StatusBadge status={m.status} />}</div>
+							<div class="foe-sub">특성 <b>{m.ability ? abilityKo(m.ability) : '미확인'}</b> · 도구 <b>{m.item ? itemKo(m.item) : m.itemSeen ? '없음' : '미확인'}</b></div>
+							{m.seen.length > 0 && <div class="foe-sub">기술 {m.seen.map(moveKo).join(' · ')}</div>}
+						</div>
+					</button>;
+				})}
+			</div>
+			<p class="muted foe-hint">포켓몬을 누르면 자세히 볼 수 있습니다.</p>
 		</Modal>}
 		{fieldOpen && <FieldModal session={sessionRef.current!} scene={sceneRef.current} onClose={() => setFieldOpen(false)} />}
 		{showLog && <Modal title="배틀 기록" onClose={() => setShowLog(false)}>
