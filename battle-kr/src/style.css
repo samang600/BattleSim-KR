@@ -3212,3 +3212,8 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .foe-hp .hpbar { flex: 1; max-width: 160px; }
 .foe-sub { font-size: 12px; opacity: .9; }
 .foe-hint { font-size: 12px; margin: 8px 0 0; }
+.foe-row.idle { cursor: default; }
+.foe-row.idle .foe-pic { opacity: .85; }
+.foe-row.out { opacity: .5; }
+.foe-row.out .foe-pic { filter: grayscale(1); }
+.foe-hint.top { margin: 0 0 8px; }

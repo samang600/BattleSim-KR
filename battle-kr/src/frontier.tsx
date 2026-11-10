@@ -318,7 +318,7 @@ export async function runDaily() {
 		if (picked === BACK) continue;   // 승부 전 화면으로
 		const oppPick = aiPickEntry(opp.team, d.rental, n, d.doubles, opp.skill, false);
 		const res = await battle({ gen: 9, doubles: d.doubles, aiSkill: opp.skill, bg: 'daily' as any, music: (i === 6 ? 'boss' : 'daily') as any, label: `오늘의 도전 ${i + 1}번째`,
-			p1: { name: playerName(), team: picked.map(cloneSet), sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppPick, sprite: opp.sprite, line: opp.lines.intro, lines: opp.lines } });
+			p1: { name: playerName(), team: picked.map(cloneSet), sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppPick, preview: opp.team, sprite: opp.sprite, line: opp.lines.intro, lines: opp.lines } });
 		if (!res.win) { ended = 'lose'; break; }
 		r0.idx++; save(DAILY_KEY, r0);
 		const w = r0.idx;
@@ -365,7 +365,7 @@ async function gauntlet(title: string, list: NamedTrainer[], run: RushRun): Prom
 		const skill = run.hard ? 0.97 : strong ? 0.92 : t.role === 'elite' ? 0.88 : 0.8;
 		const res = await battle({ gen: 9, doubles: false, aiSkill: skill, bg: (last || t.role === 'champion' ? 'champion' : 'rush') as any, label: `${title} ${run.idx + 1}/${list.length}`,
 			music: (last ? namedMusic(t) : 'rush') as any,
-			p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: t.name, title: namedTitle(t), team: aiPickEntry(oppTeam, run.team, 3, false, skill, true), line: t.line, sprite: namedSprite(t), lines: namedLines(t) } });
+			p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: t.name, title: namedTitle(t), team: aiPickEntry(oppTeam, run.team, 3, false, skill, true), preview: oppTeam, line: t.line, sprite: namedSprite(t), lines: namedLines(t) } });
 		if (!res.win) {
 			remove(RUSH_KEY);
 			await ask<void>(r => <InfoScreen title={title} heading={`${t.name}에게 졌다…`} banner={`${run.idx}명 격파`} trainer={namedSprite(t)} lines={[`“${namedLines(t).win}”`, '처음부터 다시 도전할 수 있어요.']} actions={[{ label: '확인', onClick: () => r() }]} />);

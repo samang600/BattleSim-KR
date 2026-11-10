@@ -75,7 +75,7 @@ async function proceed(room: OnlineRoom, w: WaitResult, label: string) {
 		if ('error' in w) { room.close(); toast(w.error); return; }
 		if ('start' in w) return play(room, w.start, label);
 		if ('back' in w) return;
-		sent = sent || w.preview.picked;
+		sent = sent || w.preview.picked; lastPreview = w.preview;
 		w = await pickPhase(room, w.preview, label, sent, () => { sent = true; });
 	}
 }
@@ -129,6 +129,8 @@ function VsScreen({ me, opp, label, done }: { me: { name: string; sprite: string
 /** 돌아가기(앱을 다시 켠 뒤 복귀)로 들어온 배틀은 VS 연출을 건너뜀 */
 let resuming = false;
 
+/** 고르기 화면에서 본 상대 엔트리 (배틀 중 상대 현황 창에 씀) */
+let lastPreview: PreviewInfo | null = null;
 /** 시작 정보를 받으면 배틀 진행 */
 async function play(room: OnlineRoom, start: StartInfo, label: string, lobby = false): Promise<'again' | 'leave'> {
 	const rs = new RemoteSession(start, room);   // 먼저 만들어 둠: 이 뒤로 오는 선택은 화면이 뜰 때까지 모아 둠
@@ -150,7 +152,7 @@ async function play(room: OnlineRoom, start: StartInfo, label: string, lobby = f
 	const res = await runBattle({
 		gen: 9, doubles: start.doubles, aiSkill: 0, bg: 'pwt', music: 'pwt', label, noRecord: true, ruleId: start.ruleId, online: rs,
 		p1: { name: me.name, team: me.team, sprite: playerSprite() },
-		p2: { name: opp.name, title: '', team: opp.team, sprite: splitSprite((opp as any).sprite)[0] },
+		p2: { name: opp.name, title: '', team: opp.team, preview: lastPreview && lastPreview[oppSide].name === opp.name ? lastPreview[oppSide].team : undefined, sprite: splitSprite((opp as any).sprite)[0] },
 	});
 	setActiveRoom(null);
 	room.handlers.input = undefined; room.handlers.inputs = undefined;   // 다음 판의 선택이 끝난 판으로 가지 않게
@@ -385,7 +387,7 @@ async function lobbyRoom(room: OnlineRoom, box: RoomBox) {
 		if ('practice' in a) { if (await practice(room, box) === 'closed') return; continue; }
 		let w: WaitResult = 'start' in a ? { start: a.start } : { preview: a.preview };
 		let sent = false;
-		while ('preview' in w) { sent = sent || w.preview.picked; w = await pickPhase(room, w.preview, '친구 대전', sent, () => { sent = true; }, true); }
+		while ('preview' in w) { sent = sent || w.preview.picked; lastPreview = w.preview; w = await pickPhase(room, w.preview, '친구 대전', sent, () => { sent = true; }, true); }
 		if ('error' in w) { room.close(); toast(w.error); return; }
 		if ('cancel' in w) { room.send({ t: 'leave' }); room.close(); return; }
 		if ('back' in w) continue;

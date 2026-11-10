@@ -647,7 +647,7 @@ export async function runPWT() {
 		const res = await battle({
 			gen: 9, doubles: isDoubles(fmt), aiSkill: Math.min(0.97, opp.skill + round * 0.04), bg: round === 2 ? 'champion' : 'pwt',
 			label: `${cup.name} ${['1회전', '준결승', '결승'][round]}`, noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse, music: opp.named ? namedMusic(opp.named) : round === 2 ? 'champion' : undefined,
-			p1: { name: me, team: picked, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppPick, line: opp.line, sprite: opp.sprite, lines: opp.lines },
+			p1: { name: me, team: picked, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppPick, preview: oppTeam, line: opp.line, sprite: opp.sprite, lines: opp.lines },
 		});
 		// 대진표 갱신 (다른 경기는 무작위)
 		const winners: string[] = [];
@@ -737,7 +737,7 @@ export async function runNamed() {
 			const oppPick = size < 6 ? aiPickEntry(oppTeam, myTeam, size, doubles, ['champion', 'boss', 'hero'].includes(t.role) ? 0.95 : 0.85, true) : oppTeam;
 			const res = await battle({
 				gen: 9, doubles, aiSkill: ['champion', 'boss', 'hero'].includes(t.role) ? 0.95 : 0.85, bg: ['champion', 'boss', 'hero'].includes(t.role) ? 'champion' : bgForTeam(oppTeam),
-				label: `${t.title}`, noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse, music: namedMusic(t), p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: t.name, title: namedTitle(t), team: oppPick, line: t.line, sprite: namedSprite(t), lines: namedLines(t) },
+				label: `${t.title}`, noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse, music: namedMusic(t), p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: t.name, title: namedTitle(t), team: oppPick, preview: oppTeam, line: t.line, sprite: namedSprite(t), lines: namedLines(t) },
 			});
 			if (res.win && !noRec(opts)) updateRecords(r => { r.named[t.id] = (r.named[t.id] || 0) + 1; });
 			await ask<void>(r => <InfoScreen title={t.name} trainer={namedSprite(t)} heading={res.win ? `${t.name}에게 승리했다!` : `${t.name}에게 졌다…`}
@@ -903,7 +903,7 @@ export async function runRank() {
 		const res = await battle({
 			gen: 9, doubles: fmt === 'doubles', aiSkill: opp.skill, bg: 'rank' as any, label: `랭크 매치 · ${tier.name}${upper ? ' · 상위 매칭' : ''}`, music: (opp as any).music ?? 'rank' as any,
 			noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse,
-			p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppPick, line: opp.line, sprite: opp.sprite, lines: opp.lines },
+			p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppPick, preview: opp.team, line: opp.line, sprite: opp.sprite, lines: opp.lines },
 		});
 		let newRp = rp, msg = '';
 		if (!noRec(opts)) {
@@ -977,7 +977,7 @@ export async function runFree() {
 		const oppSel = size < oppTeam.length ? aiPickEntry(oppTeam, myTeam, size, isDoubles(fmt), skill) : oppTeam;
 		const res = await battle({
 			gen: 9, doubles: isDoubles(fmt), aiSkill: skill, bg: rng.pick([...OUTDOOR_BGS]), label: modeName, noRecord: true, cheat, inverse: opts.inverse,
-			p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: oppName, title: oppTitle, team: oppSel, sprite: oppSprite, lines: oppLines },
+			p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: oppName, title: oppTitle, team: oppSel, preview: oppTeam, sprite: oppSprite, lines: oppLines },
 		});
 		const again = await ask<'same' | 'new' | 'quit'>(r => <InfoScreen title={modeName} heading={res.win ? '승리!' : '패배…'}
 			actions={[{ label: '같은 상대와 다시', onClick: () => r('same') }, { label: '다른 상대와', kind: 'ghost', onClick: () => r('new') }, { label: '메뉴로', kind: 'ghost', onClick: () => r('quit') }]} />);
