@@ -1,5 +1,6 @@
 /** 공용 UI 조각과 화면 전환 도우미 */
 import ANI_INDEX from '../gen/ani-index.json';
+import { aniLocalBase } from '../offline';
 import { h, render, type ComponentChildren, type VNode } from 'preact';
 import { useState, useRef, useLayoutEffect, useEffect } from 'preact/hooks';
 import { spriteId, typeKo, speciesData, toID, RAW, type Gen } from '../data';
@@ -71,18 +72,21 @@ export function CatIcon({ cat }: { cat: string }) {
 	return <span class={'cat-icon ' + cat.toLowerCase()} title={label}>{label}</span>;
 }
 
-// ── 움직이는 도트 그림 (개발자 빌드 시험): scripts/make-ani-sprites.py 가 만든 움직이는 WebP, GitHub Pages 의 /ani/ 에서 받음 ──
-declare const __DEV_BUILD__: boolean;
-export const ANI_DOT_OK = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
+// ── 움직이는 도트 그림: scripts/make-ani-sprites.py 가 만든 움직이는 WebP ──
+// 웹: GitHub Pages 의 /ani/ 에서 그때그때 받음. 앱: 설정에서 묶음(zip)을 받아 두면 그곳(files/offline/ani…)에서, 아니면 인터넷에서
 export const ANI_BASE = 'https://samang600.github.io/BattleSim-KR/ani/';
 const ANI_IDS = new Set((ANI_INDEX as any).ids as string[]);
 const ANI_NO = { back: new Set((ANI_INDEX as any).noBack as string[]), shiny: new Set(((ANI_INDEX as any).noShiny || []) as string[]), backShiny: new Set(((ANI_INDEX as any).noBackShiny || []) as string[]) };
+const NONE = new Set<string>();
 /** 이 그림의 움직이는 도트 주소 (설정이 꺼져 있거나 없는 그림이면 '') */
 export function aniDotUrl(id: string, back: boolean, shiny: boolean, settings = loadSettings()): string {
-	if (!ANI_DOT_OK || !settings.aniDot || settings.animatedSprites || !online()) return '';
-	if (!ANI_IDS.has(id) || (shiny ? (back ? ANI_NO.backShiny : ANI_NO.shiny) : back ? ANI_NO.back : new Set<string>()).has(id)) return '';
-	return `${ANI_BASE}${back ? 'back' : 'front'}${shiny ? '-shiny' : ''}/${id}.webp`;
+	if (!settings.aniDot || settings.animatedSprites) return '';
+	if (!ANI_IDS.has(id) || (shiny ? (back ? ANI_NO.backShiny : ANI_NO.shiny) : back ? ANI_NO.back : NONE).has(id)) return '';
+	const local = aniLocalBase(back, shiny);
+	if (local) return `${local}${id}.webp`;
+	return online() ? `${ANI_BASE}${back ? 'back' : 'front'}${shiny ? '-shiny' : ''}/${id}.webp` : '';
 }
+const isAniDot = (url: string) => url.startsWith(ANI_BASE) || /\/ani(front|back)(shiny)?\/[^/]+\.webp$/.test(url);
 const preloaded: { [url: string]: HTMLImageElement } = {};
 /** 배틀 시작 전에 그림을 미리 받아 둔다 (교체 때 그림이 늦게 뜨는 것 방지) */
 export function preloadSprite(species: string, back: boolean, shiny?: boolean) {
@@ -90,7 +94,7 @@ export function preloadSprite(species: string, back: boolean, shiny?: boolean) {
 	const id = spriteId(species);
 	const sh = shiny ? '-shiny' : '';
 	const dot = aniDotUrl(id, back, !!shiny, settings);
-	if ((!settings.animatedSprites && !dot) || !online()) return; // 앱 안의 그림은 받을 필요 없음
+	if ((!settings.animatedSprites && !dot) || !online() || dot.startsWith('file:')) return; // 앱 안의 그림은 받을 필요 없음
 	const url = dot || `${SPRITE_HOST}/ani${back ? '-back' : ''}${sh}/${id}.gif`;
 	if (preloaded[url]) return;
 	const im = new Image(); im.decoding = 'async'; im.src = url; preloaded[url] = im;
@@ -122,7 +126,7 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, te
 	const cur = candidates[idx] || '';
 	// 배틀 그림: 정지 도트 그림이면 측정해 둔 바닥 여백을, 움직이는 그림이면 대략값을 CSS 변수로
 	const us = cur.startsWith('data:') ? getUserSprite(userSpriteKey(id, !!back, !!shiny)) : null;
-	const isDot = cur.startsWith(ANI_BASE);   // 움직이는 도트: 발이 그림 맨 아래(여백 0), 크기 그대로
+	const isDot = isAniDot(cur);   // 움직이는 도트: 발이 그림 맨 아래(여백 0), 크기 그대로
 	const pad = (cls === 'front' || cls === 'back') ? isDot ? 0 : us?.src === cur ? us.pad : (/\/gen5(-back)?(-shiny)?\/[^/]+\.png$/.test(cur) || cur.startsWith('data:image/png') || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? (PAD[id]?.[back ? 1 : 0] ?? 8) : 4) : undefined;
 	// 배틀 그림 크기 보정: 바뀐 모습 배율 × (3D 설정인데 3D 그림이 없어 도트 그림으로 나오면 3D 그림 크기에 맞춰 1.3배)
 	const isAni = /\.gif$/.test(cur);

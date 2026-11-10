@@ -1,8 +1,8 @@
 import './ps/registry';
 import { recTag, ruleById as ruleByIdR } from './rules';
 import { h, render, type VNode } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
-import { ANI_DOT_OK, bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton, Modal } from './ui/core';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton, Modal } from './ui/core';
 import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
@@ -17,7 +17,7 @@ import { APP_VERSION } from './changelog';
 import { exportBackup, inspectBackup, importBackup, PREFIX as STORE_PREFIX } from './store';
 import { loadRecords, loadSettings, saveSettings, load, remove, loadReplays, deleteReplay, type Settings, type SavedReplay } from './store';
 import { GIMMICK_KINDS, GIMMICK_MODES, POOLS, LEGEND_MODES, ruleById, ruleId, gimmickId, parseGimmick, applyRuleData, poolSub, type LegendMode } from './rules';
-import { packStatus, refreshPack, onPackProgress, startPackDownload, deletePack, hasNative, fmtBytes, BUNDLED, type PackProgress } from './offline';
+import { packStatus, refreshPack, onPackProgress, startPackDownload, deletePack, hasNative, fmtBytes, BUNDLED, aniInstalled, startAniDownload, type PackProgress } from './offline';
 import { CUPS, NAMED } from './trainers';
 import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, setMoveSfxVolume } from './sound';
 import { PLAYER_SPRITES, SPRITE_URL, trainerImgError } from './trainer-lines';
@@ -172,7 +172,8 @@ function Records({ onBack, onPlay }: { onBack: () => void; onPlay: (rp: SavedRep
 function OfflinePack() {
 	const [st, setSt] = useState(packStatus());
 	const [prog, setProg] = useState<PackProgress | null>(null);
-	useEffect(() => onPackProgress(p => { setProg(p); if (p.state === 'done' && p.name === 'all') { setSt(refreshPack()); toast('오프라인 데이터를 모두 받았습니다'); } if (p.state.startsWith('error')) toast('받기 실패: ' + p.state.slice(6)); }), []);
+	const aniRef = useRef(false);   // 움직이는 도트 묶음을 받는 중이면 여기서는 표시하지 않음 (AniPack 이 표시)
+	useEffect(() => onPackProgress(p => { if (p.name.startsWith('ani')) { aniRef.current = true; return; } if (p.name === 'all' && aniRef.current) { aniRef.current = false; setSt(refreshPack()); if (p.state === 'done') toast('움직이는 도트 그림을 받았습니다'); else if (p.state.startsWith('error')) toast('받기 실패: ' + p.state.slice(6)); return; } setProg(p); if (p.state === 'done' && p.name === 'all') { setSt(refreshPack()); toast('오프라인 데이터를 모두 받았습니다'); } if (p.state.startsWith('error')) toast('받기 실패: ' + p.state.slice(6)); }), []);
 	if (BUNDLED) return <p class="muted small">이 버전은 그림·울음소리·애니메이션이 앱 안에 들어 있습니다.</p>;
 	if (!hasNative()) return <p class="muted small">브라우저에서는 그림·울음소리·애니메이션을 인터넷에서 그때그때 받습니다. 안드로이드 앱에서는 한 번에 받아 둘 수 있어요.</p>;
 	const parts = st.parts ? st.parts.split(',') : [];
@@ -186,6 +187,33 @@ function OfflinePack() {
 			{st.installed && <button class="btn ghost" disabled={!!busy} onClick={async () => { if (await confirmBox('삭제', '받아 둔 오프라인 데이터를 지울까요?', '삭제')) { deletePack(); setSt(refreshPack()); } }}>삭제</button>}
 		</div>
 		<p class="muted small">받아 두면 인터넷 없이도 포켓몬·트레이너 그림, 울음소리, 기술 애니메이션이 나옵니다. (그림 6MB · 울음소리 7MB · 애니메이션 11MB, 풀면 약 60MB)</p>
+	</div>;
+}
+
+/** 설정 → 움직이는 도트 그림 묶음 받기 (안드로이드 앱만): 기본(앞·뒤) · 이로치 따로 */
+function AniPack() {
+	const [have, setHave] = useState(aniInstalled());
+	const [prog, setProg] = useState<PackProgress | null>(null);
+	useEffect(() => onPackProgress(p => {
+		if (!p.name.startsWith('ani') && p.name !== 'all') return;
+		setProg(p.state === 'downloading' ? p : null); setHave(aniInstalled());
+		if (p.state.startsWith('error')) setProg(null);
+	}), []);
+	const note = <p class="muted small">움직이는 도트 그림은 팬들이 만든 「Animated Pokemon System」 묶음(Lucidious89 · Luka S.J. · Smogon Sprite Project 기여자 등)이에요. 거다이맥스 모습 등 없는 그림은 정지 도트로 나와요.</p>;
+	if (!hasNative()) return <>{<p class="muted small">움직이는 도트 그림은 인터넷에서 그때그때 받습니다.</p>}{note}</>;
+	const base = have.includes('anifront') && have.includes('aniback'), shiny = have.includes('anifrontshiny') && have.includes('anibackshiny');
+	const busy = !!prog || packStatus().downloading;
+	const go = (sh: boolean) => { if (startAniDownload(sh)) setProg({ name: sh ? 'anifrontshiny' : 'anifront', done: 0, total: 1, state: 'downloading' }); };
+	const label = (n: string) => ({ anifront: '앞모습', aniback: '뒷모습', anifrontshiny: '이로치 앞모습', anibackshiny: '이로치 뒷모습' } as any)[n] || n;
+	return <div class="pack-box">
+		<p class="small">{base || shiny ? `받아 둠: ${[base && '기본', shiny && '이로치'].filter(Boolean).join(' · ')} — 받아 둔 그림은 인터넷 없이도 나와요.` : '아직 받지 않음 — 인터넷에서 그때그때 받습니다. 받아 두면 더 빨리 뜨고 인터넷 없이도 나와요.'}</p>
+		{prog && <div class="pack-prog"><div class="pack-bar" style={{ width: `${Math.round(prog.done / Math.max(1, prog.total) * 100)}%` }} /><span>{label(prog.name)} {prog.total > 1 ? `${fmtBytes(prog.done)} / ${fmtBytes(prog.total)}` : '…'}</span></div>}
+		<div class="row wrap">
+			{!base && <button class="btn primary" disabled={busy} onClick={() => go(false)}>{busy ? '받는 중…' : '움직이는 도트 받기 (약 100MB)'}</button>}
+			{!shiny && <button class="btn" disabled={busy} onClick={() => go(true)}>{busy ? '받는 중…' : '이로치도 받기 (약 100MB)'}</button>}
+		</div>
+		<p class="muted small">Wi-Fi 에서 받는 걸 권해요. 지우려면 위 「오프라인 데이터」의 삭제를 누르세요 (함께 지워져요).</p>
+		{note}
 	</div>;
 }
 
@@ -392,10 +420,11 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		<OfflinePack />
 		<h3 class="sec">포켓몬 그림</h3>
 		<div class="seg">
-			<button class={s.animatedSprites ? 'on' : ''} onClick={() => up({ animatedSprites: true, aniDot: false })}>움직이는 그림</button>
-			<button class={!s.animatedSprites && !(ANI_DOT_OK && s.aniDot) ? 'on' : ''} onClick={() => up({ animatedSprites: false, aniDot: false })}>정지 도트 그림 (기본)</button>
-			{ANI_DOT_OK && <button class={!s.animatedSprites && s.aniDot ? 'on' : ''} onClick={() => up({ animatedSprites: false, aniDot: true })}>움직이는 도트 (시험)</button>}
+			<button class={!s.animatedSprites && !s.aniDot ? 'on' : ''} onClick={() => up({ animatedSprites: false, aniDot: false })}>정지 도트 (기본)</button>
+			<button class={!s.animatedSprites && s.aniDot ? 'on' : ''} onClick={() => up({ animatedSprites: false, aniDot: true })}>움직이는 도트</button>
+			<button class={s.animatedSprites ? 'on' : ''} onClick={() => up({ animatedSprites: true, aniDot: false })}>움직이는 3D</button>
 		</div>
+		{!s.animatedSprites && s.aniDot && <AniPack />}
 		<p class="muted small">포켓몬 그림은 인터넷에 연결되어 있을 때 표시됩니다. (오프라인이면 이름 카드로 표시)</p>
 		<h3 class="sec">정보</h3>
 		<button class="btn" onClick={() => setNewsAll(true)}>📰 업데이트 소식 (v{APP_VERSION})</button>

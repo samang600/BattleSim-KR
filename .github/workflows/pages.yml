@@ -2,7 +2,7 @@
 # (v2.54.0 부터 새 기능은 안드로이드 앱 먼저 — 웹에 올리려면 web 브랜치를 main 으로 옮기고 이 워크플로를 실행)
 # 주소: https://samang600.github.io/BattleSim-KR/
 # 로비 시험판: online-lobby 브랜치가 있으면 /lobby/ 에 (개발 서버 사용) → https://samang600.github.io/BattleSim-KR/lobby/ (브랜치에 푸시한 뒤엔 이 워크플로를 수동 실행)
-# 움직이는 도트 그림: sprites-ani 브랜치의 ani/ 를 /ani/ 에 (개발자 빌드 시험용)
+# 움직이는 도트 그림: sprites-ani 브랜치의 zip 4개를 풀어 /ani/ 에 (설정 › 포켓몬 그림 › 움직이는 도트 — 앱은 같은 zip 을 직접 받아 둠)
 # 개발자 빌드: main 브랜치 최신 코드를 /dev/ 에 함께 올림 → https://samang600.github.io/BattleSim-KR/dev/ (저장 데이터는 정식 웹과 따로, 화면 아래 DEV 표시)
 name: 웹 버전 배포 (GitHub Pages)
 
@@ -69,7 +69,7 @@ jobs:
           PACK_BRANCH: online-lobby
       - if: steps.lobby.outputs.ok == '1'
         run: mkdir -p battle-kr/dist/lobby && cp -r lobby-src/battle-kr/dist/. battle-kr/dist/lobby/
-      # 움직이는 도트 그림 (sprites-ani 브랜치, 없으면 건너뜀) → /ani/ : 개발자 빌드의 「움직이는 도트 (시험)」 설정이 씀
+      # 움직이는 도트 그림 (sprites-ani 브랜치, 없으면 건너뜀) → /ani/ : 「움직이는 도트」 설정이 씀
       - id: ani
         run: git ls-remote --exit-code --heads https://github.com/${{ github.repository }} sprites-ani && echo ok=1 >> $GITHUB_OUTPUT || echo ok=0 >> $GITHUB_OUTPUT
       - if: steps.ani.outputs.ok == '1'
@@ -78,7 +78,14 @@ jobs:
           ref: sprites-ani
           path: ani-src
       - if: steps.ani.outputs.ok == '1'
-        run: cp -r ani-src/ani battle-kr/dist/ani
+        run: |
+          mkdir -p battle-kr/dist/ani
+          if [ -d ani-src/zip ]; then
+            for p in front back front-shiny back-shiny; do n=ani$(echo $p | tr -d -); mkdir -p battle-kr/dist/ani/$p; unzip -q ani-src/zip/$n.zip -d battle-kr/dist/ani/$p; done
+            cp ani-src/index.json battle-kr/dist/ani/
+          else
+            cp -r ani-src/ani/. battle-kr/dist/ani/
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

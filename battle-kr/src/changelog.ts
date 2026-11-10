@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.70.0', date: '2026-11-10', title: '움직이는 도트 그림', items: [
+		['new', '설정 › 포켓몬 그림 › 「움직이는 도트」 — 모든 포켓몬(메가진화·리전폼·이로치 포함)이 도트 그림으로 움직여요'],
+		['new', '안드로이드 앱: 움직이는 도트 그림을 설정에서 따로 받아 둘 수 있어요 (기본 약 100MB · 이로치 약 100MB). 안 받아도 인터넷에서 그때그때 받아요'],
+		['up', '포켓몬 그림 고르기 순서: 정지 도트(기본) · 움직이는 도트 · 움직이는 3D'],
+	] },
 	{ ver: '2.69.4', date: '2026-11-10', title: 'PC 화면 다듬기', items: [
 		['fix', 'PC 참가 포켓몬 고르기에서 오른쪽 능력치 상자의 이름 줄이 사라지고 아래가 버튼에 가려 잘리던 문제'],
 	] },
