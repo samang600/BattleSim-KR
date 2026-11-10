@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.69.4', date: '2026-11-10', title: 'PC 화면 다듬기', items: [
+		['fix', 'PC 참가 포켓몬 고르기에서 오른쪽 능력치 상자의 이름 줄이 사라지고 아래가 버튼에 가려 잘리던 문제'],
+	] },
 	{ ver: '2.69.3', date: '2026-11-10', title: 'PC 화면 음악·배경', items: [
 		['up', 'PC(넓은 화면)의 참가 포켓몬 고르기에서 혼자 하는 모드도 오른쪽에서 배틀 필드·음악을 고를 수 있어요'],
 	] },

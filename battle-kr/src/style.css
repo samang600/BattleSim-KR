@@ -3066,3 +3066,10 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 @keyframes emote-life { 0% { opacity: 0; transform: translateY(6px); } 6% { opacity: 1; transform: none; } 88% { opacity: 1; } 100% { opacity: 0; } }
 .emote-pick { position: fixed; z-index: 30; top: calc(34px + var(--safe-top)); left: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; width: min(280px, 92vw); background: #141c2e; box-shadow: 0 0 0 2px #0a0f18, inset 0 0 0 2px #4a5a7e; }
 .emote-pick .btn { font-size: 13px; padding: 8px 4px; min-width: 0; white-space: nowrap; }
+/* v2.69.4: PC 고르기 화면 오른쪽 상자 — 이름 줄이 눌려 사라지거나 아래 버튼에 가려 잘리지 않게 (이름 줄 고정, 내용만 스크롤) */
+@media (min-width: 900px) {
+	.opk-detail { max-height: calc(100vh - 244px); overflow: hidden; }
+	.opk-detail > * { flex: none; }
+	.opk-detail > .sheet { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 8px; }
+	.opk-detail .opk-name { margin-bottom: 0; }
+}
