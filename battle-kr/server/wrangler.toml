@@ -20,6 +20,14 @@ new_sqlite_classes = ["Room"]   # 무료 요금제는 SQLite 저장 방식만
 tag = "v2"
 new_sqlite_classes = ["Lobby"]
 
+[[durable_objects.bindings]]
+name = "BACKUP"
+class_name = "Backup"
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["Backup"]   # 세이브 클라우드 백업 (백업 코드 방식)
+
 # 개발용 서버 (웹 개발자 빌드 /dev/ 가 씀): `npx wrangler deploy --env dev` → battlesim-kr-dev.<계정>.workers.dev
 [env.dev]
 name = "battlesim-kr-dev"
@@ -35,3 +43,11 @@ class_name = "Lobby"
 [[env.dev.migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room", "Lobby"]
+
+[[env.dev.durable_objects.bindings]]
+name = "BACKUP"
+class_name = "Backup"
+
+[[env.dev.migrations]]
+tag = "v2"
+new_sqlite_classes = ["Backup"]

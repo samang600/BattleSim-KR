@@ -122,7 +122,8 @@ export function updateRecords(fn: (r: Records) => void) {
 
 // ── 데이터 백업·복원: 이 앱이 저장한 모든 값(팀·전적·리플레이·설정·진행 중 도전)을 한 JSON 으로 ──
 const BACKUP_TAG = 'battle-kr-backup';
-export function exportBackup(): string {
+/** skip: 넣지 않을 키 (클라우드 백업은 큰 리플레이·기기에만 해당하는 값을 뺌) */
+export function exportBackup(skip: string[] = []): string {
 	const data: { [k: string]: string } = {};
 	try {
 		for (let i = 0; i < localStorage.length; i++) {
@@ -131,6 +132,7 @@ export function exportBackup(): string {
 		}
 	} catch {}
 	for (const k in mem) if (!(k in data)) data[k] = mem[k];
+	for (const k of skip) delete data[k];
 	return JSON.stringify({ app: BACKUP_TAG, v: 1, at: new Date().toISOString(), data });
 }
 /** 백업 내용 확인 (덮어쓰기 전에 보여 줄 요약). 올바른 백업이 아니면 null */
@@ -142,16 +144,16 @@ export function inspectBackup(text: string): { at: string; teams: number; replay
 		return { at: b.at || '', teams: arr('teams'), replays: arr('replays'), keys: Object.keys(b.data).length };
 	} catch { return null; }
 }
-/** 백업으로 지금 데이터를 모두 바꿈 (백업에 없는 값은 지워짐) */
-export function importBackup(text: string): boolean {
+/** 백업으로 지금 데이터를 모두 바꿈 (백업에 없는 값은 지워짐). keep: 지금 기기의 값을 그대로 둘 키 */
+export function importBackup(text: string, keep: string[] = []): boolean {
 	if (!inspectBackup(text)) return false;
 	const data: { [k: string]: string } = JSON.parse(text).data;
 	try {
 		const old: string[] = [];
-		for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i)!; if (k.startsWith(PREFIX)) old.push(k); }
+		for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i)!; if (k.startsWith(PREFIX) && !keep.includes(k.slice(PREFIX.length))) old.push(k); }
 		for (const k of old) localStorage.removeItem(k);
 	} catch {}
-	for (const k of Object.keys(mem)) delete mem[k];
-	for (const [k, v] of Object.entries(data)) if (typeof v === 'string') set(k, v);
+	for (const k of Object.keys(mem)) if (!keep.includes(k)) delete mem[k];
+	for (const [k, v] of Object.entries(data)) if (typeof v === 'string' && !keep.includes(k)) set(k, v);
 	return true;
 }

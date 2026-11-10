@@ -28,7 +28,7 @@
  */
 import { DurableObject } from 'cloudflare:workers';
 
-interface Env { ROOMS: DurableObjectNamespace<Room>; LOBBY: DurableObjectNamespace<Lobby> }
+interface Env { ROOMS: DurableObjectNamespace<Room>; LOBBY: DurableObjectNamespace<Lobby>; BACKUP: DurableObjectNamespace<Backup> }
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
 const json = (o: any, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -59,9 +59,85 @@ export default {
 			if (!ws) return json({ error: 'WebSocket 으로 연결해 주세요' }, 426);
 			return env.LOBBY.get(env.LOBBY.idFromName('lobby')).fetch(req);
 		}
+		if (url.pathname === '/backup') return backupRoute(req, env, url);
 		return json({ error: 'not found' }, 404);
 	},
 };
+
+// ── 세이브 클라우드 백업 (백업 코드 방식: 계정 없음, 코드를 아는 사람만 읽고 덮어씀) ──
+// POST /backup {data, code?} → {code, at}   (code 가 없으면 새 코드, 있으면 그 코드에 덮어씀)
+// GET  /backup?code=XXXXXXXXXXXX → {data, at}
+// 코드 하나 = Backup Durable Object 하나. 새 코드 만들기는 IP 마다 하루 BACKUP_NEW_PER_DAY 번까지 (ip:… 이름의 같은 클래스가 셈)
+const BACKUP_MAX = 1_000_000;          // 글자 수 (리플레이를 뺀 세이브는 보통 수십 KB)
+const BACKUP_CHUNK = 30_000;           // 값 하나의 크기 한도를 넘지 않게 나눠 저장
+const BACKUP_TTL = 400 * 86400_000;    // 이만큼 쓰지도 읽지도 않으면 지움
+const BACKUP_NEW_PER_DAY = 20, BACKUP_WRITE_GAP = 3000;
+const backupCode = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => CODE_CHARS[b % CODE_CHARS.length]).join('');
+const cleanCode = (c: any) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+async function backupRoute(req: Request, env: Env, url: URL): Promise<Response> {
+	const obj = (name: string) => env.BACKUP.get(env.BACKUP.idFromName(name));
+	if (req.method === 'GET') {
+		const code = cleanCode(url.searchParams.get('code'));
+		if (code.length !== 12) return json({ error: '백업 코드는 12자리예요' }, 400);
+		return obj('c:' + code).fetch('https://do/get');
+	}
+	if (req.method !== 'POST') return json({ error: 'not found' }, 404);
+	let body: any;
+	try { body = JSON.parse(await req.text()); } catch { return json({ error: '요청이 올바르지 않아요' }, 400); }
+	const data = body?.data;
+	if (typeof data !== 'string' || !data) return json({ error: '보낼 데이터가 없어요' }, 400);
+	if (data.length > BACKUP_MAX) return json({ error: '세이브가 너무 커서 올릴 수 없어요' }, 413);
+	let code = cleanCode(body.code);
+	if (code && code.length !== 12) return json({ error: '백업 코드는 12자리예요' }, 400);
+	const put = async (c: string, fresh: boolean) => {
+		const r = await obj('c:' + c).fetch('https://do/put' + (fresh ? '?new=1' : ''), { method: 'POST', body: data });
+		if (r.status !== 200) return r;
+		return json({ ...(await r.json() as any), code: c });
+	};
+	if (code) return put(code, false);
+	const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
+	const ok = await obj('ip:' + ip).fetch('https://do/rate');
+	if (ok.status !== 200) return ok;
+	for (let i = 0; i < 4; i++) { const r = await put(backupCode(), true); if (r.status !== 409) return r; }
+	return json({ error: '코드를 만들지 못했어요. 다시 해 주세요' }, 500);
+}
+export class Backup extends DurableObject<Env> {
+	async fetch(req: Request): Promise<Response> {
+		const url = new URL(req.url), st = this.ctx.storage, now = Date.now();
+		if (url.pathname === '/rate') {
+			const day = Math.floor(now / 86400_000), r = (await st.get<{ day: number; n: number }>('rate')) || { day, n: 0 };
+			if (r.day !== day) { r.day = day; r.n = 0; }
+			if (r.n >= BACKUP_NEW_PER_DAY) return json({ error: '오늘은 새 백업 코드를 더 만들 수 없어요. 이미 받은 코드에 덮어써 주세요' }, 429);
+			r.n++; await st.put('rate', r); await st.setAlarm(now + 2 * 86400_000);
+			return json({ ok: true });
+		}
+		const meta = await st.get<{ at: number; n: number; w: number }>('meta');
+		if (url.pathname === '/get') {
+			if (!meta) return json({ error: '이 코드의 백업이 없어요. 코드를 다시 확인해 주세요' }, 404);
+			const parts = await st.get<string>(Array.from({ length: meta.n }, (_, i) => 'c' + i));
+			let data = ''; for (let i = 0; i < meta.n; i++) data += parts.get('c' + i) || '';
+			await st.setAlarm(now + BACKUP_TTL);
+			return json({ data, at: meta.at });
+		}
+		if (url.pathname === '/put') {
+			const fresh = url.searchParams.get('new') === '1';
+			if (fresh && meta) return json({ error: 'exists' }, 409);
+			if (!fresh && !meta) return json({ error: '이 코드의 백업이 없어요. 코드를 지우고 새로 올려 주세요' }, 404);
+			if (meta && now - meta.w < BACKUP_WRITE_GAP) return json({ error: '잠시 뒤에 다시 해 주세요' }, 429);
+			const data = await req.text(), n = Math.ceil(data.length / BACKUP_CHUNK) || 1;
+			const put: { [k: string]: any } = { meta: { at: now, n, w: now } };
+			for (let i = 0; i < n; i++) put['c' + i] = data.slice(i * BACKUP_CHUNK, (i + 1) * BACKUP_CHUNK);
+			const old = meta ? Array.from({ length: Math.max(0, meta.n - n) }, (_, i) => 'c' + (n + i)) : [];
+			const keys = Object.keys(put);
+			for (let i = 0; i < keys.length; i += 100) await st.put(Object.fromEntries(keys.slice(i, i + 100).map(k => [k, put[k]])));
+			for (let i = 0; i < old.length; i += 100) await st.delete(old.slice(i, i + 100));
+			await st.setAlarm(now + BACKUP_TTL);
+			return json({ code: '', at: now });
+		}
+		return json({ error: 'not found' }, 404);
+	}
+	async alarm() { await this.ctx.storage.deleteAll(); }
+}
 
 type Side = 'p1' | 'p2';
 interface Player { name: string; token: string; team: any[]; version: string; sprite?: string; picked?: number[]; ready?: boolean }

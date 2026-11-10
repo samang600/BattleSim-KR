@@ -3218,3 +3218,13 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .cmd-sub.red { background: linear-gradient(180deg, #fca08c 0 6px, #f0705c 6px 50%, #d84c3c 50% 80%, #c03a2c 80%); }
 .battle .sd-cmds:has(.sd-foe) { grid-template-columns: 1.3fr 1fr 1fr 1fr; }
 .battle .sd-label .sd-foe2 { min-height: 20px; padding: 0 8px; font-size: 11px; margin-left: 4px; }
+
+/* 클라우드 백업 (설정 › 데이터 백업) */
+.cloud-box { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; padding: 10px; background: var(--p-row2); box-shadow: inset 0 0 0 2px rgba(0,0,0,.3); }
+.cloud-box p { margin: 0; }
+.cloud-title { font-size: 15px; }
+.cloud-code { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.cloud-code b { font-size: 18px; letter-spacing: 1px; color: var(--yellow); user-select: all; }
+.cloud-code .cloud-at { flex-basis: 100%; }
+.cloud-in { display: flex; gap: 6px; }
+.cloud-in input { flex: 1; min-width: 0; height: 34px; padding: 0 8px; font: inherit; color: #fff; background: #0c1220; border: 2px solid #3a4a70; border-radius: 0; text-transform: uppercase; }

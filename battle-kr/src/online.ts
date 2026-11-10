@@ -16,6 +16,8 @@ export const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__
 export const SERVER = DEV ? 'battlesim-kr-dev.samang600.workers.dev' : 'battlesim-kr.samang600.workers.dev';
 /** 시험용: localStorage 'pkbkr-server' 에 다른 서버 주소(예: localhost:8787)를 넣으면 그쪽으로 */
 const serverOverride = () => { try { return localStorage.getItem('pkbkr-server') || ''; } catch { return ''; } };
+/** 서버의 HTTP 주소 (세이브 클라우드 백업 등) */
+export const httpUrl = (path: string) => { const o = serverOverride(); return o ? `${/^(localhost|127\.)/.test(o) ? 'http' : 'https'}://${o}${path}` : `https://${SERVER}${path}`; };
 const wsUrl = (path: string) => { const o = serverOverride(); return o ? `${/^(localhost|127\.)/.test(o) ? 'ws' : 'wss'}://${o}${path}` : `wss://${SERVER}${path}`; };
 
 type Side = 'p1' | 'p2';

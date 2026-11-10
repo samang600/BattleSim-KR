@@ -9,6 +9,7 @@ import { CalcScreen } from './ui/calc';
 import { runOnline } from './online-ui';
 import { runScenario } from './scenario';
 import { replaySession } from './online';
+import { cloudInfo, cloudUpload, cloudFetch, cloudApply, fmtCode, cleanCode } from './cloud';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
 import { runPalace, runIppitsu, runDaily, runBossRush, todayDaily } from './frontier';
 import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
@@ -328,6 +329,49 @@ function backupLoad() {
 	inp.click();
 }
 
+/** 클라우드 백업 (개발자 빌드 시험): 올리면 12자리 코드를 받고, 다른 기기에서 그 코드로 불러옴 */
+function CloudBackup() {
+	const [info, setInfo] = useState(cloudInfo());
+	const [busy, setBusy] = useState('');
+	const [code, setCode] = useState('');
+	const when = (t: number) => new Date(t).toLocaleString('ko-KR');
+	const upload = async () => {
+		setBusy('up');
+		try { const r = await cloudUpload(); setInfo(r); toast(info ? '클라우드 백업을 새로 올렸습니다.' : '클라우드에 올렸습니다. 백업 코드를 적어 두세요.'); }
+		catch (e: any) { toast(e.message || '올리지 못했습니다.'); }
+		setBusy('');
+	};
+	const download = async (c: string) => {
+		setBusy('down');
+		try {
+			const r = await cloudFetch(c);
+			if (await confirmBox('클라우드에서 불러오기', `${when(r.at)}에 올린 백업입니다 (팀 ${r.teams}개).\n지금 데이터는 이 백업으로 바뀝니다. (리플레이는 이 기기 것 그대로) 불러올까요?`, '불러오기', '취소')) {
+				if (cloudApply(c, r.text, r.at)) { toast('불러왔습니다. 다시 시작합니다…'); setTimeout(() => location.reload(), 600); }
+				else toast('불러오지 못했습니다.');
+			}
+		} catch (e: any) { toast(e.message || '불러오지 못했습니다.'); }
+		setBusy('');
+	};
+	return <div class="cloud-box">
+		<div class="cloud-title">클라우드 백업 <span class="muted small">개발자 빌드 시험</span></div>
+		{info ? <div class="cloud-code">
+			<span class="muted small">내 백업 코드</span>
+			<b>{fmtCode(info.code)}</b>
+			<button class="btn small" onClick={() => { navigator.clipboard?.writeText(fmtCode(info.code)).then(() => toast('코드를 복사했습니다.'), () => toast('복사하지 못했습니다.')); }}>복사</button>
+			<span class="muted small cloud-at">마지막으로 올린 때 {when(info.at)}</span>
+		</div> : <p class="muted small">올리면 12자리 백업 코드를 받습니다. 다른 기기에서 그 코드를 넣으면 불러올 수 있어요.</p>}
+		<div class="seg">
+			<button disabled={!!busy} onClick={upload}>{busy === 'up' ? '올리는 중…' : info ? '지금 세이브로 덮어쓰기' : '클라우드에 올리기'}</button>
+			{info && <button disabled={!!busy} onClick={() => download(info.code)}>{busy === 'down' ? '받는 중…' : '내 코드에서 불러오기'}</button>}
+		</div>
+		<div class="cloud-in">
+			<input type="text" value={code} placeholder="다른 기기의 백업 코드" maxLength={20} autocapitalize="characters" autocomplete="off" spellcheck={false} onInput={e => setCode((e.target as HTMLInputElement).value)} />
+			<button class="btn small" disabled={!!busy || cleanCode(code).length !== 12} onClick={() => download(code)}>이 코드로 불러오기</button>
+		</div>
+		<p class="muted small">코드를 아는 사람은 누구나 이 백업을 읽고 덮어쓸 수 있으니 남에게 알려 주지 마세요. 코드를 잃어버리면 찾을 수 없습니다. 리플레이는 올리지 않고, 400일 동안 쓰지 않은 백업은 지워집니다.</p>
+	</div>;
+}
+
 /** 주인공 모습: ◀ 그림·이름 ▶ 한 줄로 넘기며 고름 (이웃한 모습도 작게 보여 줌) */
 /** 주인공 모습: 화살표로 넘기거나, 가운데를 누르면 전부 격자로 보기 (기본 주인공 + 교환소에서 얻은 모습, 묶음별) */
 function avatarGroups(): [string, { id: string; name: string }[]][] {
@@ -432,6 +476,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 			<button onClick={() => backupSave()}>파일로 내보내기</button>
 			<button onClick={() => backupLoad()}>파일에서 불러오기</button>
 		</div>
+		{SCENARIO_ON && <CloudBackup />}
 		<p class="muted small">팀·전적·리플레이·설정·진행 중인 연승 도전을 파일 하나로 저장합니다. 앱을 지우거나 폰을 바꿀 때 내보내 두었다가 불러오세요. (오프라인 그림 데이터는 다시 받으면 됩니다)</p>
 		<h3 class="sec">창틀 디자인</h3>
 		<div class="seg">{([['stone', '블루'], ['silver', '레드'], ['dark', '블랙']] as const).map(([k, l]) => <button class={s.frame === k ? 'on' : ''} onClick={() => { up({ frame: k }); applyTheme({ ...s, frame: k }); }}>{l}</button>)}</div>
