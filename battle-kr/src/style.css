@@ -3200,20 +3200,15 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 
 /* 상대 파티 현황 창 (좁은 화면에서 양옆 패널 대신) */
 .foe-btn { pointer-events: auto; cursor: pointer; color: #ffb0a0 !important; }
-.foe-list { display: flex; flex-direction: column; gap: 6px; }
-.foe-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; text-align: left; color: inherit; font: inherit; background: var(--p-row2); border: 0; box-shadow: inset 0 0 0 2px rgba(0,0,0,.25); cursor: pointer; }
-.foe-row.act { box-shadow: inset 0 0 0 2px var(--yellow); }
-.foe-row.fnt .foe-pic { filter: grayscale(1) brightness(.6); }
-.foe-row.unk { cursor: default; min-height: 40px; }
-.foe-row .foe-pic { flex: none; }
-.foe-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.foe-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.foe-hp { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.foe-hp .hpbar { flex: 1; max-width: 160px; }
-.foe-sub { font-size: 12px; opacity: .9; }
+.foe-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.foe-cell { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 92px; padding: 6px 8px 8px; color: inherit; font: inherit; background: var(--p-row2); border: 0; box-shadow: inset 0 0 0 2px rgba(0,0,0,.3); cursor: pointer; }
+.foe-cell .foe-pic { zoom: 2; margin: auto; }
+.foe-cell .hpbar { width: auto; align-self: stretch; flex: none; margin: 0 6px 0 22px; }
+.foe-cell .foe-nohp { display: block; width: 100%; height: 7px; flex: none; }
+.foe-cell.act { box-shadow: inset 0 0 0 2px var(--yellow); }
+.foe-cell.fnt .foe-pic { filter: grayscale(1) brightness(.6); }
+.foe-cell.dim { cursor: default; background: #0c1220; }
+.foe-cell.dim .foe-pic { filter: brightness(.3) saturate(.5); }
+.foe-cell.dim .ball { margin: auto; opacity: .5; }
 .foe-hint { font-size: 12px; margin: 8px 0 0; }
-.foe-row.idle { cursor: default; }
-.foe-row.idle .foe-pic { opacity: .85; }
-.foe-row.out { opacity: .5; }
-.foe-row.out .foe-pic { filter: grayscale(1); }
 .foe-hint.top { margin: 0 0 8px; }

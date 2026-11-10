@@ -3,7 +3,7 @@
 스마트폰에서 바로 하는 한국어 포켓몬 배틀 앱. 배틀 계산은 이 저장소의 **Pokémon Showdown 시뮬레이터(`sim/`)를 그대로** 브라우저에서 돌립니다.
 
 ## 받기
-- **안드로이드**: [`release/BattleSimKR-v2.70.3.apk`](release/BattleSimKR-v2.70.3.apk) (약 2MB, 칩튠 배경음악 포함) 를 받아 설치 (출처를 알 수 없는 앱 허용 필요, 안드로이드 7.0 이상)
+- **안드로이드**: [`release/BattleSimKR-v2.70.4.apk`](release/BattleSimKR-v2.70.4.apk) (약 2MB, 칩튠 배경음악 포함) 를 받아 설치 (출처를 알 수 없는 앱 허용 필요, 안드로이드 7.0 이상)
 - 그림·울음소리·기술 애니메이션은 기본적으로 인터넷에서 그때그때 받습니다. **설정 → 오프라인 데이터 → 한 번에 받기**(약 24MB 내려받기, 풀면 약 60MB)를 누르면 앱 저장소에 받아 두어 인터넷 없이도 모두 나옵니다.
 - **웹 (설치 없이)**: **https://samang600.github.io/BattleSim-KR/** — 아이폰·PC·안드로이드 브라우저에서 바로 실행 (홈 화면에 추가 → 앱처럼 실행). 웹은 `web` 브랜치를 빌드해 올립니다(`.github/workflows/pages.yml`, main 에 푸시하거나 수동 실행 때). 웹에 올릴 때는 `web` 브랜치를 main 으로 옮긴 뒤 워크플로를 다시 실행합니다(main 에 푸시해도 웹은 `web` 브랜치 그대로). 지금 웹은 v2.54.6.
   - 방문자 수는 GoatCounter(쿠키 없음)로 집계합니다: https://samang600.goatcounter.com — 웹 배포 주소에서만 세고 안드로이드 앱은 세지 않습니다.
@@ -101,6 +101,7 @@
 - **v2.70.1 직접 업데이트**: 설정 맨 위 「앱 업데이트」 상자(`AppUpdate`) — 화면이 정식 웹의 `version.json` 을 직접 읽어 최신 버전을 보여 주고, 「업데이트 받기」(`checkUpdate`) → 「지금 적용」(`restartApp`). 메인 화면 위 띠(`UpdateBanner`)도 같은 상태(`useUpdateState`: ready·newer·needApk). 네이티브 변경 없음.
 - **v2.70.2 상대 현황 버튼**: 좁은 화면(휴대폰 세로·가로)의 배틀 상단 「상대 ▸」 버튼·메뉴 「상대 포켓몬 현황」 → 상대 파티 창(`foeOpen`: 아이콘·HP·상태·확인된 특성/도구/기술, 누르면 `MonDetail`). 넓은 화면은 기존 양옆 패널 그대로.
 - **v2.70.3 상대 엔트리 전체**: 고르기 화면에서 상대 엔트리를 본 배틀(`BattleSetup.p2.preview` — 프리·네임드·PWT·랭크·오늘의 도전·보스 러시·온라인)은 상대 현황 창에 엔트리 전체가 나오고, 배틀에 나온 포켓몬만 참가로 확인됨(나머지는 ‘참가 여부 모름’, 참가 수만큼 다 나오면 ‘불참’). 엔트리를 미리 보지 않는 모드(배틀타워·팩토리 등)는 그대로 ‘아직 나오지 않음’.
+- **v2.70.4 상대 현황 격자**: 상대 현황 창을 3마리씩 2줄 격자(`.foe-grid`/`.foe-cell`)로 — 아이콘과 HP 만, 배틀에 나오지 않은(확인 안 된) 포켓몬은 어둡게. 밝은 칸을 누르면 `MonDetail`.
 - **v2.70.0 움직이는 도트**: 설정 › 포켓몬 그림 = 정지 도트(기본) · 움직이는 도트(`settings.aniDot`) · 움직이는 3D. 그림은 `sprites-ani` 브랜치의 zip 4개(`anifront`·`aniback`·`anifrontshiny`·`anibackshiny`, 움직이는 WebP 앞 1,318 · 뒤 1,317 · 이로치 앞 1,318 · 이로치 뒤 1,309, 약 200MB, 출처·만든 이는 그 브랜치 README). 웹: Pages 배포 때 풀어 `/ani/` 에서 그때그때 받음(`ANI_BASE`). 앱: 설정의 「움직이는 도트 받기」가 기존 `downloadPack` 으로 zip 을 `files/offline/<이름>/` 에 풀어 두고(받은 묶음은 localStorage `pkbkr:ani-parts` 로 기억 — 네이티브 변경 없음, OTA 로 적용), 없으면 인터넷. `scripts/make-ani-sprites.py` 가 Essentials 용 프레임 띠 묶음을 변환하고 `src/gen/ani-index.json` 을 만듦. 거다이맥스 모습은 없어 정지 도트. 원본 묶음(Animated Pokemon System)에 사용 조건이 적혀 있지 않음 — 설정 화면에 출처 표기.
 - **v2.69.4**: PC 고르기 화면 오른쪽 능력치 상자(`.opk-detail`) — 이름 줄 고정·내용만 스크롤, 아래 버튼에 가리지 않는 높이.
 - **v2.69.3**: 넓은 화면의 참가 포켓몬 고르기(`PickScreen` → `OnlinePick offline`)에서 음악·배경 고르기를 넘기지 않은 모드(타워·팩토리·팰리스 등)도 오른쪽에 배틀 필드·음악이 나옴.

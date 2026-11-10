@@ -1799,24 +1799,15 @@ function typeTint(type: string) {
 		</Modal>}
 		{foeOpen && !detail && <Modal title={`${setup.p2.name}의 포켓몬`} onClose={() => setFoeOpen(false)}>
 			{(() => {
+				// 3마리씩 2줄: 아이콘 + HP 만. 배틀에 나온 포켓몬만 밝게(누르면 자세히), 확인 안 된 포켓몬은 어둡게
 				const sp2 = scene.p2, pv = setup.p2.preview;
-				const row = (m: Mon) => {
-					const sd = speciesData(toID(m.species), gen);
-					const pct = m.fainted ? 0 : Math.max(1, Math.round(100 * m.hp / Math.max(1, m.maxhp)));
-					return <button class={'foe-row' + (m.fainted ? ' fnt' : '') + (sp2.active.includes(m) ? ' act' : '')} onClick={() => setDetail({ mon: m, own: false })}>
-						<PokeIcon species={m.species} cls="foe-pic" />
-						<div class="foe-main">
-							<div class="foe-name"><b>{m.nick}</b> <span class="muted">Lv{m.level}</span> {sd?.t.map(t => <TypeBadge type={t} small />)}</div>
-							<div class="foe-hp"><HPBar hp={m.fainted ? 0 : m.hp} maxhp={m.maxhp || 1} /><span>{m.fainted ? '기절' : pct + '%'}</span>{m.status && !m.fainted && <StatusBadge status={m.status} />}</div>
-							<div class="foe-sub">특성 <b>{m.ability ? abilityKo(m.ability) : '미확인'}</b> · 도구 <b>{m.item ? itemKo(m.item) : m.itemSeen ? '없음' : '미확인'}</b></div>
-							{m.seen.length > 0 && <div class="foe-sub">기술 {m.seen.map(moveKo).join(' · ')}</div>}
-						</div>
-					</button>;
-				};
-				if (!pv || pv.length < sp2.teamSize) return <div class="foe-list">
-					{Array.from({ length: sp2.teamSize }, (_, i) => sp2.team[i] ? row(sp2.team[i]) : <div class="foe-row unk"><span class="ball unk" /><span class="muted">아직 나오지 않음</span></div>)}
+				const cell = (m: Mon) => <button class={'foe-cell' + (m.fainted ? ' fnt' : '') + (sp2.active.includes(m) ? ' act' : '')} onClick={() => setDetail({ mon: m, own: false })} aria-label={m.nick}>
+					<PokeIcon species={m.species} cls="foe-pic" />
+					<HPBar hp={m.fainted ? 0 : m.hp} maxhp={m.maxhp || 1} />
+				</button>;
+				if (!pv || pv.length < sp2.teamSize) return <div class="foe-grid">
+					{Array.from({ length: sp2.teamSize }, (_, i) => sp2.team[i] ? cell(sp2.team[i]) : <div class="foe-cell dim"><span class="ball unk" /><i class="foe-nohp" /></div>)}
 				</div>;
-				// 공개된 엔트리 전체 — 배틀에 나온 포켓몬만 '참가'로 확인됨. 참가 수만큼 다 나오면 나머지는 불참
 				const baseOf = (x: string) => { const d = speciesData(toID(x), gen) as any; return toID(d?.base || x); };
 				const hit: (Mon | undefined)[] = pv.map(() => undefined);
 				for (const exact of [true, false]) for (const m of sp2.team) {
@@ -1824,23 +1815,9 @@ function typeTint(type: string) {
 					const k = pv.findIndex((x, i) => !hit[i] && (exact ? toID(x.species) === toID(m.species) : baseOf(x.species) === baseOf(m.species)));
 					if (k >= 0) hit[k] = m;
 				}
-				const seen = sp2.team.length, allOut = seen >= sp2.teamSize;
-				return <>
-					<p class="muted foe-hint top">엔트리 {pv.length}마리 중 {sp2.teamSize}마리 참가 · 확인된 참가 {seen}마리</p>
-					<div class="foe-list">{pv.map((x, i) => {
-						if (hit[i]) return row(hit[i]!);
-						const sd = speciesData(toID(x.species), gen);
-						return <div class={'foe-row idle' + (allOut ? ' out' : '')}>
-							<PokeIcon species={x.species} cls="foe-pic" />
-							<div class="foe-main">
-								<div class="foe-name"><b>{speciesKo(x.species)}</b> {sd?.t.map(t => <TypeBadge type={t} small />)}</div>
-								<div class="foe-sub muted">{allOut ? '불참' : '참가 여부 모름'}</div>
-							</div>
-						</div>;
-					})}</div>
-				</>;
+				return <div class="foe-grid">{pv.map((x, i) => hit[i] ? cell(hit[i]!) : <div class="foe-cell dim" aria-label={speciesKo(x.species)}><PokeIcon species={x.species} cls="foe-pic" /><i class="foe-nohp" /></div>)}</div>;
 			})()}
-			<p class="muted foe-hint">배틀에 나온 포켓몬을 누르면 자세히 볼 수 있습니다.</p>
+			<p class="muted foe-hint">밝은 포켓몬은 배틀에 나온 포켓몬 — 누르면 자세히 볼 수 있습니다.</p>
 		</Modal>}
 		{fieldOpen && <FieldModal session={sessionRef.current!} scene={sceneRef.current} onClose={() => setFieldOpen(false)} />}
 		{showLog && <Modal title="배틀 기록" onClose={() => setShowLog(false)}>

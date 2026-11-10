@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.70.4', date: '2026-11-10', title: '상대 현황 한눈에', items: [
+		['up', '상대 현황 창을 3마리씩 2줄로 — 아이콘과 HP 만 보이고, 아직 확인 안 된 포켓몬은 어둡게 나와요'],
+	] },
 	{ ver: '2.70.3', date: '2026-11-10', title: '상대 엔트리 전체 보기', items: [
 		['up', '상대 현황 창에 상대 엔트리 6마리가 모두 나와요 — 누가 참가했는지는 배틀에 나온 포켓몬까지만 알 수 있어요 (엔트리를 보고 고르는 모드)'],
 	] },
