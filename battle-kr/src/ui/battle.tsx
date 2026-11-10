@@ -1517,6 +1517,7 @@ function typeTint(type: string) {
 		return <div class="controls">
 			<div class="ctl-head">
 				<span class="ctl-title">{title}</span>
+				{!wide && <button class="btn small ctl-foe" onClick={() => setFoeOpen(true)}>상대</button>}
 				<button class="btn small ctl-log" onClick={() => setShowLog(true)}>기록</button>
 				{back}
 			</div>
@@ -1526,9 +1527,10 @@ function typeTint(type: string) {
 					{/* 휴대폰 가로: 교체는 '포켓몬' 버튼으로 오른쪽 칸 전체를 써서 */}
 					<button class="cmd-sub green" onClick={() => setMenu('switch')}>포켓몬</button>
 					<button class="cmd-sub blue" onClick={forfeit}>기권</button>
+					{!wide && <button class="cmd-sub red sd-foe" onClick={() => setFoeOpen(true)}>상대</button>}
 					<button class="cmd-sub yellow" onClick={() => setShowLog(true)}>기록</button>
 				</div> : <>
-					<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>기권</button><button class="btn small sd-log" onClick={() => setShowLog(true)}>기록</button></div>
+					<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>기권</button>{!wide && <button class="btn small sd-foe2" onClick={() => setFoeOpen(true)}>상대</button>}<button class="btn small sd-log" onClick={() => setShowLog(true)}>기록</button></div>
 					{renderSwitch()}
 				</>}
 			</div>}
@@ -1728,7 +1730,6 @@ function typeTint(type: string) {
 			<button class="badge speed-btn" onClick={e => { e.stopPropagation(); cycleSpeed(); }}>{SPEED_LABEL[settings.speed]}</button>
 			<button class={'badge text-btn' + (settings.textManual ? ' manual' : '')} onClick={e => { e.stopPropagation(); toggleManual(); }} aria-label="메시지 진행">{settings.textManual ? '▶ 수동' : '▶ 자동'}</button>
 			<button class="badge field-btn" onClick={e => { e.stopPropagation(); setFieldOpen(true); }}>필드 ▸</button>
-			{!wide && <button class="badge foe-btn" onClick={e => { e.stopPropagation(); setFoeOpen(true); }}>상대 ▸</button>}
 			<button class="badge menu-btn" onClick={e => { e.stopPropagation(); setMenuOpen(true); }} aria-label="메뉴">☰ 메뉴</button>
 		</div>
 		<div class="arena-wings" aria-hidden="true" />

@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.70.7', date: '2026-11-10', title: '상대 버튼 자리 옮김', items: [
+		['up', '「상대」 버튼을 화면 위에서 기록 버튼 옆으로 옮겼어요 (가로 화면은 포켓몬·기권·상대·기록 한 줄)'],
+		['up', '상대 현황 창의 칸을 둥글게, 다시 가지런히 놓았어요'],
+	] },
 	{ ver: '2.70.6', date: '2026-11-10', title: '상대 현황 칸 다듬기', items: [
 		['up', '상대 현황 창의 칸을 더 작게, 3칸씩 비스듬히 맞물리게 놓았어요'],
 	] },
