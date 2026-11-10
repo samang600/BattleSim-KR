@@ -1818,7 +1818,6 @@ function typeTint(type: string) {
 				}
 				return <div class="foe-grid">{pv.map((x, i) => hit[i] ? cell(hit[i]!) : <div class="foe-cell dim" aria-label={speciesKo(x.species)}><PokeIcon species={x.species} cls="foe-pic" /><i class="foe-nohp" /></div>)}</div>;
 			})()}
-			<p class="muted foe-hint">밝은 포켓몬은 배틀에 나온 포켓몬 — 누르면 자세히 볼 수 있습니다.</p>
 		</Modal>}
 		{fieldOpen && <FieldModal session={sessionRef.current!} scene={sceneRef.current} onClose={() => setFieldOpen(false)} />}
 		{showLog && <Modal title="배틀 기록" onClose={() => setShowLog(false)}>
