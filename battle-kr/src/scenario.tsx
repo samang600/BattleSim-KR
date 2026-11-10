@@ -2,7 +2,8 @@
  *  - 월드 화면(듀얼 링크스식): 아래 탭으로 구역 이동, 구역 배경(scripts/gen-fields.py) 위에 선 인물을 눌러 대화·배틀
  *  - 스테이지: 구역의 미션(인물 격파)을 모두 하면 다음 구역이 열림
  *  - 포켓몬: 풀숲에서 3마리 중 하나 영입, 이기면 레벨 +2 (구역별 상한), 레벨이 되면 진화·레벨업 기술 (gen/levelup.json)
- *  - 초상화: 사용자가 준 상반신 그림(scripts/make-portraits.py → Pages /portraits/), 없으면 도트 그림
+ *  - 초상화(픽셀 아트, scripts/make-portraits.py → Pages /portraits/): 네임드는 사용자가 준 상반신 그림을 픽셀화한 것,
+ *    일반 트레이너는 쇼다운 도트를 키운 것(d_<그림 id>) — 그림이 원작 성별·모습과 안 맞는 경우가 많아서. 없으면 도트 그림
  *  저장: localStorage pkbkr:scenario-kanto */
 import { h } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
@@ -62,13 +63,13 @@ const AREAS: Area[] = [
 	] },
 	{ id: 'route', name: '상록숲', bg: 'forest', cap: 11, mission: '풀숲에서 동료를 찾고 숲의 트레이너 2명 격파', npcs: [
 		{ id: 'grass1', name: '풀숲', sprite: '', portrait: '', x: 18, kind: 'grass', times: 2, pool: [['pidgey', 3, 5], ['rattata', 3, 5], ['caterpie', 3, 5], ['weedle', 3, 5], ['pikachu', 4, 5], ['nidoranf', 4, 5], ['nidoranm', 4, 5], ['mankey', 4, 5]] },
-		{ id: 'bug1', name: '곤충채집소년 민수', sprite: 'bugcatcher', portrait: 'bugcatcher', x: 46, kind: 'battle', skill: 0.15, bg: 'field',
+		{ id: 'bug1', name: '곤충채집소년 민수', sprite: 'bugcatcher', portrait: 'd_bugcatcher', x: 46, kind: 'battle', skill: 0.15, bg: 'field',
 			team: [['weedle', 6], ['caterpie', 6]], before: ['숲은 벌레 포켓몬의 천국이야! 내 벌레들을 보여 줄게!'], after: ['으앗, 내 벌레들이…!'], again: ['벌레도 키우면 강해진다고!'] },
-		{ id: 'bug2', name: '곤충채집소년 도윤', sprite: 'bugcatcher', portrait: 'bugcatcher', x: 76, kind: 'battle', need: ['bug1'], skill: 0.2, bg: 'field',
+		{ id: 'bug2', name: '곤충채집소년 도윤', sprite: 'bugcatcher', portrait: 'd_bugcatcher', x: 76, kind: 'battle', need: ['bug1'], skill: 0.2, bg: 'field',
 			team: [['metapod', 7], ['kakuna', 7], ['caterpie', 8]], before: ['단단해지기만 한다고 얕보지 마!'], after: ['회색시티 체육관은 바위 타입이야. 조심해!'], again: ['웅 관장님은 정말 단단하다니까.'] },
 	] },
 	{ id: 'pewter', name: '회색시티', bg: 'pewter', cap: 14, mission: '회색 체육관 관장 웅을 이기고 회색배지 얻기', npcs: [
-		{ id: 'camper', name: '캠핑보이 준호', sprite: 'camper', portrait: 'backpacker', x: 28, kind: 'battle', skill: 0.3, bg: 'gym', music: 'g3gym',
+		{ id: 'camper', name: '캠핑보이 준호', sprite: 'camper', portrait: 'd_camper', x: 28, kind: 'battle', skill: 0.3, bg: 'gym', music: 'g3gym',
 			team: [['geodude', 10], ['sandshrew', 11]], before: ['잠깐! 웅 관장님께 도전하려면 나부터 이겨야지!'], after: ['빠르군… 관장님께는 10000광년 이르다고 하려 했는데!'], again: ['관장님은 저 안에 계셔.'] },
 		{ id: 'brock', name: '웅', title: '회색 체육관 관장', sprite: 'brock', portrait: 'brock', x: 62, kind: 'battle', need: ['camper'], skill: 0.55, bg: 'gym', music: 'g3gym', exp: 3, badge: '회색배지',
 			team: [['geodude', 12], ['onix', 14]], before: ['나는 회색 체육관 관장 웅!', '내 바위처럼 단단한 의지는 포켓몬에게도 깃들어 있다. 바위 타입의 굳건함을 보여 주마!'],
@@ -76,14 +77,14 @@ const AREAS: Area[] = [
 	] },
 	{ id: 'mtmoon', name: '달맞이산', bg: 'mtmoon', cap: 18, mission: '달맞이산에서 화석을 노리는 로켓단 물리치기', npcs: [
 		{ id: 'grass2', name: '동굴 그늘', sprite: '', portrait: '', x: 12, kind: 'grass', times: 2, pool: [['zubat', 8, 10], ['geodude', 8, 10], ['paras', 9, 10], ['clefairy', 9, 11], ['sandshrew', 9, 11]] },
-		{ id: 'lass', name: '짧은치마 유나', sprite: 'lass', portrait: 'lass', x: 32, kind: 'battle', skill: 0.3, bg: 'cave',
+		{ id: 'lass', name: '짧은치마 유나', sprite: 'lass', portrait: 'd_lass', x: 32, kind: 'battle', skill: 0.3, bg: 'cave',
 			team: [['oddish', 11], ['bellsprout', 11]], before: ['어머, 눈이 마주쳤네? 그럼 승부야!'], after: ['달맞이산 안쪽에 수상한 사람들이 있었어…'], again: ['검은 옷 입은 사람들 조심해!'] },
-		{ id: 'hiker', name: '등산가 대산', sprite: 'hiker', portrait: 'hiker', x: 52, kind: 'battle', skill: 0.3, bg: 'cave',
+		{ id: 'hiker', name: '등산가 대산', sprite: 'hiker', portrait: 'd_hiker', x: 52, kind: 'battle', skill: 0.3, bg: 'cave',
 			team: [['geodude', 10], ['geodude', 10], ['onix', 12]], before: ['허허! 산에서 만난 것도 인연이지. 한판 하세!'], after: ['이 산에는 달의돌과 화석이 잠들어 있다네.'], again: ['산은 언제나 거기 있지!'] },
-		{ id: 'rocket1', name: '로켓단 조무래기', title: '로켓단', sprite: 'rocketgrunt', portrait: 'teamrocketgrunt', x: 72, kind: 'battle', need: ['lass', 'hiker'], skill: 0.4, bg: 'cave', music: 'g3evil',
+		{ id: 'rocket1', name: '로켓단 조무래기', title: '로켓단', sprite: 'rocketgrunt', portrait: 'd_rocketgrunt', x: 72, kind: 'battle', need: ['lass', 'hiker'], skill: 0.4, bg: 'cave', music: 'g3evil',
 			team: [['rattata', 13], ['zubat', 13]], before: ['뭐야, 꼬마가 여긴 왜 왔어? 우리 로켓단은 화석을 찾느라 바쁘다고!', '방해할 거면 혼쭐을 내 주지!'],
 			after: ['으윽… 로켓단을 적으로 돌리면 후회할 거다!'], again: ['보스께 다 이를 거야…!'] },
-		{ id: 'nerd', name: '이과계의 남자 준기', sprite: 'supernerd', portrait: 'supernerd', x: 90, kind: 'battle', need: ['rocket1'], skill: 0.45, bg: 'cave', exp: 3,
+		{ id: 'nerd', name: '이과계의 남자 준기', sprite: 'supernerd', portrait: 'd_supernerd', x: 90, kind: 'battle', need: ['rocket1'], skill: 0.45, bg: 'cave', exp: 3,
 			team: [['grimer', 12], ['voltorb', 12], ['koffing', 12]], before: ['거기 서! 이 화석은 내가 찾은 거야! 둘 다 내 거라고!'],
 			after: ['알았어, 나눠 갖자… 화석 하나는 네가 가져가.', '(시안은 여기까지예요. 다음은 블루시티의 이슬!)'], again: ['화석을 되살리는 연구소가 어딘가 있다던데…'] },
 	] },
@@ -102,7 +103,7 @@ const available = (r: Run, n: Npc) => (n.need || []).every(x => r.done[x]) && (n
 function Portrait({ id, sprite, cls = '' }: { id: string; sprite: string; cls?: string }) {
 	const [bad, setBad] = useState(false);
 	if (!id || bad) return <img class={'sc-portrait dot ' + cls} src={SPRITE_URL(sprite || 'unknown')} onError={trainerImgError} alt="" />;
-	return <img class={'sc-portrait ' + cls} src={`${PORTRAIT_BASE}${id}.webp`} onError={() => setBad(true)} alt="" />;
+	return <img class={'sc-portrait px ' + (id.startsWith('d_') ? 'dotp ' : '') + cls} src={`${PORTRAIT_BASE}${id}.png`} onError={() => setBad(true)} alt="" />;
 }
 /** 대화 장면 (story-mode-test 의 배치): 배경 + 가운데 큰 초상 + 이름 띠 + 흰 대화창 (한 글자씩, 누르면 넘김) + 건너뛰기 */
 function talk(npc: { name: string; title?: string; portrait: string; sprite: string }, lines: string[], bg: string): Promise<void> {

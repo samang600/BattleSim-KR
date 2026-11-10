@@ -3192,3 +3192,8 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .sc-tabs2 { padding-bottom: calc(24px + var(--safe-bottom, 0px)); }
 .sc-me2 { bottom: calc(76px + var(--safe-bottom, 0px)); }
 .sc-party2 .poke-icon { zoom: 1; } .sc-party2 .sc-pmon { width: 40px; } .sc-party2 .sc-pmon small { margin-top: -6px; }
+/* 시나리오 초상화: 픽셀 아트 (네임드 = 픽셀화한 상반신 120×176, 일반 트레이너 = 도트 확대 d_*) */
+.sc-portrait.px { image-rendering: pixelated !important; }
+.sc-stp .sc-portrait.big.px { height: 100%; max-height: 704px; }
+.sc-stp .sc-portrait.big.px.dotp { height: 62%; max-height: 420px; }
+.sc-portrait.face.px.dotp { width: 110px; height: auto; object-fit: contain; margin-top: 2px; }
