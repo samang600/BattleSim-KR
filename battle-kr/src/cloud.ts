@@ -3,8 +3,8 @@
 import { exportBackup, importBackup, inspectBackup, load, save, remove } from './store';
 import { httpUrl } from './online';
 
-/** 올리지 않는 키: 리플레이 · 이 기기의 백업 코드 · 이 기기에 받아 둔 그림 묶음 */
-const LOCAL_ONLY = ['replays', 'cloud', 'ani-parts'];
+/** 올리지 않는 키: 리플레이 · 이 기기의 백업 코드 · 이 기기에 받아 둔 그림 묶음 · 온라인 대전용 기기 표식 */
+const LOCAL_ONLY = ['replays', 'cloud', 'ani-parts', 'online-token', 'online-active'];   // online-token: 기기마다 달라야 함 (같으면 두 기기가 온라인에서 같은 사람으로 보임)
 export interface CloudInfo { code: string; at: number }
 export const cloudInfo = (): CloudInfo | null => load<CloudInfo | null>('cloud', null);
 export const fmtCode = (c: string) => c.replace(/[^A-Za-z0-9]/g, '').toUpperCase().replace(/(.{4})(?=.)/g, '$1-');

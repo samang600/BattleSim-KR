@@ -329,7 +329,7 @@ function backupLoad() {
 	inp.click();
 }
 
-/** 클라우드 백업 (개발자 빌드 시험): 올리면 12자리 코드를 받고, 다른 기기에서 그 코드로 불러옴 */
+/** 클라우드 백업: 올리면 12자리 코드를 받고, 다른 기기에서 그 코드로 불러옴 */
 function CloudBackup() {
 	const [info, setInfo] = useState(cloudInfo());
 	const [busy, setBusy] = useState('');
@@ -353,7 +353,7 @@ function CloudBackup() {
 		setBusy('');
 	};
 	return <div class="cloud-box">
-		<div class="cloud-title">클라우드 백업 <span class="muted small">개발자 빌드 시험</span></div>
+		<div class="cloud-title">클라우드 백업</div>
 		{info ? <div class="cloud-code">
 			<span class="muted small">내 백업 코드</span>
 			<b>{fmtCode(info.code)}</b>
@@ -476,7 +476,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 			<button onClick={() => backupSave()}>파일로 내보내기</button>
 			<button onClick={() => backupLoad()}>파일에서 불러오기</button>
 		</div>
-		{SCENARIO_ON && <CloudBackup />}
+		<CloudBackup />
 		<p class="muted small">팀·전적·리플레이·설정·진행 중인 연승 도전을 파일 하나로 저장합니다. 앱을 지우거나 폰을 바꿀 때 내보내 두었다가 불러오세요. (오프라인 그림 데이터는 다시 받으면 됩니다)</p>
 		<h3 class="sec">창틀 디자인</h3>
 		<div class="seg">{([['stone', '블루'], ['silver', '레드'], ['dark', '블랙']] as const).map(([k, l]) => <button class={s.frame === k ? 'on' : ''} onClick={() => { up({ frame: k }); applyTheme({ ...s, frame: k }); }}>{l}</button>)}</div>

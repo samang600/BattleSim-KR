@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.71.0', date: '2026-11-10', title: '클라우드 백업', items: [
+		['new', '설정 › 데이터 백업 › 클라우드 백업 — 올리면 12자리 백업 코드를 받고, 다른 기기(폰·PC 웹)에서 그 코드로 팀·전적·설정·진행 중 도전을 불러와요'],
+		['up', '리플레이는 올리지 않고 불러와도 그 기기 것이 그대로 남아요. 코드는 남에게 알려 주지 마세요 (400일 안 쓰면 지워짐)'],
+	] },
 	{ ver: '2.70.8', date: '2026-11-10', title: '상대 현황 버튼', items: [
 		['new', '휴대폰 배틀 화면의 기록 버튼 옆 「상대」 버튼으로 상대 파티 현황을 볼 수 있어요 — 엔트리를 보고 고르는 모드는 6마리가 모두 나오고, 아직 확인 안 된 포켓몬은 어둡게 보여요'],
 	] },
