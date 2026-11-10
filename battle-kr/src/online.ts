@@ -56,9 +56,10 @@ export const normCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '')
 export class OnlineRoom {
 	ws: WebSocket | null = null;
 	closed = false;
+	early: any[] = [];
 	handlers: { room?: (r: RoomInfo) => void; preview?: (p: PreviewInfo) => void; start?: (s: StartInfo) => void; input?: (side: Side, choice: string, n: number, clock?: Clock) => void;
 		inputs?: (list: [Side, string][], clock?: Clock) => void; error?: (msg: string) => void; status?: (connected: boolean) => void;
-		chat?: (m: ChatMsg) => void; chatlog?: (list: ChatMsg[]) => void } = {};
+		chat?: (m: ChatMsg) => void; chatlog?: (list: ChatMsg[]) => void; emote?: (side: Side, id: number) => void } = {};
 	private join: any;
 	private retries = 0;
 	private beat: any = 0;
@@ -98,12 +99,14 @@ export class OnlineRoom {
 				let m: any; try { m = JSON.parse(String(ev.data)); } catch { return; }
 				if (m.t === 'room') this.handlers.room?.(m);
 			else if (m.t === 'preview') this.handlers.preview?.(m);
-			else if (m.t === 'start') this.handlers.start?.(m);
-			else if (m.t === 'input') this.handlers.input?.(m.side, m.choice, m.n, m.clock);
-			else if (m.t === 'inputs') this.handlers.inputs?.(m.list, m.clock);
+			else if (m.t === 'start') { this.early = []; this.handlers.start?.(m); }
+			// 배틀 쪽(RemoteSession)이 아직 안 만들어졌으면 모아 둠 — 시작 정보 바로 뒤에 오는 지난 선택들(앱을 다시 켜고 돌아올 때)
+			else if (m.t === 'input') { if (this.handlers.input) this.handlers.input(m.side, m.choice, m.n, m.clock); else this.early.push(m); }
+			else if (m.t === 'inputs') { if (this.handlers.inputs) this.handlers.inputs(m.list, m.clock); else this.early.push(m); }
 			else if (m.t === 'error') this.handlers.error?.(m.msg);
 			else if (m.t === 'chat') this.handlers.chat?.(m);
 			else if (m.t === 'chatlog') this.handlers.chatlog?.(m.list);
+			else if (m.t === 'emote') this.handlers.emote?.(m.side, m.id);
 		};
 		ws.onclose = () => {
 			if (this.ws !== ws) return;   // 이미 새 연결로 바뀜
@@ -160,6 +163,14 @@ export class RemoteSession {
 	/** 화면 쪽에서 받는 새 배틀 줄 (상대 선택이 와서 턴이 진행될 때 등) */
 	onLines: ((lines: string[]) => void) | null = null;
 	onDesync: ((msg: string) => void) | null = null;
+	/** 지난 선택들을 한꺼번에 받았을 때(재접속·앱을 다시 켬): 연출 없이 따라잡을 줄. 화면이 아직 없으면 backlog 에 모아 둠 */
+	onCatchUp: ((lines: string[]) => void) | null = null;
+	backlog: string[] = [];
+	/** 지금까지 적용한 선택 전부, 순서대로 (리플레이 저장용) */
+	log: [Side, string][] = [];
+	/** 상대(또는 나)의 한마디: 화면 기준 진영 ('p1' = 나) */
+	onEmote: ((who: 'p1' | 'p2', id: number) => void) | null = null;
+	private bulk = false;
 	private applied = 0;
 	private flip: boolean;
 	/** 시간: 서버가 알려 준 값 + 받은 시각(로컬) */
@@ -183,7 +194,15 @@ export class RemoteSession {
 		});
 		if (info.clock) this.setClock(info.clock);
 		room.handlers.input = (side, choice, n, clock) => { if (clock) this.setClock(clock); this.receive(side, choice, n); };
-		room.handlers.inputs = (list, clock) => { if (clock) this.setClock(clock); list.forEach((x, i) => this.receive(x[0], x[1], i + 1)); };
+		room.handlers.inputs = (list, clock) => {
+			if (clock) this.setClock(clock);
+			this.bulk = true;
+			try { list.forEach((x, i) => this.receive(x[0], x[1], i + 1)); } finally { this.bulk = false; }
+			if (this.onCatchUp && this.backlog.length) this.onCatchUp(this.backlog.splice(0));
+		};
+		room.handlers.emote = (side, id) => this.onEmote?.(side === this.mySide ? 'p1' : 'p2', id);
+		// 내가 만들어지기 전에 먼저 와 있던 선택들
+		for (const m of (room.early || []).splice(0)) { if (m.t === 'inputs') room.handlers.inputs!(m.list, m.clock); else room.handlers.input!(m.side, m.choice, m.n, m.clock); }
 	}
 	private view(lines: string[] | null) { return !lines ? lines : this.flip ? lines.map(swapTok) : lines; }
 	get battle() { return this.battleProxy; }
@@ -194,7 +213,16 @@ export class RemoteSession {
 	get seed() { return this.local.seed; }
 	get rule() { return this.local.rule; }
 	get record() { return this.flip ? { p1: this.local.record.p2, p2: this.local.record.p1 } : this.local.record; }
-	start(): string[] { return this.view(this.local.start())!; }
+	/** 배틀 시작 줄. 시작 전에 먼저 와 있던 선택들은 이때 넣어 backlog 에 모음 (화면이 이어서 따라잡음) */
+	start(): string[] {
+		const lines = this.view(this.local.start())!;
+		this.started = true;
+		this.bulk = true;
+		try { for (const [side, choice, n] of this.preStart.splice(0)) this.receive(side, choice, n); } finally { this.bulk = false; }
+		return lines;
+	}
+	private started = false;
+	private preStart: [Side, string, number][] = [];
 	private setClock(c: Clock) { this.clock = c; this.clockAt = Date.now(); }
 	private get oppSide(): Side { return this.mySide === 'p1' ? 'p2' : 'p1'; }
 	/** 화면이 고르기를 시작할 때 (여러 번 불러도 처음 시각 유지) */
@@ -226,9 +254,13 @@ export class RemoteSession {
 		return [];
 	}
 	forfeit(): string[] { this.send('forfeit'); return []; }
+	/** 정해진 한마디 보내기 (EMOTES 의 번호) */
+	sendEmote(id: number) { this.room.send({ t: 'emote', id }); }
 	private receive(side: Side, choice: string, n: number) {
+		if (!this.started) { this.preStart.push([side, choice, n]); return; }   // 엔진을 시작하기 전(VS 연출 중·돌아오는 중)
 		if (n <= this.applied) return;             // 이미 넣은 것 (재접속 때 다시 온 기록)
 		this.applied = n;
+		this.log.push([side, choice]);
 		if (choice === 'tod' || choice.startsWith('forfeit')) this.turnStart = 0;
 		let out = this.local.applyInput(side, choice);
 		if (out === null) { this.onDesync?.('상대와 배틀 진행이 어긋났어요 (앱 버전이 다를 수 있어요)'); return; }
@@ -237,6 +269,35 @@ export class RemoteSession {
 			const name = this.info[side].name;
 			out = [`|-message|${choice === 'forfeit disconnect' ? josa(name, 'conjunctive') + '의 연결이 끊어졌다!' : choice === 'forfeit timeout' ? name + '의 남은 시간이 0이 되었다!' : josa(name, 'subject') + ' 기권했다!'}`, ...out];
 		}
-		if (out.length) this.onLines?.(this.view(out)!);
+		if (!out.length) return;
+		// 한꺼번에 받는 중이거나 배틀 화면이 아직 안 떴으면(VS 연출 중 등) 모아 둠 — 화면이 뜰 때 따라잡음
+		if (this.bulk || !this.onLines) this.backlog.push(...this.view(out)!);
+		else this.onLines(this.view(out)!);
 	}
+}
+
+/** 배틀 중 주고받는 정해진 한마디 (자유 채팅 대신 — 번호만 오감) */
+export const EMOTES = ['잘 부탁해요!', '굿게임!', '나이스!', '아깝다…', '잠깐만요!', '고마워요!'];
+
+/** 저장한 온라인 대전 다시 보기: 같은 시작 정보·같은 순서의 선택을 내 엔진에 넣음. choose() 한 번에 화면에 보일 줄이 나올 때까지 진행 */
+export function replaySession(start: StartInfo, inputs: [Side, string][]): RemoteSession & { replayDone(): boolean } {
+	const room: any = { handlers: {}, send() {} };
+	const rs: any = new RemoteSession(start, room as OnlineRoom);
+	let i = 0; const buf: string[] = [];
+	rs.onLines = (l: string[]) => { buf.push(...l); };
+	rs.choose = () => { while (i < inputs.length && !buf.length) { const [side, choice] = inputs[i++]; room.handlers.input(side, choice, i); } return buf.splice(0); };
+	rs.forfeit = () => [];
+	rs.replayDone = () => i >= inputs.length;
+	rs.timers = () => ({ game: 0, mine: 0, opp: 0, turn: null });
+	return rs;
+}
+
+// ── 진행 중인 대전 기억 (앱을 껐다 켜도 로비에서 돌아갈 수 있게) ──
+export interface ActiveRoom { code: string; lobby: boolean; label: string; opp: string; at: number }
+const ACTIVE_KEY = 'pkbkr:online-active';
+const activeStore = () => DEV ? sessionStorage : localStorage;
+export function setActiveRoom(a: ActiveRoom | null) { try { if (a) activeStore().setItem(ACTIVE_KEY, JSON.stringify(a)); else activeStore().removeItem(ACTIVE_KEY); } catch {} }
+/** 20분(대전 시간) + 여유 안의 기록만 */
+export function getActiveRoom(): ActiveRoom | null {
+	try { const a = JSON.parse(activeStore().getItem(ACTIVE_KEY) || 'null'); return a && Date.now() - a.at < 25 * 60 * 1000 ? a : null; } catch { return null; }
 }

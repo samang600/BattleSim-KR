@@ -9,6 +9,7 @@
  *         {t:'join', name, token, team, ruleId?, doubles?, pick?, version}   처음 들어온 사람(방장)이 규칙·형식·참가 수(pick)를 정함
  *         {t:'pick', idx:[...]}           엔트리 확인 후 참가 포켓몬·순서 (팀 안 번호, 0부터)
  *         {t:'choose', choice}            내 선택 ('forfeit' = 기권)
+ *         {t:'emote', id}                 배틀 중 정해진 한마디 번호 → 양쪽에 {t:'emote', side, id} (저장 안 함)
  *         {t:'leave'}                     배틀 전에 나감 (상대에게 알림)
  *    서버 → {t:'room', ...}  {t:'preview', side, pick, doubles, ruleId, p1:{name,team,sprite}, p2:{...}, picked}  (둘 다 들어오면: 서로 전체 엔트리)
  *           {t:'start', side, seed, ruleId, doubles, p1:{name,team}, p2:{name,team}}  (둘 다 고르면: 고른 포켓몬만, 고른 순서)
@@ -308,6 +309,16 @@ export class Room extends DurableObject<Env> {
 			p.picked = idx;
 			await this.save();
 			if (!(await this.maybeStart())) this.broadcastRoom();
+			return;
+		}
+		// 배틀 중 한마디: 정해진 문구의 번호만 중계 (저장하지 않음 — 쓰기 0, 2초에 한 번)
+		if (m.t === 'emote') {
+			const id = Number(m.id);
+			if (!s.seed || s.ended || !Number.isInteger(id) || id < 0 || id > 15) return;
+			const now = Date.now(), att = ws.deserializeAttachment() as any;
+			if (now - (att?.emoteAt || 0) < CHAT_GAP) return;
+			ws.serializeAttachment({ ...att, emoteAt: now });
+			for (const w of this.ctx.getWebSockets()) if (this.sideOf(w)) this.send(w, { t: 'emote', side, id });
 			return;
 		}
 		if (m.t === 'chat') {

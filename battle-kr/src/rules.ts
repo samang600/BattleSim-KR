@@ -158,6 +158,15 @@ export function speciesAllowed(rule: BattleRule, speciesId: string): boolean {
 	if (rule.noSub && sub) return false;
 	return true;
 }
+/** 팀에서 이 규칙에 안 맞는 것들 (온라인 방 입장 전 검사): [포켓몬 종 id, '포켓몬' | '도구', 도구 id] */
+export function teamRuleIssues(rule: BattleRule, team: { species: string; item?: string }[]): { species: string; kind: 'species' | 'item'; item?: string }[] {
+	const out: { species: string; kind: 'species' | 'item'; item?: string }[] = [];
+	for (const p of team) {
+		if (!speciesAllowed(rule, toID(p.species))) out.push({ species: p.species, kind: 'species' });
+		else if (p.item && !itemAllowed(rule, p.item)) out.push({ species: p.species, kind: 'item', item: p.item });
+	}
+	return out;
+}
 /** 메가스톤 없이 메가진화하는 경우(레쿠쟈·화룡점정): 그 메가 모습이 규칙에서 허용되는가 */
 export function megaFormAllowed(rule: BattleRule, formeId: string): boolean {
 	if (!rule.kinds.includes('mega')) return false;

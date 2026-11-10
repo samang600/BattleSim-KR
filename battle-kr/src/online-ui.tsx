@@ -1,7 +1,10 @@
 /** 온라인 대전 화면: 로비(방 목록·방 만들기·공개/비밀번호 방·방 안 채팅·규칙/파티 바꾸기) · 코드로 들어가기 · 랜덤 대전. 연결·진행은 online.ts */
 import { h } from 'preact';
 import { useState, useEffect, useRef } from 'preact/hooks';
-import { ask, Screen, toast, Modal, PokeIcon } from './ui/core';
+import { ask, Screen, toast, Modal, PokeIcon, abortMode, confirmBox } from './ui/core';
+import { BattleView, type BattleSetup, type BattleResult } from './ui/battle';
+import { speciesKo, itemKo } from './data';
+import { sfx } from './sound';
 import { titleItem, itemById } from './rewards';
 import { TitleChip } from './ui/shop';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
@@ -10,13 +13,13 @@ const spriteWithTitle = () => { const t = titleItem()?.id; return (playerSprite(
 /** 받은 모습 칸 → [모습, 칭호 이름] */
 export const splitSprite = (v?: string): [string, string] => { const [sp, t] = String(v || '').split('|'); return [sp || 'acetrainer', t ? 't:' + t : '']; };
 import { ChoiceScreen, InfoScreen } from './ui/screens';
-import { battle, chooseTeam, playerName, playerSprite, withLevel, BACK, BgmRow } from './modes';
-import { OnlineRoom, RemoteSession, matchmake, newRoomCode, normCode, watchLobby, APP_VERSION, type StartInfo, type RoomInfo, type PreviewInfo, type ChatMsg, type RoomCard } from './online';
+import { chooseTeam, playerName, playerSprite, withLevel, BACK, BgmRow } from './modes';
+import { OnlineRoom, RemoteSession, matchmake, newRoomCode, normCode, watchLobby, APP_VERSION, setActiveRoom, getActiveRoom, type ActiveRoom, type StartInfo, type RoomInfo, type PreviewInfo, type ChatMsg, type RoomCard } from './online';
 import { josa } from './josa';
 import { OnlinePick } from './ui/online-pick';
 import { randomTeam, type PSet } from './sets';
 import { loadSettings } from './store';
-import { ruleById, ruleId as makeRuleId, POOLS, applyRuleData } from './rules';
+import { ruleById, ruleId as makeRuleId, POOLS, applyRuleData, teamRuleIssues } from './rules';
 
 /** 랜덤 대전은 모두 같은 규칙 (전국도감 · 기믹 한 종류 1회) */
 const RANDOM_RULE = 'mzdt_one.natdex.no.no';
@@ -104,11 +107,37 @@ function pickPhase(room: OnlineRoom, pv: PreviewInfo, label: string, sent: boole
 	});
 }
 
+/** 배틀 화면 (메뉴로 나가도 여기로 돌아옴 — 방 정리는 부른 쪽이). ext.end 로 밖에서 끝낼 수 있음 */
+function runBattle(setup: BattleSetup, ext?: { end?: (r: BattleResult) => void }): Promise<BattleResult> {
+	return ask<BattleResult>(resolve => { if (ext) ext.end = resolve; return <BattleView key={Math.random()} setup={setup} onEnd={resolve} />; });
+}
+
+/** 배틀 입장 연출: 양쪽 트레이너·이름·칭호가 맞붙는 VS 화면 (2초, 누르면 넘김) */
+function VsScreen({ me, opp, label, done }: { me: { name: string; sprite: string; title: string }; opp: { name: string; sprite: string; title: string }; label: string; done: () => void }) {
+	useEffect(() => { sfx('ballOpen'); const t = setTimeout(done, 2100); return () => clearTimeout(t); }, []);
+	const half = (p: typeof me, cls: string) => <div class={'vs-half ' + cls}>
+		<img src={SPRITE_URL(p.sprite)} onError={trainerImgError} alt="" />
+		<span class="vs-name"><b>{p.name}</b>{p.title && itemById(p.title) && <TitleChip it={itemById(p.title)} />}</span>
+	</div>;
+	return <div class="vs-scr" onClick={done}>
+		{half(opp, 'foe')}
+		<div class="vs-mid"><i class="vs-line" /><b class="vs-mark">VS</b><i class="vs-line" /></div>
+		{half(me, 'own')}
+		<p class="vs-label">{label}</p>
+	</div>;
+}
+/** 돌아가기(앱을 다시 켠 뒤 복귀)로 들어온 배틀은 VS 연출을 건너뜀 */
+let resuming = false;
+
 /** 시작 정보를 받으면 배틀 진행 */
 async function play(room: OnlineRoom, start: StartInfo, label: string, lobby = false): Promise<'again' | 'leave'> {
-	const rs = new RemoteSession(start, room);
+	const rs = new RemoteSession(start, room);   // 먼저 만들어 둠: 이 뒤로 오는 선택은 화면이 뜰 때까지 모아 둠
 	const oppSide = start.side === 'p1' ? 'p2' : 'p1';
 	const me = start[start.side], opp = start[oppSide];
+	setActiveRoom({ code: room.code, lobby, label, opp: opp.name, at: Date.now() });
+	if (!resuming) await ask<void>(r => <VsScreen label={`${label} · ${fmtKo(start.doubles, me.team.length)}`} done={() => r()}
+		me={{ name: me.name, sprite: playerSprite(), title: titleItem()?.id || '' }} opp={{ name: opp.name, sprite: splitSprite((opp as any).sprite)[0], title: splitSprite((opp as any).sprite)[1] }} />);
+	resuming = false;
 	// 상대 연결 상태 알림 (끊김 → 돌아옴)
 	let away = false;
 	room.handlers.room = info => {
@@ -118,11 +147,19 @@ async function play(room: OnlineRoom, start: StartInfo, label: string, lobby = f
 		away = gone;
 	};
 	// 재접속이면 지난 선택들이 이어서 옴 (RemoteSession 이 받아서 엔진에 넣음)
-	const res = await battle({
+	const res = await runBattle({
 		gen: 9, doubles: start.doubles, aiSkill: 0, bg: 'pwt', music: 'pwt', label, noRecord: true, ruleId: start.ruleId, online: rs,
 		p1: { name: me.name, team: me.team, sprite: playerSprite() },
 		p2: { name: opp.name, title: '', team: opp.team, sprite: splitSprite((opp as any).sprite)[0] },
 	});
+	setActiveRoom(null);
+	room.handlers.input = undefined; room.handlers.inputs = undefined;   // 다음 판의 선택이 끝난 판으로 가지 않게
+	if (res.quit) {   // 메뉴에서 '메인 메뉴로': 방을 나가고(끝나지 않았으면 기권은 이미 보냄) 메인 메뉴로
+		if (lobby) room.send({ t: 'leave' });
+		room.close();
+		abortMode();
+		return 'leave';
+	}
 	const draw = rs.ended && !rs.winner;
 	if (!lobby) {
 		room.close();
@@ -140,7 +177,7 @@ const statusKo = (c: RoomCard) => c.status === 'battle' ? '대전 중' : c.playe
 function TrainerImg({ sprite, size = 40 }: { sprite: string; size?: number }) {
 	return <img class="lb-tr" src={SPRITE_URL(splitSprite(sprite)[0])} onError={trainerImgError} alt="" style={{ width: size + 'px', height: size + 'px' }} />;
 }
-type LobbyAction = { create: true } | { room: RoomCard } | { code: true } | { random: true } | typeof BACK;
+type LobbyAction = { create: true } | { room: RoomCard } | { code: true } | { random: true } | { resume: ActiveRoom } | typeof BACK;
 function LobbyScreen({ done }: { done: (a: LobbyAction) => void }) {
 	const [rooms, setRooms] = useState<RoomCard[] | null>(null);
 	const [ok, setOk] = useState(true);
@@ -148,14 +185,20 @@ function LobbyScreen({ done }: { done: (a: LobbyAction) => void }) {
 	const [busy, setBusy] = useState(false);
 	useEffect(() => watchLobby(l => { setRooms(l); setBusy(false); }, setOk), [rev]);
 	const refresh = () => { if (busy) return; setBusy(true); setRooms(null); setRev(r => r + 1); setTimeout(() => setBusy(false), 4000); };
+	const [active, setActive] = useState(getActiveRoom());   // 앱이 꺼지는 등으로 끝내지 못한 대전
 	return <Screen title="온라인 로비" onBack={() => done(BACK)} cls="wide-scr lobby-scr" top>
 		<div class="lb-actions">
 			<button class="btn primary" onClick={() => done({ create: true })}>＋ 방 만들기</button>
 			<button class="btn" onClick={() => done({ code: true })}>🔑 코드로 들어가기</button>
 			<button class="btn" disabled={busy} onClick={refresh}>{busy ? '불러오는 중…' : '↻ 새로 고침'}</button>
 		</div>
+		{active && <div class="lb-resume">
+			<span><b>진행 중이던 대전이 있어요</b><small>{active.label} · 상대 {active.opp}</small></span>
+			<button class="btn small primary" onClick={() => done({ resume: active })}>돌아가기</button>
+			<button class="btn small ghost" onClick={() => { setActiveRoom(null); setActive(null); }}>지우기</button>
+		</div>}
 		<details class="lb-rules"><summary>대전 안내 (v{APP_VERSION})</summary>
-			<p class="hint">같은 앱 버전끼리 대전해요. 기록에는 남지 않아요. 시간: 고르기 90초 · 한 번 선택 45초 · 내 시간 7분 · 대전 20분 (끝나면 남은 포켓몬 수 → HP 비율로 판정). 끊겨도 1분 안에 돌아오면 이어서 해요.</p></details>
+			<p class="hint">같은 앱 버전끼리 대전해요. 전적에는 남지 않아요(리플레이는 저장 가능). 시간: 고르기 90초 · 한 번 선택 45초 · 내 시간 7분 · 대전 20분 (끝나면 남은 포켓몬 수 → HP 비율로 판정). 끊겨도 1분 안에 돌아오면 이어서 해요 (앱이 꺼졌어도 로비의 「돌아가기」로).</p></details>
 		<h3 class="sec">열린 방 <small class="muted">{rooms ? `${rooms.length}개` : ok ? '불러오는 중…' : '서버에 연결하는 중…'}</small></h3>
 		{rooms && !rooms.length && <p class="muted lb-empty">아직 열린 방이 없어요. 방을 만들어 친구를 기다려 보세요!</p>}
 		<div class="lb-list">{(rooms || []).map(c => {
@@ -167,7 +210,7 @@ function LobbyScreen({ done }: { done: (a: LobbyAction) => void }) {
 					<span class="lb-host">{c.host}{splitSprite(c.sprite)[1] && <TitleChip it={itemById(splitSprite(c.sprite)[1])} />}</span>
 					<span class="lb-tags"><em>{fmtKo(c.doubles, c.pick)}</em><em>{ruleName(c.ruleId)}</em>{!vOk && <em class="warn">v{c.version}</em>}</span>
 				</span>
-				<span class={'lb-status ' + (c.status === 'battle' ? 'battle' : c.players >= 2 ? 'full' : 'wait')}>{statusKo(c)}<small>{c.players}/2</small></span>
+				<span class={'lb-status ' + (c.status === 'battle' ? 'inbattle' : c.players >= 2 ? 'full' : 'wait')}>{statusKo(c)}<small>{c.players}/2</small></span>
 			</button>;
 		})}</div>
 	</Screen>;
@@ -229,7 +272,9 @@ class RoomBox {
 	}
 	emit() { this.subs.forEach(f => f()); }
 }
-type RoomAct = { preview: PreviewInfo } | { start: StartInfo } | { error: string } | { leave: true } | { team: true } | { rules: true };
+type RoomAct = { preview: PreviewInfo } | { start: StartInfo } | { error: string } | { leave: true } | { team: true } | { rules: true } | { practice: true };
+/** 파티에서 방 규칙에 안 맞는 것들을 글로 */
+const issueText = (ruleIdIn: string, team: PSet[]) => teamRuleIssues(ruleById(ruleIdIn), team).map(x => x.kind === 'species' ? speciesKo(x.species) : `${speciesKo(x.species)}의 ${itemKo(x.item!)}`);
 function roomPhase(box: RoomBox): Promise<RoomAct> {
 	const room = box.room;
 	return new Promise(resolve => {
@@ -266,6 +311,8 @@ function RoomView({ box, act }: { box: RoomBox; act: (a: RoomAct) => void }) {
 	const me = info.side || 'p2', host = me === 'p1';
 	const myReady = !!info.ready?.[me];
 	const picking = !!(info.ready?.p1 && info.ready?.p2);
+	const issues = box.team ? issueText(info.ruleId, box.team) : [];
+	useEffect(() => { if (issues.length && myReady && !picking) box.room.send({ t: 'ready', on: false }); }, [issues.length, myReady]);   // 규칙이 바뀌어 안 맞게 되면 준비를 풂
 	const send = () => { const t = text.trim(); if (!t) return; box.room.send({ t: 'chat', text: t }); setText(''); };
 	return <Screen title={info.title || '방'} onBack={() => act({ leave: true })} cls="wide-scr lobby-scr room-scr">
 		<div class="lr-wrap">
@@ -284,6 +331,8 @@ function RoomView({ box, act }: { box: RoomBox; act: (a: RoomAct) => void }) {
 					{box.team ? <span class="lr-icons">{box.team.map(p => <PokeIcon species={p.species} />)}</span> : <span class="muted small">아직 고르지 않았어요</span>}
 					<button class={'btn small' + (box.team ? '' : ' primary')} disabled={picking} onClick={() => act({ team: true })}>{box.team ? '파티 바꾸기' : '파티 고르기'}</button>
 				</div>
+				{issues.length > 0 && <p class="lr-warn">이 방 규칙에서 쓸 수 없어요: {issues.join(' · ')}<small>파티를 바꾸거나 방장이 규칙을 바꿔야 준비할 수 있어요.</small></p>}
+				{!info.players.p2 && box.team && !issues.length && <button class="btn lr-practice" onClick={() => act({ practice: true })}>기다리는 동안 AI와 연습<small>상대가 들어오면 알려 줘요</small></button>}
 				<p class="hint lr-hint">팀은 방 규칙에 맞게 골라 주세요. 둘 다 「준비 완료」를 누르면 서로 엔트리를 보고 참가 포켓몬을 골라요.</p>
 			</div>
 			<div class="lr-chat">
@@ -294,7 +343,7 @@ function RoomView({ box, act }: { box: RoomBox; act: (a: RoomAct) => void }) {
 			</div>
 		</div>
 		<div class="lr-bottom">
-			<button class={'btn big ' + (myReady ? 'ghost' : 'primary')} disabled={!box.team || picking} onClick={() => box.room.send({ t: 'ready', on: !myReady })}>{myReady ? (picking ? '곧 시작해요…' : '준비 취소') : '준비 완료'}</button>
+			<button class={'btn big ' + (myReady ? 'ghost' : 'primary')} disabled={!box.team || picking || issues.length > 0} onClick={() => box.room.send({ t: 'ready', on: !myReady })}>{myReady ? (picking ? '곧 시작해요…' : '준비 취소') : '준비 완료'}</button>
 			<button class="btn big ghost" onClick={() => act({ leave: true })}>나가기</button>
 		</div>
 		{rules && <RuleAndFmt info={info} onDone={(rid, f) => { setRules(false); if (rid) box.room.send({ t: 'rules', ruleId: rid, doubles: f!.doubles, pick: f!.pick }); }} />}
@@ -333,6 +382,7 @@ async function lobbyRoom(room: OnlineRoom, box: RoomBox) {
 			continue;
 		}
 		if ('rules' in a) continue;
+		if ('practice' in a) { if (await practice(room, box) === 'closed') return; continue; }
 		let w: WaitResult = 'start' in a ? { start: a.start } : { preview: a.preview };
 		let sent = false;
 		while ('preview' in w) { sent = sent || w.preview.picked; w = await pickPhase(room, w.preview, '친구 대전', sent, () => { sent = true; }, true); }
@@ -345,6 +395,36 @@ async function lobbyRoom(room: OnlineRoom, box: RoomBox) {
 			room.send({ t: 'again' });
 		}
 	}
+}
+/** 빈 방에서 상대를 기다리는 동안 AI 와 연습 (전적·보상 없음). 상대가 들어오면 알리고, 원하면 바로 방으로 */
+async function practice(room: OnlineRoom, box: RoomBox): Promise<'ok' | 'closed'> {
+	const info = box.info!, mine = box.team!;
+	if (info.side && info.ready?.[info.side]) room.send({ t: 'ready', on: false });   // 연습 중에 시작되지 않게
+	const n = Math.min(info.pick || 6, mine.length);
+	applyRuleData(ruleById(info.ruleId));
+	let foe: PSet[];
+	try { foe = withLevel(randomTeam({ gen: 9, size: n, minBst: 470, maxBst: 600, doubles: info.doubles, quality: 0.7 }), LEVEL); }
+	finally { applyRuleData(ruleById(loadSettings().battleRule)); }
+	const ext: { end?: (r: BattleResult) => void } = {};
+	let told = false, error = '';
+	const stop = () => ext.end?.({ win: false, forfeit: true, turns: 0, p1Left: 0, p2Left: 0 });
+	room.handlers.room = i => {
+		box.info = i;
+		if (!i.players.p2) { told = false; return; }
+		if (told) return;
+		told = true; sfx('select');
+		void confirmBox('상대가 들어왔어요', `${i.players.p2} 님이 방에 들어왔어요.\n연습을 끝내고 방으로 갈까요?`, '방으로', '계속 연습').then(ok => { if (ok) stop(); });
+	};
+	room.handlers.error = msg => { error = msg; stop(); };
+	room.handlers.preview = undefined; room.handlers.start = undefined;
+	const res = await runBattle({
+		gen: 9, doubles: info.doubles, aiSkill: 0.75, bg: 'pwt', music: 'pwt', label: '연습 (상대 기다리는 중)', noRecord: true, ruleId: info.ruleId,
+		p1: { name: playerName(), team: mine.slice(0, n), sprite: playerSprite() },
+		p2: { name: '연습 상대', title: '', team: foe, sprite: 'acetrainer' },
+	}, ext);
+	if (error) { room.close(); toast(error); return 'closed'; }
+	if (res.quit && !box.info?.players.p2) toast('방으로 돌아왔어요');
+	return 'ok';
 }
 async function enterRoom(code: string, pw: string | undefined, create?: CreateOpts) {
 	const room = new OnlineRoom(code);
@@ -366,6 +446,17 @@ export async function runOnline() {
 				let pw: string | undefined;
 				if (a.room.locked) { const v = await ask<string | typeof BACK>(r => <PwEntry title={a.room.title} done={r} />); if (v === BACK) continue; pw = v; }
 				await enterRoom(a.room.code, pw);
+			} else if ('resume' in a) {
+				resuming = true;
+				if (a.resume.lobby) await enterRoom(a.resume.code, undefined);
+				else {
+					const room = new OnlineRoom(a.resume.code);
+					room.connect({ name: playerName(), sprite: spriteWithTitle() } as any);
+					const w = await waitStart(room, cancel => <Screen title={a.resume.label} onBack={cancel} cls="wide-scr">
+						<div class="online-wait"><p class="hint">대전으로 돌아가는 중…</p><button class="btn ghost" onClick={cancel}>취소</button></div></Screen>);
+					if ('cancel' in w) room.close(); else await proceed(room, w, a.resume.label);
+				}
+				resuming = false; setActiveRoom(null);
 			} else if ('code' in a) await join();
 			else await random();
 		} catch (e: any) {

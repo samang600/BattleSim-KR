@@ -7,6 +7,7 @@ import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
 import { runOnline } from './online-ui';
+import { replaySession } from './online';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
 import { runPalace, runIppitsu, runDaily, runBossRush, todayDaily } from './frontier';
 import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
@@ -333,7 +334,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 	const [s, setS] = useState<Settings>(loadSettings());
 	const [userSpr, setUserSpr] = useState(false);
 	const up = (p: Partial<Settings>) => { const n = { ...s, ...p }; setS(n); saveSettings(n); };
-	return <Screen title="설정" onBack={onBack}>
+	return <Screen title="설정" onBack={onBack} cls="set-scr">
 		<label class="field-label">트레이너 이름
 			<input value={s.playerName} maxLength={10} onInput={e => up({ playerName: (e.target as HTMLInputElement).value || '플레이어' })} />
 		</label>
@@ -437,7 +438,10 @@ function App() {
 		setRoute('mode');
 		resetAbort();
 		try {
-			await ask<void>(r => <BattleView key={Math.random()} setup={{ ...rp.setup, noRecord: true, replay: { seed: rp.seed, ruleId: rp.ruleId, p1: rp.p1, p2: rp.p2 } }} onEnd={() => r()} />);
+			const on = rp.online;   // 온라인 대전 리플레이: 받은 순서대로의 선택을 다시 넣음
+			await ask<void>(r => <BattleView key={Math.random()} setup={{ ...rp.setup, noRecord: true,
+				...(on ? { session: replaySession(on.start, on.inputs as any), replay: { seed: rp.seed, ruleId: rp.ruleId, p1: new Array(on.inputs.length + 1).fill(''), p2: [] } }
+					: { replay: { seed: rp.seed, ruleId: rp.ruleId, p1: rp.p1, p2: rp.p2 } }) }} onEnd={() => r()} />);
 		} catch (e: any) { if (!(e instanceof QuitToMenu)) { console.error(e); toast('리플레이 오류: ' + (e?.message || e)); } }
 		resetAbort();
 		setModeView(null);

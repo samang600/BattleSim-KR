@@ -88,8 +88,11 @@ function cryEl(id: string): HTMLAudioElement | null {
 	return cryEls[id];
 }
 let cryQueue: Promise<void> = Promise.resolve();
+/** 잠깐 소리 끔 (온라인 대전 복귀 때 지난 턴들을 한꺼번에 따라잡는 동안) */
+let quiet = false;
+export function setQuiet(q: boolean) { quiet = q; }
 export function cry(speciesId: string, opts: { faint?: boolean; delay?: number } = {}) {
-	if (!sfxOn() || hidden) return;
+	if (!sfxOn() || hidden || quiet) return;
 	const vol = 0.32 * ([0.5, 1, 1.4][(loadSettings().sfxVolume || 1) - 1]);
 	const play = () => new Promise<void>(done => {
 		let started = false;
@@ -165,7 +168,7 @@ const N = (n: number) => 440 * Math.pow(2, (n - 69) / 12); // MIDI → Hz
 
 /** 효과음 */
 export function sfx(name: string, type = 'Normal') {
-	if (!sfxOn() || !ac()) return;
+	if (!sfxOn() || quiet || !ac()) return;
 	if (/^hit|^move$|^crit$|^miss$/.test(name)) { withMoveBus(() => sfxRaw(name, type)); return; }
 	sfxRaw(name, type);
 }
@@ -659,6 +662,6 @@ export function animSfxVolume() {
 }
 /** 진동 (설정에서 끌 수 있음) */
 export function vibrate(ms: number | number[]) {
-	if (loadSettings().vibrate === false || hidden) return;
+	if (loadSettings().vibrate === false || hidden || quiet) return;
 	try { navigator.vibrate?.(ms); } catch {}
 }

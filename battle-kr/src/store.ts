@@ -94,6 +94,8 @@ export interface SavedReplay {
 	id: string; date: number; label: string; win: boolean; turns: number;
 	setup: any; // BattleSetup (팀·이름·그림·배경·옵션)
 	seed: [number, number, number, number]; ruleId: string; p1: string[]; p2: string[];
+	/** 온라인 대전: 시작 정보(양쪽 팀·시드·내 진영)와 양쪽 선택을 받은 순서대로 (online.ts replaySession 으로 재생) */
+	online?: { start: any; inputs: [string, string][] };
 }
 const REPLAY_MAX = 30;
 export function loadReplays(): SavedReplay[] { return load<SavedReplay[]>('replays', []); }

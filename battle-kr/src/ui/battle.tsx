@@ -2,7 +2,7 @@
 import { h, Fragment } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Session } from '../engine';
-import type { RemoteSession } from '../online';
+import { EMOTES, type RemoteSession } from '../online';
 import { KoreanText, parseLine, effectInfo, type ParsedLine } from '../text';
 import { moveData, moveKo, speciesData, speciesKo, toID, abilityKo, itemKo, natureKo, STAT_SHORT, STAT_KO, typeKo, abilityDesc,
 	itemDesc, RAW, floats, type Gen } from '../data';
@@ -15,7 +15,7 @@ import { MonSheet, type LiveInfo } from './screens';
 import { estimateDamage, typeEffOf, chooseAI } from '../ai';
 import { State } from '../../../sim/state';
 import * as FX from '../fx';
-import { sfx, moveSound, playMusic, stopMusic, cry, preloadCries, pickBattleMusic, animSfxVolume, vibrate } from '../sound';
+import { sfx, moveSound, playMusic, stopMusic, cry, preloadCries, pickBattleMusic, animSfxVolume, vibrate, setQuiet } from '../sound';
 import { saveSettings, loadSettings as loadSettings2 } from '../store';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { loadAnim, preloadAnim, playAnim, animIdFor, cancelAnims } from '../anim-player';
@@ -51,6 +51,8 @@ export interface BattleSetup {
 	autoMsg?: string;
 	/** 온라인 대전: 상대 선택을 서버에서 받는 세션 (src/online.ts). 있으면 AI 대신 상대를 기다림 */
 	online?: RemoteSession;
+	/** 미리 만든 세션 (온라인 대전 리플레이: online.ts replaySession) — replay 와 함께 씀 */
+	session?: any;
 }
 export interface BattleResult { win: boolean; forfeit: boolean; turns: number; p1Left: number; p2Left: number; quit?: boolean }
 
@@ -700,6 +702,29 @@ function typeTint(type: string) {
 		return 0;
 	}
 
+	/** 온라인 대전 복귀: 지난 턴들의 줄을 연출·소리 없이 화면 상태에만 반영 */
+	function fastApply(lines: string[]) {
+		const kt = textRef.current!;
+		setQuiet(true);
+		try {
+			for (const line of lines) {
+				const p = parseLine(line);
+				if (!p) continue;
+				let prev: { ident: string; fainted: boolean } | null = null;
+				if (p.cmd === 'switch' || p.cmd === 'drag') {
+					const cur = sceneRef.current[p.args[1].slice(0, 2) as 'p1' | 'p2'].active[slotOf(p.args[1])];
+					if (cur) prev = { ident: cur.ident, fainted: cur.fainted };
+				}
+				let text = '';
+				try { text = kt.render(p, prev); } catch { /* 표시용 */ }
+				if (p.cmd === 'move') noteSeen(activeMon(p.args[1]), p);
+				try { apply(p); } catch (e) { console.error(e, line); }
+				for (const m of text ? text.split('\n').filter(Boolean) : []) pushLog(m);
+			}
+		} finally { setTimeout(() => setQuiet(false), 1500); }   // 나오기 연출의 늦은 울음소리까지 지난 뒤
+		pendingHitRef.current = { at: 0, sound: '' };
+		rerender();
+	}
 	/** 온라인: 재생 중에 새 줄이 오면 끝난 뒤 이어서 재생 */
 	const playQ = useRef<{ busy: boolean; q: string[][] }>({ busy: false, q: [] });
 	async function playQueued(lines: string[]) {
@@ -708,6 +733,15 @@ function typeTint(type: string) {
 		if (Q.busy) return;
 		Q.busy = true;
 		try { while (Q.q.length && !deadRef.current) await play(Q.q.shift()!); } finally { Q.busy = false; }
+	}
+	/** 온라인: 한꺼번에 받은 지난 줄 — 재생 중인 것이 끝난 뒤 빠르게 따라잡고 이어서 진행 */
+	async function catchUpQueued(lines: string[]) {
+		const Q = playQ.current;
+		while (Q.busy && !deadRef.current) await wait(100);
+		if (deadRef.current) return;
+		Q.busy = true;
+		try { fastApply(lines); await wait(300); await play([]); } finally { Q.busy = false; }
+		if (Q.q.length) void playQueued([]);
 	}
 	async function play(lines: string[]) {
 		setPhase('playing');
@@ -849,6 +883,7 @@ function typeTint(type: string) {
 		const rp = setup.replay!;
 		setPhase('playing');
 		if (replayIdx.current >= rp.p1.length) { setPhase('ended'); setMessage('리플레이가 끝났습니다.'); stopMusic(); return; }
+		if ((s as any).replayDone?.()) { setPhase('ended'); setMessage('리플레이가 끝났습니다.'); stopMusic(); return; }
 		const choice = rp.p1[replayIdx.current++];
 		setMessage(`▶ 리플레이 ${s.battle.turn}턴`);
 		await wait(Math.max(250, SPEED_MS[settings.speed] * 0.8));
@@ -863,6 +898,7 @@ function typeTint(type: string) {
 		setGimmick('');
 		setPendingMove(null);
 		const req = sessionRef.current!.p1Request;
+		if (setup.replay && setup.session) { void replayStep(); return; }   // 온라인 리플레이: 내 차례가 아니어도(상대만 교체 등) 다음 선택을 넣음
 		if (!req || req.wait) { setPhase('playing'); if (setup.online && !sessionRef.current!.ended) setMessage(`${setup.p2.name}${josaSubject(setup.p2.name)} 고르기를 기다리는 중…`); return; }
 		if (setup.replay) { void replayStep(); return; }
 		const autoC = setup.auto?.(sessionRef.current!.battle, req);
@@ -1032,7 +1068,7 @@ function typeTint(type: string) {
 	}
 
 	useEffect(() => {
-		const s: any = setup.online ?? new Session({
+		const s: any = setup.online ?? setup.session ?? new Session({
 			gen: setup.gen, doubles: setup.doubles, aiSkill: setup.aiSkill, inverse: !!setup.inverse,
 			...(setup.ruleId ? { ruleId: setup.ruleId } : {}), p2Auto: setup.p2Auto,
 			...(setup.replay ? { seed: setup.replay.seed, ruleId: setup.replay.ruleId, replayP2: setup.replay.p2 } : {}),
@@ -1045,6 +1081,8 @@ function typeTint(type: string) {
 			// 상대 선택이 와서 턴이 진행되면 그 줄을 차례로 재생
 			setup.online.onLines = lines => { void playQueued(lines); };
 			setup.online.onDesync = msg => { toast(msg); setPhase('ended'); setMessage(msg); stopMusic(); };
+			setup.online.onCatchUp = lines => { void catchUpQueued(lines); };
+			setup.online.onEmote = (who, id) => { const key = Date.now(); setEmote(e => ({ ...e, [who]: { id, key } })); setTimeout(() => setEmote(e => e[who]?.key === key ? { ...e, [who]: undefined } : e), 3200); if (who === 'p2') sfx('select'); };
 		}
 		syncFxSpeed();
 		textRef.current = new KoreanText({
@@ -1062,6 +1100,9 @@ function typeTint(type: string) {
 		for (const x of setup.p2.team) { preloadSprite(x.species, false, x.shiny); for (const st of megaFormsOf(x)) preloadSprite(st, false, x.shiny); }
 		if (settings.effects !== false) for (const set of [...setup.p1.team, ...setup.p2.team]) for (const m of set.moves) preloadAnim(animIdFor(toID(m)));
 		(async () => {
+			// 온라인 대전 복귀(앱을 다시 켬): 등장 연출 없이 지금 상황까지 바로 따라잡음
+			const back: string[] = setup.online?.backlog.splice(0) || [];
+			if (back.length) { fastApply([...lines, ...back]); showMsg('대전으로 돌아왔다!'); await wait(600); await play([]); return; }
 			// 트레이너 등장 (양쪽 트레이너가 발판에 나타난 뒤 포켓몬을 내보냄)
 			setTrainerVis({ own: true, foe: true });
 			const who = `${setup.p2.title ? setup.p2.title + ' ' : ''}${setup.p2.name}`;
@@ -1085,13 +1126,18 @@ function typeTint(type: string) {
 	const req = sessionRef.current?.p1Request;
 
 	const [replaySaved, setReplaySaved] = useState(false);
+	// 온라인 대전의 한마디 (정해진 문구만): 말풍선 · 고르는 창
+	const [emote, setEmote] = useState<{ p1?: { id: number; key: number }; p2?: { id: number; key: number } }>({});
+	const [emoteOpen, setEmoteOpen] = useState(false);
+	const emoteAt = useRef(0);
 	/** 지금 배틀을 리플레이로 저장 (시드 + 양쪽 선택) */
 	function saveThisReplay() {
 		const s = sessionRef.current!;
-		const { replay: _r, ...rest } = setup;
+		const { replay: _r, online: rs, session: _s, ...rest } = setup;
 		const win = s.winner === setup.p1.name;
-		saveReplay({ id: newId(), date: Date.now(), label: setup.label || `${setup.p2.title ? setup.p2.title + ' ' : ''}${setup.p2.name}`, win, turns: s.battle.turn,
-			setup: rest, seed: s.seed, ruleId: s.rule.id, p1: s.record.p1.slice(), p2: s.record.p2.slice() });
+		saveReplay({ id: newId(), date: Date.now(), label: (setup.label || `${setup.p2.title ? setup.p2.title + ' ' : ''}${setup.p2.name}`) + (rs ? ` · ${setup.p2.name}` : ''), win, turns: s.battle.turn,
+			setup: rest, seed: s.seed, ruleId: s.rule.id, p1: rs ? [] : s.record.p1.slice(), p2: rs ? [] : s.record.p2.slice(),
+			...(rs ? { online: { start: rs.info, inputs: rs.log.slice() } } : {}) });
 		setReplaySaved(true);
 		toast('리플레이를 저장했습니다 (기록 → 리플레이)');
 	}
@@ -1431,7 +1477,7 @@ function typeTint(type: string) {
 			return <div class="controls end">
 				<button class="btn primary big" onClick={finish}>계속</button>
 				<button class="btn ghost" onClick={() => setShowLog(true)}>배틀 기록</button>
-				{!setup.replay && !setup.online && !replaySaved && <button class="btn ghost" onClick={saveThisReplay}>리플레이 저장</button>}
+				{!setup.replay && !replaySaved && <button class="btn ghost" onClick={saveThisReplay}>리플레이 저장</button>}
 			</div>;
 		}
 		if (phase !== 'input' || !req) {
@@ -1688,6 +1734,10 @@ function typeTint(type: string) {
 			<div class={'weather-ov ' + (scene.weather || '')} />
 			<div class={'weather-ov terrain-ov ' + [...scene.pseudo].join(' ')} />
 			<div class="anim-bg-layer" ref={animBgRef} />
+			{setup.online && phase !== 'ended' && <button class="emote-btn" onClick={e => { e.stopPropagation(); setEmoteOpen(o => !o); }} aria-label="한마디">
+				<svg viewBox="0 0 14 12" width="28" height="24" shape-rendering="crispEdges"><path d="M1 0h12v1h1v7h-1v1H6v1H5v1H4v1H3V9H1V8H0V1h1z" fill="#10182a" /><path d="M1 1h12v7H5v1H4v1V8H1z" fill="#fff" /><path d="M3 4h2v2H3zM6 4h2v2H6zM9 4h2v2H9z" fill="#10182a" /></svg>
+			</button>}
+			{(['p2', 'p1'] as const).map(w => emote[w] ? <div class={'emote-bub ' + (w === 'p1' ? 'own' : 'foe')} key={emote[w]!.key}><small>{w === 'p1' ? setup.p1.name : setup.p2.name}</small>{EMOTES[emote[w]!.id] || '…'}</div> : null)}
 			<div class="ab-clip">{(['p1', 'p2'] as const).map(sd => { const pp = scene.popup?.[sd]; return pp ? <div class={'ab-pop ' + (sd === 'p1' ? 'own' : 'foe') + ' ' + pp.kind} key={pp.key}>
 				{pp.item && <ItemIcon item={pp.item} />}<span><small>{pp.who}의</small><b>{pp.what}</b></span></div> : null; })}</div>
 			<canvas class="anim-canvas back" ref={backRef} />
@@ -1725,6 +1775,9 @@ function typeTint(type: string) {
 		{wide && <div class="side-log" ref={sideLogRef}>
 			<div class="side-log-title">배틀 기록</div>
 			{log.map((l, i) => <div key={i} class={l.startsWith('──') ? 'log-turn' : 'log-line'}>{l}</div>)}
+		</div>}
+		{emoteOpen && setup.online && <div class="emote-pick" onClick={e => e.stopPropagation()}>
+			{EMOTES.map((t, i) => <button class="btn small" disabled={Date.now() - emoteAt.current < 2000} onClick={() => { emoteAt.current = Date.now(); setup.online!.sendEmote(i); setEmoteOpen(false); }}>{t}</button>)}
 		</div>}
 		{menuOpen && <Modal title="메뉴" onClose={() => setMenuOpen(false)}>
 			<div class="battle-menu">
