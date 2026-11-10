@@ -3200,16 +3200,24 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 
 /* 상대 파티 현황 창 (좁은 화면에서 양옆 패널 대신) */
 .foe-btn { pointer-events: auto; cursor: pointer; color: #ffb0a0 !important; }
-.foe-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 96px)); justify-content: center; gap: 8px; }
-@media (orientation: portrait) { .foe-grid { grid-template-columns: repeat(2, minmax(0, 132px)); } }
-.foe-cell { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; aspect-ratio: 1; min-width: 0; padding: 6px 8px 10px; color: inherit; font: inherit; background: var(--p-row2); border: 0; border-radius: 2px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.3); cursor: pointer; overflow: hidden; }
-.foe-cell .foe-pic { zoom: 2; margin: auto; }
-.foe-cell .hpbar { width: auto; align-self: stretch; flex: none; margin: 0 8px 0 24px; }
+.foe-grid { --fc: 88px; display: grid; grid-template-columns: repeat(3, var(--fc)); justify-content: center; gap: 6px; }
+/* 3칸씩 비스듬히 맞물림 — 가로 화면: 둘째 줄을 반 칸 옆으로 */
+.foe-grid > :nth-child(-n+3) { transform: translateX(calc(var(--fc) / -4 - 2px)); }
+.foe-grid > :nth-child(n+4) { transform: translateX(calc(var(--fc) / 4 + 2px)); }
+@media (orientation: portrait) {
+	/* 세로 화면: 2줄(3칸씩), 오른쪽 줄을 반 칸 아래로 */
+	.foe-grid { --fc: 92px; grid-template-columns: repeat(2, var(--fc)); margin: calc(var(--fc) / 4 + 2px) 0; }
+	.foe-grid > :nth-child(odd) { transform: translateY(calc(var(--fc) / -4 - 2px)); }
+	.foe-grid > :nth-child(even) { transform: translateY(calc(var(--fc) / 4 + 2px)); }
+}
+.foe-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: var(--fc); height: var(--fc); min-width: 0; padding: 2px 4px 4px; color: inherit; font: inherit; background: var(--p-row2); border: 0; border-radius: 3px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.3); cursor: pointer; overflow: hidden; }
+.foe-cell .foe-pic { zoom: 2; margin: 0; }
+.foe-cell .hpbar { width: auto; align-self: stretch; flex: none; margin: 0 6px 0 22px; }
 .foe-cell .foe-nohp { display: block; width: 100%; height: 7px; flex: none; }
 .foe-cell.act { box-shadow: inset 0 0 0 2px var(--yellow); }
 .foe-cell.fnt .foe-pic { filter: grayscale(1) brightness(.6); }
 .foe-cell.dim { cursor: default; background: #0c1220; }
 .foe-cell.dim .foe-pic { filter: brightness(.3) saturate(.5); }
-.foe-cell.dim .ball { margin: auto; opacity: .5; }
+.foe-cell.dim .ball { margin: 22px auto; opacity: .5; }
 .foe-hint { font-size: 12px; margin: 8px 0 0; }
 .foe-hint.top { margin: 0 0 8px; }

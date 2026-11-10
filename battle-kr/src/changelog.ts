@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.70.6', date: '2026-11-10', title: '상대 현황 칸 다듬기', items: [
+		['up', '상대 현황 창의 칸을 더 작게, 3칸씩 비스듬히 맞물리게 놓았어요'],
+	] },
 	{ ver: '2.70.5', date: '2026-11-10', title: '상대 현황 칸 정리', items: [
 		['up', '상대 현황 창의 칸을 정사각형으로 — 세로 화면은 2칸씩 3줄, 가로 화면은 3칸씩 2줄'],
 	] },
