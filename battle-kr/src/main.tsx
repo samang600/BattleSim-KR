@@ -85,6 +85,7 @@ function Home({ go }: { go: (v: string) => void }) {
 			<span class="hm-text"><b>{m.name}</b>{(big || id !== 'daily') && m.sub && <small>{m.sub}</small>}{badge[m.id] && <em>{badge[m.id]}</em>}</span>
 		</button>; };
 	return <div class="home hm">
+		{(window as any).BattleSimNative?.otaStatus && <UpdateBanner />}
 		<div class="hm-top">
 			<button class={'home-head hm-card' + cardSkinClass(wallet)} style={cardSkin(wallet)} onClick={() => go('book')} aria-label="트레이너 수첩">
 				<img class="hm-face" src={SPRITE_URL(settings.playerSprite || 'lucas')} onError={trainerImgError} alt="" />
@@ -217,30 +218,67 @@ function AniPack() {
 	</div>;
 }
 
-/** 설정 → 앱 업데이트 (안드로이드 앱만): 지금 화면 버전, 업데이트 확인 */
+// ── 앱 업데이트 (안드로이드 앱만): 알림을 놓쳐도 설정 맨 위·메인 화면 띠에서 직접 받기·적용 ──
+const cmpVer = (a: string, b: string) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
+const otaRead = (): any => { try { return JSON.parse((window as any).BattleSimNative.otaStatus()); } catch { return null; } };
+/** 정식 웹의 최신 화면 버전 (한 번 받아 둠) */
+let latestP: Promise<{ version: string; native: number } | null> | null = null;
+function latestVersion(force = false) {
+	if (!latestP || force) latestP = fetch('https://samang600.github.io/BattleSim-KR/version.json?t=' + Date.now()).then(r => r.json()).then(j => ({ version: String(j.version || ''), native: Number(j.native) || 1 })).catch(() => null);
+	return latestP;
+}
+/** 지금 상태: 받아 둔 새 버전(ready) · 받을 새 버전(newer) · 새 설치 파일이 필요(needApk) */
+function useUpdateState() {
+	const [st, setSt] = useState<any>(otaRead);
+	const [latest, setLatest] = useState<{ version: string; native: number } | null>(null);
+	const refresh = (force = false) => { setSt(otaRead()); void latestVersion(force).then(setLatest); };
+	useEffect(() => { refresh(); }, []);
+	const newer = !!(st && latest && latest.version && cmpVer(latest.version, APP_VERSION) > 0 && st.ready !== latest.version);
+	return { st, latest, refresh, ready: st?.ready as string | null, newer, needApk: newer && (latest!.native > (st.native || 1)) };
+}
+/** 새 화면 받기 → 받으면 다시 시작할지 물음 */
+function runUpdate(onDone: (result: string) => void) {
+	const nat = (window as any).BattleSimNative;
+	(window as any).onOtaChecked = (r: string) => {
+		const [k, v] = [r.slice(0, r.indexOf(':')), r.slice(r.indexOf(':') + 1)];
+		onDone(k);
+		if (k === 'ready') void confirmBox('앱 업데이트', `새 버전 v${v} 을 받아 두었어요.\n지금 다시 시작할까요?`, '다시 시작', '나중에').then(ok => ok && nat.restartApp());
+		else if (k === 'error') toast('받지 못했어요. 인터넷 연결을 확인해 주세요');
+	};
+	nat.checkUpdate();
+}
 function AppUpdate() {
 	const nat = (window as any).BattleSimNative;
-	const read = () => { try { return JSON.parse(nat.otaStatus()); } catch { return null; } };
-	const [st, setSt] = useState<any>(read);
+	const u = useUpdateState();
 	const [busy, setBusy] = useState(false);
+	const [skipped, setSkipped] = useState(false);   // 앱이 이 버전을 건너뜀 (시작에 실패했던 버전 등)
+	const st = u.st;
 	if (!st) return null;
-	const check = () => {
-		setBusy(true);
-		(window as any).onOtaChecked = (r: string) => {
-			setBusy(false); setSt(read());
-			const [k, v] = [r.slice(0, r.indexOf(':')), r.slice(r.indexOf(':') + 1)];
-			if (k === 'none') toast(`최신 버전이에요 (v${st.version})`);
-			else if (k === 'ready') { void confirmBox('앱 업데이트', `새 버전 v${v} 을 받아 두었어요.\n지금 다시 시작할까요?`, '다시 시작', '나중에').then(ok => ok && nat.restartApp()); }
-			else toast('확인하지 못했어요. 인터넷 연결을 확인해 주세요');
-		};
-		nat.checkUpdate();
-	};
+	const go = () => { setBusy(true); setSkipped(false); runUpdate(k => { setBusy(false); u.refresh(true); if (k === 'none') { if (u.newer) setSkipped(true); else toast(`최신 버전이에요 (v${APP_VERSION})`); } }); };
 	return <>
 		<h3 class="sec">앱 업데이트</h3>
-		<p class="small">화면 v{APP_VERSION} {st.source === 'ota' ? '(자동 업데이트로 받음)' : ''}{st.source === 'ota' && st.version !== APP_VERSION ? ` ⚠ 앱은 v${st.version} 을 쓰려 했지만 적용되지 않았어요` : ''}{st.ready ? ` · 새 버전 v${st.ready} 받아 둠 — 다시 시작하면 적용` : ''}</p>
-		<div class="seg"><button disabled={busy} onClick={check}>{busy ? '확인하는 중…' : '업데이트 확인'}</button>{st.ready && <button onClick={() => nat.restartApp()}>지금 다시 시작</button>}</div>
-		<p class="muted small">새 버전이 나오면 앱이 켜질 때 화면을 자동으로 받아 두고, 다시 시작하면 바뀌어요. 저장 데이터는 그대로예요. (앱 설치 파일 v{st.apk})</p>
+		<div class={'upd-box' + (u.ready || u.newer ? ' has' : '')}>
+			<p class="small">지금 화면 v{APP_VERSION}{st.source === 'ota' ? ' (자동 업데이트로 받음)' : ''}{u.latest ? ` · 최신 v${u.latest.version}` : ''}
+				{st.source === 'ota' && st.version !== APP_VERSION ? ` ⚠ 앱은 v${st.version} 을 쓰려 했지만 적용되지 않았어요` : ''}</p>
+			{u.ready ? <><p class="small upd-msg">새 버전 v{u.ready} 을 받아 두었어요. 다시 시작하면 바로 바뀌어요.</p>
+					<div class="seg"><button class="on" onClick={() => nat.restartApp()}>지금 적용 (다시 시작)</button></div></>
+				: u.needApk ? <p class="small upd-msg">새 버전 v{u.latest!.version} 은 새 앱 설치 파일(APK)이 필요해요. 새 APK 를 받아 설치해 주세요.</p>
+				: u.newer ? <><p class="small upd-msg">새 버전 v{u.latest!.version} 이 나왔어요.</p>
+					<div class="seg"><button class="on" disabled={busy} onClick={go}>{busy ? '받는 중…' : `v${u.latest!.version} 업데이트 받기`}</button></div>
+					{skipped && <p class="small upd-msg">이 기기에서는 이 버전을 자동으로 받을 수 없어요 (전에 시작에 실패한 버전). 새 APK 를 받아 설치해 주세요.</p>}</>
+				: <div class="seg"><button disabled={busy} onClick={go}>{busy ? '확인하는 중…' : '업데이트 확인'}</button></div>}
+		</div>
+		<p class="muted small">새 버전이 나오면 앱이 켜질 때 화면을 자동으로 받아 두고, 다시 시작하면 바뀌어요. 알림을 놓쳤어도 여기서 받고 적용할 수 있어요. 저장 데이터는 그대로예요. (앱 설치 파일 v{st.apk})</p>
 	</>;
+}
+/** 메인 화면 띠: 받아 둔 새 버전이 있거나 새 버전이 나왔을 때 (눌러서 적용·받기) */
+function UpdateBanner() {
+	const nat = (window as any).BattleSimNative;
+	const u = useUpdateState();
+	const [busy, setBusy] = useState(false);
+	if (!u.st || (!u.ready && !u.newer) || u.needApk) return null;
+	if (u.ready) return <button class="upd-banner" onClick={async () => { if (await confirmBox('앱 업데이트', `새 버전 v${u.ready} 을 받아 두었어요.\n지금 다시 시작할까요?`, '다시 시작', '나중에')) nat.restartApp(); }}>⬆ 새 버전 v{u.ready} 받아 둠 — 눌러서 적용</button>;
+	return <button class="upd-banner" disabled={busy} onClick={() => { setBusy(true); runUpdate(() => { setBusy(false); u.refresh(true); }); }}>{busy ? '새 버전을 받는 중…' : `⬆ 새 버전 v${u.latest!.version} — 눌러서 업데이트`}</button>;
 }
 
 // ── 데이터 백업: 안드로이드 앱은 시스템 파일 저장·열기 화면, 브라우저는 내려받기·파일 고르기 ──
@@ -363,6 +401,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 	const [userSpr, setUserSpr] = useState(false);
 	const up = (p: Partial<Settings>) => { const n = { ...s, ...p }; setS(n); saveSettings(n); };
 	return <Screen title="설정" onBack={onBack} cls="set-scr">
+		{(window as any).BattleSimNative?.otaStatus && <AppUpdate />}
 		<label class="field-label">트레이너 이름
 			<input value={s.playerName} maxLength={10} onInput={e => up({ playerName: (e.target as HTMLInputElement).value || '플레이어' })} />
 		</label>
@@ -383,7 +422,6 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 			if (!(await confirmBox('전적 초기화', '연승 기록·대회 우승·네임드 승리·랭크 포인트·승패 기록을 모두 지웁니다.\n(팀·리플레이·설정은 그대로입니다) 정말 지울까요?', '모두 지우기', '취소'))) return;
 			remove('records'); toast('전적을 초기화했습니다.');
 		}}>전적 초기화</button></div>
-		{(window as any).BattleSimNative?.otaStatus && <AppUpdate />}
 		<h3 class="sec">데이터 백업</h3>
 		<div class="seg">
 			<button onClick={() => backupSave()}>파일로 내보내기</button>

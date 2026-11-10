@@ -3073,3 +3073,11 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 	.opk-detail > .sheet { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 8px; }
 	.opk-detail .opk-name { margin-bottom: 0; }
 }
+
+/* ═════ v2.70.1: 앱 업데이트 (설정 맨 위 상자 · 메인 화면 띠) ═════ */
+.upd-box { padding: 6px 8px; margin: 4px 0; background: rgba(10,15,24,.6); box-shadow: 0 0 0 2px #0a0f18; }
+.upd-box.has { box-shadow: 0 0 0 2px #0a0f18, 0 0 0 4px #ffd84a; }
+.upd-box p { margin: 2px 0 6px; } .upd-msg { color: #ffe070; }
+.upd-banner { display: block; width: calc(100% - 8px); margin: 4px; padding: 8px 10px; font: inherit; font-size: 14px; color: #241a04; border: 0; cursor: pointer; text-align: center;
+	background: linear-gradient(180deg, #ffe890 0 2px, #f0c040 2px 70%, #c89420 70%); box-shadow: 0 0 0 2px #3a2804; }
+.upd-banner:active { transform: translate(2px, 2px); } .upd-banner:disabled { filter: saturate(.5); }
