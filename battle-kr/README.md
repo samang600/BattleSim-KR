@@ -102,6 +102,7 @@
   - 본가에서: 처음 포켓몬·라이벌전, 야생 포켓몬(밤엔 다른 포켓몬)을 이긴 뒤 볼 던지기(`Catch`, 몬스터볼 55%·수퍼볼 80%), 경험치(파티 전원)·레벨업·진화·레벨업 기술(`gen/levelup.json`, 1세대), 배지별 레벨 상한(15·22·30), 프렌들리숍·지닌 도구, 체육관(관문 트레이너 → 관장), 지면 「눈앞이 캄캄」(가까운 쉼터로·돈 10%), 잉어킹 500원·자전거 100만원.
   - 태그: 이슬과 태그 중이면 길거리 배틀이 멀티배틀(내 앞 3마리 + 이슬 3마리, 그 자리의 다른 트레이너가 한 팀으로 낌) — `BattleSetup.partner`. 이기면 호감도 +10.
   - 연출: 프롤로그(검은 화면 해설 → 제목 카드 → 연구소), 화면 전환 `Fx`(fade·iris·blinds·battle 번쩍+빗금·제목 카드), 지역 들어설 때 띠(`sc-banner`), 얻음·하트·볼 흔들림 카드, 엔딩 롤.
+  - 외부 그림(사용자 요청, 문제되면 내림): `scenario-assets` 브랜치 → Pages `/scn/` — 배경 11장(쇼다운 클라이언트의 배틀 배경 `fx/bg-*`·`gen6bgs`), 도구·배지 아이콘(PokeAPI/sprites). 앱은 주소로 불러 쓰고(`SCN_BASE`, `Ico`, `.fld-*` 의 첫 번째 배경), 못 불러오면 아래의 직접 그린 그림으로 대신함 → **그 브랜치만 지우면 원래대로**. 지방 지도는 구할 곳이 없어 직접 그린 것 그대로.
   - 그림: 구역 배경 `scripts/gen-fields.py`(`field_*.png`: pallet·route·viridian·forest·pewter·mtmoon·cerulean·bridge·cape·pool·lab·kantomap), 초상화는 `portraits-ai` 브랜치의 픽셀 아트(`scripts/make-portraits.py`: 네임드 = 사용자가 준 AI 그림을 분할 모델로 배경 제거 후 208×304·24색 픽셀화(면은 평평하게, 선은 그 자리 색을 어둡게, 흰 외곽선), 일반 트레이너 = 쇼다운 도트 상반신 4배 `d_*.png`) → Pages `/portraits/`.
   - 저장 `pkbkr-dev:scenario-kanto2` (예전 시안의 `scenario-kanto` 는 쓰지 않음). 메인 화면에는 개발자 빌드에서만 보임(`SCENARIO_ON`). 대사·이야기·상대 팀 구성은 원작 설정(블루 체육관·골든볼브리지 로켓단·블루시티 도둑·이수재·블루곶)을 바탕으로 새로 쓴 것.
 - **v2.70.1 직접 업데이트**: 설정 맨 위 「앱 업데이트」 상자(`AppUpdate`) — 화면이 정식 웹의 `version.json` 을 직접 읽어 최신 버전을 보여 주고, 「업데이트 받기」(`checkUpdate`) → 「지금 적용」(`restartApp`). 메인 화면 위 띠(`UpdateBanner`)도 같은 상태(`useUpdateState`: ready·newer·needApk). 네이티브 변경 없음.

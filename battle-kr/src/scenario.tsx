@@ -20,6 +20,8 @@ import { TIMES, TIME_CLS, WHO, LOCS, locOf, TRAINERS, WILDS, ITEMS, SHOPS, START
 
 const LU = LEVELUP as unknown as { [id: string]: { e?: [string, number]; m: [number, string][] } };
 const PORTRAIT_BASE = 'https://samang600.github.io/BattleSim-KR/portraits/';
+/** 외부 저장소에서 가져온 배경·아이콘 (scenario-assets 브랜치 → Pages /scn/). 없으면 직접 그린 그림으로 대신함 */
+const SCN_BASE = 'https://samang600.github.io/BattleSim-KR/scn/';
 const KEY = 'scenario-kanto2';
 const NO_GIMMICK = '_one.natdex.yes.yes';
 const won = (n: number) => n.toLocaleString('ko-KR') + '원';
@@ -84,6 +86,14 @@ function Portrait({ id, sprite, cls = '' }: { id: string; sprite: string; cls?: 
 	if (!id || bad) return sprite ? <img class={'sc-portrait dot ' + cls} src={SPRITE_URL(sprite)} onError={trainerImgError} alt="" /> : null;
 	return <img class={'sc-portrait px ' + (id.startsWith('d_') ? 'dotp ' : '') + cls} src={`${PORTRAIT_BASE}${id}.png`} onError={() => setBad(true)} alt="" />;
 }
+/** 도구·배지 아이콘 (PokeAPI sprites). 못 불러오면 fb(직접 그린 것)로 */
+function Ico({ name, size = 32, fb }: { name: string; size?: number; fb?: any }) {
+	const [bad, setBad] = useState(false);
+	if (bad) return fb || null;
+	return <img class="sc-pico" style={{ width: size, height: size }} src={`${SCN_BASE}ico/${name}.png`} onError={() => setBad(true)} alt="" />;
+}
+const itemIco = (id: string, size: number) => { const it = ITEMS[id]; return <Ico name={it.icon} size={size} fb={it.held ? <ItemIcon item={it.held} size={Math.min(size, 32)} /> : <i class={'sc-ico2 ' + it.kind + ' ' + id} />} />; };
+const BADGE_ICO: { [k: string]: string } = { 회색배지: 'badge1', 블루배지: 'badge2' };
 const tWho = (t: Trainer): Who => ({ name: t.name, title: t.title, portrait: 'd_' + t.sprite, sprite: t.sprite });
 const Hearts = ({ v, big }: { v: number; big?: boolean }) => <span class={'sc-hearts' + (big ? ' big' : '')}>{[0, 1, 2, 3].map(i => <i class="sc-heart"><b style={{ width: Math.max(0, Math.min(100, v - i * 100)) + '%' }} /></i>)}</span>;
 
@@ -123,7 +133,7 @@ function engine(run: Run) {
 	const choose = (who: string | Who, text: string, opts: string[], bg = L().bg) => ask<number>(r => <Dialog key={K()} lines={[[who, text]]} bg={bg} tint={run.time} done={r} choice={opts} />);
 	const fx = (kind: string, ms = 700, bg = L().bg) => ask<void>(r => <Fx key={K()} kind={kind} bg={bg} tint={run.time} ms={ms} done={r} />);
 	const card = (title: string, sub: string, small = '', bg = 'black', ms = 2400) => ask<void>(r => <Fx key={K()} kind="card" bg={bg} tint={1} title={title} sub={sub} small={small} ms={ms} done={r} />);
-	const got = async (id: string, n = 1) => { give(run, id, n); persist(run); sfx('select'); await ask<void>(r => <GetCard key={K()} icon={ITEMS[id].held} title={`${ITEMS[id].name}${n > 1 ? ` ×${n}` : ''}`} sub={ITEMS[id].desc} done={r} />); };
+	const got = async (id: string, n = 1) => { give(run, id, n); persist(run); sfx('select'); await ask<void>(r => <GetCard key={K()} icon={ITEMS[id].icon} title={`${ITEMS[id].name}${n > 1 ? ` ×${n}` : ''}`} sub={ITEMS[id].desc} done={r} />); };
 	const pay = async (n: number) => { run.money += n; persist(run); await ask<void>(r => <GetCard key={K()} title={won(n)} sub="상금을 받았다!" coin done={r} />); };
 	/** 호감도 올리기(상한까지) → 하트 연출 */
 	const heart = async (n: number) => {
@@ -174,7 +184,7 @@ type Eng = ReturnType<typeof engine>;
 
 function GetCard({ title, sub, icon, coin, done }: { title: string; sub: string; icon?: string; coin?: boolean; done: () => void }) {
 	return <div class="sc-get" onClick={done}><div class="sc-get-box">
-		<span class="sc-get-ico">{coin ? <i class="sc-coin" /> : icon ? <ItemIcon item={icon} size={48} /> : <i class="sc-gift" />}</span>
+		<span class="sc-get-ico">{coin ? <Ico name="coin-case" size={56} fb={<i class="sc-coin" />} /> : icon ? <Ico name={icon} size={56} fb={<i class="sc-gift" />} /> : <i class="sc-gift" />}</span>
 		<b>{josa(title, '을', '를')} 손에 넣었다!</b><small>{sub}</small><em>화면을 누르면 계속</em>
 	</div></div>;
 }
@@ -224,7 +234,7 @@ function nodesAt(run: Run): Node[] {
 		if (t.once && done && !t.again) continue;
 		out.push({ k: 'trainer', label: t.name, mark: done ? '✓' : '!', face: tWho(t), done, data: t });
 	}
-	if (WILDS.some(w => w.loc === run.loc)) out.push({ k: 'wild', label: WILDS.find(w => w.loc === run.loc)!.name, mark: '?', kind: 'grass' });
+	if (WILDS.some(w => w.loc === run.loc)) { const w = WILDS.find(x => x.loc === run.loc)!; out.push({ k: 'wild', label: w.name, mark: '?', kind: 'grass', data: (run.time === 3 && w.night ? w.night : w.pool)[0][0] }); }
 	if (run.loc === 'pallet') out.push({ k: 'oak', label: '오박사 연구소', mark: '…', face: WHO.oak });
 	if (run.loc === 'mtmoon' && !has(run, 'karp')) out.push({ k: 'karp', label: '수상한 아저씨', mark: '₩', face: WHO.salesman });
 	if (run.loc === 'cerulean') out.push({ k: 'bike', label: '자전거 가게', mark: '…', kind: 'bike' });
@@ -248,20 +258,20 @@ function Hub({ run, banner, done }: { run: Run; banner: boolean; done: (a: Act) 
 		</div>
 		{banner && <div class="sc-banner"><b>{loc.name}</b><span>{loc.sub}</span></div>}
 		{nodes.slice(0, SLOTS.length).map((n, i) => <button class={'sh-npc' + (n.done ? ' done' : '') + (n.kind ? ' ' + n.kind : '')} style={{ left: SL[i][0] + '%', top: SL[i][1] + '%' }} onClick={() => { sfx('select'); done(n); }}>
-			<span class="sh-face">{n.face ? <Portrait id={n.face.portrait} sprite={n.face.sprite} cls="face" /> : <span class={'sc-ico ' + (n.kind || '')} />}</span>
+			<span class="sh-face">{n.face ? <Portrait id={n.face.portrait} sprite={n.face.sprite} cls="face" /> : n.kind === 'grass' ? <span class="sc-wildico"><PokeIcon species={n.data} /></span> : <Ico name={n.kind === 'bike' ? 'bicycle' : 'poke-doll'} size={52} fb={<span class={'sc-ico ' + (n.kind || '')} />} />}</span>
 			<span class="sh-mark">{n.mark}</span><span class="sh-label">{n.label}</span>
 		</button>)}
 		<div class="sh-me sc-me2" role="button" onClick={() => done({ k: 'party' })}>
 			{run.tag && <img class="sc-partner" src={SPRITE_URL('misty')} alt="" onError={trainerImgError} />}
 			<img src={SPRITE_URL(playerSprite())} alt="" onError={trainerImgError} />
-			<div class="sh-me-bar"><b>{playerName()}{run.tag && <small class="sc-tagchip"> ＆ 이슬</small>}</b><small>배지 {run.badges.length} · 상한 Lv{lvCap(run)}</small>
+			<div class="sh-me-bar"><b>{playerName()}{run.tag && <small class="sc-tagchip"> ＆ 이슬</small>}</b><small class="sc-badgerow">{run.badges.map(b => <Ico name={BADGE_ICO[b]} size={18} fb={<span>🏅</span>} />)}{!run.badges.length && '배지 0'} · 상한 Lv{lvCap(run)}</small>
 				<span class="sc-party2">{run.party.map(m => <span class="sc-pmon"><PokeIcon species={m.sp} /><small>Lv{m.lv}</small></span>)}</span></div>
 		</div>
 		<div class="sc-tabs2 sc-menu">
-			<button class="on" onClick={() => done({ k: 'map' })}><i class="sc-mi map" />지도</button>
-			<button onClick={() => done({ k: 'party' })}><i class="sc-mi ball" />포켓몬</button>
-			<button onClick={() => done({ k: 'bag' })}><i class="sc-mi bag" />가방</button>
-			<button onClick={() => done({ k: 'route' })}><i class="sc-mi heart" />루트</button>
+			<button class="on" onClick={() => done({ k: 'map' })}><Ico name="town-map" size={26} fb={<i class="sc-mi map" />} />지도</button>
+			<button onClick={() => done({ k: 'party' })}><Ico name="poke-ball" size={26} fb={<i class="sc-mi ball" />} />포켓몬</button>
+			<button onClick={() => done({ k: 'bag' })}><Ico name="travel-trunk" size={26} fb={<i class="sc-mi bag" />} />가방</button>
+			<button onClick={() => done({ k: 'route' })}><Ico name="heart-mail" size={26} fb={<i class="sc-mi heart" />} />루트</button>
 		</div>
 	</div>;
 }
@@ -357,7 +367,7 @@ function PartyScreen({ run, done }: { run: Run; done: () => void }) {
 const KIND_KO: { [k: string]: string } = { ball: '볼', held: '지닌 도구', gift: '선물', sell: '귀중품' };
 function ItemRow({ id, right, sub }: { id: string; right: any; sub?: string }) {
 	const it = ITEMS[id];
-	return <div class="sc-item"><span class="sc-item-ico">{it.held ? <ItemIcon item={it.held} size={32} /> : <i class={'sc-ico2 ' + it.kind + ' ' + id} />}</span>
+	return <div class="sc-item"><span class="sc-item-ico">{itemIco(id, 36)}</span>
 		<div class="sc-item-body"><b>{it.name} <small class="sc-kind">{KIND_KO[it.kind]}</small></b><small>{sub || it.desc}</small></div>{right}</div>;
 }
 function BagScreen({ run, done }: { run: Run; done: () => void }) {
@@ -494,7 +504,7 @@ async function mistyGym(run: Run, E: Eng) {
 	run.flags.badge2 = 1; run.badges.push('블루배지');
 	await E.reward(team, '관장 이슬에게 이겼다!', 2100);
 	await E.say([['misty', '와… 졌다. 완패야. 너, 정말 강하구나!'], ['misty', '약속대로 이걸 줄게. 포켓몬리그 공인 블루배지야!']], 'pool');
-	await ask<void>(r => <GetCard key={K()} title="블루배지" sub="레벨 상한이 올랐다 · 가게 물건이 늘었다" done={r} />);
+	await ask<void>(r => <GetCard key={K()} icon="badge2" title="블루배지" sub="레벨 상한이 올랐다 · 가게 물건이 늘었다" done={r} />);
 	await E.say([['misty', '있잖아. 요즘 관동에선 둘이 한 팀으로 싸우는 태그 배틀이 유행이야.'], ['misty', '너 정도 실력이면… 가끔 내 파트너로 삼아 줘도 좋아. 가, 가끔이야!'], ['misty', '난 시간마다 있는 곳이 달라. 아침엔 수영, 낮엔 체육관, 저녁엔 산책… 찾아와서 말 걸어 줘.']], 'pool');
 	await E.card('이슬 루트', '인물 루트가 열렸다', 'ROUTE OPEN', 'cerulean');
 	await E.heart(40);
@@ -680,7 +690,7 @@ export async function runScenario() {
 			run.flags.badge1 = 1; run.flags.brock = 1; run.badges.push('회색배지');
 			await E.reward(team, '관장 웅에게 이겼다!', 1400);
 			await E.say([['brock', '너를 얕봤던 것 같군. 내 패배다. 포켓몬리그 공인 회색배지를 받아라!']]);
-			await ask<void>(r => <GetCard key={K()} title="회색배지" sub="레벨 상한이 올랐다 · 달맞이산을 지날 수 있다" done={r} />);
+			await ask<void>(r => <GetCard key={K()} icon="badge1" title="회색배지" sub="레벨 상한이 올랐다 · 달맞이산을 지날 수 있다" done={r} />);
 			await E.got('hardstone');
 			await E.say([['brock', '동쪽 달맞이산을 넘으면 블루시티다. 그곳 관장 이슬은… 성격은 불같지만 실력은 진짜지. 조심해라.']]);
 			continue;

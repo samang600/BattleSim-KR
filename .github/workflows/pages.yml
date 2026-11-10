@@ -96,6 +96,16 @@ jobs:
           path: portraits-src
       - if: steps.portraits.outputs.ok == '1'
         run: cp -r portraits-src/portraits battle-kr/dist/portraits
+      # 시나리오 모드 그림 (scenario-assets 브랜치: 외부 저장소에서 가져온 배경·아이콘, 없으면 건너뜀) → /scn/ — 브랜치를 지우면 앱은 직접 그린 그림으로 돌아감
+      - id: scn
+        run: git ls-remote --exit-code --heads https://github.com/${{ github.repository }} scenario-assets && echo ok=1 >> $GITHUB_OUTPUT || echo ok=0 >> $GITHUB_OUTPUT
+      - if: steps.scn.outputs.ok == '1'
+        uses: actions/checkout@v4
+        with:
+          ref: scenario-assets
+          path: scn-src
+      - if: steps.scn.outputs.ok == '1'
+        run: cp -r scn-src/scn battle-kr/dist/scn
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

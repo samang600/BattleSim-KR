@@ -112,30 +112,31 @@ export const WILDS: Wild[] = [
 // ───────── 물건 ─────────
 export interface Item {
 	name: string; price: number; kind: 'ball' | 'held' | 'gift' | 'sell'; desc: string;
+	/** 아이콘: PokeAPI sprites 의 도구 그림 이름 (scenario-assets 브랜치 /scn/ico/) */ icon: string;
 	/** 볼: 잡힐 확률 */ rate?: number; /** 지닌 도구: 쇼다운 도구 id */ held?: string; /** 선물: 이슬의 취향 (2 좋아함 · 1 보통 · 0 싫어함) */ misty?: number; /** 팔 때 값 */ sell?: number;
 }
 export const ITEMS: { [id: string]: Item } = {
-	pokeball: { name: '몬스터볼', price: 200, kind: 'ball', rate: 0.55, desc: '약해진 야생 포켓몬에게 던져서 잡는 볼' },
-	greatball: { name: '수퍼볼', price: 600, kind: 'ball', rate: 0.8, desc: '몬스터볼보다 잘 잡히는 볼' },
-	oranberry: { name: '오랭열매', price: 150, kind: 'held', held: 'oranberry', desc: '지니게 하면 위급할 때 HP 를 조금 회복' },
-	sitrusberry: { name: '자뭉열매', price: 400, kind: 'held', held: 'sitrusberry', desc: '지니게 하면 위급할 때 HP 를 꽤 회복' },
-	hardstone: { name: '딱딱한돌', price: 1000, kind: 'held', held: 'hardstone', desc: '지니게 하면 바위 타입 기술이 강해짐' },
-	softsand: { name: '부드러운모래', price: 1000, kind: 'held', held: 'softsand', desc: '지니게 하면 땅 타입 기술이 강해짐' },
-	miracleseed: { name: '기적의씨', price: 1000, kind: 'held', held: 'miracleseed', desc: '지니게 하면 풀 타입 기술이 강해짐' },
-	charcoal: { name: '목탄', price: 1000, kind: 'held', held: 'charcoal', desc: '지니게 하면 불꽃 타입 기술이 강해짐' },
-	mysticwater: { name: '신비의물방울', price: 1000, kind: 'held', held: 'mysticwater', desc: '지니게 하면 물 타입 기술이 강해짐' },
-	magnet: { name: '자석', price: 1000, kind: 'held', held: 'magnet', desc: '지니게 하면 전기 타입 기술이 강해짐' },
-	quickclaw: { name: '선제공격손톱', price: 2000, kind: 'held', held: 'quickclaw', desc: '지니게 하면 가끔 먼저 공격' },
-	leftovers: { name: '먹다남은음식', price: 4000, kind: 'held', held: 'leftovers', desc: '지니게 하면 매 턴 HP 를 조금씩 회복' },
-	freshwater: { name: '맛있는물', price: 200, kind: 'gift', misty: 1, desc: '미네랄이 풍부한 물. 가볍게 건네기 좋은 선물' },
-	flowers: { name: '들꽃 다발', price: 300, kind: 'gift', misty: 1, desc: '상록시티 꽃밭에서 엮은 꽃다발' },
-	fossilmodel: { name: '화석 모형', price: 500, kind: 'gift', misty: 1, desc: '회색 박물관 기념품. 조개 화석 모양' },
-	bugspecimen: { name: '곤충 표본', price: 400, kind: 'gift', misty: 0, desc: '회색 박물관 기념품. 벌레 포켓몬 허물 표본… 받는 사람을 가림' },
-	postcard: { name: '인어 그림엽서', price: 250, kind: 'gift', misty: 2, desc: '블루시티 기념품. 달빛 아래 헤엄치는 인어 그림' },
-	moomoo: { name: '후르츠밀크', price: 350, kind: 'gift', misty: 2, desc: '수영 뒤에 마시면 최고라는 과일 우유' },
-	shellnecklace: { name: '조개 목걸이', price: 900, kind: 'gift', misty: 2, desc: '블루곶 조개껍데기로 만든 목걸이' },
-	pearl: { name: '진주 귀걸이', price: 1800, kind: 'gift', misty: 2, desc: '진주몽의 진주처럼 빛나는 귀걸이. 아주 특별한 선물' },
-	nugget: { name: '금구슬', price: 0, kind: 'sell', sell: 5000, desc: '순금으로 된 구슬. 가게에 비싸게 팔 수 있다' },
+	pokeball: { icon: 'poke-ball', name: '몬스터볼', price: 200, kind: 'ball', rate: 0.55, desc: '약해진 야생 포켓몬에게 던져서 잡는 볼' },
+	greatball: { icon: 'great-ball', name: '수퍼볼', price: 600, kind: 'ball', rate: 0.8, desc: '몬스터볼보다 잘 잡히는 볼' },
+	oranberry: { icon: 'oran-berry', name: '오랭열매', price: 150, kind: 'held', held: 'oranberry', desc: '지니게 하면 위급할 때 HP 를 조금 회복' },
+	sitrusberry: { icon: 'sitrus-berry', name: '자뭉열매', price: 400, kind: 'held', held: 'sitrusberry', desc: '지니게 하면 위급할 때 HP 를 꽤 회복' },
+	hardstone: { icon: 'hard-stone', name: '딱딱한돌', price: 1000, kind: 'held', held: 'hardstone', desc: '지니게 하면 바위 타입 기술이 강해짐' },
+	softsand: { icon: 'soft-sand', name: '부드러운모래', price: 1000, kind: 'held', held: 'softsand', desc: '지니게 하면 땅 타입 기술이 강해짐' },
+	miracleseed: { icon: 'miracle-seed', name: '기적의씨', price: 1000, kind: 'held', held: 'miracleseed', desc: '지니게 하면 풀 타입 기술이 강해짐' },
+	charcoal: { icon: 'charcoal', name: '목탄', price: 1000, kind: 'held', held: 'charcoal', desc: '지니게 하면 불꽃 타입 기술이 강해짐' },
+	mysticwater: { icon: 'mystic-water', name: '신비의물방울', price: 1000, kind: 'held', held: 'mysticwater', desc: '지니게 하면 물 타입 기술이 강해짐' },
+	magnet: { icon: 'magnet', name: '자석', price: 1000, kind: 'held', held: 'magnet', desc: '지니게 하면 전기 타입 기술이 강해짐' },
+	quickclaw: { icon: 'quick-claw', name: '선제공격손톱', price: 2000, kind: 'held', held: 'quickclaw', desc: '지니게 하면 가끔 먼저 공격' },
+	leftovers: { icon: 'leftovers', name: '먹다남은음식', price: 4000, kind: 'held', held: 'leftovers', desc: '지니게 하면 매 턴 HP 를 조금씩 회복' },
+	freshwater: { icon: 'fresh-water', name: '맛있는물', price: 200, kind: 'gift', misty: 1, desc: '미네랄이 풍부한 물. 가볍게 건네기 좋은 선물' },
+	flowers: { icon: 'small-bouquet', name: '들꽃 다발', price: 300, kind: 'gift', misty: 1, desc: '상록시티 꽃밭에서 엮은 꽃다발' },
+	fossilmodel: { icon: 'helix-fossil', name: '화석 모형', price: 500, kind: 'gift', misty: 1, desc: '회색 박물관 기념품. 조개 화석 모양' },
+	bugspecimen: { icon: 'shed-shell', name: '곤충 표본', price: 400, kind: 'gift', misty: 0, desc: '회색 박물관 기념품. 벌레 포켓몬 허물 표본… 받는 사람을 가림' },
+	postcard: { icon: 'wave-mail', name: '인어 그림엽서', price: 250, kind: 'gift', misty: 2, desc: '블루시티 기념품. 달빛 아래 헤엄치는 인어 그림' },
+	moomoo: { icon: 'moomoo-milk', name: '후르츠밀크', price: 350, kind: 'gift', misty: 2, desc: '수영 뒤에 마시면 최고라는 과일 우유' },
+	shellnecklace: { icon: 'shell-bell', name: '조개 목걸이', price: 900, kind: 'gift', misty: 2, desc: '블루곶 조개껍데기로 만든 목걸이' },
+	pearl: { icon: 'lone-earring', name: '진주 귀걸이', price: 1800, kind: 'gift', misty: 2, desc: '진주몽의 진주처럼 빛나는 귀걸이. 아주 특별한 선물' },
+	nugget: { icon: 'nugget', name: '금구슬', price: 0, kind: 'sell', sell: 5000, desc: '순금으로 된 구슬. 가게에 비싸게 팔 수 있다' },
 };
 /** 가게 진열 (지역별). need: 이 표식이 있어야 진열 */
 export const SHOPS: { [loc: string]: { name: string; who: string; items: [string, string?][] } } = {

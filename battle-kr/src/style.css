@@ -3083,10 +3083,19 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .upd-banner:active { transform: translate(2px, 2px); } .upd-banner:disabled { filter: saturate(.5); }
 
 /* ═════ 시나리오 모드 (시안) ═════ */
-.fld-pallet { background-image: url(__IMG_field_pallet__); } .fld-route { background-image: url(__IMG_field_route__); } .fld-forest { background-image: url(__IMG_field_forest__); }
-.fld-pewter { background-image: url(__IMG_field_pewter__); } .fld-mtmoon { background-image: url(__IMG_field_mtmoon__); }
-.fld-viridian { background-image: url(__IMG_field_viridian__); } .fld-cerulean { background-image: url(__IMG_field_cerulean__); } .fld-bridge { background-image: url(__IMG_field_bridge__); }
-.fld-cape { background-image: url(__IMG_field_cape__); } .fld-pool { background-image: url(__IMG_field_pool__); } .fld-lab { background-image: url(__IMG_field_lab__); } .fld-black { background: #05070c; }
+/* 구역 배경: 외부 저장소 그림(scenario-assets 브랜치 → /scn/bg/) 을 먼저, 없으면 직접 그린 도트 그림 (scripts/gen-fields.py) */
+.fld-pallet { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/pallet.jpg), url(__IMG_field_pallet__); }
+.fld-route { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/route.jpg), url(__IMG_field_route__); }
+.fld-forest { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/forest.jpg), url(__IMG_field_forest__); }
+.fld-pewter { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/pewter.jpg), url(__IMG_field_pewter__); }
+.fld-mtmoon { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/mtmoon.jpg), url(__IMG_field_mtmoon__); }
+.fld-viridian { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/viridian.jpg), url(__IMG_field_viridian__); }
+.fld-cerulean { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/cerulean.jpg), url(__IMG_field_cerulean__); }
+.fld-bridge { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/bridge.jpg), url(__IMG_field_bridge__); }
+.fld-cape { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/cape.jpg), url(__IMG_field_cape__); }
+.fld-pool { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/pool.jpg), url(__IMG_field_pool__); }
+.fld-lab { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/lab.jpg), url(__IMG_field_lab__); }
+.fld-black { background: #05070c; }
 .sc-stage { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin: 4px 0; background: #1a2438; box-shadow: 0 0 0 2px #0a0f18; font-size: 13px; }
 .sc-stage-no { flex: none; padding: 2px 8px; color: #241a04; background: linear-gradient(180deg, #ffe890 0 2px, #f0c040 2px 70%, #c89420 70%); box-shadow: 0 0 0 2px #3a2804; }
 .sc-stage-no b { font-weight: normal; font-size: 16px; }
@@ -3236,7 +3245,7 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .sc-tint { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; }
 .sc-tint.morning { background: linear-gradient(180deg, #ffe8c8 0 30%, #fff4e4 30% 60%, #ffffff 60%); }
 .sc-tint.day { display: none; }
-.sc-tint.evening { background: linear-gradient(180deg, #ff9a5a 0 25%, #ffb070 25% 50%, #ffc890 50% 75%, #ffd8a8 75%); }
+.sc-tint.evening { background: linear-gradient(180deg, #ffb07a 0 25%, #ffc496 25% 50%, #ffd6b2 50% 75%, #ffe4cc 75%); }
 .sc-tint.night { background: linear-gradient(180deg, #5462b0 0 30%, #606ebc 30% 60%, #6c7ac8 60%); }
 .sc-stars { position: absolute; left: 0; right: 0; top: 0; height: 34%; pointer-events: none; animation: scTwinkle 2s steps(2) infinite;
 	background-image: radial-gradient(#fff 1px, transparent 1.5px), radial-gradient(#cfe0ff 1px, transparent 1.5px); background-size: 46px 38px, 70px 58px; background-position: 6px 10px, 30px 26px; }
@@ -3398,3 +3407,15 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 	.sc-hub .sh-npc::after { display: none; } .sc-hub .sh-label { margin-top: 3px; font-size: 11px; } .sc-hub .sh-mark { width: 18px; height: 18px; font-size: 12px; }
 	.sc-menu { padding-bottom: calc(6px + var(--safe-bottom, 0px)) !important; } .sc-menu button { flex-direction: row; justify-content: center; gap: 6px; padding: 4px 2px; } .sc-mi { width: 16px; height: 16px; }
 	.sc-hub .sc-me2 { bottom: calc(40px + var(--safe-bottom, 0px)); } .sc-hub .sc-me2 img { width: 150px; height: 150px; } .sc-partner { margin-right: -90px !important; } }
+
+/* 시나리오: 외부 저장소 그림 */
+.sc-bg { image-rendering: auto; background-position: center; }
+.sc-map { image-rendering: pixelated; }
+.sc-pico { image-rendering: pixelated; object-fit: contain; flex: none; }
+.sc-wildico { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; } .sc-wildico .poke-icon { zoom: 1.4; }
+.sh-npc.grass .sh-face { background: radial-gradient(circle, #9fe08a 0 55%, #3a9a4a 55%); }
+.sh-npc.home .sh-face, .sh-npc.bike .sh-face { background: radial-gradient(circle, #fff4d8 0 55%, #e8c070 55%); align-items: center; }
+.sc-badgerow { display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.sc-menu button .sc-pico { margin-bottom: -2px; }
+/* 세로 화면에서는 가로 그림의 일부만 보이므로, 그림마다 보여 줄 자리를 정함 */
+.sc-bg.fld-pallet { background-position: 25% center; } .sc-bg.fld-route { background-position: 40% center; } .sc-bg.fld-viridian { background-position: 35% center; } .sc-bg.fld-forest { background-position: 50% center; } .sc-bg.fld-pewter { background-position: 60% center; } .sc-bg.fld-mtmoon { background-position: 30% center; } .sc-bg.fld-cerulean { background-position: 85% center; } .sc-bg.fld-bridge { background-position: 12% center; } .sc-bg.fld-cape { background-position: 55% center; } .sc-bg.fld-pool { background-position: 80% center; } .sc-bg.fld-lab { background-position: 80% center; }
