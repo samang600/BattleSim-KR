@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.69.3', date: '2026-11-10', title: 'PC 화면 음악·배경', items: [
+		['up', 'PC(넓은 화면)의 참가 포켓몬 고르기에서 혼자 하는 모드도 오른쪽에서 배틀 필드·음악을 고를 수 있어요'],
+	] },
 	{ ver: '2.69.2', date: '2026-11-10', title: '떠 있는 포켓몬', items: [
 		['up', '솜솜코·프테라·만타인 등 날거나 떠다니는 포켓몬 70여 종이 땅에 붙지 않고 공중에 떠 있어요 (바닥에 그림자)'],
 	] },

@@ -7,6 +7,7 @@ import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { Screen, Sprite, MiniSprite, CropSprite, TypeBadge, Modal, HPBar, StatusBadge, TYPE_COLOR } from './core';
 import { OnlinePick, useWide } from './online-pick';
 import { loadSettings } from '../store';
+import { BgmRow } from '../modes';
 
 /** 세트 요약 카드 */
 export function SetCard({ set, gen, selected, order, onClick, compact, children }: {
@@ -44,7 +45,7 @@ export function PickScreen({ title, team, gen, count, opponent, hint, onDone, on
 	const wide = useWide('(min-width: 900px) and (min-height: 541px)');   // 웹(PC)만 — 휴대폰 가로는 아래 2단 화면
 	if (wide) return <OnlinePick offline title={title} hint={hint || (need < team.length ? `싸울 포켓몬을 ${need}마리 순서대로 고르세요. 처음 고른 포켓몬이 먼저 나갑니다.` : '나갈 순서대로 고르세요.')}
 		mine={team} myName={loadSettings().playerName || '플레이어'} oppName={opponent?.name || ''} oppTeam={opponent?.team || []} count={count} opp="picking"
-		onDone={idx => onDone(idx.map(i => team[i]))} onLeave={() => onBack?.()} prep={prep} />;
+		onDone={idx => onDone(idx.map(i => team[i]))} onLeave={() => onBack?.()} prep={prep ?? <BgmRow />} />;   // 음악·배경 고르기를 따로 안 넘긴 화면(타워·팩토리·팰리스 등)도 오른쪽에서 고를 수 있게
 	// 넓은 화면(PC·휴대폰 가로): 왼쪽에 상대·안내·음악/배경, 오른쪽에 내 카드 여러 열 (style.css .pick-screen)
 	return <Screen title={title} onBack={onBack} cls="pick-screen">
 		<div class="pick-side">
