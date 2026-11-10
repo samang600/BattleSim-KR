@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.69.2', date: '2026-11-10', title: '떠 있는 포켓몬', items: [
+		['up', '솜솜코·프테라·만타인 등 날거나 떠다니는 포켓몬 70여 종이 땅에 붙지 않고 공중에 떠 있어요 (바닥에 그림자)'],
+	] },
 	{ ver: '2.69.1', date: '2026-11-10', title: '규칙 검사 · 팰리스 · 다이월', items: [
 		['fix', '초전설·환상 불가 규칙인데 그 포켓몬이 든 내 팀으로 나갈 수 있던 문제 — 팀 고르기에서 「규칙 불가」로 표시하고 막아요 (치트 팀 제외)'],
 		['fix', '배틀팰리스에서 상대가 구애 도구 때문에 배틀 내내 한 기술만 쓰던 문제 — 상대의 구애 도구를 다른 도구로 바꿔요'],

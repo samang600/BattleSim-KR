@@ -203,6 +203,14 @@ const FLOATERS = new Set([
 	'shedinja', 'mew', 'celebi', 'jirachi', 'hoopa', 'cosmog', 'cosmoem', 'nihilego', 'pecharunt', 'castform', 'klefki', 'comfey', 'minior', 'magearna',
 	// 기계·광물
 	'magnemite', 'magneton', 'magnezone', 'beldum', 'metang', 'porygonz', 'carbink',
+	// 바람을 타거나 날갯짓하며 떠 있는 비행 타입 (땅에 서 있는 새는 넣지 않음)
+	'hoppip', 'skiploom', 'jumpluff', 'aerodactyl', 'mantine', 'mantyke', 'pidgeot', 'fearow', 'articuno', 'zapdos', 'moltres', 'lugia', 'hooh', 'rayquaza',
+	'ledyba', 'ledian', 'togetic', 'gligar', 'gliscor', 'wingull', 'pelipper', 'swellow', 'volbeat', 'illumise', 'swablu', 'altaria', 'salamence', 'staraptor',
+	'drifloon', 'emolga', 'sigilyph', 'braviary', 'tornadus', 'thundurus', 'landorus', 'enamorus', 'fletchinder', 'talonflame', 'noivern', 'yveltal',
+	'lunala', 'celesteela', 'kartana', 'naganadel', 'poipole', 'corvisquire', 'corviknight', 'flapple', 'wattrel', 'kilowattrel', 'bombirdier', 'ironjugulis',
+	// 몸이 떠 있는 포켓몬 (부유 특성이 없어도)
+	'solosis', 'duosion', 'reuniclus', 'elgyem', 'beheeyem', 'sinistea', 'polteageist', 'dhelmise', 'necrozma', 'deoxys', 'manaphy', 'phione', 'diancie',
+	'tapukoko', 'tapulele', 'tapubulu', 'tapufini', 'eternatus', 'glimmet', 'glimmora', 'rabsca', 'fluttermane', 'ironmoth', 'chiyu', 'poltchageist', 'sinistcha',
 ]);
 export function floats(speciesId: string): boolean {
 	const s: any = speciesData(speciesId, 9);
