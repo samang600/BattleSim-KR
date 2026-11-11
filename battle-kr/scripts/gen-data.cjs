@@ -9,6 +9,8 @@
  */
 'use strict';
 const fs = require('fs');
+// 엔진 데이터에 Paradox 표시가 빠진 남청의원반 패러독스 4종 (준전설 불가 규칙에 걸리도록)
+const PARADOX_FIX = new Set(['gougingfire', 'ragingbolt', 'ironboulder', 'ironcrown']);
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -312,7 +314,7 @@ for (const s of dex9.species.all()) {
 		/^Mega|^Primal/.test(s.forme) || s.name === 'Necrozma-Ultra' || s.forme === 'Crowned' && false;
 	result.species[s.id] = {
 		n: speciesName(s, dex9), en: s.name, num: s.num, base: s.baseSpecies !== s.name ? Dex.species.get(s.baseSpecies).id : undefined,
-		tags: s.tags.length ? s.tags : undefined, tier: s.natDexTier || s.tier, fut: s.isNonstandard === 'Future' ? 1 : undefined, av: availOf(s.id), gx: s.canGigantamax ? 1 : undefined,
+		tags: PARADOX_FIX.has(s.id) && !s.tags.includes('Paradox') ? [...s.tags, 'Paradox'] : s.tags.length ? s.tags : undefined, tier: s.natDexTier || s.tier, fut: s.isNonstandard === 'Future' ? 1 : undefined, av: availOf(s.id), gx: s.canGigantamax ? 1 : undefined,
 		g: { [GEN]: {
 			t: s.types, bs: [s.baseStats.hp, s.baseStats.atk, s.baseStats.def, s.baseStats.spa, s.baseStats.spd, s.baseStats.spe],
 			ab: Object.values(s.abilities).map(a => dex9.abilities.get(a).id),

@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.72.2', date: '2026-11-11', title: '규칙 수정', items: [
+		['fix', '준전설 불가 규칙인데 날뛰는우레·꿰뚫는화염·무쇠암석·무쇠감투가 나오던 문제'],
+	] },
 	{ ver: '2.72.1', date: '2026-11-11', title: '연출 손질', items: [
 		['new', '능력 변화 연출을 새로 — 능력별 색의 화살촉이 오르내려요. 고스트가 아닌 포켓몬의 저주, 다이맥스한 채 쓰러질 때의 폭발도 따로 생겼어요'],
 		['fix', '트레이스 등 특성 표시가 상대 쪽에 뜨던 문제, 일루전 조로아크가 테라스탈하면 흉내 낸 포켓몬에게도 테라스탈이 남던 문제'],

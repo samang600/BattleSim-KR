@@ -334,7 +334,7 @@ export function megaIcon(layer: HTMLElement, at: Pt, s: number) {
 	const timer = window.setInterval(tick, 50 / SPEED);
 }
 
-/** 능력 랭크 변화: 능력별 색의 화살촉이 줄지어 오르거나(상승) 내려가고(하락), 몸 둘레에 테두리 빛이 한 번 훑음. 단계가 클수록 화살촉이 많고 빠름 */
+/** 능력 랭크 변화: 능력별 색의 화살촉이 줄지어 오르거나(상승) 내려감(하락). 단계가 클수록 화살촉이 많고 빠름 */
 const STAT_COLOR: { [k: string]: [string, string] } = {
 	atk: ['#f05838', '#ffb098'], def: ['#f0a020', '#ffe088'], spa: ['#5890f8', '#b8d4ff'], spd: ['#48c060', '#b0f0b8'], spe: ['#f060a8', '#ffb8dc'],
 	accuracy: ['#c8c8d8', '#ffffff'], evasion: ['#a078e0', '#dcc8ff'],
@@ -358,13 +358,6 @@ export function statChange(layer: HTMLElement, at: Pt, s: number, stat: string, 
 			for (const e of [dark, el]) anim(e, [{ transform: 'translateY(0)', opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 1, offset: 0.7 }, { transform: `translateY(${dy}px)`, opacity: 0 }], { duration: dur, delay, easing: 'steps(9)' });
 		}
 	});
-	// 몸 둘레 테두리: 상승은 아래에서 위로 넓어지고, 하락은 위에서 눌림
-	const u = Math.max(2, Math.round(s * 2));
-	const box = px(layer, at.x, at.y - 6 * s, 54 * s, 58 * s, 'transparent', `border:${u}px solid ${l};box-shadow:0 0 0 ${u}px ${c}`);
-	anim(box, up
-		? [{ transform: 'scale(.7,.2) translateY(60%)', opacity: 0 }, { transform: 'scale(1,1)', opacity: 1, offset: 0.4 }, { transform: 'scale(1.15,1.15)', opacity: 0 }]
-		: [{ transform: 'scale(1.15,1.15)', opacity: 0 }, { transform: 'scale(1,1)', opacity: 1, offset: 0.4 }, { transform: 'scale(.8,.25) translateY(70%)', opacity: 0 }],
-		{ duration: 520, easing: 'steps(8)' });
 	// 끝 반짝임 (상승) / 떨어지는 조각 (하락)
 	for (let i = 0; i < 4 + n; i++) {
 		const el = px(layer, at.x + rnd(-24, 24) * s, at.y + (up ? rnd(-34, -10) : rnd(4, 22)) * s, 3 * s, 3 * s, i % 2 ? '#fff' : l);
