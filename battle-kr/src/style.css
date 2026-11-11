@@ -3621,3 +3621,11 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 	.sc-hub .sh-face { width: 56px; height: 56px; } .sc-hub .sh-face .sc-portrait.face.dot { width: 104px; height: 104px; } .sc-hub .sh-npc::after { display: none; }
 	.sc-hub .sc-me2 { bottom: calc(52px + var(--safe-bottom, 0px)); }
 }
+/* v2.72.8 손질: 귀퉁이 표시는 늘 틀의 오른쪽 위 같은 자리(이름표 너비와 상관없이), 이름표 아래 마름모 없앰, 대화 인물은 대화창에 발이 닿게 */
+.sc-hub .sh-npc::after { display: none; }
+.sc-hub .sh-mark { left: calc(50% + 18px); right: auto; top: -10px; width: 24px; height: 24px; font-size: 16px; line-height: 24px; clip-path: var(--clip1); }
+.sc-hub .sh-mark .sc-pxi { width: 24px; height: 24px; transform: scale(.75); }
+.sc-talk:not(.narr) .sc-stp { bottom: calc(136px + var(--safe-bottom, 0px)); }
+.sc-talk:not(.narr) .st-box { z-index: 1; }
+.sc-starter-info { background: linear-gradient(180deg, #7fe0ff 0 2px, #0a0f18 2px 4px, #1f3562 4px 6px, #16284c 6px); box-shadow: none; }
+@media (orientation: landscape) and (max-height: 540px) { .sc-talk:not(.narr) .sc-stp { bottom: calc(120px + var(--safe-bottom, 0px)); } }
