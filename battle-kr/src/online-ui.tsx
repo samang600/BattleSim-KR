@@ -5,11 +5,27 @@ import { ask, Screen, toast, Modal, PokeIcon, abortMode, confirmBox } from './ui
 import { BattleView, type BattleSetup, type BattleResult } from './ui/battle';
 import { speciesKo, itemKo } from './data';
 import { sfx } from './sound';
-import { titleItem, itemById } from './rewards';
-import { TitleChip } from './ui/shop';
+import { titleItem, itemById, ITEMS, loadWallet } from './rewards';
+import { TitleChip, cardSkin, cardSkinClass } from './ui/shop';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
 /** 온라인으로 보내는 모습 칸: '모습|칭호id' (서버는 40자까지 그대로 전달) */
-const spriteWithTitle = () => { const t = titleItem()?.id; return (playerSprite() + (t ? '|' + t.slice(2) : '')).slice(0, 40); };
+const skinItems = (slot: 'cardBg' | 'frame') => ITEMS.filter(i => i.slot === slot);
+const spriteWithTitle = () => {
+	const t = titleItem()?.id, w = loadWallet();
+	const base = (playerSprite() + (t ? '|' + t.slice(2) : '')).slice(0, 40);
+	// 카드 배경·테두리: 상품 목록 안 순서(36진수)로 짧게 — '모습|칭호|배경.테두리' (앱 버전이 같아야 방에 들어오므로 순서가 같음)
+	const ix = (slot: 'cardBg' | 'frame') => { const k = skinItems(slot).findIndex(i => i.id === w.eq[slot]); return k < 0 ? '' : (k + 1).toString(36); };
+	const skin = ix('cardBg') + '.' + ix('frame');
+	const full = base + (t ? '' : '|') + '|' + skin;
+	return skin === '.' || full.length > 40 ? base : full;
+};
+/** 받은 모습 칸 → 상대가 장착한 트레이너 카드 배경·테두리 (CSS 변수와 클래스) */
+export const splitSkin = (v?: string): { cls: string; style: any } => {
+	const [b, f] = (String(v || '').split('|')[2] || '').split('.');
+	const eq: any = { cardBg: skinItems('cardBg')[parseInt(b, 36) - 1]?.id, frame: skinItems('frame')[parseInt(f, 36) - 1]?.id };
+	const w = { eq } as any;
+	return { cls: cardSkinClass(w), style: cardSkin(w) };
+};
 /** 받은 모습 칸 → [모습, 칭호 이름] */
 export const splitSprite = (v?: string): [string, string] => { const [sp, t] = String(v || '').split('|'); return [sp || 'acetrainer', t ? 't:' + t : '']; };
 import { ChoiceScreen, InfoScreen } from './ui/screens';
@@ -133,6 +149,8 @@ let resuming = false;
 let lastPreview: PreviewInfo | null = null;
 /** 시작 정보를 받으면 배틀 진행 */
 async function play(room: OnlineRoom, start: StartInfo, label: string, lobby = false): Promise<'again' | 'leave'> {
+	// 앱 데이터(종족값·타입·기술 수치와 설명)를 방 규칙에 맞춤 — 두 앱이 같은 데이터로 같은 배틀을 돌리게 (끝나면 내 설정으로 되돌림)
+	applyRuleData(ruleById(start.ruleId));
 	const rs = new RemoteSession(start, room);   // 먼저 만들어 둠: 이 뒤로 오는 선택은 화면이 뜰 때까지 모아 둠
 	const oppSide = start.side === 'p1' ? 'p2' : 'p1';
 	const me = start[start.side], opp = start[oppSide];
@@ -149,11 +167,12 @@ async function play(room: OnlineRoom, start: StartInfo, label: string, lobby = f
 		away = gone;
 	};
 	// 재접속이면 지난 선택들이 이어서 옴 (RemoteSession 이 받아서 엔진에 넣음)
-	const res = await runBattle({
+	let res: BattleResult;
+	try { res = await runBattle({
 		gen: 9, doubles: start.doubles, aiSkill: 0, bg: 'pwt', music: 'pwt', label, noRecord: true, ruleId: start.ruleId, online: rs,
 		p1: { name: me.name, team: me.team, sprite: playerSprite() },
 		p2: { name: opp.name, title: '', team: opp.team, preview: lastPreview && lastPreview[oppSide].name === opp.name ? lastPreview[oppSide].team : undefined, sprite: splitSprite((opp as any).sprite)[0] },
-	});
+	}); } finally { applyRuleData(ruleById(loadSettings().battleRule)); }
 	setActiveRoom(null);
 	room.handlers.input = undefined; room.handlers.inputs = undefined;   // 다음 판의 선택이 끝난 판으로 가지 않게
 	if (res.quit) {   // 메뉴에서 '메인 메뉴로': 방을 나가고(끝나지 않았으면 기권은 이미 보냄) 메인 메뉴로
@@ -294,7 +313,8 @@ function PlayerSlot({ info, sd, me }: { info: RoomInfo; sd: 'p1' | 'p2'; me: boo
 	if (!name) return <div class="lr-slot empty"><span class="lr-wait">빈 자리</span><small>상대를 기다리는 중…</small></div>;
 	const [sp, tid] = splitSprite(info.sprites?.[sd]);
 	const ready = info.ready?.[sd], team = info.hasTeam?.[sd], on = info.online[sd];
-	return <div class={'lr-slot' + (ready ? ' ready' : '') + (me ? ' me' : '')}>
+	const skin = splitSkin(info.sprites?.[sd]);
+	return <div class={'lr-slot' + (ready ? ' ready' : '') + (me ? ' me' : '') + skin.cls} style={skin.style}>
 		<img class="lb-tr" src={SPRITE_URL(sp)} onError={trainerImgError} alt="" />
 		<span class="lr-who"><b>{name}{sd === 'p1' && <i class="lr-host">방장</i>}{me && <i class="lr-me">나</i>}</b>{tid && <TitleChip it={itemById(tid)} />}</span>
 		<span class={'lr-state' + (ready ? ' ok' : !on ? ' off' : '')}>{!on ? '연결 끊김' : ready ? '준비 완료' : team ? '준비 중' : '파티 고르는 중'}</span>
@@ -338,7 +358,7 @@ function RoomView({ box, act }: { box: RoomBox; act: (a: RoomAct) => void }) {
 				<p class="hint lr-hint">팀은 방 규칙에 맞게 골라 주세요. 둘 다 「준비 완료」를 누르면 서로 엔트리를 보고 참가 포켓몬을 골라요.</p>
 			</div>
 			<div class="lr-chat">
-				<div class="lr-log" ref={logRef}>{box.chat.map(c => c.side ? <p class={'lr-msg ' + (c.side === me ? 'mine' : 'theirs')}><b>{c.name}</b>{c.text}</p> : <p class="lr-msg sys">{c.text}</p>)}
+				<div class="lr-log" ref={logRef}>{box.chat.map(c => c.side ? <p class={'lr-msg ' + (c.name === info.players[me] ? 'mine' : 'theirs')}><b>{c.name}</b>{c.text}</p> : <p class="lr-msg sys">{c.text}</p>)}
 					{!box.chat.length && <p class="lr-msg sys">채팅으로 인사해 보세요!</p>}</div>
 				<div class="lr-input"><input value={text} maxLength={120} placeholder="메시지 보내기" onInput={(e: any) => setText(e.currentTarget.value)} onKeyDown={(e: any) => { if (e.key === 'Enter') send(); }} />
 					<button class="btn small" disabled={!text.trim()} onClick={send}>보내기</button></div>
@@ -492,7 +512,7 @@ async function join() {
 		lines={[`형식: ${fmtKo(info.doubles, info.pick || 6)}`, `규칙: ${ruleName(info.ruleId)}`, '이 규칙에 맞는 팀으로 들어가 주세요. 둘 다 들어오면 서로 전체 엔트리를 보고 참가 포켓몬을 골라요.']}
 		actions={[{ label: '팀 고르기', onClick: () => r(true) }, { label: '취소', kind: 'ghost', onClick: () => r(false) }]} />);
 	if (!ok) return;
-	const team = await chooseTeam(9, '내 팀', true, false, LEVEL);
+	const team = await chooseRoomTeam(info.ruleId);   // 방 규칙에 맞는 팀만 (내 설정의 규칙이 아니라)
 	if (team === BACK) return;
 	const room = new OnlineRoom(code);
 	room.connect({ name: playerName(), team: withLevel(team, LEVEL), sprite: spriteWithTitle() } as any);
@@ -506,7 +526,11 @@ async function random() {
 	const fmt = await chooseFmt('랜덤 대전');
 	if (fmt === BACK) return;
 	const doubles = fmt.doubles;
-	const team: PSet[] = withLevel(randomTeam({ gen: 9, size: 6, minBst: 470, maxBst: 600, doubles, quality: 0.7 }), LEVEL);
+	// 무작위 팀은 내 설정의 규칙이 아니라 랜덤 대전 규칙의 포켓몬 풀·데이터로 (설정이 서로 달라도 같은 조건)
+	applyRuleData(ruleById(RANDOM_RULE));
+	let team: PSet[];
+	try { team = withLevel(randomTeam({ gen: 9, size: 6, minBst: 470, maxBst: 600, doubles, quality: 0.7 }), LEVEL); }
+	finally { applyRuleData(ruleById(loadSettings().battleRule)); }
 	// 매칭
 	let stop: () => void = () => {};
 	const code = await new Promise<string | null>(res => {

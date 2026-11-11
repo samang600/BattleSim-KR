@@ -1,5 +1,6 @@
 /** 공용 UI 조각과 화면 전환 도우미 */
 import ANI_INDEX from '../gen/ani-index.json';
+import ANI_FLOAT from '../gen/ani-float.json';
 import { aniLocalBase } from '../offline';
 import { h, render, type ComponentChildren, type VNode } from 'preact';
 import { useState, useRef, useLayoutEffect, useEffect } from 'preact/hooks';
@@ -131,9 +132,12 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, te
 	// 배틀 그림 크기 보정: 바뀐 모습 배율 × (3D 설정인데 3D 그림이 없어 도트 그림으로 나오면 3D 그림 크기에 맞춰 1.3배)
 	const isAni = /\.gif$/.test(cur);
 	const ks = isDot ? 1 : pad !== undefined ? (cur.includes(`/${id}.`) || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? SCALE[id]?.[isAni ? 1 : 0] ?? 1 : 1) * (useAnim && !isAni ? 1.3 : 1) : 1;
-	const st = { maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': pad + 'px' } : {}), ...(ks !== 1 ? { '--ks': ks } : {}) } as any;
+	// 움직이는 도트는 그림 안에서 이미 떠서 오르내림(프레임 아래 빈 줄의 중간값) → 띄우는 높이(16)에서 그만큼 빼서 정지 도트와 같은 높이로
+	const gap = isDot ? (ANI_FLOAT as any)[toID(species)]?.[back ? 1 : 0] : undefined;
+	const st = { maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': pad + 'px' } : {}), ...(ks !== 1 ? { '--ks': ks } : {}),
+		...(gap ? { '--fy': `calc(var(--s) * ${Math.max(0, 16 - gap)}px)` } : {}) } as any;
 	// 테라스탈: 그림 모양대로 반투명 보석 결을 겹치는 SVG 필터 (TeraFilters) — 다른 사이트 그림에도 쓸 수 있음
-	return <img class={'sprite ' + (cls || '')} src={cur} alt={species} loading="lazy" style={tera ? { ...st, filter: `url(#tera-${tera})` } : st} onError={() => setIdx(idx + 1)} draggable={false} />;
+	return <img class={'sprite ' + (cls || '') + (isDot ? ' anidot' : '')} src={cur} alt={species} loading="lazy" style={tera ? { ...st, filter: `url(#tera-${tera})` } : st} onError={() => setIdx(idx + 1)} draggable={false} />;
 }
 
 /** 그림 후보 순서: 온라인이면 움직이는 그림 → 앱 안의 정지 그림 → 서버 정지 그림, 오프라인이면 앱 안의 그림부터 */

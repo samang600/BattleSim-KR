@@ -112,16 +112,34 @@ export function playAnim(anim: AnimData[], ctx: PlayCtx): Promise<void> {
 	const W = ctx.front.width / dpr, H = ctx.front.height / dpr;
 	let bgEl: HTMLElement | null = null;
 
+	// 사용자·대상 기준 좌표가 '반대편 포켓몬 자리'를 가리킬 때만 실제 반대편 포켓몬 쪽으로 끌어당김.
+	// 원본은 대상이 늘 사용자 + (128,-64) 에 있다고 보고 '사용자 기준 (128,-64)' 같은 좌표를 쓰는데, 이 화면은 두 포켓몬 간격이 달라서
+	// 그대로 쓰면 상대에게 달려든 포켓몬·이펙트가 엉뚱한 곳에 감 (지구던지기 등). 반대편 자리에서 48 넘게 떨어진 좌표는 그대로 둠
+	const mix = (near: Pt, x: number, y: number, otherX: number, otherY: number): Pt => {
+		const t = 1 - Math.hypot(x - otherX, y - otherY) / 48;
+		if (t <= 0) return near;
+		const far = transform({ x, y }, U, T);
+		return { x: near.x + (far.x - near.x) * t, y: near.y + (far.y - near.y) * t };
+	};
+	// 화면 기준(focus 4): 원본 화면은 256×192, 사용자가 (64,112). 배틀 화면을 빈틈없이 덮도록 같은 비율로 키워 가운데에 맞춤
+	// (지구던지기의 우주처럼 화면을 96칸 타일로 덮는 그림이 어긋나거나 비지 않게)
+	const kS = Math.max(k, W / 256, H / 192);
 	const pos = (x: number, y: number, focus: number): Pt => {
 		switch (focus) {
-		case 2: return { x: U.x + x * k, y: U.y + y * k };
-		case 1: return { x: T.x + (x - 128) * k, y: T.y + (y + 64) * k };
-		case 4: return { x: (x + 106) * k * (ctx.front.clientWidth / 320 / k), y: (y + 116) * k * (ctx.front.clientHeight / 180 / k) };
+		case 2: return mix({ x: U.x + x * k, y: U.y + y * k }, x, y, 128, -64);
+		case 1: return mix({ x: T.x + (x - 128) * k, y: T.y + (y + 64) * k }, x, y, 0, 0);
+		case 4: return { x: W / 2 + (x - 64) * kS, y: H / 2 + (y + 16) * kS };
 		default: return transform({ x, y }, U, T);
 		}
 	};
 
 	const total = variant.f.length;
+	// 잔상(같은 포켓몬 칸이 한 프레임에 여럿)을 그릴 때 쓰는 원래 그림 위치
+	const cr = ctx.front.getBoundingClientRect();
+	const baseOf = (el: HTMLElement | null) => { const im = el?.querySelector('img') as HTMLImageElement | null; if (!im) return null; const r = im.getBoundingClientRect(); return { im, x: r.left - cr.left, y: r.top - cr.top, w: r.width, h: r.height }; };
+	const uBase = baseOf(uEl), tBase = baseOf(tEl);
+	// 한 번이라도 칸으로 다뤄진 포켓몬은, 칸이 없는 프레임에서는 보이지 않음 (원본 엔진과 같음 — 지구던지기의 우주 장면 등)
+	let uSeen = false, tSeen = false;
 	let i = 0;
 	let extraMs = 0;
 	const gen0 = generation;
@@ -153,19 +171,29 @@ export function playAnim(anim: AnimData[], ctx: PlayCtx): Promise<void> {
 			if (!frame) return;
 			fireEvents();
 			let userMoved = false, targetMoved = false;
+			// 포켓몬 칸: 프레임마다 가장 진한 칸이 본체, 나머지는 잔상으로 그림
+			const main: { [k: number]: number[] } = {};
+			for (const c of frame) if ((c[0] === 0 || c[0] === 1) && c[12] && (!main[c[0]] || c[6] > main[c[0]][6])) main[c[0]] = c;
 			for (const c of frame) {
 				const [t, x, y, zx, zy, gf, op, pr, fo, bt, mi, an, vis] = c;
 				if (t === 0 || t === 1) {
+					const isUser = t === 0 || !tEl;
 					const el = t === 0 ? uEl : (tEl || uEl);
-					const anchor = t === 0 || !tEl ? U : T;
+					const anchor = isUser ? U : T;
 					if (!el) continue;
 					const p = pos(x, y, fo);
 					const dx = p.x - anchor.x, dy = p.y - anchor.y;
+					if (main[t] && c !== main[t]) {   // 잔상
+						const bs = isUser ? uBase : tBase;
+						if (bs && vis) { try { fc.save(); fc.globalAlpha = op / 255; fc.drawImage(bs.im, bs.x + dx, bs.y + dy, bs.w, bs.h); fc.restore(); } catch { fc.restore(); } }
+						continue;
+					}
 					el.style.translate = `${dx}px ${dy}px`;
 					el.style.visibility = vis ? '' : 'hidden';
 					el.style.opacity = String(op / 255);
-					if (zx !== 100 || zy !== 100 || an) el.style.scale = `${zx / 100} ${zy / 100}`;
-					if (t === 0 || !tEl) userMoved = true; else targetMoved = true;
+					el.style.scale = zx !== 100 || zy !== 100 ? `${zx / 100} ${zy / 100}` : '';
+					el.style.rotate = an ? `${-an}deg` : '';
+					if (isUser) { userMoved = true; uSeen = true; } else { targetMoved = true; tSeen = true; }
 					continue;
 				}
 				if (!sheet || !vis) continue;
@@ -178,25 +206,27 @@ export function playAnim(anim: AnimData[], ctx: PlayCtx): Promise<void> {
 				c2.rotate(-an * Math.PI / 180);
 				let sx = (zx / 100) * (mi ? -1 : 1);
 				if (reversed && fo === 3) sx *= -1;
-				c2.scale(sx * k, (zy / 100) * k);
+				// 화면 기준(focus 4) 그림은 위치와 같은 비율로 키움 — 배경처럼 화면을 타일로 덮는 그림(지구던지기의 우주 등)이 빈틈·어긋남 없이 이어지게
+				const kk = fo === 4 ? kS : k;
+				c2.scale(sx * kk, (zy / 100) * kk);
 				const col = gf % cols, row = Math.floor(gf / cols);
 				c2.drawImage(sheet, col * 96, row * 96, 96, 96, -48, -48, 96, 96);
 				c2.restore();
 			}
-			if (!userMoved && uEl) { uEl.style.translate = ''; uEl.style.visibility = ''; uEl.style.opacity = ''; uEl.style.scale = ''; }
-			if (!targetMoved && tEl) { tEl.style.translate = ''; tEl.style.visibility = ''; tEl.style.opacity = ''; tEl.style.scale = ''; }
+			if (!userMoved && uEl) { uEl.style.translate = ''; uEl.style.visibility = uSeen ? 'hidden' : ''; uEl.style.opacity = ''; uEl.style.scale = ''; uEl.style.rotate = ''; }
+			if (!targetMoved && tEl) { tEl.style.translate = ''; tEl.style.visibility = tSeen ? 'hidden' : ''; tEl.style.opacity = ''; tEl.style.scale = ''; tEl.style.rotate = ''; }
 			ctx.onFrame?.(i);
 		};
 		const t0 = performance.now();
 		const spd = () => Math.max(0.5, Math.min(4, ctx.speed || 1));
 		let drawn = -1;
 		const tick = () => {
-			if (generation !== gen0) { resolve(); return; }
+			if (generation !== gen0) { for (const el of [uEl, tEl]) if (el) { el.style.translate = ''; el.style.visibility = ''; el.style.opacity = ''; el.style.scale = ''; el.style.rotate = ''; } resolve(); return; }
 			// 시간 기준 프레임: 그리기가 느려도 배속에 맞춰 프레임을 건너뜀
 			const target = Math.floor((performance.now() - t0) * spd() / FRAME_MS);
 			if (target >= total) {
 				fc.clearRect(0, 0, W, H); bc.clearRect(0, 0, W, H);
-				for (const el of [uEl, tEl]) if (el) { el.style.translate = ''; el.style.visibility = ''; el.style.opacity = ''; el.style.scale = ''; }
+				for (const el of [uEl, tEl]) if (el) { el.style.translate = ''; el.style.visibility = ''; el.style.opacity = ''; el.style.scale = ''; el.style.rotate = ''; }
 				const bg = bgEl;
 				if (bg) { bg.style.transition = 'opacity 200ms'; bg.style.opacity = '0'; setTimeout(() => bg.remove(), 220); }
 				setTimeout(resolve, Math.min(600, extraMs) / spd());

@@ -126,7 +126,11 @@ export function ruleById(idIn: string): BattleRule {
 }
 
 /** 앱 데이터(종족값·특성·기술 목록·도구 목록)를 이 규칙의 포켓몬 풀 사양으로 */
-export function applyRuleData(rule: BattleRule) { setDataSpec(rule.era, rule.lsMode, rule.itemAv); }
+let dataRule: BattleRule | null = null;
+export function applyRuleData(rule: BattleRule) { dataRule = rule; setDataSpec(rule.era, rule.lsMode, rule.itemAv); }
+/** 지금 앱 데이터가 맞춰져 있는 규칙. 보통은 설정의 규칙이고, 온라인 방·랜덤 대전에서 팀을 고르거나 만드는 동안은 그 방의 규칙
+ *  (무작위 팀·렌탈 팀의 포켓몬 풀과 도구도 이 규칙을 따라야 서로 규칙이 어긋나지 않음) */
+export function dataRuleOr(fallbackId: string): BattleRule { return dataRule || ruleById(fallbackId); }
 /** 이 규칙에서 쓸 수 있는 도구인가 (풀에 있는 도구 + 메가스톤·Z크리스탈은 기믹 규칙) */
 export function itemAllowed(rule: BattleRule, itemId: string): boolean {
 	const id = toID(itemId), it = RAW.items[id];

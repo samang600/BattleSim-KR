@@ -1,6 +1,6 @@
 /** 포켓몬 세트(기술·도구·노력치) 만들기 */
 import { loadSettings } from './store';
-import { ruleById, speciesAllowed, megaStoneAllowed, itemAllowed } from './rules';
+import { ruleById, speciesAllowed, megaStoneAllowed, itemAllowed, dataRuleOr } from './rules';
 import { Teams } from '../../sim/teams';
 import { fixedTera, RAW, speciesData, learnset, moveData, toID, bst, speciesKo, nickKo, megaStonesFor, zCrystalForType, type Gen, type StatID } from './data';
 import FACTORY_SETS from '../../data/random-battles/gen9/factory-sets.json';
@@ -218,11 +218,22 @@ export function fitSetToMega(set: PSet, stone: string, gen: Gen): PSet {
 	set.evs = tmp.evs; set.nature = tmp.nature;
 	return set;
 }
+/** 무작위 세트의 기술이 4개보다 적거나 공격 기술이 하나도 없으면(도발·구애에 걸리면 아무것도 못 함) 자동 세트의 기술로 채움 */
+function fillMoves<T extends PSet>(out: T, gen: Gen): T {
+	const isAtk = (m: string) => { const md = moveData(toID(m), gen); return !!md && md.category !== 'Status'; };
+	if (out.moves.length >= 4 && out.moves.some(isAtk)) return out;
+	const auto = buildSet(toID(out.species), gen).moves;
+	const extra = auto.filter(m => !out.moves.includes(m));
+	while (out.moves.length < 4 && extra.length) out.moves.push(extra.shift()!);
+	const atk = extra.find(isAtk) || auto.find(isAtk);
+	if (atk && !out.moves.some(isAtk)) out.moves[out.moves.length - 1] = atk;
+	return fixChoiceSet(out, gen);
+}
 export function randomSetFor(speciesId: string, gen: Gen, level = 50, doubles = false, quality = 0.5): PSet {
 	const id = toID(speciesId);
 	// Smogon 사용률 통계가 있으면 실전형 세트 (quality 가 높을수록 자주 쓰는 구성)
 	const sm = smogonSet(id, gen, level, doubles, quality);
-	if (sm && sm.moves.length) { sm.name = nickKo(id); if ((RAW.items as any)[sm.item]?.mega) fitSetToMega(sm, sm.item, gen); return fixChoiceSet(sm, gen); }
+	if (sm && sm.moves.length) { sm.name = nickKo(id); if ((RAW.items as any)[sm.item]?.mega) fitSetToMega(sm, sm.item, gen); return fillMoves(fixChoiceSet(sm, gen), gen); }
 	const g = generator(gen);
 	let set: PSet;
 	const table = doubles ? g.randomDoublesSets : g.randomSets;
@@ -253,6 +264,7 @@ export function randomSetFor(speciesId: string, gen: Gen, level = 50, doubles = 
 	// 안전장치: 기술이 하나도 없으면(코스모그처럼 배우는 기술이 적은 포켓몬) 배울 수 있는 기술로 채움 — 기술 없는 세트는 배틀 시작 오류
 	if (!out.moves.length) out.moves = learnset(id, gen).slice(0, 4);
 	if (!out.moves.length) out.moves = ['struggle'];
+	fillMoves(out, gen);
 	return out;
 }
 
@@ -273,7 +285,7 @@ export function fixChoiceSet<T extends PSet>(set: T, gen: Gen = 9): T {
 		const repl = buildSet(toID(set.species), gen).moves.find(m => moveData(m, gen)?.category !== 'Status' && !set.moves.map(toID).includes(m));
 		if (repl) { set.moves = set.moves.map(m => m === bad[0] ? repl : m); return set; }
 	}
-	const rule = ruleById(loadSettings().battleRule);
+	const rule = dataRuleOr(loadSettings().battleRule);
 	set.item = ['leftovers', 'sitrusberry', 'lumberry', 'lifeorb', 'expertbelt', 'shellbell'].find(i => RAW.items[i] && itemAllowed(rule, i)) || '';
 	return set;
 }
@@ -281,7 +293,7 @@ export function fixChoiceSet<T extends PSet>(set: T, gen: Gen = 9): T {
 /** 세트를 지금 규칙의 포켓몬 풀 사양에 맞춤: 그 세대에 없는 기술·특성·도구를 바꿈 (랭크배틀·팩토리·무작위 상대 등) */
 const SAFE_ITEMS = ['leftovers', 'sitrusberry', 'lifeorb', 'focussash', 'choicescarf', 'lumberry', 'expertbelt', 'choiceband', 'choicespecs', 'blacksludge', 'rockyhelmet'];
 export function conformSet<T extends PSet>(set: T, gen: Gen = 9): T {
-	const rule = ruleById(loadSettings().battleRule);
+	const rule = dataRuleOr(loadSettings().battleRule);
 	const id = toID(set.species), sd = speciesData(id, gen);
 	if (!sd) return set;
 	const ft = fixedTera(id); if (ft) set.teraType = ft;
@@ -322,7 +334,7 @@ export function strongNfe(id: string, gen: Gen) { return STRONG_NFE_EXTRA.has(id
 /** 조건에 맞는 최종진화(일반) 포켓몬 목록 */
 export function speciesPool(o: PoolOptions): string[] {
 	const out: string[] = [];
-	const rule = ruleById(loadSettings().battleRule);
+	const rule = dataRuleOr(loadSettings().battleRule);
 	for (const id in RAW.species) {
 		const s = speciesData(id, o.gen);
 		if (!s || !RAW.species[id].g[o.gen]) continue;
@@ -353,7 +365,7 @@ export function dedupeItems(team: PSet[]) {
 	const used = new Set<string>();
 	for (const set of team) {
 		if (used.has(set.item)) {
-			const rule = ruleById(loadSettings().battleRule);
+			const rule = dataRuleOr(loadSettings().battleRule);
 			// 변화기가 있는 세트에는 구애 도구를 대신 주지 않음
 			const alt = ITEM_ALTS.find(i => !used.has(i) && RAW.items[i] && itemAllowed(rule, i) && !(isLockItem(i) && choiceBadMoves({ ...set, item: i }, 9).length > 0));
 			set.item = alt || '';
@@ -413,7 +425,7 @@ export function limitGimmickItems(team: PSet[]) {
 
 /** 팀에 메가스톤·Z크리스탈을 하나씩 (가능하면) 나눠 주고 테라스탈 타입을 정함 */
 export function assignGimmicks(team: PSet[], opts: { mega?: number; z?: number } = {}) {
-	const rule = ruleById(loadSettings().battleRule);
+	const rule = dataRuleOr(loadSettings().battleRule);
 	const megaOnlyRule = rule.kinds.length === 1 && rule.kinds[0] === 'mega';
 	const megaProb = rule.kinds.includes('mega') ? (opts.mega ?? 0.6) * (megaOnlyRule ? 1.6 : 1) : 0;
 	const zProb = rule.kinds.includes('zmove') ? (opts.z ?? 0.4) * (rule.kinds.length === 2 ? 1.5 : 1) : 0;
@@ -445,7 +457,7 @@ export function assignGimmicks(team: PSet[], opts: { mega?: number; z?: number }
 export const FACTORY_TIERS = ['PU', 'NU', 'RU', 'UU', 'OU', 'Uber'] as const;
 export function factoryTeam(tier: string, size: number, level: number, exclude = new Set<string>(), type?: string, noSubLegend = false): PSet[] {
 	const table = (FACTORY_SETS as any)[tier] || (FACTORY_SETS as any).OU;
-	const rule = ruleById(loadSettings().battleRule);
+	const rule = dataRuleOr(loadSettings().battleRule);
 	const ids = rng.shuffle(Object.keys(table).filter(id => !exclude.has(id) && speciesData(id, 9) && speciesAllowed(rule, id) && (!type || speciesData(id, 9)!.t.includes(type))
 		&& !(noSubLegend && speciesData(id, 9)!.tags?.some(t => t === 'Sub-Legendary' || t === 'Restricted Legendary' || t === 'Mythical'))));
 	const out: PSet[] = [];

@@ -1851,14 +1851,14 @@ export class BattleActions {
 		typeMod = this.battle.clampIntRange(typeMod, -6, 6);
 		target.getMoveHitData(move).typeMod = typeMod;
 		if (typeMod > 0) {
-			if (!suppressMessages) this.battle.add('-supereffective', target);
+			if (!suppressMessages) this.battle.add('-supereffective', target, Math.min(typeMod, 2));
 
 			for (let i = 0; i < typeMod; i++) {
 				baseDamage *= 2;
 			}
 		}
 		if (typeMod < 0) {
-			if (!suppressMessages) this.battle.add('-resisted', target);
+			if (!suppressMessages) this.battle.add('-resisted', target, Math.min(-typeMod, 2));
 
 			for (let i = 0; i > typeMod; i--) {
 				baseDamage = tr(baseDamage / 2);

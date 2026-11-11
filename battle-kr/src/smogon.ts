@@ -4,7 +4,7 @@
  *  - 6→3/6→4 참가 선택에서 상대 팀을 보고 유리한 포켓몬을 고른다. */
 import SMOGON from './gen/smogon.json';
 import { fixedTera, megaStoneFits, RAW, speciesData, learnset, moveData, toID, type Gen } from './data';
-import { ruleById, megaStoneAllowed, itemAllowed, type BattleRule } from './rules';
+import { ruleById, megaStoneAllowed, itemAllowed, type BattleRule, dataRuleOr } from './rules';
 import { loadSettings } from './store';
 import { evToSp, spToEv, fillSP, type PSet } from './sets';
 import { teamPlan } from './plan';
@@ -20,7 +20,7 @@ const isChampions = (rule: BattleRule) => rule.pool.startsWith('champ');
 export let smogonEnabled = true;
 export function setSmogon(on: boolean) { smogonEnabled = on; }
 /** 규칙·싱글/더블에 맞는 통계 (없으면 가까운 묶음으로) */
-export function statsFor(speciesId: string, doubles: boolean, rule: BattleRule = ruleById(loadSettings().battleRule)): Entry | null {
+export function statsFor(speciesId: string, doubles: boolean, rule: BattleRule = dataRuleOr(loadSettings().battleRule)): Entry | null {
 	const id = toID(speciesId);
 	const base = RAW.species[id]?.base ? toID(RAW.species[id].base) : '';
 	const order: ('s' | 'd' | 'cs' | 'cd')[] = isChampions(rule)
@@ -54,7 +54,7 @@ function itemOk(itemId: string, speciesId: string, rule: BattleRule): boolean {
 }
 
 /** 통계로 세트를 만든다. 통계가 없으면 null (호출한 쪽이 기존 방식으로) */
-export function smogonSet(speciesId: string, gen: Gen, level: number, doubles: boolean, quality = 0.5, rule: BattleRule = ruleById(loadSettings().battleRule)): PSet | null {
+export function smogonSet(speciesId: string, gen: Gen, level: number, doubles: boolean, quality = 0.5, rule: BattleRule = dataRuleOr(loadSettings().battleRule)): PSet | null {
 	const id = toID(speciesId);
 	if (!smogonEnabled) return null;
 	const e = statsFor(id, doubles, rule);

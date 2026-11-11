@@ -64,6 +64,11 @@ const EFFECT_OVERRIDE: { [id: string]: { [k: string]: string } } = {
 	conversion: { typeChange: '  {SOURCE}{SOURCE:conjunctive} 같은 타입이 되었다!' },
 	pursuit: { activate: '  ({TARGET:topic} 교체하려 하고 있다...)' },
 	roost: { start: '' },
+	protect: { start: '  {POKEMON:topic} 방어 태세에 들어갔다!', block: '  {POKEMON:topic} 공격으로부터 몸을 지켰다!' },
+	maxguard: { activate: '  {POKEMON:topic} 공격으로부터 몸을 지켰다!' },
+	healblock: { start: '  {POKEMON:topic} 회복 동작을 봉인당했다!' },
+	mistyterrain: { block: '  {POKEMON:topic} 미스트필드가 지켜 주고 있다!' },
+	electricterrain: { block: '  {POKEMON:topic} 일렉트릭필드가 지켜 주고 있다!' },
 	wrap: { move: '{POKEMON}의 공격이 계속된다!' },
 	naturalcure: { activate: '  ({POKEMON:topic} 자연회복으로 상태 이상이 나았다!)' },
 	forewarn: { activateNoTarget: '  {POKEMON:topic} {MOVE:object} 간파했다!' },
@@ -336,10 +341,15 @@ export class KoreanText {
 			return F(T('invertBoost'), { POKEMON: pk(args[1]) });
 		case '-crit':
 			return F(this.ctx.doubles && args[1] ? T('critSpread') : T('crit'), { POKEMON: pk(args[1]) });
-		case '-supereffective':
-			return F(this.ctx.doubles && args[1] ? T('superEffectiveSpread') : T('superEffective'), { POKEMON: pk(args[1]) });
-		case '-resisted':
-			return F(this.ctx.doubles && args[1] ? T('resistedSpread') : T('resisted'), { POKEMON: pk(args[1]) });
+		// 세 번째 칸 = 상성 단계(2 이상이면 4배 약점 / 4분의 1)
+		case '-supereffective': {
+			const t = this.ctx.doubles && args[1] ? T('superEffectiveSpread') : T('superEffective');
+			return F(+args[2] >= 2 ? t.replace('굉장했다!', '매우 굉장했다!!') : t, { POKEMON: pk(args[1]) });
+		}
+		case '-resisted': {
+			const t = this.ctx.doubles && args[1] ? T('resistedSpread') : T('resisted');
+			return F(+args[2] >= 2 ? t.replace('별로인', '매우 별로인') : t, { POKEMON: pk(args[1]) });
+		}
 		case '-immune': {
 			const [, ident] = args;
 			const from = effectInfo(kw.from);
@@ -485,7 +495,8 @@ export class KoreanText {
 			if (eff.id === 'spite') { vals.TARGET = pk(ident); }
 			if (eff.id === 'lockon' || eff.id === 'mindreader') return F(T('start', eff.id), { POKEMON: pk(ident), SOURCE: pk(kw.of) });
 			let id = 'activate';
-			if (kw.block) id = 'block';
+			// 막아 냄: [block] 표시가 없어도 막는 메시지만 있는 효과(방어 계열, 필드가 선공기·상태이상을 막을 때 "~는 사이코필드가 지켜 주고 있다!")
+			if (kw.block || (!this.hasTemplate('activate', eff.id) && this.hasTemplate('block', eff.id))) id = 'block';
 			if (kw.upkeep) id = 'upkeep';
 			if (kw.damage && eff.id !== 'substitute') id = 'damage';
 			const pre = eff.kind === 'ability' ? this.abilityLine(ident, effect) + '\n' : '';

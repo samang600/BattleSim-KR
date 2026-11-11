@@ -12,7 +12,7 @@ import { emitBattleEnd } from '../battle-hooks';
 import { loadWallet, itemById } from '../rewards';
 import { TeraFilters, Sprite, CropSprite, PokeIcon, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
 import { MonSheet, type LiveInfo } from './screens';
-import { estimateDamage, typeEffOf, chooseAI } from '../ai';
+import { estimateDamage, typeEffOf, moveEffOf, chooseAI } from '../ai';
 import { State } from '../../../sim/state';
 import * as FX from '../fx';
 if (typeof window !== 'undefined') (window as any).__fx = FX;   // 연출 확인용(개발자 도구에서 직접 재생)
@@ -60,7 +60,7 @@ export interface BattleResult { win: boolean; forfeit: boolean; turns: number; p
 interface Mon {
 	ident: string; nick: string; species: string; level: number; gender: string; shiny: boolean;
 	hp: number; maxhp: number; status: string; fainted: boolean; boosts: { [k: string]: number };
-	vol: Set<string>; anim: string; ability?: string; item?: string; transformed?: string; hidden?: boolean; tera?: string; seen: string[]; pendingSpecies?: string; itemSeen?: boolean;
+	vol: Set<string>; anim: string; ability?: string; item?: string; transformed?: string; hidden?: boolean; away?: boolean; awayBy?: string; tera?: string; seen: string[]; pendingSpecies?: string; itemSeen?: boolean;
 }
 interface SideScene { id: string; name: string; active: (Mon | null)[]; team: Mon[]; cond: { [id: string]: number }; teamSize: number }
 interface Scene { p1: SideScene; p2: SideScene; weather: string; pseudo: Set<string>; turn: number;
@@ -79,9 +79,16 @@ const VOLATILE_KO: { [id: string]: string } = {
 };
 const SIDE_KO: { [id: string]: string } = {
 	stealthrock: '스텔스록', spikes: '압정뿌리기', toxicspikes: '독압정', reflect: '리플렉터', lightscreen: '빛의장막',
-	tailwind: '순풍', safeguard: '신비의부적', mist: '흰안개', luckychant: '주술', wideguard: '와이드가드', quickguard: '퍼스트가드',
+	tailwind: '순풍', safeguard: '신비의부적', mist: '흰안개', luckychant: '주술', wideguard: '와이드가드', quickguard: '패스트가드',
+	auroraveil: '오로라베일', stickyweb: '끈적끈적네트', craftyshield: '트릭가드', matblock: '마룻바닥세워막기',
 };
+/** 진영 효과 이름: 표에 없으면 같은 이름의 기술 한글 이름(없으면 그대로) */
+const sideKo = (id: string, table: { [id: string]: string }) => table[id] || (RAW.moves[id] ? moveKo(id) : id);
 const WEATHER_KO: { [id: string]: string } = { raindance: '비', sunnyday: '쾌청', sandstorm: '모래바람', hail: '싸라기눈', snowscape: '설경', primordialsea: '강한 비', desolateland: '강한 햇살', deltastream: '난기류' };
+/** 준비 턴에 모습이 사라지는 2턴 기술 */
+const AWAY_MOVES = new Set(['fly', 'bounce', 'dig', 'dive', 'phantomforce', 'shadowforce', 'skydrop']);
+/** 특성(스킨 계열)으로 타입이 바뀌지 않는 기술 */
+const NO_SKIN = new Set(['judgment', 'multiattack', 'naturalgift', 'revelationdance', 'technoblast', 'terrainpulse', 'weatherball', 'hiddenpower', 'struggle']);
 const PSEUDO_KO: { [id: string]: string } = { trickroom: '트릭룸', gravity: '중력', wonderroom: '원더룸', magicroom: '매직룸', mudsport: '흙놀이', watersport: '물놀이' };
 
 function parseDetails(details: string) {
@@ -283,6 +290,13 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 		const nick = ident.slice(ident.indexOf(': ') + 2);
 		return side.team.find(m => m.nick === nick) || null;
 	}
+	/** 공중날기·섀도다이브 등으로 숨어 있던 포켓몬(과 프리폴로 붙잡힌 상대)을 다시 보이게 */
+	function comeBack(ident: string) {
+		const scene = sceneRef.current, by = ident.slice(0, 3);
+		const me = activeMon(ident);
+		if (me?.away) { me.away = false; me.awayBy = undefined; }
+		for (const sd of [scene.p1, scene.p2]) for (const m of sd.active) if (m?.away && m.awayBy === by) { m.away = false; m.awayBy = undefined; }
+	}
 	function animate(mon: Mon | null, anim: string, ms = 500) {
 		if (!mon) return;
 		mon.anim = anim;
@@ -462,6 +476,7 @@ function typeTint(type: string) {
 		const scene = sceneRef.current;
 		const { cmd, args, kw } = p;
 		try { showPopup(p); } catch { /* 표시용이라 무시 */ }
+		if (cmd === 'cant') comeBack(args[1]);   // 잠듦·마비 등으로 2턴째를 못 쓰면 모습이 돌아옴
 		switch (cmd) {
 		case 'switch': case 'drag': case 'replace': {
 			const ident = args[1];
@@ -469,7 +484,7 @@ function typeTint(type: string) {
 			const slot = slotOf(ident);
 			const prev = side.active[slot];
 			const prevSnap = prev ? { hp: prev.hp, maxhp: prev.maxhp, status: prev.status, boosts: { ...prev.boosts }, vol: new Set(prev.vol), tera: prev.tera, item: prev.item, seen: prev.seen } : null;
-			if (prev && cmd !== 'replace') { prev.boosts = {}; prev.vol = new Set(); prev.transformed = undefined; }
+			if (prev && cmd !== 'replace') { comeBack(ident); prev.boosts = {}; prev.vol = new Set(); prev.transformed = undefined; }
 			const mon = findMon(ident, args[2]);
 			const d = parseDetails(args[2]);
 			mon.species = d.species; mon.level = d.level; mon.gender = d.gender; mon.shiny = d.shiny; mon.pendingSpecies = undefined;
@@ -510,6 +525,7 @@ function typeTint(type: string) {
 		}
 		case 'faint': {
 			const mon = activeMon(args[1]);
+			comeBack(args[1]);
 			if (mon) { mon.fainted = true; mon.hp = 0; animate(mon, 'faint', 900); cry(toID(mon.species), { faint: true }); }
 			sfx('faint');
 			vibrate(120);
@@ -517,6 +533,7 @@ function typeTint(type: string) {
 		}
 		case 'move': {
 			const mon = activeMon(args[1]);
+			if (!kw.still) comeBack(args[1]);          // 숨어 있던 포켓몬이 모습을 드러내며 공격
 			noteSeen(mon, p);
 			// 소리 기술(하이퍼보이스·울음소리·폭음파 등 sound 플래그)은 쓰는 포켓몬의 울음소리를 함께 냄
 			soundMoveCry(p, mon);
@@ -558,6 +575,11 @@ function typeTint(type: string) {
 		}
 		case '-prepare': {
 			// 2턴 기술(솔라빔·공중날기·메테오빔 등)의 준비 턴: 기술 타입 색으로 기운을 모음
+			// 공중날기·구멍파기·다이빙·섀도다이브 등: 준비 턴 동안 모습이 사라짐 (프리폴은 붙잡힌 상대도)
+			if (AWAY_MOVES.has(toID(args[2]))) {
+				const who = [activeMon(args[1]), toID(args[2]) === 'skydrop' && args[3] ? activeMon(args[3]) : null];
+				for (const m of who) if (m) { m.away = true; m.awayBy = args[1].slice(0, 3); }
+			}
 			if (settings.effects === false) return 0;
 			const pt = slotPoint(args[1]); if (!pt || !fxRef.current) return 0;
 			sfx('status');
@@ -772,6 +794,27 @@ function typeTint(type: string) {
 			while (k < lines.length && /^\|-(crit|supereffective|resisted)\|/.test(lines[k])) k++;
 			lines.splice(k, 0, eff);
 			i--;                       // 이 자리에 온 다음 줄을 다시 봄
+		}
+		// 연속기(트리플악셀·록블라스트·부모유대 등): 본가처럼 상성 메시지는 다 맞고 나서 한 번만, 그다음 'N번 맞았다!', 쓰러짐은 그 뒤
+		for (let i = 0; i < lines.length; i++) {
+			const m = /^\|-hitcount\|([^|]+)\|/.exec(lines[i]);
+			if (!m) continue;
+			const target = m[1];
+			let start = i - 1;
+			while (start >= 0 && !lines[start].startsWith('|move|') && lines[start] !== '|') start--;
+			if (start < 0 || !lines[start].startsWith('|move|')) continue;
+			const blk = lines.slice(start + 1, i);
+			// -hitcount 는 'p2: 이름'(자리 글자 없음)으로 오므로 진영+이름으로 맞춤
+			const key = (id = '') => id.slice(0, 2) + id.slice(id.indexOf(':'));
+			const mine = (l: string) => key(l.split('|')[2]) === key(target);
+			const isEff = (l: string) => /^\|-(supereffective|resisted)\|/.test(l) && mine(l);
+			const effs = blk.filter(isEff);
+			const rest = blk.filter(l => !isEff(l));
+			let at = rest.findIndex(l => l.startsWith('|faint|') && mine(l));
+			if (at < 0) at = rest.length;
+			rest.splice(at, 0, ...effs.slice(-1), lines[i]);
+			lines.splice(start + 1, i - start, ...rest);
+			i = start + rest.length;
 		}
 		// 빗나가거나 막힌(방어·무효·실패) 기술: 실제로 맞은 대상이 없으면 기술 연출 생략 ([noanim] 표시)
 		const BLOCK = /^\|-activate\|[^|]*\|(move: )?(Protect|Detect|King's Shield|Spiky Shield|Baneful Bunker|Silk Trap|Obstruct|Burning Bulwark|Max Guard|Wide Guard|Quick Guard|Mat Block|Crafty Shield)/;
@@ -1262,7 +1305,7 @@ function typeTint(type: string) {
 			const s = sessionRef.current!.battle;
 			const target = s.p2.active.find((p: any) => p && !p.fainted);
 			if (target) {
-				const e = typeEffOf(s, type, seen(target));
+				const e = moveEffOf(s, m.id, type, seen(target));
 				eff = e === 0 ? '효과 없음' : e >= 4 ? '효과 매우 굉장' : e >= 2 ? '효과 굉장' : e <= 0.25 ? '매우 별로' : e < 1 ? '효과 별로' : '보통';
 			}
 		}
@@ -1277,6 +1320,18 @@ function typeTint(type: string) {
 		if (!b || !u) return base;
 		const tera = u.terastallized || teraSoon;
 		const weather = b.field.effectiveWeather?.() || b.field.weather;
+		const special = dynamicBase(id, base, b, u, tera, weather);
+		// 특성으로 바뀌는 타입: 스킨 계열(노말 기술 → 페어리·얼음·비행·전기), 노말스킨, 촉촉보이스. 타입이 스스로 바뀌는 기술은 제외
+		if (special !== base || NO_SKIN.has(id) || (id === 'terablast' && tera)) return special;
+		const megaTo = gimmick.startsWith('mega') && (gimmick === 'megax' ? u.canMegaEvoX : gimmick === 'megay' ? u.canMegaEvoY : u.canMegaEvo);
+		const ab = megaTo ? toID(b.dex.species.get(megaTo).abilities['0']) : u.hasAbility ? ['pixilate', 'refrigerate', 'aerilate', 'galvanize', 'normalize', 'liquidvoice'].find(a => u.hasAbility(a)) || '' : '';
+		const skin = ({ pixilate: 'Fairy', refrigerate: 'Ice', aerilate: 'Flying', galvanize: 'Electric' } as any)[ab];
+		if (skin && base === 'Normal') return skin;
+		if (ab === 'normalize') return 'Normal';
+		if (ab === 'liquidvoice' && b.dex.moves.get(id).flags?.sound) return 'Water';
+		return base;
+	};
+	const dynamicBase = (id: string, base: string, b: any, u: any, tera: string | undefined, weather: string): string => {
 		switch (id) {
 		case 'terablast': return tera || base;
 		case 'weatherball': return ({ sunnyday: 'Fire', desolateland: 'Fire', raindance: 'Water', primordialsea: 'Water', sandstorm: 'Rock', hail: 'Ice', snowscape: 'Ice' } as any)[weather] || base;
@@ -1404,8 +1459,8 @@ function typeTint(type: string) {
 		const effOf = (side: 'p1' | 'p2', i: number) => {
 			const tg = b?.[side].active[i];
 			if (!md || !tg || md.category === 'Status') return '';
-			const e = typeEffOf(b, md.type, seen(tg));
-			return e === 0 ? '효과가 없음' : e >= 2 ? '효과가 굉장함' : e < 1 ? '효과가 별로' : '';
+			const e = moveEffOf(b, md.id, dynamicType(md.id, md.type, pendingMove.gm?.includes('terastallize') ? activeReq?.canTerastallize : undefined), seen(tg));
+			return e === 0 ? '효과가 없음' : e >= 4 ? '효과가 매우 굉장함' : e >= 2 ? '효과가 굉장함' : e <= 0.25 ? '효과가 매우 별로' : e < 1 ? '효과가 별로' : '';
 		};
 		const go = (suffix: string) => pushChoice(`move ${pendingMove.num}${suffix}${pendingMove.gm || ''}`);
 		const card = (side: 'p1' | 'p2', i: number, m: Mon | null) => {
@@ -1603,7 +1658,7 @@ function typeTint(type: string) {
 		const pos = (own ? 'own' : 'foe') + ' s' + i;
 		if (!mon || (mon.fainted && !mon.anim) || mon.hidden) return <div class={'slot ' + pos} key={i} />;
 		const fl = !mon.vol.has('substitute') && floats(toID(mon.transformed || mon.species));
-		return <div class={'slot ' + pos + ' ' + (mon.anim || '') + (mon.vol.has('dynamax') ? ' dmax' : '') + (mon.tera ? ' tera' : '') + (fl ? ' float' : '')} key={i}
+		return <div class={'slot ' + pos + ' ' + (mon.anim || '') + (mon.away ? ' away' : '') + (mon.vol.has('dynamax') ? ' dmax' : '') + (mon.tera ? ' tera' : '') + (fl ? ' float' : '')} key={i}
 			style={mon.tera ? { '--tera': TYPE_COLOR[mon.tera] } as any : undefined} onClick={() => setDetail({ mon, own })}>
 			{mon.vol.has('substitute') ? <Sprite species="substitute" back={own} gen={gen} size={400} cls={own ? 'back' : 'front'} /> :
 				<Sprite species={mon.transformed || mon.species} back={own} shiny={mon.shiny} gen={gen} size={400} cls={own ? 'back' : 'front'} tera={mon.tera || undefined} />}
@@ -1611,7 +1666,7 @@ function typeTint(type: string) {
 	};
 
 	const sideChips = (side: SideScene) => Object.entries(side.cond).map(([id, n]) =>
-		<span class="chip side">{SIDE_KO[id] || (id.startsWith('gmax') ? moveKo(id) : id)}{n > 1 ? `×${n}` : ''}</span>);
+		<span class="chip side">{sideKo(id, SIDE_KO)}{n > 1 ? `×${n}` : ''}</span>);
 	const teamDots = (side: SideScene, own: boolean) => {
 		const total = side.teamSize;
 		const dots = [];
@@ -1887,7 +1942,7 @@ function FieldModal({ session, scene, onClose }: { session: Session; scene: any;
 		return <div class="field-side">
 			<b>{label}</b>
 			{!conds.length && <span class="muted"> 없음</span>}
-			{conds.map(([id, st]) => <div class="field-row"><span>{SIDE_COND_KO[id] || (id.startsWith('gmax') ? moveKo(id) : id)}{st.layers > 1 ? ` ×${st.layers}` : ''}</span><span class="muted">{shown(id, st)}</span></div>)}
+			{conds.map(([id, st]) => <div class="field-row"><span>{sideKo(id, SIDE_COND_KO)}{st.layers > 1 ? ` ×${st.layers}` : ''}</span><span class="muted">{shown(id, st)}</span></div>)}
 			{(scene?.[sid]?.active || []).filter((m: any) => m && !m.fainted && !m.hidden).map((m: any) => {
 				const own = sid === 'p1';
 				// 남은 턴 수는 내 편만 (엔진에서 같은 포켓몬을 찾아서). 다이맥스 남은 턴은 상대 것도 보임(본가에서도 보이는 정보)

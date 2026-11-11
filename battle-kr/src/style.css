@@ -239,6 +239,9 @@ b, strong { font-weight: normal; }
 .slot.leave .sprite { animation: leave .45s steps(4) forwards; }
 .slot.faint .sprite { animation: faint .8s steps(6) forwards; }
 .slot.hit .sprite { animation: hit .48s steps(1) 1; }
+/* 공중날기·구멍파기·섀도다이브 등 준비 턴: 기운을 모은 뒤 모습이 사라짐 */
+.slot.away .sprite, .slot.away .sprite-fallback { opacity: 0; transition: opacity .15s steps(3) .45s; }
+.slot.away { pointer-events: none; }
 .slot.attack-own { animation: lungeUp .4s steps(4); } .slot.attack-foe { animation: lungeDown .4s steps(4); }
 .slot.boost::after, .slot.unboost::after { content: ''; position: absolute; bottom: 0; left: calc(var(--s) * -24px); width: calc(var(--s) * 48px); height: calc(var(--s) * 56px); animation: aura .5s steps(4); }
 .slot.boost::after { background: repeating-linear-gradient(0deg, rgba(255,96,64,.6) 0 4px, transparent 4px 10px); }
@@ -1307,6 +1310,8 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .slot.foe.float { --fy: calc(var(--s) * 13px); }
 .slot.float .sprite, .slot.float .sprite-fallback { bottom: var(--fy); }
 .slot.float:not(.enter):not(.leave):not(.faint):not(.hit):not(.evolve) .sprite { animation: floatBob 1.2s steps(2) infinite alternate; }
+/* 움직이는 도트는 그림이 스스로 오르내리므로 따로 흔들지 않음 */
+.slot.float .sprite.anidot { animation-name: none !important; }
 @keyframes floatBob { to { bottom: calc(var(--fy) + var(--s) * 3px); } }
 .slot.float::before { content: ''; position: absolute; bottom: calc(var(--s) * -1px); left: 50%; transform: translateX(-50%); width: calc(var(--s) * 30px); height: calc(var(--s) * 6px);
 	background: rgba(20, 10, 30, .32); clip-path: polygon(20% 0, 80% 0, 80% 20%, 100% 20%, 100% 80%, 80% 80%, 80% 100%, 20% 100%, 20% 80%, 0 80%, 0 20%, 20% 20%); pointer-events: none; }
@@ -2985,6 +2990,11 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .lr-slot.ready { background: linear-gradient(180deg, #3a6a5a 0 2px, #2a5848 2px 60%, #224a3c 60%); }
 .lr-slot.empty { justify-content: center; color: #9aa4b8; background: #141c2e; box-shadow: 0 0 0 2px #0a0f18, inset 0 0 0 2px #2a3450; }
 .lr-slot .lb-tr { width: 52px; height: 52px; }
+/* 상대·내 트레이너 카드 꾸미기(배경·테두리)를 자리 칸에 입힘: 밝은 배경에서도 글자가 읽히게 진한 외곽선 */
+.lr-slot.skin-fr { box-shadow: 0 0 0 2px #0a0f18, inset 0 0 0 2px var(--fr2), inset 0 0 0 4px var(--fr1) !important; }
+.lr-slot.skin-bg .lr-who b, .lr-slot.skin-bg .lr-state { color: #fff; text-shadow: 1px 0 0 #101420, -1px 0 0 #101420, 0 1px 0 #101420, 0 -1px 0 #101420; }
+.lr-slot.skin-bg .lr-state.ok { color: #a8ffa0; } .lr-slot.skin-bg .lr-state.off { color: #ffb0b0; }
+.lr-slot.skin-bg .lr-host, .lr-slot.skin-bg .lr-me { text-shadow: none; }
 .lr-who { display: flex; flex-direction: column; align-items: center; gap: 2px; } .lr-who b { font-weight: normal; font-size: 14px; }
 .lr-who .hm-title { margin-left: 0; }
 .lr-host, .lr-me { font-style: normal; font-size: 10px; padding: 0 4px; margin-left: 4px; background: #ffd84a; color: #241a04; vertical-align: 2px; }

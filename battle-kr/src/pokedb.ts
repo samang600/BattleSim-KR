@@ -6,7 +6,7 @@
 import TEAMS from './gen/pokedb-teams.json';
 import RT from './gen/ranker-teams.json';
 import { RAW, megaStoneFits, speciesData, nickKo, moveData, toID, type Gen } from './data';
-import { ruleById, speciesAllowed, itemAllowed, megaStoneAllowed, type BattleRule } from './rules';
+import { ruleById, speciesAllowed, itemAllowed, megaStoneAllowed, type BattleRule, dataRuleOr } from './rules';
 import { loadSettings } from './store';
 import { smogonSet } from './smogon';
 import { randomSetFor, dedupeItems, assignGimmicks, conformSet, spToEv, type PSet } from './sets';
@@ -41,7 +41,7 @@ function ranked<T>(rows: T[], score: (r: T) => number, mk: (r: T, p: number) => 
 
 /** 지금 규칙에서 쓸 수 있는 팀 후보 */
 function candidates(doubles: boolean): Cand[] {
-	const rule = ruleById(loadSettings().battleRule);
+	const rule = dataRuleOr(loadSettings().battleRule);
 	const out: Cand[] = [];
 	const pk = (doubles ? DB.d : DB.s).filter(r => allowed(rule, r[2].map(m => [m[0]])));
 	out.push(...ranked(pk, r => r[0], (r, p) => ({ score: p, w: 1, mons: r[2].map(m => [m[0], m[1]] as FullMon), tera: r[2].map(m => m[2]),
@@ -66,7 +66,7 @@ export function rankerSources(doubles: boolean): string[] {
 
 /** 상위 팀 하나를 실전 세트로. quality 가 높을수록 순위가 높은 팀을 고르고 세트도 흔한 구성으로 */
 export function rankerTeam(doubles: boolean, level = 50, quality = 0.8, gen: Gen = 9): RankerTeam | null {
-	const rule = ruleById(loadSettings().battleRule);
+	const rule = dataRuleOr(loadSettings().battleRule);
 	const cs = candidates(doubles);
 	if (!cs.length) return null;
 	const k = 0.5 + 2.5 * quality;

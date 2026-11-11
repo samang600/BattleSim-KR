@@ -199,23 +199,26 @@ const FLOATERS = new Set([
 	'zubat', 'golbat', 'crobat', 'woobat', 'swoobat', 'noibat', 'butterfree', 'beautifly', 'dustox', 'venomoth', 'masquerain', 'ninjask', 'yanma', 'yanmega',
 	'mothim', 'vivillon', 'volcarona', 'frosmoth', 'cutiefly', 'ribombee', 'combee', 'vespiquen', 'beedrill', 'togekiss',
 	// 떠 있는 고스트·에스퍼·환상
-	'haunter', 'dusknoir', 'shuppet', 'banette', 'drifloon', 'drifblim', 'froslass', 'lampent', 'chandelure', 'frillish', 'jellicent', 'dreepy', 'drakloak', 'dragapult',
-	'shedinja', 'mew', 'celebi', 'jirachi', 'hoopa', 'cosmog', 'cosmoem', 'nihilego', 'pecharunt', 'castform', 'klefki', 'comfey', 'minior', 'magearna',
+	'haunter', 'dusknoir', 'shuppet', 'banettemega', 'drifloon', 'drifblim', 'froslass', 'lampent', 'chandelure', 'frillish', 'jellicent', 'dreepy', 'drakloak', 'dragapult',
+	'shedinja', 'mew', 'celebi', 'jirachi', 'hoopa', 'cosmog', 'cosmoem', 'nihilego', 'pecharunt', 'castform', 'klefki', 'comfey', 'minior',
 	// 기계·광물
 	'magnemite', 'magneton', 'magnezone', 'beldum', 'metang', 'porygonz', 'carbink',
-	// 바람을 타거나 날갯짓하며 떠 있는 비행 타입 (땅에 서 있는 새는 넣지 않음)
-	'hoppip', 'skiploom', 'jumpluff', 'aerodactyl', 'mantine', 'mantyke', 'pidgeot', 'fearow', 'articuno', 'zapdos', 'moltres', 'lugia', 'hooh', 'rayquaza',
-	'ledyba', 'ledian', 'togetic', 'gligar', 'gliscor', 'wingull', 'pelipper', 'swellow', 'volbeat', 'illumise', 'swablu', 'altaria', 'salamence', 'staraptor',
+	// 바람을 타거나 날갯짓하며 떠 있는 비행 타입. 그림에서 발로 땅을 딛고 서 있는 새(피죤투·스왈로·찌르호크·아머까오·찌리비크 등)는 넣지 않음
+	'hoppip', 'skiploom', 'jumpluff', 'aerodactyl', 'mantine', 'mantyke', 'pidgeotmega', 'fearow', 'articuno', 'zapdos', 'moltres', 'lugia', 'hooh', 'rayquaza',
+	'togetic', 'gligar', 'gliscor', 'wingull', 'pelipper', 'swablu', 'altaria', 'salamencemega', 'staraptormega',
 	'drifloon', 'emolga', 'sigilyph', 'braviary', 'tornadus', 'thundurus', 'landorus', 'enamorus', 'fletchinder', 'talonflame', 'noivern', 'yveltal',
-	'lunala', 'celesteela', 'kartana', 'naganadel', 'poipole', 'corvisquire', 'corviknight', 'flapple', 'wattrel', 'kilowattrel', 'bombirdier', 'ironjugulis',
+	'lunala', 'kartana', 'naganadel', 'poipole', 'corvisquire', 'flapple', 'bombirdier', 'ironjugulis',
 	// 몸이 떠 있는 포켓몬 (부유 특성이 없어도)
-	'solosis', 'duosion', 'reuniclus', 'elgyem', 'beheeyem', 'sinistea', 'polteageist', 'dhelmise', 'necrozma', 'deoxys', 'manaphy', 'phione', 'diancie',
+	'solosis', 'duosion', 'reuniclus', 'sinistea', 'polteageist', 'dhelmise', 'necrozma', 'diancie',
 	'tapukoko', 'tapulele', 'tapubulu', 'tapufini', 'eternatus', 'glimmet', 'glimmora', 'rabsca', 'fluttermane', 'ironmoth', 'chiyu', 'poltchageist', 'sinistcha',
 ]);
+/** 기본 모습은 떠 있지만 이 모습은 그림에서 땅을 딛고 서 있음 */
+const GROUNDED_FORMS = new Set(['zapdosgalar', 'landorustherian', 'necrozmaduskmane']);
 export function floats(speciesId: string): boolean {
 	const s: any = speciesData(speciesId, 9);
 	if (!s) return false;
 	const base = s.base || s.id;
+	if (GROUNDED_FORMS.has(s.id)) return false;
 	if (FLOATERS.has(s.id) || FLOATERS.has(base)) return true;
 	const b: any = s.base ? speciesData(s.base, 9) : s;
 	return !!(s.ab?.includes('levitate') || b?.ab?.includes('levitate'));
@@ -236,8 +239,10 @@ export function learnset(id: string, gen: Gen): string[] {
 		// 그 세대에 배울 수 있는 기술만 (챔피언스 목록에 없는 포켓몬은 스칼렛·바이올렛 기준)
 		const bit = ({ '9': 8, '8': 4, '7': 2, '6': 1 } as { [k: string]: number })[ERA] || 8;
 		const out = (own.ls || []).filter((_: number, k: number) => ((own.lg?.charCodeAt(k) ?? 63) - 48) & bit).map((i: number) => D.moveIds[i]);
-		// 그 세대 정보가 없어 비면 기본 모습의 목록
-		if (out.length) return out;
+		// 그 세대 정보가 없어 비면 기본 모습의 목록.
+		// 그 게임에 없던 포켓몬(스칼렛·바이올렛 룰의 울트라비스트·카푸 등)은 테라버스트 하나만 남으므로 없는 것으로 봄
+		const full = (own.ls || []).length + (own.cls || []).length;
+		if (out.length > 2 || (out.length && full <= 8)) return out;
 		if (base && base !== own) { const b = learnset(s.base, gen); if (b.length) return b; }
 		// 그 게임에 없던 포켓몬(예: 소드·실드 룰의 러브로스 — 레전드 아르세우스 출신)은 기술이 하나도 없어지지 않게 전체 목록
 		return [...new Set<number>([...(own.ls || []), ...(own.cls || [])])].map((i: number) => D.moveIds[i]);

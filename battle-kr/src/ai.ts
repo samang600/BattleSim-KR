@@ -43,6 +43,23 @@ export function typeEffOf(battle: Battle, moveType: string, target: Pokemon | st
 	return Math.pow(2, inv ? -e : e);
 }
 function typeEff(battle: Battle, moveType: string, target: Pokemon) { return typeEffOf(battle, moveType, target); }
+/** 기술별 상성 예외까지 본 배율 (화면 표시용): 프리즈드라이는 물에 굉장, 플라잉프레스는 격투+비행, 사우전드애로는 비행에도 보통 */
+export function moveEffOf(battle: Battle, moveId: string, moveType: string, target: Pokemon | string[]): number {
+	if (moveId !== 'freezedry' && moveId !== 'flyingpress' && moveId !== 'thousandarrows') return typeEffOf(battle, moveType, target);
+	const inv = isInverse(battle);
+	const types: string[] = Array.isArray(target) ? target : target.getTypes();
+	let total = 0;
+	for (const t of types) {
+		if (moveId === 'thousandarrows' && t === 'Flying') continue;
+		if (moveId === 'freezedry' && t === 'Water') { total += 1; continue; }
+		for (const mt of moveId === 'flyingpress' ? [moveType, 'Flying'] : [moveType]) {
+			if (!battle.dex.getImmunity(mt, t)) { if (!inv) return 0; total += 1; continue; }
+			const e = battle.dex.getEffectiveness(mt, t);
+			total += inv ? -e : e;
+		}
+	}
+	return Math.pow(2, total);
+}
 
 function abilityImmune(move: any, moveType: string, target: Pokemon, gen: number): boolean {
 	const ab = target.getAbility().id;

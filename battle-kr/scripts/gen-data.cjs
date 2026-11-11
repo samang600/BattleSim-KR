@@ -102,8 +102,8 @@ function speciesName(s, dex) {
 		const sub = suffix ? '' : (FORME_KO[rest] || rest);
 		return '메가' + baseKo + suffix + (sub ? `(${sub})` : '');
 	}
-	let forme = FORME_KO[s.forme];
-	if (!forme && ['Arceus', 'Silvally'].includes(s.baseSpecies)) forme = TYPE_KO[s.forme] || s.forme;
+	// 아르세우스·실버디는 폼 이름이 곧 타입 ('Ice' 가 버드렉스의 '백마 탄 모습'과 겹치므로 먼저 봄)
+	let forme = ['Arceus', 'Silvally'].includes(s.baseSpecies) ? (TYPE_KO[s.forme] || FORME_KO[s.forme] || s.forme) : FORME_KO[s.forme];
 	if (s.id === 'zaciancrowned') forme = '검왕';
 	if (s.id === 'zamazentacrowned') forme = '방패왕';
 	return `${baseKo}(${forme || s.forme})`;

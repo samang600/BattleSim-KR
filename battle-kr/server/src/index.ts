@@ -22,7 +22,7 @@
  *    입장: {t:'join', ..., create:{title, pw, ruleId, doubles, pick}} (방 만들기) · {t:'join', ..., pw} (들어가기, 팀 없이도 됨)
  *    방 안: {t:'team', team} 파티 바꾸기 · {t:'rules', ruleId, doubles, pick} 방장이 규칙·형식 바꾸기 · {t:'ready', on} 준비
  *           {t:'chat', text} 채팅 → {t:'chat', side, name, text, at} (처음 들어오면 {t:'chatlog', list})
- *           {t:'leave'} 손님이 나가면 자리가 비고, 방장이 나가면 방이 닫힘 · {t:'again'} 배틀이 끝난 뒤 방으로 돌아가기
+ *           {t:'leave'} 손님이 나가면 자리가 비고, 방장이 나가면 남은 사람이 방장이 됨(혼자였으면 방이 닫힘) · {t:'again'} 배틀이 끝난 뒤 방으로 돌아가기
  *    둘 다 준비하면 {t:'preview'} → 고르기 → {t:'start'} (그다음은 위와 같음)
  *  GET /lobby       로비 목록 (Lobby): 앱 → {t:'list'}  서버 → {t:'rooms', list:[{code,title,host,sprite,ruleId,doubles,pick,locked,players,status,version}]} (바뀔 때마다)
  */
@@ -271,9 +271,24 @@ export class Room extends DurableObject<Env> {
 	}
 	private pushChat(msg: ChatMsg) { const s = this.st!; s.chat = [...(s.chat || []), msg].slice(-CHAT_KEEP); }
 	private sendChatTail() { const c = this.st!.chat || []; const last = c[c.length - 1]; if (last) for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'chat', ...last }); }
-	/** 로비 방에서 손님 자리를 비움 (나감·끊김). 방장 자리면 방을 닫음 */
+	/** 로비 방 대기 중에 방장이 빠짐: 남은 사람이 있으면 그 사람이 방장이 됨 (자리 p2 → p1). 아무도 없으면 false */
+	private handOver(note: string): boolean {
+		const s = this.st!, g = s.players.p2;
+		if (!g) return false;
+		for (const w of this.ctx.getWebSockets()) {
+			const a = w.deserializeAttachment() as any;
+			try { if (a?.side === 'p1') w.serializeAttachment({ at: Date.now() }); else if (a?.side === 'p2') w.serializeAttachment({ ...a, side: 'p1' }); } catch {}
+		}
+		s.players = { p1: { ...g, ready: false, picked: undefined } };
+		s.away = s.away?.p2 ? { p1: s.away.p2 } : {};
+		this.pushChat({ side: '', name: '', text: `${note} ${g.name} 님이 방장이 됐어요`, at: Date.now() });
+		this.broadcastRoom(); this.sendChatTail();
+		return true;
+	}
+	/** 로비 방에서 손님 자리를 비움 (나감·끊김). 방장 자리면 남은 사람에게 방장을 넘기고, 혼자였으면 방을 닫음 */
 	private dropPlayer(sd: Side, note: string) {
 		const s = this.st!;
+		if (sd === 'p1' && this.handOver(note)) return;
 		if (sd === 'p1') { s.closed = true; s.ended = true; for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'error', msg: '방장의 연결이 끊어져 방이 닫혔어요' }); void this.notifyLobby(); return; }
 		for (const w of this.sockets('p2')) { try { w.serializeAttachment({ at: Date.now() }); } catch {} }
 		delete s.players.p2; delete s.away?.p2;
@@ -354,7 +369,7 @@ export class Room extends DurableObject<Env> {
 						s.chat = [];
 					}
 				}
-				s.players[side] = { name, token, team, version, sprite: String(m.sprite || '').slice(0, 40) };
+				s.players[side] = { name, token, team, version, sprite: String(m.sprite || '').slice(0, 48) };
 				if (s.lobby) this.pushChat({ side: '', name: '', text: `${name} 님이 ${side === 'p1' ? '방을 만들었어요' : '들어왔어요'}`, at: Date.now() });
 				await this.save();
 			}
@@ -442,7 +457,8 @@ export class Room extends DurableObject<Env> {
 				return;
 			}
 			if (m.t === 'leave') {
-				if (side === 'p1') {   // 방장이 나가면 방을 닫음
+				if (side === 'p1' && this.handOver(`방장 ${p.name} 님이 나갔어요.`)) { /* 남은 사람이 방장이 됨 */ }
+				else if (side === 'p1') {   // 혼자 있던 방장이 나가면 방을 닫음
 					s.closed = true; s.ended = true; await this.save();
 					for (const w of this.ctx.getWebSockets()) if (w !== ws) this.send(w, { t: 'error', msg: '방장이 나가서 방이 닫혔어요' });
 					await this.notifyLobby();
