@@ -19,6 +19,7 @@ import { TIMES, TIME_CLS, WHO, LOCS, locOf, TRAINERS, WILDS, ITEMS, SHOPS, START
 	MISTY_AT, MISTY_DOING, mistyTeam, MISTY_TALKS, FOLKS, type Who, type Trainer } from './scenario-data';
 import { SCRIPTS, EV_TITLE } from './scenario-script';
 import * as EM from './scenario-emotes.js';
+import { PXI } from './vendor/pixelarticons';
 
 const LU = LEVELUP as unknown as { [id: string]: { e?: [string, number]; m: [number, string][] } };
 const PORTRAIT_BASE = 'https://samang600.github.io/BattleSim-KR/portraits/';
@@ -100,11 +101,26 @@ function useVariant(id: string, emo?: string): string {
 	}, [key]);
 	return key && VARIANT[key] ? key : id;
 }
+/** 픽셀 아이콘 (pixelarticons, 24칸 격자) — 크기는 2px 격자에 맞게 24·36·48 */
+const Pxi = ({ name, size = 24 }: { name: string; size?: number }) => <svg class="sc-pxi" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" shape-rendering="crispEdges"><path d={PXI[name] || ''} /></svg>;
+/** 지도 위 말: 데포르메 도트 얼굴 (한 칸 = 2px). me = 빨간 모자의 나 · misty = 주황 머리의 이슬 */
+const CHIBI: { [k: string]: [string[], { [c: string]: string }] } = {
+	me: [['...kkkkk...', '..kRRRRRk..', '.kRRWWRRRk.', '.kRRRRRRRkk', 'kkkkkkkkkkk', '.kSSSSSSSk.', '.kSkSSSkSk.', '.kSSSSSSSk.', '..kSSpSSk..', '..kkkkkkk..', '.kBBBWBBBk.', '.kBBBBBBBk.', '..kkk.kkk..'],
+		{ k: '#14182a', R: '#e8402c', W: '#f4f4f4', S: '#ffd8b0', p: '#e8907a', B: '#3a6ad8' }],
+	misty: [['.....kkk..kk', '...kkOOOkkOk', '..kOOOOOOOOk', '.kOOOOOOOOk.', '.kOSSOOSSOk.', '.kSkSSSkSSk.', '.kSSSSSSSSk.', '..kSSppSSk..', '...kkkkkk...', '..kYYYYYYk..', '.kSYrYYrYSk.', '..kkYYYYkk..', '...kk..kk...'],
+		{ k: '#14182a', O: '#ff9a3a', S: '#ffd8b0', p: '#e8907a', Y: '#ffe070', r: '#d84a3a' }],
+};
+function Chibi({ who, cls = '' }: { who: 'me' | 'misty'; cls?: string }) {
+	const [g, pal] = CHIBI[who], w = Math.max(...g.map(r => r.length));
+	return <svg class={'sc-chibi ' + cls} width={w * 2} height={g.length * 2} viewBox={`0 0 ${w} ${g.length}`} shape-rendering="crispEdges">
+		{g.flatMap((row, y) => [...row].map((c, x) => pal[c] ? <rect x={x} y={y} width="1" height="1" fill={pal[c]} /> : null))}</svg>;
+}
 /** 초상화: 픽셀 상반신(없으면 쇼다운 도트). face = 동그란 아이콘용. emo = 표정(그림이 있으면 바뀜) */
 function Portrait({ id, sprite, cls = '', emo }: { id: string; sprite: string; cls?: string; emo?: string }) {
 	const [bad, setBad] = useState(false);
 	const src = useVariant(id, emo);
-	if (!id || bad) return sprite ? <img class={'sc-portrait dot ' + cls} src={SPRITE_URL(sprite)} onError={trainerImgError} alt="" /> : null;
+	// 일반 트레이너('d_'): 다듬은 그림 대신 원래 도트 그림을 계단 그대로 키워서
+	if (!id || bad || id.startsWith('d_')) return sprite ? <img class={'sc-portrait dot ' + cls} src={SPRITE_URL(sprite)} onError={trainerImgError} alt="" /> : null;
 	return <img class={'sc-portrait px ' + (id.startsWith('d_') ? 'dotp ' : '') + cls} src={`${PORTRAIT_BASE}${src}.png`} onError={() => setBad(true)} alt="" />;
 }
 /** 도구·배지 아이콘 (PokeAPI sprites). 못 불러오면 fb(직접 그린 것)로 */
@@ -165,10 +181,10 @@ function Dialog({ lines, bg, tint, done, choice, mon }: { lines: Line[]; bg: str
 		</div>
 		{last && full && choice && <div class="sc-choice" onClick={e => e.stopPropagation()}>{choice.map((c, k) => <button onClick={() => { sfx('select'); done(k); }}>{c}</button>)}</div>}
 		<div class="sc-talkbtns">
-			<button onClick={stop(() => setLog(true))}>기록</button>
+			<button onClick={stop(() => setLog(true))}><Pxi name="notes" size={12} />기록</button>
 			<button class={auto ? 'on' : ''} onClick={stop(() => { autoOn = !auto; try { localStorage.setItem('pkbkr-sc-auto', autoOn ? '1' : '0'); } catch {} setAuto(autoOn); })}>자동{auto ? ' ●' : ''}</button>
 		</div>
-		{!choice && <button class="st-skip" onClick={stop(() => done(0))}>건너뛰기 ▶▶</button>}
+		{!choice && <button class="st-skip" onClick={stop(() => done(0))}>건너뛰기<Pxi name="forward" size={12} /></button>}
 		{log && <div class="sc-log" onClick={stop(() => setLog(false))}>
 			<h3>지난 대사 <small>화면을 누르면 닫힘</small></h3>
 			<div class="sc-log-list" ref={(el: any) => { if (el) el.scrollTop = el.scrollHeight; }}>{LOG.map(l => <p class={l.name ? '' : 'narr'}>{l.name && <b>{l.name}</b>}{l.text}</p>)}</div>
@@ -282,15 +298,20 @@ function Travel({ run, to, done }: { run: Run; to: string; done: () => void }) {
 	useEffect(() => { const t = setTimeout(() => k + 1 < path.length ? setK(k + 1) : done(), k + 1 < path.length ? 430 : 420); return () => clearTimeout(t); }, [k]);
 	return <div class="sc-mapscr sc-travel" onClick={done}>
 		<div class="sh-top sc-top"><div class="sh-title">{locOf(run.loc).name} → {locOf(to).name}<em class="sc-mission">이동 중…</em></div>
-			<div class="sc-clock"><small>{run.day}일째</small><b class={TIME_CLS[run.time]}>{TIMES[run.time]}</b></div></div>
+			<div class={'sc-clock ' + TIME_CLS[run.time]}><Pxi name={run.time === 3 ? 'moon' : 'sun'} /><span><small>{run.day}일째</small><b>{TIMES[run.time]}</b></span></div></div>
 		<div class="sc-mapwrap"><div class="sc-map">
 			<svg class="sc-roads" viewBox="0 0 100 100" preserveAspectRatio="none">
 				{LOCS.flatMap(a => a.to.filter(b => a.id < b).map(b => { const B = locOf(b); return <line x1={a.x} y1={a.y} x2={B.x} y2={B.y} class="off" />; }))}
 				{path.slice(0, k).map((a, i) => <line x1={a.x} y1={a.y} x2={path[i + 1].x} y2={path[i + 1].y} class="go" />)}
 			</svg>
 			{LOCS.map(l => <span class={'sc-node' + (l.town ? ' town' : '') + (l.id === to ? ' sel' : '') + (unlocked(run, l.id) ? '' : ' lock')} style={{ left: l.x + '%', top: l.y + '%' }}><i />{l.id === to && <span>{l.name}</span>}</span>)}
-			<img class="sc-travel-me" style={{ left: path[k].x + '%', top: path[k].y + '%' }} src={SPRITE_URL(playerSprite())} alt="" onError={trainerImgError} />
+			<span class="sc-travel-me" style={{ left: path[k].x + '%', top: path[k].y + '%' }}><Chibi who="me" /></span>
 		</div></div>
+		{/* 지도 고르기 화면과 같은 높이의 아래 창 (없으면 이동할 때 지도 크기가 달라져 보임) */}
+		<div class="sc-mapinfo">
+			<div class={'sc-mapthumb sc-bg fld-' + locOf(to).bg}><div class={'sc-tint ' + TIME_CLS[run.time]} /></div>
+			<div class="sc-mapdesc"><b>{locOf(to).name}</b><small>{locOf(to).sub}</small><small class="sc-maptags"><span>이동 중…</span></small></div>
+		</div>
 	</div>;
 }
 
@@ -330,9 +351,12 @@ type Node = { k: string; label: string; mark: string; face?: Who; kind?: string;
 type Act = Node | { k: 'map' | 'party' | 'bag' | 'route' } | typeof BACK;
 /** 그린이 기다리는 곳: [대본 id, 장소, 필요한 표식] */
 const RIVAL_AT: [string, string, string][] = [['rival2', 'viridian', 'intro'], ['rival3', 'cerulean', 'met'], ['rival4', 'cape', 'ev4']];
+/** 단추 귀퉁이 표시: 느낌표(승부·이야기) · 물음표(풀숲) · 하트 · 완료 · 가게 · 쉼터 · 이야기 */
+const MARK_ICO: { [m: string]: string } = { '✓': 'check', '♥': 'heart', '₩': 'coins', z: 'bed', '…': 'message-text' };
+const MARK_CLS: { [m: string]: string } = { '!': 'go', '?': 'q', '✓': 'ok', '♥': 'love', '₩': 'shop', z: 'rest', '…': 'talk' };
 const SLOTS: [number, number][] = [[24, 30], [72, 28], [48, 38], [20, 46], [76, 46], [48, 54], [22, 62], [70, 62], [48, 22], [80, 76]];
 /** 휴대폰 가로: 높이가 낮아 두 줄로 (오른쪽은 내 트레이너 자리) */
-const SLOTS_LAND: [number, number][] = [[9, 36], [25, 36], [41, 36], [57, 36], [9, 68], [25, 68], [41, 68], [57, 68], [17, 52], [49, 52]];
+const SLOTS_LAND: [number, number][] = [[8, 36], [22, 36], [36, 36], [50, 36], [64, 36], [8, 66], [22, 66], [36, 66], [50, 66], [64, 66]];
 const isLand = () => innerWidth > innerHeight && innerHeight < 541;
 function nodesAt(run: Run): Node[] {
 	const loc = locOf(run.loc), out: Node[] = [];
@@ -368,19 +392,19 @@ function Hub({ run, banner, done }: { run: Run; banner: boolean; done: (a: Act) 
 	const [land, setLand] = useState(isLand());
 	useEffect(() => { playMusic(loc.music); const f = () => setLand(isLand()); addEventListener('resize', f); return () => removeEventListener('resize', f); }, []);
 	const SL = land ? SLOTS_LAND : SLOTS;
-	return <div class="story-hub sc-hub sc-open">
+	return <div class={'story-hub sc-hub' + (banner ? ' sc-open' : '')}>
 		<div class={'sh-bg sc-bg fld-' + loc.bg} /><div class={'sc-tint ' + TIME_CLS[run.time]} />
 		{run.time === 3 && <div class="sc-stars" />}
 		<div class="sh-top sc-top">
-			<button class="st-exit" onClick={() => done(BACK)}>◀</button>
-			<div class="sc-clock"><small>{run.day}일째</small><b class={TIME_CLS[run.time]}>{TIMES[run.time]}</b></div>
+			<button class="st-exit" onClick={() => done(BACK)} aria-label="나가기"><Pxi name="chevron-left" /></button>
+			<div class={'sc-clock ' + TIME_CLS[run.time]}><Pxi name={run.time === 3 ? 'moon' : 'sun'} /><span><small>{run.day}일째</small><b>{TIMES[run.time]}</b></span></div>
 			<div class="sh-title">관동 · {loc.name}<em class="sc-mission">{goalText(run)}</em></div>
 			<div class="sc-wallet"><span>{won(run.money)}</span>{has(run, 'met') && <Hearts v={run.heart} />}</div>
 		</div>
 		{banner && <div class="sc-banner"><b>{loc.name}</b><span>{loc.sub}</span></div>}
 		{nodes.slice(0, SLOTS.length).map((n, i) => <button class={'sh-npc' + (n.done ? ' done' : '') + (n.kind ? ' ' + n.kind : '')} style={{ left: SL[i][0] + '%', top: SL[i][1] + '%' }} onClick={() => { sfx('select'); done(n); }}>
-			<span class="sh-face">{n.face ? <Portrait id={n.face.portrait} sprite={n.face.sprite} cls="face" /> : n.kind === 'grass' ? <span class="sc-wildico"><PokeIcon species={n.data} /></span> : <Ico name={n.kind === 'bike' ? 'bicycle' : 'poke-doll'} size={52} fb={<span class={'sc-ico ' + (n.kind || '')} />} />}</span>
-			<span class="sh-mark">{n.mark}</span><span class="sh-label">{n.label}</span>
+			<span class="sh-face">{n.face ? <Portrait id={n.face.portrait} sprite={n.face.sprite} cls="face" /> : n.kind === 'grass' ? <span class="sc-wildico"><Pxi name="tree" size={48} /><PokeIcon species={n.data} /></span> : <Pxi name={n.kind === 'bike' ? 'store' : 'home'} size={48} />}</span>
+			<span class={'sh-mark m-' + MARK_CLS[n.mark]}>{MARK_ICO[n.mark] ? <Pxi name={MARK_ICO[n.mark]} size={12} /> : n.mark}</span><span class="sh-label">{n.label}</span>
 		</button>)}
 		<div class="sh-me sc-me2" role="button" onClick={() => done({ k: 'party' })}>
 			{run.tag && <img class="sc-partner" src={SPRITE_URL('misty')} alt="" onError={trainerImgError} />}
@@ -389,10 +413,10 @@ function Hub({ run, banner, done }: { run: Run; banner: boolean; done: (a: Act) 
 				<span class="sc-party2">{run.party.map(m => <span class="sc-pmon"><PokeIcon species={m.sp} /><small>Lv{m.lv}</small></span>)}</span></div>
 		</div>
 		<div class="sc-tabs2 sc-menu">
-			<button class="on" onClick={() => done({ k: 'map' })}><Ico name="town-map" size={26} fb={<i class="sc-mi map" />} />지도</button>
-			<button onClick={() => done({ k: 'party' })}><Ico name="poke-ball" size={26} fb={<i class="sc-mi ball" />} />포켓몬</button>
-			<button onClick={() => done({ k: 'bag' })}><Ico name="travel-trunk" size={26} fb={<i class="sc-mi bag" />} />가방</button>
-			<button onClick={() => done({ k: 'route' })}><Ico name="heart-mail" size={26} fb={<i class="sc-mi heart" />} />루트</button>
+			<button class="map" onClick={() => done({ k: 'map' })}><Pxi name="map" />지도</button>
+			<button class="mon" onClick={() => done({ k: 'party' })}><i class="sc-pball" />포켓몬</button>
+			<button class="bag" onClick={() => done({ k: 'bag' })}><Pxi name="backpack" />가방</button>
+			<button class="love" onClick={() => done({ k: 'route' })}><Pxi name="heart" />루트</button>
 		</div>
 	</div>;
 }
@@ -415,13 +439,13 @@ function WorldMap({ run, done }: { run: Run; done: (id: string | null) => void }
 	const [sel, setSel] = useState(run.loc);
 	const s = locOf(sel), open = unlocked(run, sel);
 	return <div class="sc-mapscr sc-open">
-		<div class="sh-top sc-top"><button class="st-exit" onClick={() => done(null)}>◀</button><div class="sh-title">관동 지방<em class="sc-mission">갈 곳을 고르세요 · 이동하면 시간이 흐릅니다</em></div>
-			<div class="sc-clock"><small>{run.day}일째</small><b class={TIME_CLS[run.time]}>{TIMES[run.time]}</b></div></div>
+		<div class="sh-top sc-top"><button class="st-exit" onClick={() => done(null)} aria-label="닫기"><Pxi name="chevron-left" /></button><div class="sh-title">관동 지방<em class="sc-mission">갈 곳을 고르세요 · 이동하면 시간이 흐릅니다</em></div>
+			<div class={'sc-clock ' + TIME_CLS[run.time]}><Pxi name={run.time === 3 ? 'moon' : 'sun'} /><span><small>{run.day}일째</small><b>{TIMES[run.time]}</b></span></div></div>
 		<div class="sc-mapwrap"><div class="sc-map">
 			<svg class="sc-roads" viewBox="0 0 100 100" preserveAspectRatio="none">{LOCS.flatMap(a => a.to.filter(b => a.id < b).map(b => { const B = locOf(b); return <line x1={a.x} y1={a.y} x2={B.x} y2={B.y} class={unlocked(run, a.id) && unlocked(run, b) ? '' : 'off'} />; }))}</svg>
 			{LOCS.map(l => <button class={'sc-node' + (l.town ? ' town' : '') + (l.id === run.loc ? ' here' : '') + (l.id === sel ? ' sel' : '') + (unlocked(run, l.id) ? '' : ' lock')} style={{ left: l.x + '%', top: l.y + '%' }} onClick={() => { sfx('select'); setSel(l.id); }}>
-				<i />{l.id === run.loc && <img class="sc-node-me" src={SPRITE_URL(playerSprite())} alt="" onError={trainerImgError} />}
-				{l.id === mL && <span class="sc-node-friend"><Portrait id="misty" sprite="misty" cls="face" /></span>}
+				<i />{l.id === run.loc && <Chibi who="me" cls="sc-node-me" />}
+				{l.id === mL && <Chibi who="misty" cls="sc-node-friend" />}
 				<span>{unlocked(run, l.id) ? l.name : '？？？'}</span>
 			</button>)}
 		</div></div>

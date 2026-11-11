@@ -72,12 +72,15 @@ css.append(f'\t--ring-i2: {ring_svg(2, "#0a0d12", "#f4f6fa", K2)};')
 css.append(f'\t--ring-i4: {ring_svg(4, "#0a0d12", "#f4f6fa", 5)};')  # HP 상자: 반지름 4칸
 # 메뉴 창·버튼용 (반지름 4칸): 창틀 테마별 패널 테두리, 선택 강조, 빨간·회색 버튼, 작은 버튼(반지름 2칸)
 for k, (o, i) in {'p-stone': ('#0d1830', '#eef4ff'), 'p-silver': ('#2a0a0e', '#fff1f1'), 'p-dark': ('#0a0b0d', '#d8dce4'),
-                  'hi': ('#0d1830', '#ffd84a'), 'red': ('#3a0a04', '#ffffff'), 'grey': ('#121a2a', '#f4f6fa')}.items():
+                  'hi': ('#0d1830', '#ffd84a'), 'red': ('#3a0a04', '#ffffff'), 'grey': ('#121a2a', '#f4f6fa'),
+                  # 시나리오: 하늘색 창·분홍(이야기)·초록(풀숲)
+                  'sky': ('#0a0f18', '#7fe0ff'), 'pink': ('#3a0a1e', '#ff9ac0'), 'leaf': ('#0a2a12', '#a8e890')}.items():
     css.append(f'\t--ring4-{k}: {ring_svg(4, o, i, 5)};')
 css.append(f'\t--ring2-red: {ring_svg(2, "#3a0a04", "#ffffff", K2)};')
 css.append(f'\t--ring2-hi: {ring_svg(2, "#0d1830", "#ffd84a", K2)};')
 css.append(f'\t--ring2-input: {ring_svg(2, "#0d1830", "#8aa0c8", K2)};')
 css.append(f'\t--ring2-grey: {ring_svg(2, "#121a2a", "#f4f6fa", K2)};')
+css.append(f'\t--ring2-sky: {ring_svg(2, "#0a0f18", "#7fe0ff", K2)};')
 css.append(f'\t--ring-hp: {ring_svg(1, "#0a0d12", "#f4f6fa", 2)};')  # HP 바 틀: 모서리 한 칸 깎음
 css.append(f'\t--clip4: {clip(6, P)};')
 css.append(f'\t--clip2: {clip(2, P)};')
