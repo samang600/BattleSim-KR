@@ -14,6 +14,7 @@ import { KoreanText, parseLine } from '../src/text';
 (window as any).__Battle = Battle; (window as any).__toSimTeam = toSimTeam;
 (window as any).__plan = { teamPlan, planText };
 (window as any).__text = { KoreanText, parseLine };
+(window as any).__moveData = moveData;
 (window as any).__chooseAI = chooseAI;
 (window as any).__sets = { factoryTeam, toSimTeam, randomTeam, factoryPool, FACTORY_GRADES, cloneSet, POOLS };
 (window as any).__ranker = { rankerTeam, rankerCount, rankerSources, applyRuleData, ruleById, loadSettings, speciesAllowed };
@@ -116,7 +117,7 @@ import { KoreanText, parseLine } from '../src/text';
 (window as any).__Session = Session; // 테스트용: 멀티배틀 기믹 등
 (window as any).__rs = randomSetFor;
 (window as any).__ard = () => applyRuleData(ruleById(loadSettings().battleRule));
-import { learnset as __ls } from '../src/data';
+import { learnset as __ls, moveData } from '../src/data';
 (window as any).__ls = __ls;
 import { speciesPool } from '../src/sets';
 (window as any).__pool = speciesPool;

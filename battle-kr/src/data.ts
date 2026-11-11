@@ -134,7 +134,9 @@ export function moveData(id: string, gen: Gen) {
 	const g = ERA === 'max' ? maxMove(m) : (ERA ? m.e?.[ERA] ?? m.e?.['9'] : undefined) || m.g[gen] || m.g[9];
 	return {
 		id, name: m.n, desc: eraText(ERA === '' && MOVE_CHAMP_DESC[id] || m.d), type: g[0], category: g[1] as 'Physical' | 'Special' | 'Status', basePower: g[2],
-		accuracy: g[3], pp: g[4], priority: g[5], target: g[6], contact: !!g[7],
+		// PP 는 배틀에서 실제로 쓰는 최대값: 챔피언스 사양(전국도감·챔피언스 풀, ERA '')은 포인트업이 없어 그대로(방어 8 등),
+		// 본가 사양 룰은 포인트업 3개를 쓴 값(1.6배 — 방어 16)
+		accuracy: g[3], pp: ERA === '' ? g[4] : Math.floor(g[4] * 8 / 5), priority: g[5], target: g[6], contact: !!g[7],
 	};
 }
 export function abilityKo(nameOrId: string) { const id = toID(nameOrId); return id === 'asone' ? '혼연일체' : D.abilities[id]?.n || nameOrId; }

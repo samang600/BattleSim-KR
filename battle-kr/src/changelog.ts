@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.72.5', date: '2026-11-11', title: 'PP 표시', items: [
+		['fix', '팀 편집·포켓몬 상세의 기술 PP 가 배틀에서 실제로 쓰는 값과 다르게 보이던 문제를 고쳤어요 (챔피언스 사양 룰은 방어 8·지진 12, 본가 사양 룰은 방어 16·지진 16)'],
+	] },
 	{ ver: '2.72.4', date: '2026-11-11', title: '안드로이드 앱 받기', items: [
 		['new', '웹 버전 설정에 「최신 APK 받기」 — 안드로이드 앱 설치 파일을 바로 받을 수 있어요'],
 	] },

@@ -248,7 +248,7 @@ export function MonDetail({ set, gen, live, actions, note }: {
 				return <div class="sheet-move" style={{ '--tc': TYPE_COLOR[md?.type || 'Normal'] } as any}>
 					<div class="sm-top"><b>{moveKo(m)}</b>{md && <TypeBadge type={md.type} small />}
 						<span class="muted small">{md ? (md.category === 'Physical' ? '물리' : md.category === 'Special' ? '특수' : '변화') : ''}</span>
-						<span class="sm-num">위력 {md?.basePower || '—'} · 명중 {md?.accuracy || '—'} · PP {pp ? `${pp[0]}/${pp[1]}` : md?.pp ? Math.floor(md.pp * 8 / 5) : '-'}</span></div>
+						<span class="sm-num">위력 {md?.basePower || '—'} · 명중 {md?.accuracy || '—'} · PP {pp ? `${pp[0]}/${pp[1]}` : md?.pp || '-'}</span></div>
 					{md?.desc && <small class="muted block">{md.desc}</small>}
 				</div>;
 			})}
