@@ -1,0 +1,45 @@
+# 새 APK(battle-kr/release/BattleSimKR-v<버전>.apk)가 main 에 올라오면 GitHub 릴리스를 만든다.
+# 릴리스에는 버전 이름 그대로의 APK 와, 늘 같은 이름의 BattleSimKR.apk 를 함께 올림
+#  → 웹 설정의 "안드로이드 앱 받기"가 releases/latest/download/BattleSimKR.apk 로 항상 최신을 가리킴.
+name: APK 릴리스
+on:
+  push:
+    branches: [main]
+    paths: ['battle-kr/release/*.apk']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: apk-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 릴리스 만들기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          APK=$(ls battle-kr/release/BattleSimKR-v*.apk | sort -V | tail -1)
+          VER=$(basename "$APK" .apk | sed 's/^BattleSimKR-v//')
+          echo "APK: $APK (v$VER)"
+          if gh release view "v$VER" >/dev/null 2>&1; then echo "v$VER 릴리스가 이미 있음"; exit 0; fi
+          cp "$APK" BattleSimKR.apk
+          # 릴리스 글: changelog.ts 맨 위 항목(이 버전일 때)
+          node -e '
+            const s = require("fs").readFileSync("battle-kr/src/changelog.ts", "utf8");
+            const ver = process.argv[1];
+            const i = s.indexOf("{ ver: \x27" + ver + "\x27");
+            let out = "안드로이드 앱 설치 파일입니다. 기존 앱 위에 그대로 설치하면 됩니다 (저장 데이터 유지).\n";
+            if (i >= 0) {
+              const blk = s.slice(i, s.indexOf("] },", i));
+              const items = [...blk.matchAll(/\[\x27(\w+)\x27,\s*\x27((?:[^\x27\\]|\\.)*)\x27\]/g)].map(m => "- " + m[2].replace(/\\(.)/g, "$1"));
+              if (items.length) out += "\n### 바뀐 점\n" + items.join("\n") + "\n";
+            }
+            out += "\n웹 버전: https://samang600.github.io/BattleSim-KR/\n";
+            require("fs").writeFileSync("notes.md", out);
+          ' "$VER"
+          cat notes.md
+          gh release create "v$VER" "$APK" BattleSimKR.apk --title "배틀시뮬 KR v$VER" --notes-file notes.md --latest --target "$GITHUB_SHA"

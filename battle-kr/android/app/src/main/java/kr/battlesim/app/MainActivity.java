@@ -293,6 +293,15 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void bootOk() { prefs().edit().putInt("boot", 0).apply(); }
 
+        /** 바깥 브라우저로 열기 (새 APK 받기 등). 이 앱의 GitHub·정식 웹 주소만 */
+        @JavascriptInterface
+        public void openUrl(String url) {
+            if (url == null || !(url.startsWith("https://github.com/samang600/BattleSim-KR/") || url.startsWith("https://samang600.github.io/BattleSim-KR/"))) return;
+            runOnUiThread(() -> {
+                try { startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))); } catch (Exception e) { android.util.Log.w("BattleSim", "openUrl: " + e); }
+            });
+        }
+
         /** 받아 둔 새 화면으로 다시 시작 */
         @JavascriptInterface
         public void restartApp() {

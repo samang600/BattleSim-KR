@@ -253,6 +253,26 @@ function runUpdate(onDone: (result: string) => void) {
 	};
 	nat.checkUpdate();
 }
+/** 최신 안드로이드 앱 설치 파일: GitHub 릴리스의 늘 같은 이름 파일 (새 APK 가 main 에 올라오면 릴리스가 자동으로 만들어짐 — .github/workflows/release.yml) */
+const APK_URL = 'https://github.com/samang600/BattleSim-KR/releases/latest/download/BattleSimKR.apk';
+const APK_PAGE = 'https://github.com/samang600/BattleSim-KR/releases/latest';
+/** APK 받기 버튼. 앱 안에서는 바깥 브라우저로 열고(openUrl 이 있는 새 앱만), 못 여는 예전 앱에서는 주소를 글로 보여 줌 */
+function ApkLink({ label = '최신 APK 받기' }: { label?: string }) {
+	const nat = (window as any).BattleSimNative;
+	if (nat && !nat.openUrl) return <p class="small upd-msg">브라우저에서 이 주소를 열어 받아 주세요:<br /><b style="user-select:all;word-break:break-all">github.com/samang600/BattleSim-KR/releases/latest</b></p>;
+	return <div class="seg"><button class="on" onClick={() => { if (nat) nat.openUrl(APK_URL); else location.href = APK_URL; }}>{label}</button></div>;
+}
+/** 웹 버전 설정: 안드로이드 앱 받기 */
+function ApkDownload() {
+	return <>
+		<h3 class="sec">안드로이드 앱</h3>
+		<div class="upd-box">
+			<p class="small">인터넷 없이도 할 수 있는 안드로이드 앱이에요. 저장 데이터는 아래 「데이터 백업」으로 옮길 수 있어요.</p>
+			<ApkLink label="최신 APK 받기 (안드로이드)" />
+		</div>
+		<p class="muted small">받은 파일을 열어 설치해요. 「출처를 알 수 없는 앱」 허용을 물으면 허용해 주세요. <a href={APK_PAGE} target="_blank" rel="noopener">릴리스 페이지</a></p>
+	</>;
+}
 function AppUpdate() {
 	const nat = (window as any).BattleSimNative;
 	const u = useUpdateState();
@@ -270,10 +290,10 @@ function AppUpdate() {
 				{st.source === 'ota' && st.version !== APP_VERSION ? ` ⚠ 앱은 v${st.version} 을 쓰려 했지만 적용되지 않았어요` : ''}</p>
 			{u.ready ? <><p class="small upd-msg">새 버전 v{u.ready} 을 받아 두었어요. 다시 시작하면 바로 바뀌어요.</p>
 					<div class="seg"><button class="on" onClick={() => nat.restartApp()}>지금 적용 (다시 시작)</button></div></>
-				: u.needApk ? <p class="small upd-msg">새 버전 v{u.latest!.version} 은 새 앱 설치 파일(APK)이 필요해요. 새 APK 를 받아 설치해 주세요.</p>
+				: u.needApk ? <><p class="small upd-msg">새 버전 v{u.latest!.version} 은 새 앱 설치 파일(APK)이 필요해요.</p><ApkLink /></>
 				: u.newer ? <><p class="small upd-msg">새 버전 v{u.latest!.version} 이 나왔어요.</p>
 					<div class="seg"><button class="on" disabled={busy} onClick={go}>{busy ? `받는 중… ${pct}%` : `v${u.latest!.version} 업데이트 받기`}</button></div>
-					{skipped && <p class="small upd-msg">이 앱 설치 파일(v{st.apk})로는 새 화면을 적용할 수 없어요. 새 APK 를 받아 설치해 주세요.</p>}</>
+					{skipped && <p class="small upd-msg">이 앱 설치 파일(v{st.apk})로는 새 화면을 적용할 수 없어요.</p>}{skipped && <ApkLink />}</>
 				: <div class="seg"><button disabled={busy} onClick={go}>{busy ? '확인하는 중…' : '업데이트 확인'}</button></div>}
 		</div>
 		<p class="muted small">새 버전이 나오면 앱이 켜질 때 화면을 자동으로 받아 두고, 다시 시작하면 바뀌어요. 알림을 놓쳤어도 여기서 받고 적용할 수 있어요. 저장 데이터는 그대로예요. (앱 설치 파일 v{st.apk})</p>
@@ -473,6 +493,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 			if (!(await confirmBox('전적 초기화', '연승 기록·대회 우승·네임드 승리·랭크 포인트·승패 기록을 모두 지웁니다.\n(팀·리플레이·설정은 그대로입니다) 정말 지울까요?', '모두 지우기', '취소'))) return;
 			remove('records'); toast('전적을 초기화했습니다.');
 		}}>전적 초기화</button></div>
+		{!(window as any).BattleSimNative && <ApkDownload />}
 		<h3 class="sec">데이터 백업</h3>
 		<div class="seg">
 			<button onClick={() => backupSave()}>파일로 내보내기</button>

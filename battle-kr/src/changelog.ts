@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.72.4', date: '2026-11-11', title: '안드로이드 앱 받기', items: [
+		['new', '웹 버전 설정에 「최신 APK 받기」 — 안드로이드 앱 설치 파일을 바로 받을 수 있어요'],
+	] },
 	{ ver: '2.72.3', date: '2026-11-11', title: '안정화', items: [
 		['fix', '랭크 매치에서 이긴 결과 화면에서 앱을 끄면 패배로 처리되던 문제, 데이터 초기화 뒤 기록이 되살아나던 문제, 파일 백업을 다른 기기에서 불러오면 두 기기가 온라인에서 같은 사람으로 보이던 문제를 고쳤어요'],
 		['fix', '온라인: 연결이 잠깐 끊긴 사이 고른 선택이 사라져 배틀이 멈추던 문제, 방에서 고르기가 먹지 않거나 버튼이 잠긴 채 남던 문제를 고쳤어요'],
