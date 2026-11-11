@@ -3305,7 +3305,7 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .sc-ico { width: 44px; height: 44px; align-self: center; }
 .sh-npc.grass .sh-face { background: #2a6a3a; align-items: center; }
 .sc-ico.grass { background: linear-gradient(135deg, transparent 45%, #6ad86a 45% 55%, transparent 55%) 0 0 / 11px 22px, linear-gradient(225deg, transparent 45%, #3aa84a 45% 55%, transparent 55%) 5px 0 / 11px 22px; }
-.sh-npc.home .sh-face { background: #e8d8b8; align-items: center; } .sc-ico.home { background: linear-gradient(#d84a3a 0 40%, #f4ecd8 40%); clip-path: polygon(50% 0, 100% 40%, 88% 40%, 88% 100%, 12% 100%, 12% 40%, 0 40%); }
+.sh-npc.house .sh-face { background: #e8d8b8; align-items: center; } .sc-ico.house { background: linear-gradient(#d84a3a 0 40%, #f4ecd8 40%); clip-path: polygon(50% 0, 100% 40%, 88% 40%, 88% 100%, 12% 100%, 12% 40%, 0 40%); }
 .sh-npc.bike .sh-face { background: #f4e0b0; align-items: center; } .sc-ico.bike { background: radial-gradient(circle at 22% 68%, transparent 0 6px, #3a3a48 6px 9px, transparent 9px), radial-gradient(circle at 78% 68%, transparent 0 6px, #3a3a48 6px 9px, transparent 9px), linear-gradient(#d84a3a, #d84a3a) 30% 40% / 44% 3px no-repeat; }
 .sh-npc.story .sh-face, .sh-npc.friend .sh-face { box-shadow: 0 0 0 3px #5a0a2a, 0 0 0 6px #ff8ab0, 0 0 0 8px #5a0a2a; }
 .sh-npc.story .sh-mark, .sh-npc.friend .sh-mark { background: #ff5a8a; color: #fff; box-shadow: 0 0 0 2px #5a0a2a; }
@@ -3419,7 +3419,7 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .sc-pico { image-rendering: pixelated; object-fit: contain; flex: none; }
 .sc-wildico { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; } .sc-wildico .poke-icon { zoom: 1.4; }
 .sh-npc.grass .sh-face { background: radial-gradient(circle, #9fe08a 0 55%, #3a9a4a 55%); }
-.sh-npc.home .sh-face, .sh-npc.bike .sh-face { background: radial-gradient(circle, #fff4d8 0 55%, #e8c070 55%); align-items: center; }
+.sh-npc.house .sh-face, .sh-npc.bike .sh-face { background: radial-gradient(circle, #fff4d8 0 55%, #e8c070 55%); align-items: center; }
 .sc-badgerow { display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px; }
 .sc-menu button .sc-pico { margin-bottom: -2px; }
 /* 세로 화면에서는 가로 그림의 일부만 보이므로, 그림마다 보여 줄 자리를 정함 */
@@ -3452,3 +3452,79 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 
 /* 능력 변화는 fx.statChange 화살촉 연출 (예전 줄무늬 띠 규칙은 지움) */
 .slot.dmax.faint .sprite { animation-delay: calc(.55s / var(--spd, 1)); }
+
+/* ── 시나리오 v3: 안쪽 화면 바탕 풍경 · 처음 포켓몬 고르기 · 야생 포켓몬 장면 · 포획 연출 ── */
+.sc-scr { position: relative; }
+.sc-backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.sc-backdrop .sc-bg { filter: brightness(.34) saturate(.75); }
+.sc-backdrop::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, rgba(6,12,28,.28) 0 2px, transparent 2px 4px); }
+.sc-scr > *, .sc-scr .content > * { position: relative; z-index: 1; }
+.sc-scr .content > .sc-backdrop { position: fixed; z-index: 0; }
+.sc-stars.full { height: 100%; opacity: .9; } .sc-stars.full.far { transform: scale(1.6) rotate(8deg); opacity: .45; animation-duration: 3.1s; }
+
+.sc-starter { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; color: #fff; overflow: hidden; }
+.sc-starter .sc-bg { filter: brightness(.8) saturate(.9); }
+.sc-starter-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,12,28,.75) 0 14%, transparent 34% 58%, rgba(6,12,28,.86) 74%); }
+.sc-starter-head { position: relative; padding: calc(18px + var(--safe-top, 0px)) 16px 0; text-align: center; }
+.sc-starter-head small { display: block; font-size: 12px; color: #9fe4ff; letter-spacing: 2px; } .sc-starter-head b { font-weight: normal; font-size: 18px; text-shadow: 2px 2px 0 #000; }
+.sc-starter-table { position: relative; flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 4px; padding: 0 6px 18px; }
+.sc-starter-table::after { content: ''; position: absolute; left: 4%; right: 4%; bottom: 0; height: 38px; background: linear-gradient(180deg, #c89a5a 0 4px, #a87838 4px 14px, #7a5424 14px); box-shadow: 0 0 0 2px #2a1a08; }
+.sc-starter-ball { position: relative; z-index: 1; flex: 1; max-width: 132px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 0 12px; background: none; border: 0; color: #fff; font: inherit; cursor: pointer; }
+.sc-starter-ball b { font-weight: normal; font-size: 14px; padding: 1px 6px; background: rgba(8,16,40,.85); box-shadow: 0 0 0 2px #0a0f18; }
+.sc-starter-ball .sc-ball { display: block; width: 40px; height: 40px; }
+.sc-starter-mon { display: flex; align-items: flex-end; justify-content: center; height: 176px; margin-bottom: -22px; }
+.sc-starter-mon .sprite { width: 192px !important; height: 192px !important; max-width: none !important; max-height: none !important; image-rendering: pixelated; filter: brightness(0) opacity(.5); transform: scale(.6); transform-origin: 50% 86%; }
+.sc-starter-ball.on .sc-starter-mon .sprite { filter: none; transform: none; animation: scHop .5s steps(5); }
+.sc-starter-ball.on .sc-ball { animation: scClick .3s steps(3); box-shadow: 0 0 0 2px #14182a, 0 0 0 4px #ffe070; }
+.sc-starter-ball.on b { background: #ffe070; color: #241a04; }
+.sc-starter-ball.off { filter: brightness(.7); }
+@keyframes scHop { 0% { transform: scale(.4) translateY(40px); filter: brightness(3); } 60% { transform: scale(1.08) translateY(-10px); filter: none; } 100% { transform: none; } }
+.sc-starter-info { position: relative; min-height: 168px; padding: 12px 16px calc(14px + var(--safe-bottom, 0px)); text-align: center; background: linear-gradient(180deg, #16306a 0 2px, #0e1c3c 2px); box-shadow: 0 -2px 0 #3ac8ff; }
+.sc-starter-info p { margin: 4px 0; } .sc-starter-info p b { font-weight: normal; font-size: 18px; } .sc-starter-info small { color: #ffe070; }
+.sc-starter-info .sc-types { display: inline-flex; gap: 3px; vertical-align: -3px; margin-left: 4px; }
+.sc-starter-note { font-size: 13px; color: #c8e8ff; min-height: 34px; } .sc-starter-hint { padding-top: 48px; color: #9fe4ff; animation: scTwinkle 1.2s steps(2) infinite; }
+.sc-starter-info .btn.big { margin-top: 6px; width: 100%; }
+
+/* 야생 포켓몬이 서 있는 장면: 풀숲 위에 한 마리 */
+.sc-wildmon { position: absolute; left: 50%; bottom: 34%; transform: translateX(-50%); display: flex; align-items: flex-end; justify-content: center; width: 240px; height: 220px; animation: scWildIn .45s steps(5); }
+.sc-wildmon .sprite { width: 240px !important; height: 240px !important; max-width: none !important; max-height: none !important; image-rendering: pixelated; position: relative; z-index: 1; margin-bottom: -40px; }
+.sc-wildgrass { position: absolute; left: 16%; right: 16%; bottom: 14px; height: 26px; background: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,.45) 0 60%, transparent 62%); }
+@keyframes scWildIn { 0% { transform: translateX(-50%) translateY(46px) scale(.7); opacity: 0; } 60% { transform: translateX(-50%) translateY(-12px); opacity: 1; } 100% { transform: translateX(-50%); } }
+.sc-talk.narr.wild .st-box { top: auto; bottom: 0; display: block; padding: 0 12px calc(14px + var(--safe-bottom, 0px)); }
+.sc-talk.narr.wild .st-text { margin: 0 auto; min-height: 76px; }
+.sc-talk.wild .sc-choice { bottom: calc(132px + var(--safe-bottom, 0px)); }
+
+/* 포획: 볼이 날아가 맞고(0) → 포켓몬이 빛이 되어 줄어듦(1) → 볼이 떨어져 세 번 흔들림(2) → 결과(3) */
+.sc-cball { position: absolute; left: 50%; bottom: 34%; width: 44px; height: 44px; margin-left: -22px; border-radius: 50%; z-index: 3; background: linear-gradient(#ff4a4a 0 42%, #14182a 42% 58%, #f4f4f4 58%); box-shadow: 0 0 0 2px #14182a; }
+.sc-catch2.st0 .sc-cball { animation: scThrow .62s cubic-bezier(.3,.6,.6,1) forwards; }
+@keyframes scThrow { 0% { transform: translate(-150px, 260px) rotate(-360deg) scale(.7); } 60% { transform: translate(-40px, -190px) rotate(-90deg); } 100% { transform: translate(0, -110px) rotate(0); } }
+.sc-catch2.st1 .sc-cball { transform: translate(0, -110px); }
+.sc-catch2.st1 .sc-wildmon .sprite { animation: scSuck .5s steps(6) forwards; }
+@keyframes scSuck { 0% { filter: brightness(4); } 100% { filter: brightness(6); transform: translateY(-70px) scale(.05); opacity: 0; } }
+.sc-catch2.st2 .sc-wildmon .sprite, .sc-catch2.st3.ok .sc-wildmon .sprite { opacity: 0; }
+@keyframes scBallDrop { 0% { transform: translate(0, -110px); } 55% { transform: translate(0, 0); } 75% { transform: translate(0, -18px); } 100% { transform: translate(0, 0); } }
+.sc-catch2.st2 .sc-cball { transform-origin: 50% 100%; animation: scBallDrop .5s steps(6) forwards, scWobble .7s steps(6) .6s 3; }
+@keyframes scWobble { 0%, 100% { rotate: 0deg; } 25% { rotate: -24deg; } 60% { rotate: 22deg; } }
+.sc-catch2.st3.ok .sc-cball { filter: brightness(.72); animation: scClick .3s steps(3); }
+.sc-catch2.st3.no .sc-cball { animation: scBurst .3s steps(4) forwards; }
+@keyframes scBurst { to { transform: scale(1.8); opacity: 0; } }
+.sc-catch2.st3.no .sc-wildmon .sprite { animation: scHop .4s steps(4); }
+.sc-cstars { position: absolute; left: 50%; bottom: calc(34% + 40px); width: 0; height: 0; z-index: 4; }
+.sc-cstars i { position: absolute; width: 10px; height: 10px; background: #ffe070; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); animation: scStar .7s steps(6) forwards; }
+.sc-cstars i:nth-child(1) { --dx: -46px; --dy: -34px; } .sc-cstars i:nth-child(2) { --dx: 0px; --dy: -54px; animation-delay: .08s; } .sc-cstars i:nth-child(3) { --dx: 46px; --dy: -34px; animation-delay: .16s; }
+@keyframes scStar { from { transform: translate(-5px, 0) scale(.4); opacity: 1; } to { transform: translate(calc(var(--dx) - 5px), var(--dy)) scale(1.5); opacity: 0; } }
+
+/* 결과 화면: 레벨업·진화·새 기술 줄이 하나씩 떠오름 */
+.sc-res-note { margin: 4px 0; padding: 3px 8px; animation: scNoteIn .3s steps(4) both; }
+.sc-res-note.lv { color: #ffe070; background: rgba(255,224,112,.12); box-shadow: inset 0 0 0 2px rgba(255,224,112,.5); }
+.sc-res-note.lv i { font-style: normal; font-size: 10px; letter-spacing: 1px; margin-right: 8px; padding: 0 5px; color: #241a04; background: #ffe070; }
+.sc-res-note.evo { color: #fff; background: linear-gradient(90deg, rgba(127,224,255,.3), rgba(255,138,176,.3)); box-shadow: inset 0 0 0 2px #7fe0ff; }
+.sc-res-note.mv { color: #c8e8ff; font-size: 13px; }
+@keyframes scNoteIn { from { transform: translateY(8px); opacity: 0; } }
+@media (orientation: landscape) and (max-height: 540px) {
+	.sc-starter { flex-direction: row; } .sc-starter-head { position: absolute; left: 0; right: 42%; top: 0; padding-top: 8px; z-index: 2; }
+	.sc-starter-table { flex: 1; padding-bottom: 12px; } .sc-starter-mon { height: 130px; } .sc-starter-mon .sprite { width: 144px !important; height: 144px !important; }
+	.sc-starter-info { width: 42%; min-height: 0; display: flex; flex-direction: column; justify-content: center; box-shadow: -2px 0 0 #3ac8ff; }
+	.sc-wildmon { bottom: 30%; width: 200px; height: 160px; } .sc-wildmon .sprite { width: 176px !important; height: 176px !important; margin-bottom: -30px; }
+	.sc-cball, .sc-cstars { bottom: 30%; }
+}

@@ -99,6 +99,23 @@ export const TRAINERS: Trainer[] = [
 		before: '데이트 방해꾼이다! 둘이서 혼내 주자!', after: '우리 사랑은 지지 않았어!', again: '여기는 연인들의 명소라고. 너도 누구랑 왔어?' },
 ];
 
+// ───────── 마을 사람 (말을 걸면 그곳 이야기·도움말, 처음 한 번은 선물) ─────────
+export interface Folk { loc: string; who: Who; lines: string[]; need?: string; /** 처음 말을 걸면 주는 물건 */ gift?: string; n?: number; first?: string[] }
+export const FOLKS: Folk[] = [
+	{ loc: 'pallet', who: { name: '남나', title: '그린의 누나', portrait: 'd_beauty', sprite: 'beauty' }, gift: 'pokeball', n: 3,
+		first: ['어머, {me}! 드디어 여행을 떠나는구나.', '우리 그린이 벌써 뛰쳐나갔지? 성미가 급해서 걱정이야. 길에서 만나면 잘 부탁해.', '이건 작은 응원이야. 풀숲에서 마음에 드는 아이를 만나면 써 봐.'],
+		lines: ['지도를 펼치면 갈 수 있는 곳이 보여. 한 번 이동할 때마다 시간이 흐른다는 것, 잊지 마.', '그린은 어릴 때부터 할아버지를 이기는 게 꿈이었어. …너한테 지는 건 계산에 없었을걸?', '포켓몬이 지치면 언제든 집에 들러. 엄마가 기다리고 계실 거야.'] },
+	{ loc: 'route1', who: { name: '프렌들리숍 직원', title: '외근 중', portrait: 'pokemartclerk', sprite: 'pokemartclerk' }, gift: 'oranberry',
+		first: ['안녕하세요! 상록시티 프렌들리숍에서 나왔어요.', '견본을 나눠 드리고 있답니다. 포켓몬에게 지니게 하면 위급할 때 스스로 먹어요!'],
+		lines: ['상록시티 가게에서는 몬스터볼과 지닌 도구를 팔아요. 들러 주세요!', '야생 포켓몬은 한 번 쓰러뜨린 뒤에 볼을 던져야 해요. 좋은 볼일수록 잘 잡혀요.', '밤에는 풀숲에서 나오는 포켓몬이 달라진답니다.'] },
+	{ loc: 'viridian', who: { name: '할아버지', title: '상록시티 토박이', portrait: 'd_gentleman-gen4', sprite: 'gentleman-gen4' },
+		lines: ['허허, 젊은이. 포켓몬은 같이 싸운 만큼 강해진다네. 파티의 모두가 경험치를 나눠 받지.', '배지가 없으면 포켓몬이 어느 레벨 이상으로는 자라지 않는다네. 회색시티의 웅을 찾아가 보게.', '이 도시 체육관은 관장이 오래 자리를 비웠어. 무슨 일을 하고 다니는지, 원…', '상록숲은 길이 복잡해. 낮과 저녁에만 보이는 트레이너도 있다네.'] },
+	{ loc: 'pewter', who: { name: '박물관 연구원', title: '회색 박물관', portrait: 'd_scientistf', sprite: 'scientistf' },
+		lines: ['회색 박물관에 어서 오세요! …라고 하고 싶지만, 오늘은 화석 전시 준비로 휴관이에요.', '달맞이산에는 달의돌과 고대 포켓몬의 화석이 잠들어 있어요. 요즘 수상한 사람들이 파헤친다던데…', '웅 관장님의 롱스톤은 정말 단단해요. 풀이나 물 타입 기술이 잘 통한답니다.', '기념품 가게의 화석 모형, 선물로 인기가 많아요. 받는 사람 취향은 잘 살피시고요!'] },
+	{ loc: 'cerulean', need: 'badge2', who: { name: '수영 코치', title: '블루 체육관', portrait: 'd_swimmerf-gen4', sprite: 'swimmerf-gen4' },
+		lines: ['이슬 관장님? 아침엔 수로에서 수영, 낮엔 체육관, 저녁엔 다리 쪽으로 산책을 나가세요.', '관장님은 벌레 포켓몬을 무서워하세요. 선물로 곤충 표본 같은 걸 드렸다간… 아시죠?', '하루에 한 번은 관장님과 이야기해 보세요. 고르는 대답에 따라 표정이 달라져요.', '태그를 맺으면 길거리 승부가 2대2가 돼요. 같이 이길수록 사이도 가까워진답니다.'] },
+];
+
 // ───────── 야생 포켓몬 (풀숲) ─────────
 export interface Wild { loc: string; name: string; pool: [string, number, number][]; /** 밤에 나오는 포켓몬 */ night?: [string, number, number][] }
 export const WILDS: Wild[] = [

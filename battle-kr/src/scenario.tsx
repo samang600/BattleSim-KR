@@ -12,11 +12,11 @@ import { battle, playerName, playerSprite, BACK } from './modes';
 import { load, save, remove } from './store';
 import { speciesData, speciesKo, moveKo } from './data';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
-import { playMusic, sfx } from './sound';
+import { playMusic, sfx, cry } from './sound';
 import type { PSet } from './sets';
 import LEVELUP from './gen/levelup.json';
 import { TIMES, TIME_CLS, WHO, LOCS, locOf, TRAINERS, WILDS, ITEMS, SHOPS, STARTERS, RIVAL_OF, LV_CAP, expNeed,
-	MISTY_AT, MISTY_DOING, mistyTeam, MISTY_TALKS, type Who, type Trainer } from './scenario-data';
+	MISTY_AT, MISTY_DOING, mistyTeam, MISTY_TALKS, FOLKS, type Who, type Trainer } from './scenario-data';
 import { SCRIPTS, EV_TITLE } from './scenario-script';
 import * as EM from './scenario-emotes.js';
 
@@ -63,6 +63,8 @@ function toSet(m: Mon): PSet {
 		evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }, ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 }, level: m.lv };
 }
 const mk = (t: [string, number][]): Mon[] => t.map(([sp, lv]) => ({ sp, lv, exp: 0 }));
+/** 그 레벨이면 어디까지 진화했을지 (라이벌의 처음 포켓몬) */
+const evoAt = (sp: string, lv: number) => { for (let e = LU[sp]?.e; e && lv >= e[1]; e = LU[sp]?.e) sp = e[0]; return sp; };
 /** 경험치를 주고 레벨업·진화·새 기술을 처리 → 안내 줄 */
 function addExp(m: Mon, xp: number, cap: number): string[] {
 	const out: string[] = [], before = m.lv, old = learned(m.sp, m.lv);
@@ -82,6 +84,9 @@ function addExp(m: Mon, xp: number, cap: number): string[] {
 }
 
 // ───────── 공용 화면 조각 ─────────
+/** 지금 있는 곳의 풍경 (가방·파티·가게·결과 같은 안쪽 화면의 바탕으로 깔아 여행 중이라는 느낌이 끊기지 않게) */
+const SCENE = { bg: 'pallet', tint: 0 };
+const Back = () => <div class="sc-backdrop"><div class={'sc-bg fld-' + SCENE.bg} /><div class={'sc-tint ' + TIME_CLS[SCENE.tint]} /></div>;
 /** 표정 그림(<초상 id>_<감정>.png)이 있는지 — 한 번만 알아봄. 있으면 그 그림, 없으면 기본 그림 */
 const VARIANT: { [k: string]: boolean | undefined } = {};
 function useVariant(id: string, emo?: string): string {
@@ -136,7 +141,7 @@ function Emote({ kind }: { kind: string }) {
 }
 /** 대화 장면: 배경(시간대 색) + 큰 초상(감정 기호·움직임) + 이름 띠 + 대화창(한 글자씩). who 가 null 이면 해설
  *  위 단추: 기록(지난 대사) · 자동(다 나오면 알아서 넘김) · 건너뛰기 */
-function Dialog({ lines, bg, tint, done, choice }: { lines: Line[]; bg: string; tint: number; done: (i: number) => void; choice?: string[] }) {
+function Dialog({ lines, bg, tint, done, choice, mon }: { lines: Line[]; bg: string; tint: number; done: (i: number) => void; choice?: string[]; /** 장면에 서 있는 야생 포켓몬 */ mon?: string }) {
 	const [i, setI] = useState(0), [n, setN] = useState(0), [log, setLog] = useState(false), [auto, setAuto] = useState(autoOn);
 	const [who, text, emo] = lines[i], w = typeof who === 'string' ? WHO[who] : who, full = n >= text.length, last = i + 1 >= lines.length;
 	useEffect(() => { setN(0); LOG.push({ name: w?.name || '', text }); if (LOG.length > 200) LOG.shift(); }, [i]);
@@ -144,8 +149,12 @@ function Dialog({ lines, bg, tint, done, choice }: { lines: Line[]; bg: string; 
 	const next = () => { if (!full) { setN(text.length); return; } if (!last) { sfx('select'); setI(i + 1); } else if (!choice) done(0); };
 	useEffect(() => { if (!auto || !full || log || (last && choice)) return; const t = setTimeout(next, 900 + text.length * 55); return () => clearTimeout(t); }, [auto, full, i, log]);
 	const stop = (f: () => void) => (e: Event) => { e.stopPropagation(); f(); };
-	return <div class={'story-talk sc-talk' + (w ? '' : ' narr') + (bg === 'black' ? ' black' : '')} onClick={next}>
-		<div class={'st-bg sc-bg fld-' + bg} /><div class={'sc-tint ' + TIME_CLS[tint]} />
+	useEffect(() => { if (mon) cry(mon); }, []);
+	const dark = bg === 'black' || bg === 'space';
+	return <div class={'story-talk sc-talk' + (w ? '' : ' narr') + (dark ? ' black' : '') + (mon ? ' wild' : '')} onClick={next}>
+		<div class={'st-bg sc-bg fld-' + (dark ? 'black' : bg)} /><div class={'sc-tint ' + TIME_CLS[tint]} />
+		{bg === 'space' && <><div class="sc-stars full" /><div class="sc-stars full far" /></>}
+		{mon && <div class="sc-wildmon"><i class="sc-wildgrass" /><Sprite species={mon} gen={9} size={192} anim={false} /></div>}
 		{w && <div class="st-portrait sc-stp" key={w.name}>
 			<div class={'sc-act' + (emo ? ' mv-' + emo : '')} key={i}><Portrait id={w.portrait} sprite={w.sprite} cls="big" emo={emo} /></div>
 			{emo && <Emote kind={emo} key={'e' + i} />}
@@ -179,8 +188,8 @@ function Fx({ kind, bg, tint, title, sub, small, ms, done }: { kind: string; bg:
 // ───────── 진행 도우미 (run 을 잡고 있는 묶음) ─────────
 function engine(run: Run) {
 	const L = () => locOf(run.loc);
-	const say = (lines: Line[], bg = L().bg) => lines.length ? ask<number>(r => <Dialog key={K()} lines={lines} bg={bg} tint={bg === 'black' || bg === 'lab' || bg === 'pool' ? 1 : run.time} done={r} />) : Promise.resolve(0);
-	const choose = (who: string | Who, text: string, opts: string[], bg = L().bg) => ask<number>(r => <Dialog key={K()} lines={[[who, text]]} bg={bg} tint={run.time} done={r} choice={opts} />);
+	const say = (lines: Line[], bg = L().bg, mon?: string) => lines.length ? ask<number>(r => <Dialog key={K()} lines={lines} bg={bg} tint={bg === 'black' || bg === 'space' || bg === 'lab' || bg === 'pool' ? 1 : run.time} done={r} mon={mon} />) : Promise.resolve(0);
+	const choose = (who: string | Who | null, text: string, opts: string[], bg = L().bg, mon?: string) => ask<number>(r => <Dialog key={K()} lines={[[who, text]]} bg={bg} tint={run.time} done={r} choice={opts} mon={mon} />);
 	const fx = (kind: string, ms = 700, bg = L().bg) => ask<void>(r => <Fx key={K()} kind={kind} bg={bg} tint={run.time} ms={ms} done={r} />);
 	const card = (title: string, sub: string, small = '', bg = 'black', ms = 2400) => ask<void>(r => <Fx key={K()} kind="card" bg={bg} tint={1} title={title} sub={sub} small={small} ms={ms} done={r} />);
 	const got = async (id: string, n = 1) => { give(run, id, n); persist(run); sfx('select'); await ask<void>(r => <GetCard key={K()} icon={ITEMS[id].icon} title={`${ITEMS[id].name}${n > 1 ? ` ×${n}` : ''}`} sub={ITEMS[id].desc} done={r} />); };
@@ -245,7 +254,7 @@ async function play(run: Run, E: Eng, id: string): Promise<boolean> {
 		if ('bg' in c) bg = c.bg;
 		else if ('card' in c) await E.card(c.card[1], c.card[2], c.card[0], c.card[3] || 'black');
 		else if ('fight' in c) {
-			const team = mk(c.fight.team);
+			const team = mk(c.fight.team.map(([sp, lv]) => [sp === '{rival}' ? evoAt(RIVAL_OF[run.starter] || 'eevee', lv) : sp, lv] as [string, number]));
 			if (!(await E.fight({ ...c.fight, team }))) { await E.say([toLine(run, c.lose)], at()); return false; }
 			await E.reward(team, c.win, c.money);
 		}
@@ -304,11 +313,12 @@ function HeartCard({ from, to, done }: { from: number; to: number; done: () => v
 	</div></div>;
 }
 function Result({ heading, xp, money, notes, party, cap, done }: { heading: string; xp: number; money: number; notes: string[]; party: Mon[]; cap: number; done: () => void }) {
-	return <Screen title="배틀 결과" cls="sc-scr">
+	useEffect(() => { if (notes.some(l => / → Lv/.test(l))) { const t = setTimeout(() => sfx(notes.some(l => l.startsWith('✨')) ? 'heal' : 'statUp'), 250); return () => clearTimeout(t); } }, []);
+	return <Screen title="배틀 결과" cls="sc-scr"><Back />
 		<div class="sc-result"><h2>{heading}</h2>
 			<p class="sc-res-row"><span>경험치</span><b>+{xp}</b>{money > 0 && <><span>상금</span><b>{won(money)}</b></>}</p>
 			<div class="sc-res-party">{party.map(m => <div class="sc-res-mon"><PokeIcon species={m.sp} /><span>Lv{m.lv}</span><i class="sc-xp"><b style={{ width: (m.lv >= cap ? 100 : Math.round(100 * m.exp / expNeed(m.lv))) + '%' }} /></i></div>)}</div>
-			{notes.map(l => <p class={l.startsWith('✨') ? 'evo' : ''}>{l}</p>)}
+			{notes.map((l, i) => <p class={'sc-res-note ' + (l.startsWith('✨') ? 'evo' : / → Lv/.test(l) ? 'lv' : 'mv')} style={{ animationDelay: 200 + i * 140 + 'ms' }}>{/ → Lv/.test(l) && <i>LEVEL UP</i>}{l}</p>)}
 			{party.some(m => m.lv >= cap) && <p class="muted small">레벨 상한 Lv{cap} — 다음 배지를 얻으면 더 올릴 수 있어요.</p>}
 		</div>
 		<button class="btn big primary" onClick={done}>확인</button>
@@ -318,9 +328,11 @@ function Result({ heading, xp, money, notes, party, cap, done }: { heading: stri
 // ───────── 거점 화면 ─────────
 type Node = { k: string; label: string; mark: string; face?: Who; kind?: string; done?: boolean; data?: any };
 type Act = Node | { k: 'map' | 'party' | 'bag' | 'route' } | typeof BACK;
-const SLOTS: [number, number][] = [[24, 30], [72, 28], [48, 38], [20, 46], [76, 46], [48, 54], [22, 62], [70, 62]];
+/** 그린이 기다리는 곳: [대본 id, 장소, 필요한 표식] */
+const RIVAL_AT: [string, string, string][] = [['rival2', 'viridian', 'intro'], ['rival3', 'cerulean', 'met'], ['rival4', 'cape', 'ev4']];
+const SLOTS: [number, number][] = [[24, 30], [72, 28], [48, 38], [20, 46], [76, 46], [48, 54], [22, 62], [70, 62], [48, 22], [80, 76]];
 /** 휴대폰 가로: 높이가 낮아 두 줄로 (오른쪽은 내 트레이너 자리) */
-const SLOTS_LAND: [number, number][] = [[9, 36], [25, 36], [41, 36], [57, 36], [9, 68], [25, 68], [41, 68], [57, 68]];
+const SLOTS_LAND: [number, number][] = [[9, 36], [25, 36], [41, 36], [57, 36], [9, 68], [25, 68], [41, 68], [57, 68], [17, 52], [49, 52]];
 const isLand = () => innerWidth > innerHeight && innerHeight < 541;
 function nodesAt(run: Run): Node[] {
 	const loc = locOf(run.loc), out: Node[] = [];
@@ -331,6 +343,9 @@ function nodesAt(run: Run): Node[] {
 	if (inv && at && at[0] === run.loc && (at[1] === null || at[1] === run.time)) out.push({ k: 'event', label: '이슬', mark: '♥', face: WHO.misty, kind: 'story' });
 	else if (has(run, 'met') && (run.tag || mistyLoc(run) === run.loc) && !(run.loc === 'cerulean' && !has(run, 'badge2') && has(run, 'c2')))
 		out.push({ k: 'misty', label: '이슬', mark: evReady(run) && !inv ? '!' : '♥', face: WHO.misty, kind: 'friend' });
+	// 라이벌 그린: 상록시티(여행 초반) · 블루시티(이슬을 만난 뒤) · 블루곶(이슬 루트를 끝낸 뒤)
+	const rv = RIVAL_AT.find(([id, at, need]) => at === run.loc && has(run, need) && !has(run, id));
+	if (rv) out.push({ k: 'script', label: '그린', mark: '!', face: WHO.rival, kind: 'story', data: rv[0] });
 	for (const t of TRAINERS) {
 		if (t.loc !== run.loc || t.id === 'brock' || !has(run, t.need) || (t.at && !t.at.includes(run.time))) continue;
 		const done = t.once ? !!run.flags[t.id] : run.beaten[t.id] === run.day;
@@ -342,11 +357,14 @@ function nodesAt(run: Run): Node[] {
 	if (run.loc === 'mtmoon' && !has(run, 'karp')) out.push({ k: 'karp', label: '수상한 아저씨', mark: '₩', face: WHO.salesman });
 	if (run.loc === 'cerulean') out.push({ k: 'bike', label: '자전거 가게', mark: '…', kind: 'bike' });
 	if (SHOPS[run.loc]) out.push({ k: 'shop', label: SHOPS[run.loc].name.split(' · ')[0], mark: '₩', face: WHO.clerk });
-	if (loc.rest) out.push({ k: 'rest', label: loc.rest, mark: 'z', face: run.loc === 'pallet' ? undefined : WHO.joy, kind: run.loc === 'pallet' ? 'home' : '' });
+	const fk = FOLKS.find(f => f.loc === run.loc && has(run, f.need));
+	if (fk) out.push({ k: 'folk', label: fk.who.name, mark: fk.gift && !has(run, 'folk-' + fk.loc) ? '!' : '…', face: fk.who, data: fk });
+	if (loc.rest) out.push({ k: 'rest', label: loc.rest, mark: 'z', face: run.loc === 'pallet' ? undefined : WHO.joy, kind: run.loc === 'pallet' ? 'house' : '' });   // ('home' 은 메인 화면이 쓰는 클래스라 단추가 화면 밖으로 밀려났음)
 	return out;
 }
 function Hub({ run, banner, done }: { run: Run; banner: boolean; done: (a: Act) => void }) {
 	const loc = locOf(run.loc), nodes = nodesAt(run);
+	SCENE.bg = loc.bg; SCENE.tint = run.time;
 	const [land, setLand] = useState(isLand());
 	useEffect(() => { playMusic(loc.music); const f = () => setLand(isLand()); addEventListener('resize', f); return () => removeEventListener('resize', f); }, []);
 	const SL = land ? SLOTS_LAND : SLOTS;
@@ -422,7 +440,7 @@ function MonEdit({ run, m, done }: { run: Run; m: Mon; done: () => void }) {
 	const all = learned(m.sp, m.lv), cur = movesOf(m), s = speciesData(m.sp, 9) as any;
 	const held = Object.keys(run.bag).filter(id => ITEMS[id]?.kind === 'held');
 	const toggle = (mv: string) => { const c = [...cur]; const i = c.indexOf(mv); if (i >= 0) { if (c.length > 1) c.splice(i, 1); } else if (c.length < 4) c.push(mv); else { toast('기술은 4개까지예요. 먼저 하나를 빼 주세요'); return; } m.moves = c; re(); };
-	return <Screen title={speciesKo(m.sp)} onBack={done} cls="sc-scr">
+	return <Screen title={speciesKo(m.sp)} onBack={done} cls="sc-scr"><Back />
 		<div class="sc-mon big"><Sprite species={m.sp} gen={9} size={96} anim={false} />
 			<div class="sc-mon-body"><b>{speciesKo(m.sp)} <small>Lv{m.lv}</small></b><span class="sc-types">{(s?.t || []).map((t: string) => <TypeBadge type={t} />)}</span>
 				<i class="sc-xp wide"><b style={{ width: (m.lv >= lvCap(run) ? 100 : Math.round(100 * m.exp / expNeed(m.lv))) + '%' }} /></i>
@@ -453,7 +471,7 @@ function PartyScreen({ run, done }: { run: Run; done: () => void }) {
 	const [, tick] = useState(0), [edit, setEdit] = useState<Mon | null>(null);
 	const re = () => { persist(run); tick(x => x + 1); };
 	if (edit) return <MonEdit run={run} m={edit} done={() => setEdit(null)} />;
-	return <Screen title="포켓몬" onBack={done} cls="sc-scr">
+	return <Screen title="포켓몬" onBack={done} cls="sc-scr"><Back />
 		<h3 class="sec">파티 <small class="muted">{run.party.length}/6 · 맨 위가 선두{run.tag ? ' · 태그 배틀은 위 3마리가 나가요' : ''}</small></h3>
 		{run.party.map((m, i) => <MonCard m={m} onClick={() => setEdit(m)}>
 			<button class="btn small" onClick={() => setEdit(m)}>기술·도구</button>
@@ -475,7 +493,7 @@ function ItemRow({ id, right, sub }: { id: string; right: any; sub?: string }) {
 }
 function BagScreen({ run, done }: { run: Run; done: () => void }) {
 	const ids = Object.keys(run.bag).sort((a, b) => Object.keys(ITEMS).indexOf(a) - Object.keys(ITEMS).indexOf(b));
-	return <Screen title="가방" onBack={done} cls="sc-scr">
+	return <Screen title="가방" onBack={done} cls="sc-scr"><Back />
 		<p class="sc-purse">가진 돈 <b>{won(run.money)}</b></p>
 		{!ids.length && <p class="hint">가방이 비어 있어요.</p>}
 		{ids.map(id => <ItemRow id={id} right={<b class="sc-count">×{run.bag[id]}</b>} />)}
@@ -487,7 +505,7 @@ function ShopScreen({ run, done }: { run: Run; done: () => void }) {
 	const [, tick] = useState(0), shop = SHOPS[run.loc];
 	const buy = (id: string) => { const it = ITEMS[id]; if (run.money < it.price) { toast('돈이 모자라요'); return; } run.money -= it.price; give(run, id); persist(run); sfx('select'); tick(x => x + 1); };
 	const sells = Object.keys(run.bag).filter(id => ITEMS[id]?.sell);
-	return <Screen title={shop.name} onBack={done} cls="sc-scr">
+	return <Screen title={shop.name} onBack={done} cls="sc-scr"><Back />
 		<p class="sc-purse">가진 돈 <b>{won(run.money)}</b></p>
 		{shop.items.filter(([, need]) => has(run, need)).map(([id]) => <ItemRow id={id} sub={`${ITEMS[id].desc}${run.bag[id] ? ` (가진 수 ${run.bag[id]})` : ''}`}
 			right={<button class="btn small" disabled={run.money < ITEMS[id].price} onClick={() => buy(id)}>{won(ITEMS[id].price)}</button>} />)}
@@ -499,7 +517,7 @@ function ShopScreen({ run, done }: { run: Run; done: () => void }) {
 const CHAPTERS = ['만남 — 블루 체육관의 말괄량이 인어', '♥1 골든볼브리지의 태그 승부', '♥2 블루시티 도둑 사건', '♥3 블루곶의 노을', '♥4 진심 승부'];
 function RouteScreen({ run, done }: { run: Run; done: () => void }) {
 	const met = has(run, 'met'), stage = !has(run, 'badge2') ? 0 : run.ev + 1;
-	return <Screen title="인물 루트 · 관동 편" onBack={done} cls="sc-scr">
+	return <Screen title="인물 루트 · 관동 편" onBack={done} cls="sc-scr"><Back />
 		<div class={'sc-route' + (met ? '' : ' unk')}>
 			<span class="sc-route-face"><Portrait id="misty" sprite="misty" cls="face" /></span>
 			<div class="sc-route-body"><b>{met ? '이슬' : '？？？'} <small>{met ? '블루 체육관 관장 · 말괄량이 인어' : '블루시티에서 만날 수 있다'}</small></b>
@@ -513,25 +531,40 @@ function RouteScreen({ run, done }: { run: Run; done: () => void }) {
 		<button class="btn big" onClick={done}>돌아가기</button>
 	</Screen>;
 }
-function PickMon({ title, hint, opts, done }: { title: string; hint: string; opts: { m: Mon; note?: string }[]; done: (i: number) => void }) {
-	return <Screen title={title} cls="sc-scr">
-		<p class="hint">{hint}</p>
-		<div class="sc-pick">{opts.map((o, i) => <button class="sc-pick-card" onClick={() => done(i)}>
-			<i class="sc-pick-ball" /><Sprite species={o.m.sp} gen={9} size={96} anim={false} />
-			<b>{speciesKo(o.m.sp)}</b><small>Lv{o.m.lv}</small>
-			<span class="sc-types">{((speciesData(o.m.sp, 9) as any)?.t || []).map((t: string) => <TypeBadge type={t} />)}</span>
-			{o.note && <em>{o.note}</em>}
+/** 처음 포켓몬 고르기: 연구소 탁자 위 몬스터볼 셋. 볼을 누르면 안의 포켓몬이 나와 보이고, 마음을 정하면 아래 단추로 확정 */
+function StarterPick({ done }: { done: (i: number) => void }) {
+	const [sel, setSel] = useState(-1);
+	const sp = sel >= 0 ? STARTERS[sel][0] : '';
+	return <div class="sc-starter">
+		<div class="sc-bg fld-lab" /><div class="sc-starter-shade" />
+		<div class="sc-starter-head"><small>오박사 연구소</small><b>함께 여행할 포켓몬을 한 마리 고르자</b></div>
+		<div class="sc-starter-table">{STARTERS.map(([id], i) => <button class={'sc-starter-ball' + (sel === i ? ' on' : sel >= 0 ? ' off' : '')} onClick={() => { sfx('ballOpen'); cry(id); setSel(i); }}>
+			<span class="sc-starter-mon" key={sel === i ? 'on' : 'off'}><Sprite species={id} gen={9} size={192} anim={false} /></span>
+			<i class="sc-ball" /><b>{speciesKo(id)}</b>
 		</button>)}</div>
-	</Screen>;
+		<div class="sc-starter-info">{sel < 0 ? <p class="sc-starter-hint">몬스터볼을 눌러 안을 들여다보자 ▼</p> : <>
+			<p><b>{speciesKo(sp)}</b> <small>Lv5</small> <span class="sc-types">{((speciesData(sp, 9) as any)?.t || []).map((t: string) => <TypeBadge type={t} />)}</span></p>
+			<p class="sc-starter-note">{STARTERS[sel][1]}</p>
+			<button class="btn big primary" onClick={() => { sfx('select'); done(sel); }}>{josa(speciesKo(sp), '과', '와')} 함께 간다!</button>
+		</>}</div>
+	</div>;
 }
-/** 볼 던지기 연출: 떨어짐 → 세 번 흔들림 → 딸깍(성공) / 튀어나옴(실패) */
-function Catch({ sp, ok, done }: { sp: string; ok: boolean; done: () => void }) {
-	const [st, setSt] = useState(0);
-	useEffect(() => { const a = setTimeout(() => setSt(1), 2300), b = setTimeout(done, 3900); return () => { clearTimeout(a); clearTimeout(b); }; }, []);
-	return <div class="sc-get sc-catch"><div class="sc-get-box">
-		<div class="sc-catch-stage">{st === 1 && !ok ? <span class="sc-catch-out"><Sprite species={sp} gen={9} size={96} anim={false} /></span> : <i class={'sc-ball' + (st ? ' caught' : ' shake')} />}</div>
-		<b>{st === 0 ? '…' : ok ? `신난다! ${josa(speciesKo(sp), '을', '를')} 잡았다!` : `앗! ${josa(speciesKo(sp), '이', '가')} 볼에서 나와 달아났다…`}</b>
-	</div></div>;
+/** 볼 던지기 연출 (그 자리 풍경 위에서): 볼이 날아감 → 포켓몬이 빛이 되어 빨려 들어감 → 떨어져 세 번 흔들림 → 딸깍·별(성공) / 튀어나옴(실패) */
+function Catch({ sp, ok, bg, tint, done }: { sp: string; ok: boolean; bg: string; tint: number; done: () => void }) {
+	const [st, setSt] = useState(0);   // 0 던짐 · 1 빨려 듦 · 2 흔들림 · 3 결과
+	useEffect(() => {
+		sfx('ballThrow');
+		const ts = [setTimeout(() => { setSt(1); sfx('ballOpen'); }, 620), setTimeout(() => setSt(2), 1150),
+			...[1750, 2450, 3150].map(t => setTimeout(() => sfx('select'), t)),
+			setTimeout(() => { setSt(3); if (ok) sfx('heal'); else { sfx('ballOpen'); cry(sp); } }, 3850)];
+		return () => ts.forEach(clearTimeout);
+	}, []);
+	return <div class={'story-talk sc-talk narr wild sc-catch2 st' + st + (ok ? ' ok' : ' no')} onClick={() => st === 3 && done()}>
+		<div class={'st-bg sc-bg fld-' + bg} /><div class={'sc-tint ' + TIME_CLS[tint]} />
+		<div class="sc-wildmon"><i class="sc-wildgrass" /><Sprite species={sp} gen={9} size={192} anim={false} /></div>
+		<i class="sc-cball" />{st === 3 && ok && <span class="sc-cstars"><i /><i /><i /></span>}
+		<div class="st-box"><div class="st-text">{st < 3 ? '…' : ok ? `신난다! ${josa(speciesKo(sp), '을', '를')} 잡았다!` : `앗! ${josa(speciesKo(sp), '이', '가')} 볼에서 나와 달아났다…`}{st === 3 && <span class="st-arrow">▼</span>}</div></div>
+	</div>;
 }
 function Credits({ run, done }: { run: Run; done: () => void }) {
 	useEffect(() => { playMusic('g3sunset'); const t = setTimeout(done, 21000); return () => clearTimeout(t); }, []);
@@ -565,7 +598,7 @@ function SeriesSelect({ saved, done }: { saved: Run | null; done: (a: 'go' | 'ne
 // ───────── 이야기 (대사는 scenario-script.ts) ─────────
 async function prologue(run: Run, E: Eng) {
 	await play(run, E, 'pro1');
-	const i = await ask<number>(r => <PickMon title="처음 포켓몬" hint="함께 여행할 포켓몬을 한 마리 골라 주세요." opts={STARTERS.map(([sp, note]) => ({ m: { sp, lv: 5, exp: 0 }, note }))} done={r} />);
+	const i = await ask<number>(r => <StarterPick key={K()} done={r} />);
 	run.starter = STARTERS[i][0]; run.party = [{ sp: run.starter, lv: 5, exp: 0 }]; run.loc = 'pallet'; persist(run);
 	await play(run, E, 'pro2');
 	const rv = RIVAL_OF[run.starter];
@@ -674,6 +707,13 @@ export async function runScenario() {
 			continue;
 		}
 		if (n.k === 'bike') { await E.say([[{ name: '자전거 가게 주인', portrait: '', sprite: 'cyclist' }, '어서 와요! 최신형 자전거가 단돈 1,000,000원!'], [null, `…가진 돈은 ${won(run.money)}. 도저히 살 수 없다.`]]); continue; }
+		if (n.k === 'script') { if (await play(run, E, n.data)) { run.flags[n.data] = 1; persist(run); } else await E.tick(); continue; }
+		if (n.k === 'folk') {
+			const f = n.data as typeof FOLKS[number], first = f.gift && !has(run, 'folk-' + f.loc);
+			await E.say((first ? f.first! : [f.lines[(run.day + run.time) % f.lines.length]]).map(t => [f.who, fill(run, t)] as Line));
+			if (first) { run.flags['folk-' + f.loc] = 1; await E.got(f.gift!, f.n || 1); }
+			continue;
+		}
 		if (n.k === 'gym') { await mistyGym(run, E); continue; }
 		if (n.k === 'misty') { await mistyMenu(run, E); continue; }
 		if (n.k === 'event') { await mistyEvent(run, E); banner = true; continue; }
@@ -681,18 +721,19 @@ export async function runScenario() {
 		if (n.k === 'wild') {
 			const w = WILDS.find(x => x.loc === run.loc)!, pool = run.time === 3 && w.night ? w.night : w.pool;
 			const [sp, lo, hi] = pool[Math.floor(Math.random() * pool.length)], foe: Mon = { sp, lv: lo + Math.floor(Math.random() * (hi - lo + 1)), exp: 0 };
-			await E.say([[null, `바스락…!\n야생 ${josa(speciesKo(sp), '이', '가')} 튀어나왔다! (Lv${foe.lv})`]]);
+			await E.say([[null, '바스락…!']]);
+			await E.say([[null, `야생 ${josa(speciesKo(sp), '이', '가')} 튀어나왔다! (Lv${foe.lv})`]], undefined, sp);
 			if (!(await E.fight({ name: `야생 ${speciesKo(sp)}`, sprite: '', team: [foe], skill: 0.1, music: 'battle' }))) { await E.blackout(); banner = true; continue; }
 			await E.reward([foe], `야생 ${josa(speciesKo(sp), '을', '를')} 쓰러뜨렸다!`, 0, true);
 			const balls = Object.keys(run.bag).filter(id => ITEMS[id]?.kind === 'ball');
 			if (!balls.length) { toast('볼이 없어서 잡을 수 없었다 — 프렌들리숍에서 살 수 있어요'); continue; }
-			const c = await E.choose({ name: `야생 ${speciesKo(sp)}`, portrait: '', sprite: '' }, `${josa(speciesKo(sp), '은', '는')} 지쳐서 움직이지 못한다. 볼을 던질까?`, [...balls.map(id => `${ITEMS[id].name} ×${run.bag[id]} (${Math.round(ITEMS[id].rate! * 100)}%)`), '그냥 보내 준다']);
+			const c = await E.choose(null, `${josa(speciesKo(sp), '은', '는')} 지쳐서 움직이지 못한다.\n볼을 던질까?`, [...balls.map(id => `${ITEMS[id].name} ×${run.bag[id]} (${Math.round(ITEMS[id].rate! * 100)}%)`), '그냥 보내 준다'], undefined, sp);
 			if (c >= balls.length) continue;
 			give(run, balls[c], -1);
 			const ok = Math.random() < ITEMS[balls[c]].rate!;
 			if (ok) (run.party.length < 6 ? run.party : run.box).push(foe);
 			persist(run);
-			await ask<void>(r => <Catch key={K()} sp={sp} ok={ok} done={r} />);
+			await ask<void>(r => <Catch key={K()} sp={sp} ok={ok} bg={E.L().bg} tint={run.time} done={r} />);
 			if (ok && !run.party.includes(foe)) toast(`파티가 가득 차서 ${josa(speciesKo(sp), '을', '를')} 박스로 보냈다`);
 			continue;
 		}
