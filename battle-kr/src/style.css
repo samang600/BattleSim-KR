@@ -3454,3 +3454,7 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .sc-travel .sc-node { cursor: default; }
 .sc-travel-me { position: absolute; width: 80px; height: 80px; margin: -52px 0 0 -40px; image-rendering: pixelated; pointer-events: none; clip-path: inset(18% 22% 30% 22%); transition: left .42s linear, top .42s linear; animation: shBob .4s steps(2) infinite; }
 @media (orientation: landscape) and (max-height: 540px) { .sc-emo { top: 0; right: 28%; width: 88px; height: 88px; } .sc-travel .sc-mapwrap { height: calc(100% - 52px); } }
+
+/* v2.72.1: 능력 변화는 fx.statChange 화살촉 연출로 — 예전 줄무늬 띠는 끔 */
+.slot.boost::after, .slot.unboost::after { display: none; }
+.slot.dmax.faint .sprite { animation-delay: calc(.55s / var(--spd, 1)); }

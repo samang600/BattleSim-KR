@@ -377,6 +377,8 @@ function typeTint(type: string) {
 		if (settings.effects === false || p.kw.still || p.kw.notarget) return false;
 		const [, user, moveName, target] = p.args;
 		const id = animIdFor(toID(moveName));
+		// 직접 그린 전용 연출이 있는 것: 다이월, 고스트 타입이 아닌 포켓몬의 저주(대상이 자기 자신)
+		if (id === 'maxguard' || (id === 'curse' && (!target || target.slice(0, 2) === user.slice(0, 2)))) return false;
 		const anim = await preloadAnim(id);
 		if (!anim || !frontRef.current || !backRef.current || !animBgRef.current) return false;
 		const userPt = slotPoint(user); if (!userPt) return false;
@@ -435,6 +437,7 @@ function typeTint(type: string) {
 		}
 		// 다이월: 붉은 육각 벽 (공격 연출과 따로)
 		if (mid === 'maxguard') return (1 / FX.fxSpeed()) * FX.maxGuard(layer, from, scale);
+		if (mid === 'curse' && (!target || target.slice(0, 2) === user.slice(0, 2))) return (1 / FX.fxSpeed()) * FX.curseBody(layer, from, scale);
 		// 다이맥스 기술(맥스·거다이맥스): 전용 대형 연출
 		if (simMove?.isMax || /^(max|gmax)[a-z]/.test(mid)) {
 			const impact = (1 / FX.fxSpeed()) * FX.maxMove(layer, arena, type, from, hits, scale);
@@ -456,7 +459,12 @@ function typeTint(type: string) {
 		const isMon = (x?: string) => !!x && /^p[12][a-d]?: /.test(x);
 		let kind: 'ability' | 'item' | null = null, name = '', owner = '';
 		const from = kw.from || '';
-		if (/^ability: /.test(from)) { kind = 'ability'; name = from.slice(9); owner = isMon(kw.of) ? kw.of! : args[1]; }
+		if (/^ability: /.test(from)) {
+			kind = 'ability'; name = from.slice(9);
+			// [of] 는 보통 특성 주인이지만, 특성을 베끼거나(트레이스·리시버·화학의힘) 도구를 가져오는(매지션·나쁜손버릇) 특성은 [of] 가 당한 쪽 → 주인은 줄의 주어
+			const selfOwned = cmd === '-ability' || (cmd === '-item' && /^(magician|pickpocket)$/.test(toID(name)));
+			owner = !selfOwned && isMon(kw.of) ? kw.of! : args[1];
+		}
 		else if (/^item: /.test(from)) { kind = 'item'; name = from.slice(6); owner = isMon(kw.of) && cmd === '-damage' ? kw.of! : args[1]; }
 		else if (cmd === '-ability' && args[2]) { kind = 'ability'; name = args[2]; owner = args[1]; }
 		else if (cmd === '-activate' && /^(ability|item): /.test(args[2] || '')) { kind = args[2].startsWith('ability') ? 'ability' : 'item'; name = args[2].replace(/^(ability|item): /, ''); owner = args[1]; }
@@ -490,12 +498,20 @@ function typeTint(type: string) {
 			mon.species = d.species; mon.level = d.level; mon.gender = d.gender; mon.shiny = d.shiny; mon.pendingSpecies = undefined;
 			if (cmd === 'replace' && !args[3] && prevSnap) {
 				// 일루전 해제: HP 정보가 없는 줄 — 지금 보이던 HP·상태·랭크를 그대로 이어받음 (정체만 드러남)
-				mon.hp = prevSnap.hp; mon.maxhp = prevSnap.maxhp; mon.status = prevSnap.status; mon.boosts = prevSnap.boosts; mon.vol = prevSnap.vol; mon.tera = prevSnap.tera;
+				mon.hp = prevSnap.hp; mon.maxhp = prevSnap.maxhp; mon.status = prevSnap.status; mon.boosts = prevSnap.boosts; mon.vol = prevSnap.vol;
 				mon.fainted = false; mon.item = prevSnap.item; mon.seen = [...new Set([...prevSnap.seen, ...mon.seen])];
+				// 흉내 내던 포켓몬(prev)은 나오기 전 모습으로 되돌림: 변장한 동안의 테라스탈·HP·상태는 진짜(mon)의 것
+				const pre = (prev as any)?.pre;
+				if (prev && prev !== mon && pre) {
+					mon.tera = prevSnap.tera !== pre.tera ? prevSnap.tera : undefined;
+					prev.hp = pre.hp; prev.maxhp = pre.maxhp; prev.status = pre.status; prev.tera = pre.tera; prev.fainted = pre.fainted; prev.item = pre.item;
+					prev.boosts = {}; prev.vol = new Set(); (prev as any).pre = undefined;
+				} else mon.tera = prevSnap.tera;
 				side.active[slot] = mon;
 				return 0;
 			}
 			const hp = parseHP(args[3]);
+			(mon as any).pre = { hp: mon.hp, maxhp: mon.maxhp, status: mon.status, tera: mon.tera, fainted: mon.fainted, item: mon.item };   // 일루전이었다면 풀릴 때 이 모습으로 되돌림
 			mon.hp = hp.hp; mon.maxhp = hp.maxhp || mon.maxhp; mon.status = hp.status === 'fnt' ? '' : hp.status;
 			mon.fainted = false; mon.boosts = {}; mon.vol = new Set();
 			side.active[slot] = mon;
@@ -526,10 +542,13 @@ function typeTint(type: string) {
 		case 'faint': {
 			const mon = activeMon(args[1]);
 			comeBack(args[1]);
-			if (mon) { mon.fainted = true; mon.hp = 0; animate(mon, 'faint', 900); cry(toID(mon.species), { faint: true }); }
+			// 다이맥스한 채 쓰러지면 거대한 몸이 터지며 사라짐
+			const big = !!mon?.vol.has('dynamax'), bpt = big ? slotPoint(args[1]) : null;
+			if (big && bpt && fxRef.current && arenaRef.current && settings.effects !== false) { FX.dmaxBurst(fxRef.current, arenaRef.current, bpt, scale); sfx('hitExplode'); setTimeout(() => sfx('hitExplode'), 700 / FX.fxSpeed()); }
+			if (mon) { mon.fainted = true; mon.hp = 0; animate(mon, 'faint', big ? 1300 : 900); cry(toID(mon.species), { faint: true }); }
 			sfx('faint');
 			vibrate(120);
-			return 700;
+			return big ? 1250 : 700;
 		}
 		case 'move': {
 			const mon = activeMon(args[1]);
@@ -605,6 +624,8 @@ function typeTint(type: string) {
 				m.boosts[args[2]] = Math.max(-6, Math.min(6, (m.boosts[args[2]] || 0) + n));
 				animate(m, n > 0 ? 'boost' : 'unboost', 500);
 				sfx(n > 0 ? 'statUp' : 'statDown');
+				const pt = slotPoint(args[1]);
+				if (pt && fxRef.current && settings.effects !== false && !('silent' in kw)) FX.statChange(fxRef.current, pt, scale, args[2], n);
 			}
 			return 0;
 		}

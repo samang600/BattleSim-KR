@@ -334,6 +334,101 @@ export function megaIcon(layer: HTMLElement, at: Pt, s: number) {
 	const timer = window.setInterval(tick, 50 / SPEED);
 }
 
+/** 능력 랭크 변화: 능력별 색의 화살촉이 줄지어 오르거나(상승) 내려가고(하락), 몸 둘레에 테두리 빛이 한 번 훑음. 단계가 클수록 화살촉이 많고 빠름 */
+const STAT_COLOR: { [k: string]: [string, string] } = {
+	atk: ['#f05838', '#ffb098'], def: ['#f0a020', '#ffe088'], spa: ['#5890f8', '#b8d4ff'], spd: ['#48c060', '#b0f0b8'], spe: ['#f060a8', '#ffb8dc'],
+	accuracy: ['#c8c8d8', '#ffffff'], evasion: ['#a078e0', '#dcc8ff'],
+};
+export function statChange(layer: HTMLElement, at: Pt, s: number, stat: string, stages: number) {
+	const up = stages > 0, n = Math.min(3, Math.abs(stages));
+	const [c0, l0] = STAT_COLOR[stat] || ['#e0e0e0', '#ffffff'];
+	// 하락은 같은 능력 색을 어둡게: 한눈에 '내려감'이 보이도록 화살촉 방향 + 채도
+	const c = up ? c0 : `color-mix(in srgb, ${c0} 55%, #203060)`, l = up ? l0 : `color-mix(in srgb, ${l0} 55%, #4060a0)`;
+	const chev = up ? 'clip-path:polygon(50% 0,100% 55%,100% 100%,50% 45%,0 100%,0 55%)' : 'clip-path:polygon(0 0,50% 55%,100% 0,100% 45%,50% 100%,0 45%)';
+	const W = 12 * s, H = 10 * s, travel = 46 * s, dur = 620 - n * 60;
+	const cols = [-18, -6, 6, 18];
+	const rows = 2 + n;
+	cols.forEach((cx, ci) => {
+		for (let r = 0; r < rows; r++) {
+			const x = at.x + cx * s, y0 = at.y + (up ? 22 : -34) * s;
+			const dark = px(layer, x + s, y0 + s, W, H, '#10182a99', chev);
+			const el = px(layer, x, y0, W, H, (r + ci) % 2 ? c : l, chev);
+			const dy = up ? -travel : travel;
+			const delay = r * (150 - n * 20) + (ci % 2) * 70;
+			for (const e of [dark, el]) anim(e, [{ transform: 'translateY(0)', opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 1, offset: 0.7 }, { transform: `translateY(${dy}px)`, opacity: 0 }], { duration: dur, delay, easing: 'steps(9)' });
+		}
+	});
+	// 몸 둘레 테두리: 상승은 아래에서 위로 넓어지고, 하락은 위에서 눌림
+	const u = Math.max(2, Math.round(s * 2));
+	const box = px(layer, at.x, at.y - 6 * s, 54 * s, 58 * s, 'transparent', `border:${u}px solid ${l};box-shadow:0 0 0 ${u}px ${c}`);
+	anim(box, up
+		? [{ transform: 'scale(.7,.2) translateY(60%)', opacity: 0 }, { transform: 'scale(1,1)', opacity: 1, offset: 0.4 }, { transform: 'scale(1.15,1.15)', opacity: 0 }]
+		: [{ transform: 'scale(1.15,1.15)', opacity: 0 }, { transform: 'scale(1,1)', opacity: 1, offset: 0.4 }, { transform: 'scale(.8,.25) translateY(70%)', opacity: 0 }],
+		{ duration: 520, easing: 'steps(8)' });
+	// 끝 반짝임 (상승) / 떨어지는 조각 (하락)
+	for (let i = 0; i < 4 + n; i++) {
+		const el = px(layer, at.x + rnd(-24, 24) * s, at.y + (up ? rnd(-34, -10) : rnd(4, 22)) * s, 3 * s, 3 * s, i % 2 ? '#fff' : l);
+		anim(el, up
+			? [{ transform: 'scale(0)', opacity: 1 }, { transform: 'scale(1.8)', opacity: 1, offset: 0.4 }, { transform: 'scale(0)', opacity: 0 }]
+			: [{ transform: 'translateY(0)', opacity: 1 }, { transform: `translateY(${rnd(8, 16) * s}px)`, opacity: 0 }],
+			{ duration: 320, delay: 380 + i * 40, easing: 'steps(5)' });
+	}
+}
+
+/** 저주(고스트 타입이 아닐 때): 무거운 보랏빛 기운이 위에서 내려앉아 몸을 누르고, 발밑에 먼지가 퍼짐 — 스피드를 버리고 힘을 얻는 느낌 */
+export function curseBody(layer: HTMLElement, at: Pt, s: number): number {
+	const C = '#6a4a9c', L = '#b090e0', D = '#2c1c48';
+	const u = Math.max(2, Math.round(s * 2));
+	// 1) 위에서 내려오는 무거운 덩어리 세 겹
+	for (let i = 0; i < 3; i++) {
+		const el = px(layer, at.x, at.y - 46 * s, (40 - i * 8) * s, 8 * s, i === 1 ? L : C, `box-shadow:0 ${u}px 0 ${D}`);
+		anim(el, [{ transform: 'translateY(0) scaleX(.4)', opacity: 0 }, { opacity: 1, offset: 0.2 }, { transform: `translateY(${(38 + i * 6) * s}px) scaleX(1.2)`, opacity: 1, offset: 0.75 }, { transform: `translateY(${(44 + i * 6) * s}px) scaleX(1.5)`, opacity: 0 }],
+			{ duration: 560, delay: i * 120, easing: 'steps(8)' });
+	}
+	// 2) 몸에 감기는 어두운 띠
+	for (let i = 0; i < 2; i++) {
+		const el = px(layer, at.x, at.y + (i ? 6 : -10) * s, 50 * s, 6 * s, 'transparent', `border:${u}px solid ${i ? C : D};border-radius:50%`);
+		anim(el, [{ transform: 'scale(1.4)', opacity: 0 }, { transform: 'scale(1)', opacity: 1, offset: 0.4 }, { transform: 'scale(.7)', opacity: 0 }], { duration: 480, delay: 260 + i * 100, easing: 'steps(6)' });
+	}
+	// 3) 내려앉는 순간 발밑 먼지
+	later(() => {
+		for (let i = 0; i < 8; i++) {
+			const dir = i < 4 ? -1 : 1;
+			const el = px(layer, at.x + dir * 8 * s, at.y + 24 * s, 5 * s, 5 * s, i % 2 ? '#a89cb8' : '#786890');
+			anim(el, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${dir * rnd(14, 32) * s}px,${-rnd(2, 10) * s}px)`, opacity: 0 }], { duration: 380, delay: (i % 4) * 30, easing: 'steps(6)' });
+		}
+	}, 520);
+	return 600;
+}
+
+/** 다이맥스 포켓몬이 쓰러질 때: 거대한 몸 곳곳에서 붉은 폭발이 잇달아 터지고, 마지막에 큰 폭발과 구름 조각 */
+export function dmaxBurst(layer: HTMLElement, arena: HTMLElement, at: Pt, s: number) {
+	const cols = ['#ff3060', '#ffd040', '#ffffff', '#ff8030'];
+	const boom = (x: number, y: number, size: number, delay: number) => {
+		const core = px(layer, x, y, size, size, '#fff', 'border-radius:50%');
+		anim(core, [{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(1)', opacity: 1, offset: 0.4 }, { transform: 'scale(1.4)', opacity: 0 }], { duration: 260, delay, easing: 'steps(5)' });
+		const ringEl = px(layer, x, y, size, size, 'transparent', `border:${Math.max(2, Math.round(3 * s))}px solid ${cols[0]};border-radius:50%`);
+		anim(ringEl, [{ transform: 'scale(.4)', opacity: 1 }, { transform: 'scale(2.2)', opacity: 0 }], { duration: 340, delay: delay + 60, easing: 'steps(6)' });
+		for (let i = 0; i < 6; i++) {
+			const a = (i / 6) * Math.PI * 2 + rnd(-0.3, 0.3), d = size * rnd(0.8, 1.5);
+			const el = px(layer, x, y, 4 * s, 4 * s, cols[i % cols.length]);
+			anim(el, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d}px)`, opacity: 0 }], { duration: 360, delay: delay + 40, easing: 'steps(6)' });
+		}
+	};
+	const spots: [number, number][] = [[-22, -30], [20, -8], [-10, 10], [24, -40], [-26, -6], [6, -24]];
+	spots.forEach(([dx, dy], i) => boom(at.x + dx * s, at.y + dy * s, 18 * s, i * 110));
+	later(() => { shake(arena, true); }, 200);
+	later(() => {
+		boom(at.x, at.y - 14 * s, 44 * s, 0);
+		shake(arena, true, 300);
+		// 다이맥스 구름 조각이 흩어짐
+		for (let i = 0; i < 10; i++) {
+			const el = px(layer, at.x + rnd(-30, 30) * s, at.y - rnd(0, 40) * s, 8 * s, 6 * s, i % 2 ? '#c81c50' : '#701030');
+			anim(el, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${rnd(-40, 40) * s}px,${-rnd(30, 70) * s}px)`, opacity: 0 }], { duration: 620, delay: i * 20, easing: 'steps(8)' });
+		}
+	}, 700);
+}
+
 /** 다이월: 다이맥스 붉은 기운이 바닥에서 솟고, 육각 타일이 하나씩 맞물려 거대한 벽을 이룬 뒤 빛이 훑고 지나감 */
 export function maxGuard(layer: HTMLElement, at: Pt, s: number): number {
 	const C = '#e0245e', L = '#ff86b0', D = '#8a0f3a';
