@@ -52,7 +52,6 @@ export function typeKo(t: string) { return D.types[t] || t; }
  *  itemAv: 도구 등장 글자 ('' = 전부) */
 let ERA = '', LS_MODE: 'all' | 'champ' | 'era' = 'all', ITEM_AV = '';
 export function setDataSpec(era: string, lsMode: 'all' | 'champ' | 'era', itemAv: string) { ERA = era; LS_MODE = lsMode; ITEM_AV = itemAv; }
-export function dataEra() { return ERA; }
 /** 지금 풀에 있는 도구인가 */
 export function itemInPool(id: string) { if (!ITEM_AV) return true; const it = D.items[toID(id)]; return !!it?.av?.includes(ITEM_AV); }
 

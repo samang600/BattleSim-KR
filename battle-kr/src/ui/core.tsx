@@ -48,14 +48,10 @@ export function TypeBadge({ type, small }: { type: string; small?: boolean }) {
 }
 
 const SPRITE_HOST = 'https://play.pokemonshowdown.com/sprites';
-/** 앱 안에 들어 있는 그림 (scripts/fetch-sprites.sh 로 받음) — 오프라인에서도 표시 */
-export const LOCAL_SPRITES = 'sprites';
 /** 그림이 있는 곳: 내장(--full 빌드) 또는 내려받은 오프라인 묶음. 없으면 '' (인터넷) */
 export const spriteBase = () => partBase('sprites');
 /** 목록 아이콘용 정지 그림 주소 */
 export const gen5Icon = (id: string) => (spriteBase() ? `${spriteBase()}gen5/${id}.png` : `${SPRITE_HOST}/gen5/${id}.png`);
-/** 앱 안에 그림이 없고 묶음도 안 받은 상태 */
-export const LITE = false;
 const online = () => typeof navigator === 'undefined' || navigator.onLine !== false;
 
 /** 도구 아이콘 (쇼다운 아이템 아이콘 시트, 24×24) */
@@ -293,8 +289,6 @@ export function confirmBox(title: string, body: string, ok = '확인', cancel = 
 			</Modal>, host);
 	});
 }
-
-export const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 void h;
 
 // ── 전체화면 (웹 전용: 안드로이드 앱은 이미 전체화면이고, 아이폰 사파리는 Fullscreen API 가 없어 버튼을 숨김) ──

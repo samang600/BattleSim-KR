@@ -34,8 +34,6 @@ let generation = 0;
 /** 배틀 화면을 나갈 때 재생 중인 애니메이션·효과음 중단 */
 export function cancelAnims() { generation++; }
 
-export function hasAnimCache(id: string) { return loaded[id] !== undefined; }
-
 /** <script> 로 불러옴 (file:// 에서도 동작) */
 export function loadAnim(id: string): Promise<AnimData[] | null> {
 	if (loaded[id] !== undefined) return Promise.resolve(loaded[id]);

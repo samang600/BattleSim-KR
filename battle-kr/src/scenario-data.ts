@@ -159,8 +159,6 @@ export const MISTY_AT = ['cape', 'cerulean', 'bridge', 'cerulean'];
 export const MISTY_DOING = ['블루곶에서 아침 수영', '체육관에서 도전자 맞이', '골든볼브리지에서 저녁 산책', '블루시티 물가에서 별 구경'];
 /** 태그 파트너일 때 이슬의 팀 (이야기가 나아갈수록 강해짐) */
 export const mistyTeam = (step: number): [string, number][] => [['starmie', 21 + step * 2], ['psyduck', 18 + step * 2], ['horsea', 18 + step * 2]];
-/** 마지막 진심 승부 */
-export const MISTY_FINAL: [string, number][] = [['golduck', 27], ['seadra', 27], ['lapras', 28], ['starmie', 30]];
 /** 매일 한 번 나누는 이야기: [물음, [대답, 호감, 반응] × 3] */
 export const MISTY_TALKS: [string, [string, number, string][]][] = [
 	['있잖아, 넌 물 포켓몬의 어디가 좋다고 생각해?', [['유연하고 강인한 점', 8, '맞아! 부드럽지만 절대 꺾이지 않지. 뭘 좀 아는데?'], ['귀여운 점', 4, '귀엽기만 한 게 아니거든? …뭐, 귀엽긴 하지만.'], ['잘 모르겠어', 1, '에이, 같이 다니다 보면 알게 될 거야.']]],

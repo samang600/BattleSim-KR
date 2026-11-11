@@ -2,7 +2,7 @@
 import { h, Fragment, type ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import { fixedTera, speciesData, toID, moveKo, itemKo, abilityKo, natureKo, typeKo, STAT_SHORT, STAT_KO, STATS, moveData, natureData, abilityDesc, itemDesc, calcStat, type Gen } from '../data';
-import { evToSp, spToEv, evDisplay, fmtSP, type PSet } from '../sets';
+import { evToSp, spToEv, evDisplay, type PSet } from '../sets';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { Screen, Sprite, MiniSprite, CropSprite, TypeBadge, Modal, HPBar, StatusBadge, TYPE_COLOR } from './core';
 import { OnlinePick, useWide } from './online-pick';
@@ -257,18 +257,5 @@ export function MonDetail({ set, gen, live, actions, note }: {
 			{actions.map(a => <button class={'btn ' + (a.kind || 'primary')} disabled={a.disabled} onClick={a.onClick}>{a.label}</button>)}
 		</div>}
 	</div>;
-}
-
-export function SetDetailModal({ set, gen, onClose }: { set: PSet; gen: Gen; onClose: () => void }) {
-	const sd = speciesData(toID(set.species), gen);
-	return <Modal title={set.name} onClose={onClose}>
-		<div class="detail">
-			<div class="detail-head"><Sprite species={set.species} gen={gen} size={96} shiny={set.shiny} />
-				<div>{sd?.t.map(t => <TypeBadge type={t} />)}<p class="muted">종족값 {sd?.bs.join('/')}</p></div></div>
-			<p>{abilityKo(set.ability)} · {itemKo(set.item)} · {natureKo(set.nature)}</p>
-			<p class="muted">{evDisplay() ? '노력치' : '능력 포인트'} {Object.entries(set.evs).filter(([, v]) => v).map(([k, v]) => `${STAT_SHORT[k]} ${fmtSP(evToSp(v))}`).join(' / ')}</p>
-			<ul class="move-list">{set.moves.map(m => <li>{moveKo(m)}</li>)}</ul>
-		</div>
-	</Modal>;
 }
 void Fragment; void typeKo;

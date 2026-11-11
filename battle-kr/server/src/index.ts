@@ -296,6 +296,15 @@ export class Room extends DurableObject<Env> {
 		this.pushChat({ side: '', name: '', text: note, at: Date.now() });
 		this.broadcastRoom(); this.sendChatTail();
 	}
+	/** 배틀이 끝난 로비 방을 대기실 상태로. 연결이 끊긴 쪽의 기한(away)은 그대로 둠 — 지우면 끊긴 사람이 방에 계속 남은 것으로 보임 */
+	private resetBattle() {
+		const s = this.st!;
+		s.seed = undefined; s.inputs = []; s.ended = false; s.startedAt = undefined; s.spent = undefined;
+		for (const sd of ['p1', 'p2'] as Side[]) {
+			if (this.alive(sd).length && s.away) delete s.away[sd];
+			if (s.players[sd]) { s.players[sd]!.ready = false; s.players[sd]!.picked = undefined; }
+		}
+	}
 	private relay(side: Side, choice: string) {
 		const s = this.st!;
 		s.inputs.push([side, choice]);
@@ -327,7 +336,7 @@ export class Room extends DurableObject<Env> {
 			delete s.away![sd]; dirty = true;
 			if (this.alive(sd, now).length) continue;   // 그새 돌아옴
 			if (s.seed && !s.ended) this.relay(sd, 'forfeit disconnect');
-			else if (s.lobby && !s.closed) this.dropPlayer(sd, `${s.players[sd]?.name || '상대'}의 연결이 끊어졌어요`);   // 로비 방: 손님 자리 비움 · 방장이면 방 닫음
+			else if (s.lobby && !s.closed) { if (s.seed) this.resetBattle(); this.dropPlayer(sd, `${s.players[sd]?.name || '상대'}의 연결이 끊어졌어요`); }   // 로비 방: (끝난 배틀은 정리하고) 손님 자리 비움 · 방장이면 남은 사람에게 넘김
 			else if (!s.ended) { s.ended = true; for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'error', msg: `${s.players[sd]?.name || '상대'}의 연결이 끊어져 대전이 취소됐어요` }); }
 		}
 		if (dirty) { await this.save(); await this.notifyLobby(); }
@@ -386,7 +395,8 @@ export class Room extends DurableObject<Env> {
 				this.send(ws, this.startMsg(side));
 				this.send(ws, { t: 'inputs', list: s.inputs, clock: this.clock() });
 			} else if (s.players.p1 && s.players.p2 && (!s.lobby || (s.players.p1.ready && s.players.p2.ready))) {   // 둘 다 들어옴(로비 방은 둘 다 준비): 서로 전체 엔트리 → 고르기
-				for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) if (w === ws || sd !== side) this.send(w, this.previewMsg(sd));
+				// 다시 접속한 것이면 본인에게만 (상대에게도 보내면 상대의 고르기 화면과 시간이 처음으로 돌아감)
+				for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) if (w === ws || (fresh && sd !== side)) this.send(w, this.previewMsg(sd));
 			}
 			return;
 		}
@@ -425,10 +435,7 @@ export class Room extends DurableObject<Env> {
 			for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'chat', ...msg });
 			return;
 		}
-		const resetBattle = () => {   // 배틀이 끝난 로비 방을 대기실 상태로
-			s.seed = undefined; s.inputs = []; s.ended = false; s.startedAt = undefined; s.spent = undefined; s.away = {};
-			for (const sd of ['p1', 'p2'] as Side[]) if (s.players[sd]) { s.players[sd]!.ready = false; s.players[sd]!.picked = undefined; }
-		};
+		const resetBattle = () => this.resetBattle();
 		// 배틀 결과 화면에서 바로 나감: 아무도 'again' 을 안 눌렀어도 대기실로 돌린 뒤 나가기 처리 (안 그러면 1분 동안 자리가 안 빔)
 		if (m.t === 'leave' && s.lobby && s.seed && s.ended && !s.closed) resetBattle();
 		if (s.lobby && !s.seed) {   // 로비 방 대기 중: 파티·규칙·준비·나가기
@@ -495,7 +502,8 @@ export class Room extends DurableObject<Env> {
 			await this.save();
 			return;
 		}
-		if (m.t === 'ended') { s.ended = true; await this.save(); void this.notifyLobby(); return; }
+		// 배틀이 끝났다는 알림. 이미 대기실로 돌아간 뒤(상대가 먼저 'again')에 늦게 오면 무시 — 안 그러면 대기 중인 방이 '끝난' 상태로 굳어 다음 사람의 고르기가 모두 무시됨
+		if (m.t === 'ended') { if (!s.seed || s.ended) return; s.ended = true; await this.save(); void this.notifyLobby(); return; }
 		if (m.t === 'ping') this.send(ws, { t: 'pong' });
 		// 배틀 중인 앱이 20초마다: 상대가 잠들었는지(소식 없음) 확인
 		if (m.t === 'check') { if (this.markStale(Date.now())) { await this.save(); await this.schedule(); } return; }

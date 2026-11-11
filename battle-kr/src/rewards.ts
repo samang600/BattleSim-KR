@@ -47,11 +47,6 @@ export function earnBP(n: number, why: string, quiet = false) {
 	if (!quiet) bpToast(n, why);
 	checkAchievements();
 }
-export function spendBP(n: number): boolean {
-	const w = loadWallet();
-	if (w.bp < n) return false;
-	w.bp -= n; saveWallet(w); return true;
-}
 
 // 얻은 BP 알림: 짧은 시간에 여러 번 얻으면 하나로 합쳐 보여 줌
 let pend = { n: 0, why: [] as string[] }, pendT: any = 0;
@@ -327,19 +322,8 @@ export function equip(it: Item | null, slot: Slot) {
 	if (it) w.eq[slot] = it.id; else delete w.eq[slot];
 	saveWallet(w);
 }
-/** 대표 포켓몬 고르기 (자리를 산 뒤) */
-export function setBuddy(sp: string | null, shiny = false) { const w = loadWallet(); if (sp) w.buddy = { sp, shiny }; else delete w.buddy; saveWallet(w); }
-/** 대표 포켓몬 후보: 써 본 포켓몬(많이 이긴 순) + 저장한 팀의 포켓몬 */
-export function buddyCandidates(teams: { sets: { species: string }[] }[]): string[] {
-	const st = loadStats();
-	const used = Object.entries(st.mons).sort((a, b) => b[1].w - a[1].w || b[1].u - a[1].u).map(([k]) => k);
-	const fromTeams = teams.flatMap(t => t.sets.map(s => toID(s.species)));
-	return [...new Set([...used, ...fromTeams])].filter(id => speciesData(id, 9)).slice(0, 72);
-}
-export function equipped(slot: Slot): Item | undefined { const id = loadWallet().eq[slot]; return id ? itemById(id) : undefined; }
 /** 지금 칭호: 고른 것 → 없으면 기본 칭호 ('-' 는 칭호 숨김) */
 export function titleItem(w = loadWallet()): Item | undefined { const id = w.eq.title || DEFAULT_TITLE; return id === '-' ? undefined : itemById(id); }
-export const titleText = () => titleItem()?.name || '';
 /** 산 트레이너 모습·배경·음악 (설정 고르기 목록에 더함) */
 export const ownedVals = (slot: Slot) => { const w = loadWallet(); return ITEMS.filter(i => i.slot === slot && w.own[i.id]).map(i => ({ v: i.v!, name: i.name })); };
 

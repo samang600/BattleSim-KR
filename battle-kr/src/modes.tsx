@@ -5,7 +5,7 @@ import { ask, abortMode, gen5Icon, confirmBox, ArrowPicker } from './ui/core';
 import { BattleView, type BattleSetup, type BattleResult } from './ui/battle';
 import { PickScreen, InfoScreen, SwapScreen, ChoiceScreen, BracketView } from './ui/screens';
 import { randomTeam, randomSetFor, cloneSet, dedupeItems, rng, factoryTeam, assignGimmicks, fitSetToMega, FACTORY_TIERS, type PSet } from './sets';
-import { NAMED, CUPS, REGIONS, REGION_COLOR, regionLabel, ROLE_KO, randomTrainer, namedById, namedSprite, namedLines, namedTitle, type NamedTrainer } from './trainers';
+import { NAMED, CUPS, REGIONS, REGION_COLOR, regionLabel, randomTrainer, namedById, namedSprite, namedLines, namedTitle, type NamedTrainer } from './trainers';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { loadTeams, loadSettings, saveSettings, load, save, remove, updateRecords, loadRecords, type SavedTeam } from './store';
 import { BGM_CHOICES, playMusic, stopMusic } from './sound';
@@ -23,7 +23,6 @@ export type Fmt = 'singles' | 'doubles' | 'singles6' | 'doubles64' | 'doubles6' 
 export const isDoubles = (f: Fmt) => f === 'doubles' || f === 'doubles64' || f === 'doubles6' || f === 'multi';
 /** 팀(엔트리) 크기 / 배틀에 내보내는 수 (멀티: 나 2 + 파트너 2 vs 상대 2명 × 2) */
 const teamSize = (f: Fmt) => f === 'multi' ? 2 : f === 'singles' ? 3 : f === 'doubles' ? 4 : 6;
-const battleSize = (f: Fmt) => f === 'singles' ? 3 : f === 'doubles' ? 4 : f === 'doubles64' ? 4 : f === 'multi' ? 4 : 6;
 const fmtLabel = (f: Fmt) => ({ singles: '싱글 3vs3', doubles: '더블 4vs4', singles6: '싱글 6vs6', doubles64: '더블 6→4', doubles6: '더블 6vs6', multi: '멀티 2+2' } as any)[f];
 export const BACK = Symbol('back');
 
@@ -478,6 +477,8 @@ export async function runFactory() {
 		return top && top[1] >= 2 ? `직원: 상대는 주로 ${typeKo(top[0])}타입을 씁니다.` : '직원: 상대는 타입에 연연하지 않는 것 같습니다.';
 	};
 	while (true) {
+		// 세트 클리어 뒤 새 렌탈을 고르기 전에 앱을 껐으면 여기서 고름
+		if ((state as any).needRental) { state.team = await rentalRound(state.streak); (state as any).needRental = false; save(FACTORY_KEY(fmt, level, opts), state); }
 		const no = state.streak + 1;
 		const isHead = head(no);
 		// 같은 승부의 상대는 저장해 둠: 쉬었다 와도 같은 트레이너·팀·직원 힌트
@@ -520,16 +521,17 @@ export async function runFactory() {
 		}
 		state.streak++;
 		const s = state.streak;
+		// 이긴 결과를 바로 저장 (심볼·교환·렌탈 화면에서 앱을 꺼도 같은 승부를 다시 해서 BP 를 두 번 받지 않게). 세트를 끝냈으면 새 렌탈이 남았다고 적어 둠
+		(state as any).needRental = s % 7 === 0;
+		save(FACTORY_KEY(fmt, level, opts), state);
 		if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 		if (isHead && !noRec(opts)) earnBP(no === 49 ? BRAIN_BP.gold : BRAIN_BP.silver, '팩토리 헤드 격파');
 		if (s % 7 === 0 && !noRec(opts)) earnBP(setClearBP(s), '세트 클리어');
 		if (isHead && !noRec(opts) && awardSymbol('factory', no === 49)) await symbolScreen('factory', no === 49);
-		// 이긴 결과를 바로 저장 (교환·렌탈 화면에서 앱을 꺼도 같은 승부를 다시 하지 않게)
-		save(FACTORY_KEY(fmt, level, opts), state);
 		if (s % 7 === 0) {
 			await ask<void>(r => <InfoScreen title="배틀팩토리" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`}
 				lines={['빌린 포켓몬을 모두 반납하고, 새 렌탈 포켓몬을 처음부터 다시 고릅니다.', `다음 세트 렌탈 등급: ${GRADE_LABEL[gradeAt(s)]}${gradeAt(s) !== gradeAt(s - 1) ? ' (등급 상승!)' : ''}`]} actions={[{ label: '새로 빌리기', onClick: () => r() }]} />);
-			state.team = await rentalRound(s);
+			state.team = await rentalRound(s); (state as any).needRental = false;
 		} else {
 			const swap = await ask<{ give: number; take: number } | null>(r => <SwapScreen mine={state!.team} theirs={oppTeam} gen={9} onDone={r} />);
 			if (swap) {
@@ -829,7 +831,7 @@ export function settleSeason(): string | null {
 	const cur = seasonOf().id;
 	const rec = loadRecords();
 	const last = (rec as any).season as string | undefined;
-	if (last === cur) return null;
+	if (last === cur || (last && +last.slice(1) > +cur.slice(1))) return null;   // 기기 시계가 뒤로 가도 다시 마감하지 않음
 	const msgs: string[] = [];
 	if (last) {
 		const ended: { id: string; fmt: string; rp: number; tier: string }[] = [];
@@ -900,16 +902,23 @@ export async function runRank() {
 		const oppPick = aiPickEntry(opp.team, team, n, fmt === 'doubles', opp.skill, opp.named);
 		// 배틀 도중 앱을 끄거나 새로고침해도 패배를 피할 수 없게: 진 것으로 칠 결과를 먼저 저장해 두고, 결과가 나면 지움 (settleRankPending)
 		if (!noRec(opts)) updateRecords(r => { r.rankPending = { key, rp: Math.max(0, rp - loss), streak: 0 }; });
+		/** 이번 승부 결과를 RP·연승에 반영 (시작 때의 값 기준이라 두 번 불러도 같은 결과) */
+		const applyRank = (win: boolean) => {
+			const v = Math.max(0, rp + (win ? gain : -loss));
+			updateRecords(r => { r.rp = { ...(r.rp || {}), [key]: v }; r.rpBest = { ...(r.rpBest || {}), [key]: Math.max(r.rpBest?.[key] || 0, v) };
+				r.rankStreak = { ...(r.rankStreak || {}), [key]: win ? streak + 1 : 0 }; r.rankPending = undefined; });
+			return v;
+		};
 		const res = await battle({
 			gen: 9, doubles: fmt === 'doubles', aiSkill: opp.skill, bg: 'rank' as any, label: `랭크 매치 · ${tier.name}${upper ? ' · 상위 매칭' : ''}`, music: (opp as any).music ?? 'rank' as any,
 			noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse,
 			p1: { name: playerName(), team: picked, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: oppPick, preview: opp.team, line: opp.line, sprite: opp.sprite, lines: opp.lines },
+			// 승패가 나자마자 RP 를 적음: 이긴 결과 화면에서 앱을 꺼도 다음에 패배로 처리되지 않게
+			onDecided: win => { if (!noRec(opts)) applyRank(win); },
 		});
 		let newRp = rp, msg = '';
 		if (!noRec(opts)) {
-			newRp = Math.max(0, rp + (res.win ? gain : -loss));
-			updateRecords(r => { r.rp = { ...(r.rp || {}), [key]: newRp }; r.rpBest = { ...(r.rpBest || {}), [key]: Math.max(r.rpBest?.[key] || 0, newRp) };
-				r.rankStreak = { ...(r.rankStreak || {}), [key]: res.win ? streak + 1 : 0 }; r.rankPending = undefined; });
+			newRp = applyRank(res.win);
 			const nt = rankTier(newRp);
 			if (nt.cls === '챔피언급' && awardSymbol('rank', false)) await symbolScreen('rank', false);   // 챔피언급 도달 → 챔피언 심볼(은)
 			if (tierOrder(nt) > tierOrder(tier)) msg = `🎉 ${nt.name}(으)로 승급!`;

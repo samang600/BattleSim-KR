@@ -474,13 +474,6 @@ function ItemPicker({ gen, onPick, onBack }: { gen: Gen; onPick: (id: string) =>
 	</Screen>;
 }
 
-/** 모습 이름: '로토무' 기준 '히트로토무', '나인테일(알로라)' 는 '알로라' 처럼 짧게 */
-function formeLabel(f: NonNullable<ReturnType<typeof speciesData>>, cur: NonNullable<ReturnType<typeof speciesData>>) {
-	const m = /\(([^)]+)\)$/.exec(f.n);
-	if (m) return m[1];
-	return f.n;
-}
-
 const SP_PRESETS: [string, Partial<{ [k in StatID]: number }>][] = [
 	['공격·스피드', { atk: 32, spe: 32, hp: 2 }], ['특공·스피드', { spa: 32, spe: 32, hp: 2 }],
 	['HP·공격', { hp: 32, atk: 32, def: 2 }], ['HP·특공', { hp: 32, spa: 32, spd: 2 }],

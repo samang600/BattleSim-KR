@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { ask, Screen, Sprite, PokeIcon, TypeBadge, ItemIcon, toast, confirmBox } from './ui/core';
 import { battle, playerName, playerSprite, BACK } from './modes';
 import { load, save, remove } from './store';
-import { speciesData, speciesKo, moveKo, itemKo } from './data';
+import { speciesData, speciesKo, moveKo } from './data';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { playMusic, sfx } from './sound';
 import type { PSet } from './sets';

@@ -1,6 +1,6 @@
 /** 포켓몬 세트(기술·도구·노력치) 만들기 */
 import { loadSettings } from './store';
-import { ruleById, speciesAllowed, megaStoneAllowed, itemAllowed, dataRuleOr } from './rules';
+import { speciesAllowed, megaStoneAllowed, itemAllowed, dataRuleOr } from './rules';
 import { Teams } from '../../sim/teams';
 import { fixedTera, RAW, speciesData, learnset, moveData, toID, bst, speciesKo, nickKo, megaStonesFor, zCrystalForType, type Gen, type StatID } from './data';
 import FACTORY_SETS from '../../data/random-battles/gen9/factory-sets.json';

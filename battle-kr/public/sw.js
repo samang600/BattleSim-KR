@@ -11,5 +11,7 @@ self.addEventListener('fetch', e => {
 		e.respondWith(caches.open(CACHE).then(async c => (await c.match(e.request)) || fetch(e.request).then(r => { if (r.ok || r.type === 'opaque') c.put(e.request, r.clone()); return r; })));
 		return;
 	}
-	e.respondWith(fetch(e.request).then(r => { caches.open(CACHE).then(c => c.put(e.request, r.clone())); return r; }).catch(() => caches.match(e.request)));
+	// 성공한 응답만 보관: 오류 응답(404 등)을 넣어 두면 오프라인일 때 그 오류가 나오고, 부분 응답(206, 소리 파일)은 넣을 수 없음.
+	// 버전 확인처럼 매번 주소가 달라지는 요청(?t=)은 쌓이기만 하므로 보관하지 않음
+	e.respondWith(fetch(e.request).then(r => { if (r.status === 200 && !url.includes('?t=')) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {}); } return r; }).catch(() => caches.match(e.request)));
 });

@@ -218,7 +218,6 @@ export function achDesc(a: Ach, l: number) { const n = a.steps[Math.min(l, a.ste
 let checking = false;
 /** 업적 단계를 새로 얻었을 때 (보상 BP — rewards.ts 가 등록, 순환 import 를 피하려고 콜백) */
 let onAchBP: ((tiers: number[]) => void) | null = null;
-export function setAchHook(f: (tiers: number[]) => void) { onAchBP = f; }
 export function checkAchievements(quiet = false) {
 	if (checking) return; checking = true;
 	try {

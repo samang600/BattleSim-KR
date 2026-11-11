@@ -1,10 +1,12 @@
 /** 세이브 클라우드 백업 (백업 코드 방식) — 계정 없이, 올리면 받는 12자리 코드로 다른 기기에서 불러옴.
  *  서버: server/src/index.ts 의 /backup. 리플레이(큼)와 기기에만 해당하는 값은 올리지 않고, 불러올 때도 이 기기 것을 그대로 둠 */
-import { exportBackup, importBackup, inspectBackup, load, save, remove } from './store';
+import { exportBackup, importBackup, inspectBackup, load, save } from './store';
 import { httpUrl } from './online';
 
 /** 올리지 않는 키: 리플레이 · 이 기기의 백업 코드 · 이 기기에 받아 둔 그림 묶음 · 온라인 대전용 기기 표식 */
-const LOCAL_ONLY = ['replays', 'cloud', 'ani-parts', 'online-token', 'online-active'];   // online-token: 기기마다 달라야 함 (같으면 두 기기가 온라인에서 같은 사람으로 보임)
+/** 기기에만 해당하는 값: 파일 백업에도 넣지 않고, 불러올 때도 이 기기 것을 둠 (리플레이는 파일 백업에는 들어감) */
+export const DEVICE_ONLY = ['cloud', 'ani-parts', 'online-token', 'online-active'];
+const LOCAL_ONLY = ['replays', ...DEVICE_ONLY];   // online-token: 기기마다 달라야 함 (같으면 두 기기가 온라인에서 같은 사람으로 보임)
 export interface CloudInfo { code: string; at: number }
 export const cloudInfo = (): CloudInfo | null => load<CloudInfo | null>('cloud', null);
 export const fmtCode = (c: string) => c.replace(/[^A-Za-z0-9]/g, '').toUpperCase().replace(/(.{4})(?=.)/g, '$1-');
@@ -44,4 +46,3 @@ export function cloudApply(code: string, text: string, at: number): boolean {
 	save('cloud', { code: cleanCode(code), at });
 	return true;
 }
-export const cloudForget = () => remove('cloud');

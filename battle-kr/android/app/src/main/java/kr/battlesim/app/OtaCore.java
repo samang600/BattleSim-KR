@@ -138,7 +138,12 @@ public final class OtaCore {
                 }
                 if (!copied) {
                     HttpURLConnection c = open(base + e.p + "?v=" + remote.version, 20000);
-                    try (InputStream in = c.getInputStream()) { copy(in, out); } finally { c.disconnect(); }
+                    final long base0 = done, tot = total;
+                    try (InputStream in = c.getInputStream(); OutputStream o = new FileOutputStream(out)) {
+                        // 받는 동안에도 진행률을 알림 (화면 파일 하나가 거의 전부라 파일 단위로만 알리면 0% 에서 멈춰 보임)
+                        byte[] buf = new byte[65536]; int n; long got = 0;
+                        while ((n = in.read(buf)) > 0) { o.write(buf, 0, n); got += n; if (progress != null) progress.on(Math.min(tot, base0 + got), tot); }
+                    } finally { c.disconnect(); }
                 }
                 if (out.length() != e.s) throw new IOException("크기가 다름: " + e.p + " " + out.length() + "≠" + e.s);
                 String h = sha256(out);

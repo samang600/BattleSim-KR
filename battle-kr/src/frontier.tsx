@@ -10,7 +10,7 @@ import { ruleById, recTag } from './rules';
 import { aiPickEntry } from './smogon';
 import { chooseAI } from './ai';
 import { Dex } from '../../sim/dex';
-import { speciesKo, spriteId, toID, ALL_TYPES, typeKo } from './data';
+import { speciesKo, toID, ALL_TYPES, typeKo } from './data';
 import { BACK, battle, chooseTeam, withLevel, namedTeam, playerName, playerSprite, BgmRow, josa, confirmQuit, towerOpponent, ROLE_ORDER, namedMusic, isDoubles, type Fmt } from './modes';
 import { updateStats, loadStats, setMax, BOSS_LEN } from './stats';
 import { earnBP, setClearBP, BRAIN_BP } from './rewards';

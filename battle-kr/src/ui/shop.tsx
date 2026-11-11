@@ -57,7 +57,6 @@ export function cardSkin(w: Wallet = loadWallet()): any {
 }
 export const cardSkinClass = (w: Wallet = loadWallet()) => (w.eq.cardBg ? ' skin-bg' : '') + (w.eq.frame ? ' skin-fr' : '');
 export const starGlyph = (w: Wallet = loadWallet()) => (w.eq.star ? itemById(w.eq.star)?.v : '') || '★';
-export const equippedTitle = (w: Wallet = loadWallet()) => titleItem(w)?.name || '';
 export function useWallet() { const [w, setW] = useState(loadWallet()); useEffect(() => onWallet(setW), []); return w; }
 
 /** 수첩 카드 아래 줄: 지방 배지 + 단짝 */

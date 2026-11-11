@@ -5,7 +5,7 @@
  *  3) 초전설 / 4) 환상: 불가 · 가능(나도 쓰고 상대도 데려옴) — 포켓몬 풀과 상관없이 따로 정함 (세대 상한만 따름)
  * 규칙 id 는 '기믹.풀.초전설.환상' (예: 't_one.sv.no.no' — 기믹 m·z·d·t 글자 + _one/_each/_stack). 예전 id(natdexflat·gen9·champmc·tera.sv… )도 읽음.
  */
-import { RAW, toID, setDataSpec, itemInPool, learnset, speciesData, GEN } from './data';
+import { RAW, toID, setDataSpec, learnset, speciesData, GEN } from './data';
 
 export type GimmickKind = 'mega' | 'zmove' | 'dynamax' | 'tera' | 'ultra';
 export type LegendMode = 'no' | 'yes';

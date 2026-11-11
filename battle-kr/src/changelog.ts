@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.72.3', date: '2026-11-11', title: '안정화', items: [
+		['fix', '랭크 매치에서 이긴 결과 화면에서 앱을 끄면 패배로 처리되던 문제, 데이터 초기화 뒤 기록이 되살아나던 문제, 파일 백업을 다른 기기에서 불러오면 두 기기가 온라인에서 같은 사람으로 보이던 문제를 고쳤어요'],
+		['fix', '온라인: 연결이 잠깐 끊긴 사이 고른 선택이 사라져 배틀이 멈추던 문제, 방에서 고르기가 먹지 않거나 버튼이 잠긴 채 남던 문제를 고쳤어요'],
+		['up', '앱 업데이트를 받는 동안 진행률이 실제로 올라가요'],
+	] },
 	{ ver: '2.72.2', date: '2026-11-11', title: '규칙 수정', items: [
 		['fix', '준전설 불가 규칙인데 날뛰는우레·꿰뚫는화염·무쇠암석·무쇠감투가 나오던 문제'],
 	] },

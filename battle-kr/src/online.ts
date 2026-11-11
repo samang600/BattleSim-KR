@@ -150,7 +150,8 @@ export function matchmake(doubles: boolean, pick: number, onCode: (code: string)
 		if (m.t === 'matched') { done = true; onCode(m.code); try { ws.close(); } catch {} }
 		else if (m.t === 'error') onError(m.msg);
 	};
-	ws.onerror = () => { if (!done) onError('서버에 연결하지 못했어요'); };
+	ws.onerror = () => { if (!done) { done = true; onError('서버에 연결하지 못했어요'); } };
+	ws.onclose = () => { if (!done) { done = true; onError('서버와 연결이 끊어졌어요. 다시 찾아 주세요'); } };   // 조용히 끊기면 '찾는 중' 화면이 영영 안 끝남
 	return () => { done = true; try { ws.close(); } catch {} };
 }
 
@@ -201,6 +202,8 @@ export class RemoteSession {
 			this.bulk = true;
 			try { list.forEach((x, i) => this.receive(x[0], x[1], i + 1)); } finally { this.bulk = false; }
 			if (this.onCatchUp && this.backlog.length) this.onCatchUp(this.backlog.splice(0));
+			// 연결이 끊긴 사이에 보낸 내 선택이 서버에 닿지 않았으면 다시 보냄 (안 그러면 둘 다 기다리기만 함)
+			if (this.pending && !this.ended && this.local.canChoose(this.mySide, this.pending)) this.room.send({ t: 'choose', choice: this.pending, ms: 0 });
 		};
 		room.handlers.emote = (side, id) => this.onEmote?.(side === this.mySide ? 'p1' : 'p2', id);
 		// 내가 만들어지기 전에 먼저 와 있던 선택들
@@ -224,6 +227,8 @@ export class RemoteSession {
 		return lines;
 	}
 	private started = false;
+	/** 보냈지만 아직 서버가 돌려주지 않은 내 선택 */
+	private pending = '';
 	private preStart: [Side, string, number][] = [];
 	private setClock(c: Clock) { this.clock = c; this.clockAt = Date.now(); }
 	private get oppSide(): Side { return this.mySide === 'p1' ? 'p2' : 'p1'; }
@@ -247,6 +252,7 @@ export class RemoteSession {
 	private send(choice: string) {
 		const ms = this.turnStart ? Date.now() - this.turnStart : 0;
 		this.turnStart = 0;
+		this.pending = choice;
 		this.room.send({ t: 'choose', choice, ms });
 	}
 	/** 내 선택: 먼저 내 엔진에서 가능한지 보고 서버로 보냄 (실제 적용은 서버가 중계해 돌려줄 때). 안 되면 null */
@@ -262,6 +268,7 @@ export class RemoteSession {
 		if (!this.started) { this.preStart.push([side, choice, n]); return; }   // 엔진을 시작하기 전(VS 연출 중·돌아오는 중)
 		if (n <= this.applied) return;             // 이미 넣은 것 (재접속 때 다시 온 기록)
 		this.applied = n;
+		if (side === this.mySide) this.pending = '';
 		this.log.push([side, choice]);
 		if (choice === 'tod' || choice.startsWith('forfeit')) this.turnStart = 0;
 		let out = this.local.applyInput(side, choice);

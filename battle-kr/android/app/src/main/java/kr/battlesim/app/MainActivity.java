@@ -14,8 +14,6 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.content.SharedPreferences;
 
 import java.io.BufferedInputStream;
@@ -127,17 +125,6 @@ public class MainActivity extends Activity {
     private void otaChecked(String r) {
         final String js = "window.onOtaChecked && window.onOtaChecked(" + org.json.JSONObject.quote(String.valueOf(r)) + ")";
         runOnUiThread(() -> web.evaluateJavascript(js, null));
-    }
-
-    private static String mimeOf(String path) {
-        String p = path.toLowerCase();
-        if (p.endsWith(".html")) return "text/html";
-        if (p.endsWith(".png")) return "image/png";
-        if (p.endsWith(".js")) return "application/javascript";
-        if (p.endsWith(".json")) return "application/json";
-        if (p.endsWith(".webmanifest")) return "application/manifest+json";
-        if (p.endsWith(".css")) return "text/css";
-        return "application/octet-stream";
     }
 
     // ── 데이터 백업: 시스템의 파일 저장·열기 화면(저장소 접근 프레임워크, 권한 불필요) ──

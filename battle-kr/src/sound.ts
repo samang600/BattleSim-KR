@@ -236,7 +236,6 @@ function moveSoundRaw(type: string, category: string) {
 interface Track { bpm: number; /** 반복할 때 돌아갈 칸 (인트로 길이) */ intro?: number; lead: (number | null)[]; harm?: (number | null)[]; bass: (number | null)[]; arp?: (number | null)[]; drums: string; loop: boolean; leadType?: OscillatorType; swing?: number; /** 곡마다 음색·연주법 (chip-gen3 의 v) */ v?: ChipVoice }
 /** 곡마다 다른 음색: 리드 파형·엔벨로프·비브라토·포르타멘토·옥타브 겹침, 화음/아르페지오/베이스 파형, 메아리, 스윙 */
 interface ChipVoice { lead?: string; env?: 'sus' | 'pluck' | 'swell'; vib?: number; vibRate?: number; slide?: number; oct?: number; harm?: string; arp?: number; arpVol?: number; bassv?: string; echo?: [number, number, number]; swing?: number }
-const R = null;
 // 간단 표기: 문자열 → 음 배열. "a4 r b4 ..." 식, 각 토큰 = 16분음표, 숫자 접미는 길이(이어짐), '-'는 지속
 const NOTE: { [k: string]: number } = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
 function seq(str: string): (number | null)[] {
@@ -643,7 +642,6 @@ export function setMusicVolume(v: 1 | 2 | 3) {
 }
 /** 음악 스타일을 바꿨을 때 지금 곡을 새 스타일로 다시 */
 export const currentMusic = () => current;
-export function restartMusic() { const n = current; if (!n) return; stopMusic(); playMusic(n); }
 
 export function stopMusic() {
 	if (timer) clearInterval(timer);

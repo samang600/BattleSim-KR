@@ -1,6 +1,6 @@
 /** 네임드 트레이너 엔트리를 배틀 규칙에 맞게 조정: 전설·환상이 허용되면 설정상 어울리는 전설을 넣어 강하게,
  *  금지되면 원래 팀의 전설을 다른 포켓몬으로 바꾼다. */
-import { RAW, speciesData, bst, toID } from './data';
+import { RAW, speciesData, bst } from './data';
 import { speciesAllowed, type BattleRule } from './rules';
 import { speciesPool, rng } from './sets';
 import type { NamedTrainer } from './trainers';
@@ -122,5 +122,3 @@ export function rosterForRule(t: NamedTrainer, ruleIn: BattleRule): string[] {
 	}
 	return [...roster.filter(id => id !== ace).slice(0, 5), ace].filter(Boolean);
 }
-
-export const _legendUtil = { isLegend, isSub, toID };

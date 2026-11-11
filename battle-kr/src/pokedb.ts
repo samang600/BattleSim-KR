@@ -5,8 +5,8 @@
  *  비어 있는 기술·성격·능력 포인트는 Smogon 통계로 채운다. */
 import TEAMS from './gen/pokedb-teams.json';
 import RT from './gen/ranker-teams.json';
-import { RAW, megaStoneFits, speciesData, nickKo, moveData, toID, type Gen } from './data';
-import { ruleById, speciesAllowed, itemAllowed, megaStoneAllowed, type BattleRule, dataRuleOr } from './rules';
+import { RAW, megaStoneFits, speciesData, nickKo, moveData, type Gen } from './data';
+import { speciesAllowed, itemAllowed, megaStoneAllowed, type BattleRule, dataRuleOr } from './rules';
 import { loadSettings } from './store';
 import { smogonSet } from './smogon';
 import { randomSetFor, dedupeItems, assignGimmicks, conformSet, spToEv, type PSet } from './sets';
@@ -90,4 +90,3 @@ export function rankerTeam(doubles: boolean, level = 50, quality = 0.8, gen: Gen
 	});
 	return { team: dedupeItems(assignGimmicks(team)), label: c.label, source: c.source };
 }
-export const POKEDB_SEASONS = DB._seasons;

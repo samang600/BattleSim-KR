@@ -22,11 +22,6 @@ export function packStatus(): PackStatus {
 	return cached || { installed: false, path: '', bytes: 0, parts: '', downloading: false };
 }
 export function refreshPack() { cached = null; return packStatus(); }
-export function hasPart(part: 'sprites' | 'cries' | 'anims') {
-	if (BUNDLED) return true;
-	const st = packStatus();
-	return st.installed && st.parts.split(',').includes(part);
-}
 /** 자료가 있는 곳의 바닥 경로 ('sprites/' 처럼 뒤에 /) — 없으면 '' */
 export function partBase(part: 'sprites' | 'cries' | 'anims'): string {
 	if (BUNDLED) return `${part}/`;

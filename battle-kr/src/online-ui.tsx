@@ -149,8 +149,12 @@ let resuming = false;
 let lastPreview: PreviewInfo | null = null;
 /** 시작 정보를 받으면 배틀 진행 */
 async function play(room: OnlineRoom, start: StartInfo, label: string, lobby = false): Promise<'again' | 'leave'> {
-	// 앱 데이터(종족값·타입·기술 수치와 설명)를 방 규칙에 맞춤 — 두 앱이 같은 데이터로 같은 배틀을 돌리게 (끝나면 내 설정으로 되돌림)
+	// 앱 데이터(종족값·타입·기술 수치와 설명)를 방 규칙에 맞춤 — 두 앱이 같은 데이터로 같은 배틀을 돌리게 (끝나면·오류가 나도 내 설정으로 되돌림)
 	applyRuleData(ruleById(start.ruleId));
+	try { return await playRoom(room, start, label, lobby); }
+	finally { applyRuleData(ruleById(loadSettings().battleRule)); }
+}
+async function playRoom(room: OnlineRoom, start: StartInfo, label: string, lobby: boolean): Promise<'again' | 'leave'> {
 	const rs = new RemoteSession(start, room);   // 먼저 만들어 둠: 이 뒤로 오는 선택은 화면이 뜰 때까지 모아 둠
 	const oppSide = start.side === 'p1' ? 'p2' : 'p1';
 	const me = start[start.side], opp = start[oppSide];
@@ -160,19 +164,21 @@ async function play(room: OnlineRoom, start: StartInfo, label: string, lobby = f
 	resuming = false;
 	// 상대 연결 상태 알림 (끊김 → 돌아옴)
 	let away = false;
+	const ext: { end?: (r: BattleResult) => void } = {};
 	room.handlers.room = info => {
+		// 내가 잠깐 끊긴 사이 상대가 결과를 보고 방으로 돌아갔거나 나감: 서버에 이 배틀이 더는 없으므로 여기서 끝냄 (안 그러면 끝나지 않는 배틀에 갇힘)
+		if (info.status === 'waiting' && !rs.ended) { toast('상대가 먼저 방으로 돌아가 배틀이 끝났어요'); ext.end?.({ win: false, forfeit: true, turns: 0, p1Left: 0, p2Left: 0 }); return; }
 		const gone = !info.online[oppSide] && info.status === 'battle';
 		if (gone && !away) toast(`${josa(opp.name, 'conjunctive')}의 연결이 끊겼어요. 1분 안에 돌아오지 않으면 승리로 처리돼요`);
 		else if (!gone && away && info.status === 'battle') toast(`${josa(opp.name, 'subject')} 다시 연결됐어요`);
 		away = gone;
 	};
 	// 재접속이면 지난 선택들이 이어서 옴 (RemoteSession 이 받아서 엔진에 넣음)
-	let res: BattleResult;
-	try { res = await runBattle({
+	const res = await runBattle({
 		gen: 9, doubles: start.doubles, aiSkill: 0, bg: 'pwt', music: 'pwt', label, noRecord: true, ruleId: start.ruleId, online: rs,
 		p1: { name: me.name, team: me.team, sprite: playerSprite() },
 		p2: { name: opp.name, title: '', team: opp.team, preview: lastPreview && lastPreview[oppSide].name === opp.name ? lastPreview[oppSide].team : undefined, sprite: splitSprite((opp as any).sprite)[0] },
-	}); } finally { applyRuleData(ruleById(loadSettings().battleRule)); }
+	}, ext);
 	setActiveRoom(null);
 	room.handlers.input = undefined; room.handlers.inputs = undefined;   // 다음 판의 선택이 끝난 판으로 가지 않게
 	if (res.quit) {   // 메뉴에서 '메인 메뉴로': 방을 나가고(끝나지 않았으면 기권은 이미 보냄) 메인 메뉴로
@@ -301,7 +307,12 @@ function roomPhase(box: RoomBox): Promise<RoomAct> {
 	return new Promise(resolve => {
 		let done = false;
 		const finish = (r: RoomAct) => { if (done) return; done = true; room.handlers.room = undefined; resolve(r); };
-		room.handlers.room = info => { box.info = info; box.emit(); };
+		let resent = false;
+		room.handlers.room = info => {
+			box.info = info; box.emit();
+			// 오래 끊겼다 돌아와 자리를 새로 받으면 서버에는 내 파티가 없음 → 다시 보냄 (안 그러면 준비를 누르는 순간 방에서 튕김)
+			if (!resent && info.side && box.team && !info.hasTeam?.[info.side]) { resent = true; room.send({ t: 'team', team: box.team }); }
+		};
 		room.handlers.preview = pv => finish({ preview: pv });
 		room.handlers.start = st => finish({ start: st });
 		room.handlers.error = msg => finish({ error: msg });
@@ -396,11 +407,12 @@ async function lobbyRoom(room: OnlineRoom, box: RoomBox) {
 	while (true) {
 		const a = await roomPhase(box);
 		if ('leave' in a) { room.send({ t: 'leave' }); room.close(); return; }
-		if ('error' in a) { room.close(); toast(a.error); return; }
+		if ('error' in a) { room.send({ t: 'leave' }); room.close(); toast(a.error); return; }
 		if ('team' in a) {
 			if (box.info?.side && box.info.ready?.[box.info.side]) room.send({ t: 'ready', on: false });   // 고르는 동안 시작되지 않게
 			const team = await chooseRoomTeam(box.info?.ruleId || loadSettings().battleRule);
 			if (team !== BACK) { box.team = withLevel(team, LEVEL); room.send({ t: 'team', team: box.team }); }
+			else room.send({ t: 'again' });   // 고르는 동안 놓친 방 정보를 다시 받음
 			continue;
 		}
 		if ('rules' in a) continue;
@@ -408,9 +420,9 @@ async function lobbyRoom(room: OnlineRoom, box: RoomBox) {
 		let w: WaitResult = 'start' in a ? { start: a.start } : { preview: a.preview };
 		let sent = false;
 		while ('preview' in w) { sent = sent || w.preview.picked; lastPreview = w.preview; w = await pickPhase(room, w.preview, '친구 대전', sent, () => { sent = true; }, true); }
-		if ('error' in w) { room.close(); toast(w.error); return; }
+		if ('error' in w) { room.send({ t: 'leave' }); room.close(); toast(w.error); return; }
 		if ('cancel' in w) { room.send({ t: 'leave' }); room.close(); return; }
-		if ('back' in w) continue;
+		if ('back' in w) { room.send({ t: 'again' }); continue; }   // 상대가 빠져 돌아옴: 지금 방 상태를 다시 받음 (안 그러면 예전 상태로 버튼이 잠긴 채 보임)
 		if ('start' in w) {
 			const r = await play(room, w.start, '친구 대전', true);
 			if (r === 'leave') { room.send({ t: 'leave' }); room.close(); return; }

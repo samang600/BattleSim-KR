@@ -130,18 +130,6 @@ export const NAMED_LINES: { [id: string]: Lines } = {
 	kieran: { ace: '…절대 안 져. 마지막이야.', lose: '…또 졌어. 하지만… 고마워.', win: '…이번엔 내가 이겼어.' },
 };
 
-/** 일반 트레이너 직업별 스프라이트 (남/여) */
-export const CLASS_SPRITES: { [cls: string]: string[] } = {
-	'엘리트트레이너': ['acetrainer-gen4', 'acetrainerf-gen4'], '베테랑트레이너': ['veteran-gen4'], '아가씨': ['lass-gen4'],
-	'신사': ['gentleman-gen4'], '도련님': ['richboy-gen4'], '격투가': ['blackbelt-gen4'], '사이킥커': ['psychic-gen4', 'psychicf-gen4'],
-	'드래곤조련사': ['dragontamer'], '포켓몬레인저': ['pokemonranger-gen4', 'pokemonrangerf-gen4'], '배틀걸': ['battlegirl-gen4'],
-	'과학자': ['scientist-gen4'], '등산가': ['hiker-gen4'], '수영선수': ['swimmer-gen4', 'swimmerf-gen4'], '스킨헤드': ['roughneck-gen4'],
-	'무녀': ['channeler-gen1'], '학자': ['ruinmaniac'], '원예가': ['aromalady'], '낚시꾼': ['fisherman-gen4'],
-	'조련사': ['pokemonbreeder-gen4', 'pokemonbreederf-gen4'], '곤충채집소년': ['bugcatcher'], '새조련사': ['birdkeeper'],
-	'스키어': ['skier', 'skierf'], '오컬트마니아': ['hexmaniac-gen3'], '카우걸': ['cowgirl'], '포켓몬브리더': ['pokemonbreeder-gen4', 'pokemonbreederf-gen4'],
-	'가라테왕': ['blackbelt-gen4'], '레인저': ['pokemonranger-gen4', 'pokemonrangerf-gen4'],
-};
-
 const GENERIC: { intro: string[]; ace: string[]; lose: string[]; win: string[] } = {
 	intro: ['내 포켓몬의 실력을 보여줄게!', '눈이 마주쳤으니 승부다!', '여기까지 온 걸 보니 강하겠군. 승부다!', '좋은 승부를 하자!',
 		'이번엔 지지 않을 거야!', '준비는 됐어? 간다!', '연승은 여기서 끝이야!', '내 전략을 깰 수 있을까?'],

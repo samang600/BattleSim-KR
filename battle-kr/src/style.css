@@ -243,16 +243,12 @@ b, strong { font-weight: normal; }
 .slot.away .sprite, .slot.away .sprite-fallback { opacity: 0; transition: opacity .15s steps(3) .45s; }
 .slot.away { pointer-events: none; }
 .slot.attack-own { animation: lungeUp .4s steps(4); } .slot.attack-foe { animation: lungeDown .4s steps(4); }
-.slot.boost::after, .slot.unboost::after { content: ''; position: absolute; bottom: 0; left: calc(var(--s) * -24px); width: calc(var(--s) * 48px); height: calc(var(--s) * 56px); animation: aura .5s steps(4); }
-.slot.boost::after { background: repeating-linear-gradient(0deg, rgba(255,96,64,.6) 0 4px, transparent 4px 10px); }
-.slot.unboost::after { background: repeating-linear-gradient(0deg, rgba(64,128,255,.6) 0 4px, transparent 4px 10px); }
 @keyframes enter { from { opacity: 0; filter: brightness(5) saturate(0); clip-path: inset(100% 0 0 0); } 60% { filter: brightness(3) saturate(0); } }
 @keyframes leave { to { opacity: 0; filter: brightness(5) saturate(0); clip-path: inset(100% 0 0 0); } }
 @keyframes faint { 25% { opacity: 1; } to { opacity: 0; clip-path: inset(100% 0 0 0); margin-bottom: -40px; } }
 @keyframes hit { 0%, 50% { opacity: 0; } 25%, 75% { opacity: 1; } }
 @keyframes lungeUp { 50% { transform: translate(18px, -14px); } }
 @keyframes lungeDown { 50% { transform: translate(-18px, 14px); } }
-@keyframes aura { from { transform: translateY(30%); opacity: 1; } to { transform: translateY(-40%); opacity: 0; } }
 .sub-doll { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: calc(var(--s) * 30px); height: calc(var(--s) * 30px); background: #f0dcb0; color: #6a4a2a;
 	display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: 0 0 0 2px #6a4a2a; text-shadow: none; }
 
@@ -690,7 +686,6 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .slot.faint .sprite { animation-duration: calc(.8s / var(--spd)); }
 .slot.hit .sprite { animation-duration: calc(.48s / var(--spd)); }
 .slot.attack-own, .slot.attack-foe { animation-duration: calc(.4s / var(--spd)); }
-.slot.boost::after, .slot.unboost::after { animation-duration: calc(.5s / var(--spd)); }
 .battle .hpbar-fill { transition-duration: calc(.6s / var(--spd)), calc(.3s / var(--spd)); }
 .trainer-spr { transition-duration: calc(.45s / var(--spd)); }
 /* 메가진화 직전: 하얗게 빛남 */
@@ -3455,6 +3450,5 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .sc-travel-me { position: absolute; width: 80px; height: 80px; margin: -52px 0 0 -40px; image-rendering: pixelated; pointer-events: none; clip-path: inset(18% 22% 30% 22%); transition: left .42s linear, top .42s linear; animation: shBob .4s steps(2) infinite; }
 @media (orientation: landscape) and (max-height: 540px) { .sc-emo { top: 0; right: 28%; width: 88px; height: 88px; } .sc-travel .sc-mapwrap { height: calc(100% - 52px); } }
 
-/* v2.72.1: 능력 변화는 fx.statChange 화살촉 연출로 — 예전 줄무늬 띠는 끔 */
-.slot.boost::after, .slot.unboost::after { display: none; }
+/* 능력 변화는 fx.statChange 화살촉 연출 (예전 줄무늬 띠 규칙은 지움) */
 .slot.dmax.faint .sprite { animation-delay: calc(.55s / var(--spd, 1)); }

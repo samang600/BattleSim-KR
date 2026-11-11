@@ -23,7 +23,6 @@ const RECOVER = new Set(['recover', 'roost', 'softboiled', 'slackoff', 'moonligh
 	'healorder', 'wish', 'rest']);
 const HAZARDS: { [id: string]: number } = { stealthrock: 1, spikes: 3, toxicspikes: 2 };
 const SCREENS = new Set(['reflect', 'lightscreen', 'safeguard', 'mist', 'luckychant']);
-const BAD_DAMAGE = new Set(['focuspunch', 'dreameater', 'lastresort', 'synchronoise', 'snore', 'belch']);
 
 function rand() { return Math.random(); }
 /** 능력치 (능력 변화 반영, 특성·도구 이벤트는 실행하지 않음 — 이벤트를 밖에서 부르면 시뮬레이터가 깨짐) */
@@ -896,7 +895,6 @@ export function chooseAI(battle: Battle, request: any, sideid: 'p1' | 'p2', skil
 // 배틀 상태를 복제해 내 선택 × 상대 선택을 실제로 한 턴 돌려 보고, 상대가 가장 잘 받아쳤을 때와 평균을 섞어 평가한다.
 let lookaheadEnabled = true;
 let inLookahead = false;
-export function setLookahead(on: boolean) { lookaheadEnabled = on; }
 
 /** 탐색 중 형제 가지를 같은 난수로 비교하기 위한 시드 (공통 난수: 운에 따른 차이를 줄임) */
 let searchSeed: any = null;

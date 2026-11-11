@@ -108,6 +108,7 @@ export function loadRecords(): Records {
 	if ((r.rankV || 0) < 2) {
 		const up = (o?: { [k: string]: number }) => o && Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v * 1.2)]));
 		r.rp = up(r.rp); r.rpBest = up(r.rpBest); r.rankV = 2;
+		if ((r as any).rankPending?.rp) (r as any).rankPending.rp = Math.round((r as any).rankPending.rp * 1.2);
 		save('records', r);
 	}
 	return r;

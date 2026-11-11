@@ -9,8 +9,8 @@ import { CalcScreen } from './ui/calc';
 import { runOnline } from './online-ui';
 import { runScenario } from './scenario';
 import { replaySession } from './online';
-import { cloudInfo, cloudUpload, cloudFetch, cloudApply, fmtCode, cleanCode } from './cloud';
-import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankTier, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
+import { cloudInfo, cloudUpload, cloudFetch, cloudApply, fmtCode, cleanCode, DEVICE_ONLY } from './cloud';
+import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
 import { runPalace, runIppitsu, runDaily, runBossRush, todayDaily } from './frontier';
 import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
 import { TrainerBook, SymbolIcon } from './ui/book';
@@ -24,8 +24,8 @@ import { CUPS, NAMED } from './trainers';
 import { unlockAudio, playMusic, stopMusic, sfx, setMusicVolume, setSfxVolume, setMoveSfxVolume } from './sound';
 import { PLAYER_SPRITES, SPRITE_URL, trainerImgError } from './trainer-lines';
 import { UserSpritesModal } from './ui/user-sprites';
-import { ShopScreen, BpCoin, cardSkin, cardSkinClass, TitleChip, useWallet } from './ui/shop';
-import { titleItem, ownedVals, loadWallet, ITEMS, pendingAchTotal } from './rewards';
+import { ShopScreen, cardSkin, cardSkinClass, TitleChip, useWallet } from './ui/shop';
+import { titleItem, loadWallet, ITEMS, pendingAchTotal } from './rewards';
 import { onUserSpritesChange } from './user-sprites';
 
 const MODES = [
@@ -292,7 +292,7 @@ function UpdateBanner() {
 // ── 데이터 백업: 안드로이드 앱은 시스템 파일 저장·열기 화면, 브라우저는 내려받기·파일 고르기 ──
 const backupName = () => `battle-kr-backup-${new Date().toISOString().slice(0, 10)}.json`;
 function backupSave() {
-	const text = exportBackup();
+	const text = exportBackup(DEVICE_ONLY);
 	const nat = (window as any).BattleSimNative;
 	if (nat?.saveBackup) {
 		(window as any).__backupSaved = (r: string) => toast(r === 'ok' ? '백업 파일을 저장했습니다.' : r === 'cancel' ? '저장을 취소했습니다.' : '저장하지 못했습니다.');
@@ -314,7 +314,7 @@ async function restoreFrom(text: string) {
 	if (!info) { toast('이 앱의 백업 파일이 아닙니다.'); return; }
 	const when = info.at ? new Date(info.at).toLocaleString('ko-KR') : '알 수 없음';
 	if (!(await confirmBox('백업 불러오기', `${when}에 만든 백업입니다 (팀 ${info.teams}개 · 리플레이 ${info.replays}개).\n지금 데이터는 모두 이 백업으로 바뀝니다. 불러올까요?`, '불러오기', '취소'))) return;
-	if (!importBackup(text)) { toast('불러오지 못했습니다.'); return; }
+	if (!importBackup(text, DEVICE_ONLY)) { toast('불러오지 못했습니다.'); return; }
 	toast('불러왔습니다. 다시 시작합니다…');
 	setTimeout(() => location.reload(), 600);
 }
@@ -521,7 +521,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		{newsAll && <WhatsNew all onClose={() => setNewsAll(false)} />}
 		<p class="muted small">배틀 계산은 Pokémon Showdown 시뮬레이터(MIT)를 그대로 사용합니다. 비공식 팬 메이드 앱이며, 포켓몬 관련 명칭의 권리는 Nintendo·Creatures·GAME FREAK·The Pokémon Company에 있습니다.</p>
 		<p class="muted small">포켓몬 도트 그림: Pokémon Showdown·Smogon Sprite Project. 9세대 퍼퓨돈(암컷)·빠모트·스태솔트·찌리비·육파리·구르데·베라카스·키키링·차데스·오거폰·무쇠감투(테라스탈 모습 포함)은 PokéAPI sprites 저장소의 도트 그림(앞모습 KingOfThe-X-Roads, 뒷모습 DoveKyle).</p>
-		<button class="btn danger" onClick={() => { if (confirm('모든 기록과 팀을 지울까요?')) { try { Object.keys(localStorage).filter(k => k.startsWith(STORE_PREFIX)).forEach(k => localStorage.removeItem(k)); (window as any).BattleSimNative?.forgetData?.(); } catch {} toast('초기화했습니다'); } }}>데이터 초기화</button>
+		<button class="btn danger" onClick={() => { if (confirm('모든 기록과 팀을 지울까요?')) { try { Object.keys(localStorage).filter(k => k.startsWith(STORE_PREFIX)).forEach(k => localStorage.removeItem(k)); (window as any).BattleSimNative?.forgetData?.(); } catch {} location.reload(); } }}>데이터 초기화</button>
 	</Screen>;
 }
 

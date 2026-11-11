@@ -10,7 +10,7 @@ import { toSimTeam, conceptBall, type PSet } from '../sets';
 import { loadSettings, updateRecords, saveReplay, newId } from '../store';
 import { emitBattleEnd } from '../battle-hooks';
 import { loadWallet, itemById } from '../rewards';
-import { TeraFilters, Sprite, CropSprite, PokeIcon, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
+import { TeraFilters, Sprite, PokeIcon, preloadSprite, HPBar, StatusBadge, TypeBadge, TYPE_COLOR, Modal, toast, confirmBox, CatIcon, ItemIcon, canFullscreen, toggleFullscreen, useFullscreen } from './core';
 import { MonSheet, type LiveInfo } from './screens';
 import { estimateDamage, typeEffOf, moveEffOf, chooseAI } from '../ai';
 import { State } from '../../../sim/state';
@@ -19,7 +19,7 @@ if (typeof window !== 'undefined') (window as any).__fx = FX;   // 연출 확인
 import { sfx, moveSound, playMusic, stopMusic, cry, preloadCries, pickBattleMusic, animSfxVolume, vibrate, setQuiet } from '../sound';
 import { saveSettings, loadSettings as loadSettings2 } from '../store';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
-import { loadAnim, preloadAnim, playAnim, animIdFor, cancelAnims } from '../anim-player';
+import { preloadAnim, playAnim, animIdFor, cancelAnims } from '../anim-player';
 
 export interface BattleSetup {
 	gen: Gen;
@@ -30,6 +30,8 @@ export interface BattleSetup {
 	label?: string; // 예: '배틀타워 12번째'
 	/** 전적에 넣지 않음 (프리·치트 배틀) */
 	noRecord?: boolean;
+	/** 승패가 정해진 순간(결과 화면을 넘기기 전)에 부름 — 결과 화면에서 앱을 꺼도 결과가 남아야 하는 모드용 */
+	onDecided?: (win: boolean) => void;
 	/** 치트 팀 허용: 능력 포인트 합계 제한 없음 */
 	cheat?: boolean;
 	/** 거꾸로 배틀 */
@@ -921,6 +923,7 @@ function typeTint(type: string) {
 			const win = s.winner === setup.p1.name;
 			if (!setup.noRecord) updateRecords(r => { r.battles++; if (win) r.wins++; });
 			emitBattleEnd(setup, s.battle, win);
+			try { setup.onDecided?.(win); } catch {}
 			if (win) playMusic('victory'); else stopMusic();
 			const left = s.battle.p1.pokemon.filter((x: any) => !x.fainted).length;
 			showMsg(win ? `${setup.p2.title ? setup.p2.title + ' ' : ''}${setup.p2.name}에게 이겼다! (${s.battle.turn}턴 · 남은 포켓몬 ${left}마리)` : `눈앞이 깜깜해졌다… (${s.battle.turn}턴)`);
