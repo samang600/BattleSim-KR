@@ -249,7 +249,7 @@ function runUpdate(onDone: (result: string) => void) {
 		const [k, v] = [r.slice(0, r.indexOf(':')), r.slice(r.indexOf(':') + 1)];
 		onDone(k);
 		if (k === 'ready') void confirmBox('앱 업데이트', `새 버전 v${v} 을 받아 두었어요.\n지금 다시 시작할까요?`, '다시 시작', '나중에').then(ok => ok && nat.restartApp());
-		else if (k === 'error') toast('받지 못했어요. 인터넷 연결을 확인해 주세요');
+		else if (k === 'error') toast(`받지 못했어요. 인터넷 연결을 확인해 주세요${v ? `\n(${v.slice(0, 80)})` : ''}`);
 	};
 	nat.checkUpdate();
 }
@@ -257,10 +257,12 @@ function AppUpdate() {
 	const nat = (window as any).BattleSimNative;
 	const u = useUpdateState();
 	const [busy, setBusy] = useState(false);
+	const [pct, setPct] = useState(0);
+	useEffect(() => { (window as any).onOtaProgress = (d: number, t: number) => setPct(t ? Math.floor(100 * d / t) : 0); return () => { (window as any).onOtaProgress = undefined; }; }, []);
 	const [skipped, setSkipped] = useState(false);   // 앱이 이 버전을 건너뜀 (시작에 실패했던 버전 등)
 	const st = u.st;
 	if (!st) return null;
-	const go = () => { setBusy(true); setSkipped(false); runUpdate(k => { setBusy(false); u.refresh(true); if (k === 'none') { if (u.newer) setSkipped(true); else toast(`최신 버전이에요 (v${APP_VERSION})`); } }); };
+	const go = () => { setBusy(true); setPct(0); setSkipped(false); runUpdate(k => { setBusy(false); u.refresh(true); if (k === 'none') { if (u.newer) setSkipped(true); else toast(`최신 버전이에요 (v${APP_VERSION})`); } }); };
 	return <>
 		<h3 class="sec">앱 업데이트</h3>
 		<div class={'upd-box' + (u.ready || u.newer ? ' has' : '')}>
@@ -270,8 +272,8 @@ function AppUpdate() {
 					<div class="seg"><button class="on" onClick={() => nat.restartApp()}>지금 적용 (다시 시작)</button></div></>
 				: u.needApk ? <p class="small upd-msg">새 버전 v{u.latest!.version} 은 새 앱 설치 파일(APK)이 필요해요. 새 APK 를 받아 설치해 주세요.</p>
 				: u.newer ? <><p class="small upd-msg">새 버전 v{u.latest!.version} 이 나왔어요.</p>
-					<div class="seg"><button class="on" disabled={busy} onClick={go}>{busy ? '받는 중…' : `v${u.latest!.version} 업데이트 받기`}</button></div>
-					{skipped && <p class="small upd-msg">이 기기에서는 이 버전을 자동으로 받을 수 없어요 (전에 시작에 실패한 버전). 새 APK 를 받아 설치해 주세요.</p>}</>
+					<div class="seg"><button class="on" disabled={busy} onClick={go}>{busy ? `받는 중… ${pct}%` : `v${u.latest!.version} 업데이트 받기`}</button></div>
+					{skipped && <p class="small upd-msg">이 앱 설치 파일(v{st.apk})로는 새 화면을 적용할 수 없어요. 새 APK 를 받아 설치해 주세요.</p>}</>
 				: <div class="seg"><button disabled={busy} onClick={go}>{busy ? '확인하는 중…' : '업데이트 확인'}</button></div>}
 		</div>
 		<p class="muted small">새 버전이 나오면 앱이 켜질 때 화면을 자동으로 받아 두고, 다시 시작하면 바뀌어요. 알림을 놓쳤어도 여기서 받고 적용할 수 있어요. 저장 데이터는 그대로예요. (앱 설치 파일 v{st.apk})</p>
@@ -519,7 +521,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		{newsAll && <WhatsNew all onClose={() => setNewsAll(false)} />}
 		<p class="muted small">배틀 계산은 Pokémon Showdown 시뮬레이터(MIT)를 그대로 사용합니다. 비공식 팬 메이드 앱이며, 포켓몬 관련 명칭의 권리는 Nintendo·Creatures·GAME FREAK·The Pokémon Company에 있습니다.</p>
 		<p class="muted small">포켓몬 도트 그림: Pokémon Showdown·Smogon Sprite Project. 9세대 퍼퓨돈(암컷)·빠모트·스태솔트·찌리비·육파리·구르데·베라카스·키키링·차데스·오거폰·무쇠감투(테라스탈 모습 포함)은 PokéAPI sprites 저장소의 도트 그림(앞모습 KingOfThe-X-Roads, 뒷모습 DoveKyle).</p>
-		<button class="btn danger" onClick={() => { if (confirm('모든 기록과 팀을 지울까요?')) { try { Object.keys(localStorage).filter(k => k.startsWith(STORE_PREFIX)).forEach(k => localStorage.removeItem(k)); } catch {} toast('초기화했습니다'); } }}>데이터 초기화</button>
+		<button class="btn danger" onClick={() => { if (confirm('모든 기록과 팀을 지울까요?')) { try { Object.keys(localStorage).filter(k => k.startsWith(STORE_PREFIX)).forEach(k => localStorage.removeItem(k)); (window as any).BattleSimNative?.forgetData?.(); } catch {} toast('초기화했습니다'); } }}>데이터 초기화</button>
 	</Screen>;
 }
 
@@ -652,7 +654,14 @@ function otaSource(): string { try { return JSON.parse((window as any).BattleSim
 {
 	const nat = (window as any).BattleSimNative;
 	if (nat) {
-		setTimeout(() => { try { nat.bootOk?.(); } catch {} }, 1500);
+		// 받아 둔 화면은 앱 안 화면과 다른 폴더에서 열림 — 저장 데이터가 이어지지 않은 것 같으면(전엔 있었는데 지금은 비어 있음) 앱 안 화면으로 되돌림
+		let lost = false;
+		try {
+			const has = Object.keys(localStorage).some(k => k.startsWith(STORE_PREFIX));
+			if (has) nat.markData?.();
+			else if (otaSource() === 'ota' && nat.hadData?.() && nat.otaRevert) { lost = true; nat.otaRevert(); }
+		} catch {}
+		if (!lost) setTimeout(() => { try { nat.bootOk?.(); } catch {} }, 1500);
 		let asked = false;
 		(window as any).onOtaReady = (info: { version: string }) => {
 			if (asked) return;

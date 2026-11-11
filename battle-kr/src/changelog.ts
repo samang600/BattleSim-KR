@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.71.1', date: '2026-11-11', title: '앱 업데이트 수정', items: [
+		['fix', '안드로이드 앱: 앱 안에서 받은 업데이트가 적용되지 않던 문제를 고쳤어요 — 이번 한 번만 새 APK 를 설치해 주세요. 다음부터는 앱 안에서 바로 바뀌어요'],
+	] },
 	{ ver: '2.71.0', date: '2026-11-10', title: '클라우드 백업', items: [
 		['new', '설정 › 데이터 백업 › 클라우드 백업 — 올리면 12자리 백업 코드를 받고, 다른 기기(폰·PC 웹)에서 그 코드로 팀·전적·설정·진행 중 도전을 불러와요'],
 		['up', '리플레이는 올리지 않고 불러와도 그 기기 것이 그대로 남아요. 코드는 남에게 알려 주지 마세요 (400일 안 쓰면 지워짐)'],

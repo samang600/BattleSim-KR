@@ -33,8 +33,11 @@ public class MainActivity extends Activity {
     private volatile boolean downloading = false;
 
     // ── 앱 화면 자동 업데이트 (OtaCore) ──
-    // 화면은 늘 file:///android_asset/www/… 주소로 열고(저장 데이터 localStorage 가 그대로 이어지게), 받아 둔 새 화면이 있으면
-    // 같은 주소의 요청에 그 파일을 대신 내어 줌. 새 화면이 두 번 연속 제대로 안 뜨면(bootOk 가 안 옴) 앱 안 화면으로 되돌림.
+    // 받아 둔 새 화면이 있으면 그 폴더의 index.html 을 file:// 로 직접 엶 (pageUrl). 없으면 앱 안 화면(file:///android_asset/www/).
+    // 둘 다 file:// 이라 저장 데이터(localStorage·IndexedDB)는 그대로 이어짐.
+    // ※ 예전(v2.71.0 까지)에는 앱 안 화면 주소의 요청을 shouldInterceptRequest 로 가로채 새 파일을 내어 주려 했는데,
+    //   WebView 는 file:///android_asset/ 요청에 그 콜백을 부르지 않아서 받아 둔 화면이 한 번도 적용되지 않았음.
+    // 새 화면이 두 번 연속 제대로 안 뜨면(bootOk 가 안 옴) 앱 안 화면으로 되돌림.
     /** 이 앱이 가진 네이티브 기능 번호 — 화면(build.mjs 의 OTA_NATIVE)이 이보다 높은 번호를 요구하면 받지 않음 */
     static final int NATIVE_API = 1;
     static final String OTA_BASE = "https://samang600.github.io/BattleSim-KR/";
@@ -47,6 +50,11 @@ public class MainActivity extends Activity {
     private long otaLastCheck = 0;
     private SharedPreferences prefs() { return getSharedPreferences("ota", MODE_PRIVATE); }
     private File otaRoot() { return new File(getFilesDir(), "ota"); }
+    /** 지금 열 화면 주소: 받아 둔 새 화면(있으면) 또는 앱 안 화면 */
+    private String pageUrl() {
+        File dir = otaActive;
+        return dir != null ? android.net.Uri.fromFile(new File(dir, "index.html")).toString() : ASSET_PREFIX + "index.html";
+    }
 
     /** 시작할 때 어떤 화면을 쓸지: 받아 둔 화면이 앱 안 화면보다 새것이고, 최근에 시작 실패가 없을 때만 */
     private void chooseBundle() {
@@ -95,7 +103,14 @@ public class MainActivity extends Activity {
                 final File cur = otaActive;
                 OtaCore.Manifest curM = cur == null ? assetManifest : OtaCore.parse(new String(readAllBytes(new java.io.FileInputStream(new File(cur, "version.json"))), java.nio.charset.StandardCharsets.UTF_8));
                 OtaCore.Source src = cur == null ? path -> getAssets().open("www/" + path) : path -> new java.io.FileInputStream(new File(cur, path));
-                File dir = OtaCore.install(OTA_BASE, remote, curM, src, otaRoot(), null);
+                final long[] last = {0};
+                File dir = OtaCore.install(OTA_BASE, remote, curM, src, otaRoot(), (done, total) -> {
+                    long now2 = System.currentTimeMillis();
+                    if (now2 - last[0] < 250 && done < total) return;
+                    last[0] = now2;
+                    final String pjs = "window.onOtaProgress && window.onOtaProgress(" + done + "," + total + ")";
+                    runOnUiThread(() -> web.evaluateJavascript(pjs, null));
+                });
                 prefs().edit().putString("version", remote.version).putInt("boot", 0).apply();   // 다음 시작부터 이 화면
                 otaReady = dir;
                 final String js = "window.onOtaReady && window.onOtaReady({version:" + org.json.JSONObject.quote(remote.version) + "})";
@@ -297,7 +312,7 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 chooseBundle();
                 otaReady = null;
-                web.loadUrl(ASSET_PREFIX + "index.html");
+                web.loadUrl(pageUrl());
             });
         }
 
@@ -311,7 +326,32 @@ public class MainActivity extends Activity {
 
         /** 지금 새 화면이 있는지 바로 확인 (설정 화면의 '업데이트 확인') */
         @JavascriptInterface
-        public void checkUpdate() { if (otaReady != null) otaChecked("ready:" + otaReady.getName()); else checkOta(true); }
+        public void checkUpdate() {
+            if (otaReady != null) { otaChecked("ready:" + otaReady.getName()); return; }
+            prefs().edit().remove("bad").apply();   // 직접 누른 것이면 전에 막아 둔 버전도 다시 받아 봄
+            checkOta(true);
+        }
+
+        /** 저장 데이터가 있다고 적어 둠 (받아 둔 화면에서 저장 데이터가 안 보이면 되돌리는 데 씀) */
+        @JavascriptInterface
+        public void markData() { if (!prefs().getBoolean("hasData", false)) prefs().edit().putBoolean("hasData", true).apply(); }
+        @JavascriptInterface
+        public boolean hadData() { return prefs().getBoolean("hasData", false); }
+        /** 사용자가 데이터를 직접 지웠을 때 */
+        @JavascriptInterface
+        public void forgetData() { prefs().edit().putBoolean("hasData", false).apply(); }
+
+        /** 받아 둔 화면을 버리고 앱 안 화면으로 되돌림 (그 버전은 자동으로는 다시 받지 않음) */
+        @JavascriptInterface
+        public void otaRevert() {
+            runOnUiThread(() -> {
+                String v = prefs().getString("version", "");
+                prefs().edit().remove("version").putInt("boot", 0).putString("bad", v).apply();
+                chooseBundle();
+                otaReady = null;
+                web.loadUrl(pageUrl());
+            });
+        }
 
         @JavascriptInterface
         public void deletePack() {
@@ -364,24 +404,6 @@ public class MainActivity extends Activity {
         s.setCacheMode(WebSettings.LOAD_DEFAULT); // 포켓몬 그림은 한 번 받으면 캐시에서 사용
         chooseBundle();
         web.setWebViewClient(new WebViewClient() {
-            // 받아 둔 새 화면이 있으면 같은 주소(file:///android_asset/www/…)의 요청에 그 파일을 내어 줌
-            @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
-                File dir = otaActive;
-                if (dir == null) return null;
-                try {
-                    String url = req.getUrl().toString();
-                    if (!url.startsWith(ASSET_PREFIX)) return null;
-                    String path = url.substring(ASSET_PREFIX.length());
-                    int q = path.indexOf('?'); if (q >= 0) path = path.substring(0, q);
-                    int h = path.indexOf('#'); if (h >= 0) path = path.substring(0, h);
-                    if (path.isEmpty()) path = "index.html";
-                    File f = new File(dir, path);
-                    if (!f.getCanonicalPath().startsWith(dir.getCanonicalPath() + File.separator) || !f.isFile()) return null;
-                    String mime = mimeOf(path);
-                    return new WebResourceResponse(mime, mime.startsWith("text/") || mime.endsWith("json") || mime.endsWith("javascript") ? "UTF-8" : null, new java.io.FileInputStream(f));
-                } catch (Exception e) { return null; }   // 문제가 있으면 앱 안 파일로
-            }
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
@@ -423,14 +445,7 @@ public class MainActivity extends Activity {
             return insets;
         });
         setContentView(root);
-        if (savedInstanceState != null) web.restoreState(savedInstanceState);
-        else web.loadUrl("file:///android_asset/www/index.html");
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle out) {
-        super.onSaveInstanceState(out);
-        web.saveState(out);
+        web.loadUrl(pageUrl());   // 화면은 어차피 처음부터 다시 뜨므로 저장된 WebView 상태는 쓰지 않음 (예전 주소가 되살아나지 않게)
     }
 
     @Override
