@@ -480,6 +480,10 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		<div class="seg">{([1, 2, 3, 4] as const).map(v => <button class={s.speed === v ? 'on' : ''} onClick={() => up({ speed: v })}>{['느림', '보통', '빠름', '매우 빠름'][v - 1]}</button>)}</div>
 		<h3 class="sec">주인공 모습</h3>
 		<AvatarPicker value={s.playerSprite} onChange={id => up({ playerSprite: id })} />
+		<h3 class="sec">배틀 규칙</h3>
+		<RuleRows s={s} up={up} />
+		<div class="set-row"><span>노력치 표시</span><div class="seg">{([['sp', '32 (66)'], ['ev', '252 (510)']] as const).map(([k, l]) => <button class={(s.evDisplay || 'sp') === k ? 'on' : ''} onClick={() => up({ evDisplay: k })}>{l}</button>)}</div></div>
+		<p class="muted small">팀 편집·포켓몬 정보에서 능력 포인트(능력마다 32, 합계 66)로 볼지, 본가 노력치(252, 합계 510)로 볼지 고릅니다. 규칙은 그대로 66포인트라 노력치로 보면 본가보다 1포인트(노력치 8) 더 쓸 수 있습니다. 노력치 방식으로 내보낸 텍스트는 합계 510에 맞춰집니다.</p>
 		<h3 class="sec">소리</h3>
 		<div class="seg">
 			<button class={s.sound ? 'on' : ''} onClick={() => { up({ sound: !s.sound }); }}>효과음 {s.sound ? '켜짐' : '꺼짐'}</button>
@@ -509,10 +513,6 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
 		<h3 class="sec">메뉴 배경</h3>
 		<div class="seg wrap">{([['title', '하늘'], ['field', '초원'], ['tower', '타워'], ['factory', '팩토리'], ['pwt', '경기장'], ['champion', '챔피언']] as [string, string][]).map(([k, l]) => <button class={s.homeBg === k ? 'on' : ''} onClick={() => { up({ homeBg: k }); applyTheme({ ...s, homeBg: k }); }}>{l}</button>)}</div>
 		<p class="muted small">효과음·배경음악은 이 앱에서 합성한 칩튠, 기술 효과음은 Pokémon Reborn 제작. 울음소리는 인터넷에서 받아 옵니다.</p>
-		<h3 class="sec">배틀 규칙</h3>
-		<RuleRows s={s} up={up} />
-		<div class="set-row"><span>노력치 표시</span><div class="seg">{([['sp', '32 (66)'], ['ev', '252 (510)']] as const).map(([k, l]) => <button class={(s.evDisplay || 'sp') === k ? 'on' : ''} onClick={() => up({ evDisplay: k })}>{l}</button>)}</div></div>
-		<p class="muted small">팀 편집·포켓몬 정보에서 능력 포인트(능력마다 32, 합계 66)로 볼지, 본가 노력치(252, 합계 510)로 볼지 고릅니다. 규칙은 그대로 66포인트라 노력치로 보면 본가보다 1포인트(노력치 8) 더 쓸 수 있습니다. 노력치 방식으로 내보낸 텍스트는 합계 510에 맞춰집니다.</p>
 		<h3 class="sec">포켓몬 그림</h3>
 		<div class="seg"><button onClick={() => setUserSpr(true)}>🖼 포켓몬 그림 바꾸기</button></div>
 		<p class="muted small">포켓몬마다 앞·뒤·색이 다른 모습 그림을 내 그림 파일로 바꿀 수 있어요(정지 도트 그림 설정, 오프라인의 이름 카드 대신). 원본 그림 추출(한 마리·전체 zip), 내 그림 zip 내보내기·일괄 적용도 여기서 합니다. 내 그림은 데이터 백업 파일에는 들어가지 않으니 '내 그림 내보내기' zip 으로 보관하세요.</p>
