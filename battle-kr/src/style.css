@@ -3438,7 +3438,7 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 @keyframes mvDroop { to { transform: translateY(10px) scale(1, .98); filter: saturate(.8) brightness(.92); } }
 @keyframes mvSway { 25% { transform: rotate(-1.5deg); } 75% { transform: rotate(1.5deg); } }
 @keyframes mvLean { 50% { transform: scale(1.04); } }
-.sc-emo { position: absolute; right: 8%; top: 4%; width: 132px; height: 132px; image-rendering: pixelated; pointer-events: none; filter: drop-shadow(3px 3px 0 rgba(0,0,0,.35)); animation: emoPop .3s steps(4) both; }
+.sc-emo { position: absolute; right: 6%; top: 2%; width: 132px; height: 132px; image-rendering: pixelated; pointer-events: none; filter: drop-shadow(3px 3px 0 rgba(0,0,0,.35)); animation: emoPop .3s steps(4) both; }
 @keyframes emoPop { from { transform: scale(0); } }
 .sc-travel .sc-roads line.go { stroke: #ff5a5a; stroke-width: 2.2; stroke-dasharray: none; }
 .sc-travel .sc-node { cursor: default; }
