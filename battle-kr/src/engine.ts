@@ -25,6 +25,8 @@ export interface SessionConfig {
 	p2Auto?: (battle: any, req: any) => string | null;
 	/** 온라인 대전: 양쪽 선택을 모두 밖(서버가 중계한 순서)에서 넣음 (applyInput). AI 는 돌지 않음 */
 	remote?: boolean;
+	/** 시나리오: 내 팀의 시작 상태 (팀 순서대로). hp = 남은 체력 비율(0 = 기절), pp = 기술별 남은 PP. 없으면 가득 */
+	p1State?: ({ hp?: number; pp?: { [move: string]: number } } | undefined)[];
 }
 
 export class Session {
@@ -155,7 +157,19 @@ export class Session {
 
 	start(): string[] {
 		this.battle.setPlayer('p1', { name: this.cfg.p1.name, team: this.cfg.p1.team } as any);
+		// 시나리오: 지난 배틀에서 남은 HP·PP 로 시작 (상대가 들어와 배틀이 시작되기 전에 넣어야 등장 때의 HP 에 반영됨)
+		this.p1Orig = [...(this.battle.p1 as any).pokemon];
+		if (this.cfg.p1State) this.p1Orig.forEach((p: any, i: number) => {
+			const st = this.cfg.p1State![i]; if (!st) return;
+			if (st.hp !== undefined) {
+				if (st.hp <= 0) { p.hp = 0; p.fainted = true; p.status = 'fnt'; }
+				else p.hp = Math.max(1, Math.min(p.maxhp, Math.round(p.maxhp * st.hp)));
+			}
+			if (st.pp) for (const ms of p.baseMoveSlots) if (st.pp[ms.id] !== undefined) ms.pp = Math.max(0, Math.min(ms.maxpp, st.pp[ms.id]));
+		});
 		this.battle.setPlayer('p2', { name: this.cfg.p2.name, team: this.cfg.p2.team } as any);
+		// 배틀이 시작되며 남은 포켓몬 수가 팀 전체로 다시 세어지므로, 기절한 채 시작한 포켓몬을 빼 둠 (안 그러면 전멸해도 배틀이 끝나지 않음)
+		if (this.cfg.p1State) (this.battle.p1 as any).pokemonLeft = this.p1Orig.filter((p: any) => !p.fainted).length;
 		if (this.cfg.partnerFlags) {
 			const side: any = this.battle.p1;
 			side.pokemon.forEach((p: any, i: number) => { p.kPartner = !!this.cfg.partnerFlags![i]; });
@@ -188,12 +202,46 @@ export class Session {
 		return this.flush();
 	}
 
-	/** 플레이어 선택. 잘못된 선택이면 null */
-	choose(choice: string): string[] | null {
+	/** 시나리오: 내 팀 포켓몬 (처음 팀 순서 그대로) */
+	p1Orig: any[] = [];
+	/** 시나리오: 배틀이 끝난 뒤의 내 팀 상태 (팀 순서대로) — 남은 체력 비율과 기술별 PP */
+	p1Final(): { hp: number; pp: { [move: string]: number } }[] {
+		return this.p1Orig.map((p: any) => ({ hp: p.fainted || p.hp <= 0 ? 0 : p.hp / p.maxhp, pp: Object.fromEntries(p.baseMoveSlots.map((ms: any) => [ms.id, ms.pp])) }));
+	}
+	/** 시나리오: 배틀 중 도구 사용 (회복·되살리기·PP 회복). 로그 줄만 쌓고, 턴은 choose('pass', true) 로 넘김. 쓸 수 없으면 false */
+	useItem(i: number, fx: { heal?: number; revive?: boolean; pp?: number }, label: string): boolean {
+		const p = this.p1Orig[i], side: any = this.battle.p1; if (!p) return false;
+		if (fx.revive) {
+			if (!p.fainted) return false;
+			p.fainted = false; p.faintQueued = false; p.status = ''; p.hp = Math.max(1, Math.floor(p.maxhp / 2)); side.pokemonLeft++;
+			this.battle.add('message', `${label}: ${p.name} 되살아났다!`);
+			return true;
+		}
+		if (p.fainted) return false;
+		if (fx.heal) {
+			if (p.hp >= p.maxhp) return false;
+			p.hp = Math.min(p.maxhp, p.hp + fx.heal);
+			if (p.isActive) this.battle.add('-heal', p, p.getHealth, '[from] item: ' + label); else this.battle.add('message', `${label}: ${p.name}의 체력이 회복되었다!`);
+			return true;
+		}
+		if (fx.pp) {
+			if (p.baseMoveSlots.every((ms: any) => ms.pp >= ms.maxpp)) return false;
+			for (const ms of p.baseMoveSlots) ms.pp = Math.min(ms.maxpp, ms.pp + fx.pp);
+			this.battle.add('message', `${label}: ${p.name}의 PP가 회복되었다!`);
+			return true;
+		}
+		return false;
+	}
+
+	/** 플레이어 선택. 잘못된 선택이면 null. allowPass = 도구를 써서 이번 턴 행동을 넘김 (시나리오) */
+	choose(choice: string, allowPass = false): string[] | null {
 		this.lastError = '';
 		const prevReq = this.p1Request;
 		this.syncSimRequest('p1');
-		const ok = this.battle.choose('p1', choice);
+		const sd: any = this.battle.p1, origPass = sd.choosePass;
+		if (allowPass) sd.choosePass = function () { this.choice.actions.push({ choice: 'pass' }); return true; };
+		let ok = false;
+		try { ok = !!this.battle.choose('p1', choice); } finally { if (allowPass) sd.choosePass = origPass; }
 		if (!ok) {
 			this.p1Request = prevReq;
 			return null;

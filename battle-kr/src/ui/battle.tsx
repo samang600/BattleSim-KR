@@ -32,6 +32,15 @@ export interface BattleSetup {
 	noRecord?: boolean;
 	/** 승패가 정해진 순간(결과 화면을 넘기기 전)에 부름 — 결과 화면에서 앱을 꺼도 결과가 남아야 하는 모드용 */
 	onDecided?: (win: boolean) => void;
+	/** 시나리오: 내 팀의 시작 HP·PP(팀 순서대로) · 끝난 뒤 상태를 돌려받음 · 배틀 중 쓸 수 있는 가방 */
+	story?: {
+		state?: ({ hp?: number; pp?: { [move: string]: number } } | undefined)[];
+		onFinal?: (st: { hp: number; pp: { [move: string]: number } }[]) => void;
+		/** 지금 가진 회복 도구 */
+		bag?: () => { id: string; name: string; desc: string; n: number; fx: { heal?: number; revive?: boolean; pp?: number } }[];
+		/** 하나 씀 */
+		used?: (id: string) => void;
+	};
 	/** 야생 포켓몬과의 배틀: '기권' 대신 '도망' (시나리오) */
 	runAway?: boolean;
 	/** 치트 팀 허용: 능력 포인트 합계 제한 없음 */
@@ -135,7 +144,9 @@ function useWide(q = WIDE_Q) {
 	return w;
 }
 
-export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: BattleResult) => void }) {
+export function BattleView({ setup, onEnd: onEnd0 }: { setup: BattleSetup; onEnd: (r: BattleResult) => void }) {
+	// 시나리오: 끝날 때 내 팀의 남은 HP·PP 를 돌려줌
+	const onEnd = (r: BattleResult) => { try { const s: any = sessionRef.current; if (setup.story?.onFinal && s?.p1Final) setup.story.onFinal(s.p1Final()); } catch { /* 상태를 못 읽어도 배틀은 끝냄 */ } onEnd0(r); };
 	const settings = useRef(loadSettings()).current;
 	const sessionRef = useRef<Session | null>(null);
 	const textRef = useRef<KoreanText | null>(null);
@@ -341,6 +352,8 @@ export function BattleView({ setup, onEnd }: { setup: BattleSetup; onEnd: (r: Ba
 	});
 	const fullscreen = useFullscreen();
 	const [fieldOpen, setFieldOpen] = useState(false);
+	/** 시나리오 가방: null = 닫힘, '' = 도구 고르기, 도구 id = 누구에게 쓸지 고르기 */
+	const [bagOpen, setBagOpen] = useState<string | null>(null);
 	const [foeOpen, setFoeOpen] = useState(false);   // 상대 파티 현황 창 (좁은 화면: 양옆 패널 대신)
 	// 보상 꾸미기 (rewards.ts): 승리 연출·HP 창 테마·볼 연출
 	const [wallet] = useState(() => loadWallet());
@@ -1147,7 +1160,7 @@ function typeTint(type: string) {
 			gen: setup.gen, doubles: setup.doubles, aiSkill: setup.aiSkill, inverse: !!setup.inverse,
 			...(setup.ruleId ? { ruleId: setup.ruleId } : {}), p2Auto: setup.p2Auto,
 			...(setup.replay ? { seed: setup.replay.seed, ruleId: setup.replay.ruleId, replayP2: setup.replay.p2 } : {}),
-			partnerFlags: setup.partner?.theirs,
+			partnerFlags: setup.partner?.theirs, p1State: setup.story?.state,
 			p1: { name: setup.p1.name, team: toSimTeam(setup.p1.team, !!setup.cheat) as any },
 			p2: { name: setup.p2.name, team: toSimTeam(setup.p2.team, !!setup.cheat) as any },
 		});
@@ -1609,18 +1622,19 @@ function typeTint(type: string) {
 				{land ? <div class="sd-cmds">
 					{/* 휴대폰 가로: 교체는 '포켓몬' 버튼으로 오른쪽 칸 전체를 써서 */}
 					<button class="cmd-sub green" onClick={() => setMenu('switch')}>포켓몬</button>
+					{setup.story?.bag && <button class="cmd-sub yellow" onClick={() => setBagOpen('')}>가방</button>}
 					<button class="cmd-sub blue" onClick={forfeit}>{setup.runAway ? '도망' : '기권'}</button>
 					{!wide && <button class="cmd-sub red sd-foe" onClick={() => setFoeOpen(true)}>상대</button>}
 					<button class="cmd-sub yellow" onClick={() => setShowLog(true)}>기록</button>
 				</div> : <>
-					<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>{setup.runAway ? '도망' : '기권'}</button>{!wide && <button class="btn small sd-foe2" onClick={() => setFoeOpen(true)}>상대</button>}<button class="btn small sd-log" onClick={() => setShowLog(true)}>기록</button></div>
+					<div class="sd-label">교체 {setup.story?.bag && <button class="btn small sd-forfeit" onClick={() => setBagOpen('')}>가방</button>}<button class="btn small sd-forfeit" onClick={forfeit}>{setup.runAway ? '도망' : '기권'}</button>{!wide && <button class="btn small sd-foe2" onClick={() => setFoeOpen(true)}>상대</button>}<button class="btn small sd-log" onClick={() => setShowLog(true)}>기록</button></div>
 					{renderSwitch()}
 				</>}
 			</div>}
 			{menu === 'main' && !combined && <div class="cmd-menu">
 				<button class="cmd-fight" onClick={() => { setFocus(0); setMenu('moves'); }}><span>싸운다</span></button>
 				<div class="cmd-row">
-					<button class="cmd-sub yellow" onClick={() => setFieldOpen(true)}>필드</button>
+					{setup.story?.bag ? <button class="cmd-sub yellow" onClick={() => setBagOpen('')}>가방</button> : <button class="cmd-sub yellow" onClick={() => setFieldOpen(true)}>필드</button>}
 					<button class="cmd-sub blue" onClick={forfeit}>{setup.runAway ? '도망' : '기권'}</button>
 					<button class="cmd-sub green" onClick={() => setMenu('switch')}>포켓몬</button>
 				</div>
@@ -1902,6 +1916,28 @@ function typeTint(type: string) {
 				return <div class="foe-grid">{pv.map((x, i) => hit[i] ? cell(hit[i]!) : <div class="foe-cell dim" aria-label={speciesKo(x.species)}><PokeIcon species={x.species} cls="foe-pic" /><i class="foe-nohp" /></div>)}</div>;
 			})()}
 		</Modal>}
+		{bagOpen !== null && setup.story?.bag && (() => {
+			const s: any = sessionRef.current, items = setup.story!.bag!(), it = items.find(x => x.id === bagOpen);
+			const useOn = async (i: number) => {
+				if (!it || !s.useItem(i, it.fx, it.name)) { toast('지금은 쓸 수 없어요'); return; }
+				setup.story!.used?.(it.id); setBagOpen(null); sfx('heal');
+				// 도구를 쓰면 이번 턴의 내 행동은 지나감 (파트너는 평소대로 움직임)
+				const req = s.p1Request, mine: string[] = [];
+				for (let k = 0; k < (req.active?.length || 1); k++) { const mon = req.side.pokemon[k]; if (mon && !mon.condition.endsWith(' fnt') && !aiSlot(req, k)) mine.push('pass'); }
+				const lines = s.choose(mergePartner(req, mine).join(', '), true);
+				if (!lines) { toast('선택할 수 없습니다'); beginInput(); return; }
+				setMenu('main'); await play(lines);
+			};
+			return <Modal title={it ? `${it.name} — 누구에게 쓸까요?` : '가방'} onClose={() => setBagOpen(it ? '' : null)}>
+				<div class="battle-menu">
+					{!it && !items.length && <p class="muted">쓸 수 있는 도구가 없어요. (프렌들리숍에서 상처약을 살 수 있어요)</p>}
+					{!it && items.map(x => <button class="btn big" onClick={() => setBagOpen(x.id)}>{x.name} ×{x.n}<small style={{ display: 'block', fontSize: '12px', opacity: .8 }}>{x.desc}</small></button>)}
+					{it && s.p1Orig.map((p: any, i: number) => p.kPartner ? null : <button class="btn big" disabled={it.fx.revive ? !p.fainted : p.fainted || (it.fx.heal ? p.hp >= p.maxhp : false)} onClick={() => useOn(i)}>
+						{speciesKo(p.species.id)} Lv{p.level} · {p.fainted ? '기절' : `HP ${p.hp}/${p.maxhp}`}</button>)}
+					<button class="btn big ghost" onClick={() => setBagOpen(it ? '' : null)}>{it ? '다른 도구' : '닫기'}</button>
+				</div>
+			</Modal>;
+		})()}
 		{fieldOpen && <FieldModal session={sessionRef.current!} scene={sceneRef.current} onClose={() => setFieldOpen(false)} />}
 		{showLog && <Modal title="배틀 기록" onClose={() => setShowLog(false)}>
 			<button class="btn small" onClick={() => { navigator.clipboard?.writeText(log.join('\n')).then(() => toast('배틀 기록을 복사했습니다'), () => toast('복사하지 못했습니다')); }}>기록 복사</button>

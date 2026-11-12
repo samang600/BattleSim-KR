@@ -3692,3 +3692,8 @@ button.sc-clock { font: inherit; cursor: pointer; } button.sc-clock:active { tra
 .sc-hub .sh-npc.g-f .sh-label { color: #ffd0e0; } .sc-hub .sh-npc.g-m .sh-label { color: #c8e0ff; }
 .sc-scr .sc-route.g-f:not(.unk) { border-image-source: var(--ring4-pink); background: linear-gradient(180deg, #5a2a52 0 2px, #4a2248 2px 60%, #3c1a3c 60%) border-box; }
 .sc-scr .sc-route.g-m:not(.unk) { border-image-source: var(--ring4-blue); background: linear-gradient(180deg, #2b4a8a 0 2px, #223e78 2px 60%, #1b3266 60%) border-box; }
+/* v2.76: 남은 체력 줄 · 도구를 쓸 포켓몬 고르기 · 다친/기절한 파티 표시 */
+.sc-hpline { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #bfe8c8; } .sc-hpline i { width: 72px; height: 6px; background: #0a0f18; box-shadow: 0 0 0 2px #0a0f18; flex: none; } .sc-hpline i b { display: block; height: 100%; background: #5ae08a; }
+.sc-hpline.mid i b { background: #f0d040; } .sc-hpline.low i b { background: #f05a4a; } .sc-hpline.low { color: #ffb0a8; } .sc-hpline.fnt { color: #ff8a80; }
+button.sc-usemon { display: flex; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; margin-bottom: 6px; align-items: center; gap: 8px; } button.sc-usemon:disabled { filter: grayscale(.7) brightness(.7); cursor: default; } button.sc-usemon:active:not(:disabled) { transform: translate(2px, 2px); }
+.sc-pmon.fnt { filter: grayscale(1) brightness(.6); } .sc-pmon.hurt small { color: #ff9a8a; }
