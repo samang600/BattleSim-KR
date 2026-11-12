@@ -3675,3 +3675,9 @@ button.sc-clock { font: inherit; cursor: pointer; } button.sc-clock:active { tra
 /* v2.74: 위 띠의 하트는 하나 + 숫자 (하트가 6칸으로 늘어 자리가 모자람) · 배지 줄이 눌려 겹치지 않게 */
 .sc-hmini { display: inline-flex; align-items: center; gap: 4px; } .sc-hmini b { font-weight: normal; font-size: 12px; color: #ffc0d4; }
 .sc-badgerow { white-space: nowrap; } .sc-badgerow > * { flex: none; }
+/* v2.74.1: 거점의 내 트레이너·태그 파트너 도트를 작게(원본의 2배) · 감정 말풍선은 아주 작게(원본 크기), 화면 끝이 아니라 인물 머리 바로 옆에 */
+.sc-hub .sc-me2 img { width: 160px; height: 160px; margin-right: -24px; } .sc-hub .sc-me2 img.sc-partner { margin-right: -96px !important; }
+@media (orientation: landscape) and (max-height: 540px) { .sc-hub .sc-me2 img { width: 80px; height: 80px; margin-right: -12px; } .sc-hub .sc-me2 img.sc-partner { margin-right: -48px !important; } }
+.sc-stp .sc-emo { width: 44px; height: 44px; right: auto; top: 3%; left: min(calc(50% + 110px), calc(100% - 52px)); filter: drop-shadow(2px 2px 0 rgba(0,0,0,.35)); }
+.sc-stp:has(.sc-portrait.dot) .sc-emo { top: auto; bottom: 372px; left: min(calc(50% + 84px), calc(100% - 52px)); }
+@media (orientation: landscape) and (max-height: 540px) { .sc-stp .sc-emo { width: 44px; height: 44px; right: auto; top: 0; left: calc(50% + 90px); } .sc-stp:has(.sc-portrait.dot) .sc-emo { top: auto; bottom: 244px; left: calc(50% + 60px); } }
