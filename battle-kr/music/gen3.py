@@ -557,6 +557,17 @@ NEW.update({
          'e6.4 g6.4 c7.8|a6.6 f#6.2 d6.8|b6.8 f#6.4 d#6.4|b5.12 r.4', {'harm': 'pad', 'bass': 'pedal', 'arp': 'bell'}),
     ], {'main': 'k.......s.....h.', 'intro': 'k...............'}, 'k.......s...s.s.',
      {'lead': 'tri', 'env': 'swell', 'vib': 1, 'echo': [0.26, 0.42, 0.3], 'harm': 'wave', 'bassv': 'tri'}),
+    # 물가 도시 (Bb장조 116): 물결처럼 오르내리는 아르페지오 위에 긴 선율
+    'scwater': (116, [
+        ('intro', ['Bb', 'F'], 'd6.4 f6.4 bb6.8|a6.4 f6.4 c6.8', {'harm': 'none', 'bass': 'sustain', 'arp': 'updown', 'drum': 'intro'}),
+        ('A', ['Bb', 'Eb', 'Bb', 'F', 'Gm', 'Eb', 'F', 'Bb'],
+         'd6.6 f6.2 bb6.8|g6.4 eb6.4 bb5.8|d6.4 f6.4 bb6.6 a6.2|a6.8 f6.4 c6.4|'
+         'bb6.6 g6.2 d6.8|eb6.4 g6.4 bb6.8|a6.4 c7.4 a6.4 f6.4|bb6.12 r.4', {'harm': 'pad', 'bass': 'walk', 'arp': 'updown'}),
+        ('B', ['Eb', 'Bb', 'Cm', 'F', 'Eb', 'Dm', 'Cm', 'F7'],
+         'g6.6 bb6.2 eb7.8|f7.6 d7.2 bb6.8|eb7.4 c7.4 g6.8|a6.4 c7.4 f7.8|'
+         'bb6.4 g6.4 eb6.4 g6.4|a6.4 f6.4 d6.4 f6.4|g6.2 ab6.2 bb6.2 c7.2 eb7.8|c7.8 a6.4 f6.4', {'harm': 'third', 'bass': 'walk', 'arp': 'updown', 'drum': 'b'}),
+    ], {'main': 'k...h...s...h.h.', 'b': 'k..hh...s..hh.h.', 'intro': '........s.......'}, 'k...h...s.h.s.ss',
+     {'lead': 'p50', 'vib': 0.9, 'echo': [0.2, 0.36, 0.28], 'harm': 'tri', 'bassv': 'tri', 'arp': 0.12}),
     # 인연 (F장조 96): 인물과 가까워지는 장면 — 길게 노래하는 선율
     'scheart': (96, [
         ('intro', ['F', 'C'], 'c6.4 a5.4 f5.8|e5.4 g5.4 c6.8', {'harm': 'none', 'bass': 'sustain', 'drum': 'intro'}),

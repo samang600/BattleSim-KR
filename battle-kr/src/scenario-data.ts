@@ -40,7 +40,7 @@ export const LOCS: Loc[] = [
 	{ id: 'forest', name: '상록숲', sub: '나무가 빽빽한 천연의 미로', bg: 'forest', x: 17, y: 43, to: ['viridian', 'pewter'], arena: 'field', music: 'scroute' },
 	{ id: 'pewter', name: '회색시티', sub: '회색은 바위의 색', bg: 'pewter', x: 15, y: 24, to: ['forest', 'mtmoon'], town: true, arena: 'gym', music: 'sctown', rest: '포켓몬센터' },
 	{ id: 'mtmoon', name: '달맞이산', sub: '달의돌이 잠든 산', bg: 'mtmoon', x: 46, y: 19, to: ['pewter', 'cerulean'], arena: 'cave', music: 'sccave' },
-	{ id: 'cerulean', name: '블루시티', sub: '블루는 물빛 신비의 색', bg: 'cerulean', x: 74, y: 27, to: ['mtmoon', 'bridge'], town: true, arena: 'beach', music: 'g3deepsea', rest: '포켓몬센터' },
+	{ id: 'cerulean', name: '블루시티', sub: '블루는 물빛 신비의 색', bg: 'cerulean', x: 74, y: 27, to: ['mtmoon', 'bridge'], town: true, arena: 'beach', music: 'scwater', rest: '포켓몬센터' },
 	{ id: 'bridge', name: '골든볼브리지', sub: '24번도로 · 금빛 난간의 다리', bg: 'bridge', x: 78, y: 13, to: ['cerulean', 'cape'], arena: 'beach', music: 'scroute' },
 	{ id: 'cape', name: '블루곶', sub: '25번도로 끝 · 바다가 보이는 언덕', bg: 'cape', x: 92, y: 7, to: ['bridge'], arena: 'beach', music: 'scheart' },
 ];
@@ -68,7 +68,7 @@ export const TRAINERS: Trainer[] = [
 		before: '길을 잃었는데… 일단 승부나 할까?', after: '출구가 어느 쪽이더라…', again: '이 숲에는 피카츄가 숨어 산대!' },
 	{ id: 'p1', loc: 'pewter', name: '캠프보이 준호', sprite: 'camper', team: [['geodude', 10], ['sandshrew', 11]], skill: 0.3, once: true, arena: 'gym', music: 'boss',
 		before: '잠깐! 웅 관장님께 도전하려면 나부터 이겨야지!', after: '빠르군… 관장님께는 10000광년 이르다고 하려 했는데!', again: '관장님은 저 안에 계셔.' },
-	{ id: 'brock', loc: 'pewter', name: '웅', title: '회색 체육관 관장', sprite: 'brock', team: [['geodude', 12], ['onix', 14]], skill: 0.55, once: true, need: 'p1', arena: 'gym', music: 'boss',
+	{ id: 'brock', loc: 'pewter', name: '웅', title: '회색 체육관 관장', sprite: 'brock', team: [['geodude', 11], ['onix', 13]], skill: 0.5, once: true, need: 'p1', arena: 'gym', music: 'boss',
 		before: '', after: '', again: '세상에는 더 강한 트레이너가 많다. 계속 나아가라!' },
 	{ id: 'p2', loc: 'pewter', name: '등산가 석진', sprite: 'hiker', team: [['geodude', 11], ['machop', 12]], skill: 0.3, at: [0, 1],
 		before: '박물관 구경 가는 길인데, 몸이나 풀고 갈까!', after: '화석처럼 굳어 버렸군…', again: '박물관에는 고대 포켓몬의 화석이 있다네.' },
@@ -136,7 +136,7 @@ export const WILDS: Wild[] = [
 // ───────── 물건 ─────────
 export interface Item {
 	name: string; price: number; kind: 'ball' | 'held' | 'gift' | 'sell'; desc: string;
-	/** 아이콘: PokeAPI sprites 의 도구 그림 이름 (scenario-assets 브랜치 /scn/ico/) */ icon: string;
+	/** 아이콘: PokeAPI sprites 의 도구 그림 이름 (scenario-assets 브랜치 /scn/ico/) */ icon: string; /** 맞는 그림이 없는 물건: 픽셀 아이콘 이름 (vendor/pixelarticons) */ pxi?: string;
 	/** 볼: 잡힐 확률 */ rate?: number; /** 지닌 도구: 쇼다운 도구 id */ held?: string; /** 선물: 이슬의 취향 (2 좋아함 · 1 보통 · 0 싫어함) */ misty?: number; /** 다른 인물의 취향 (없으면 보통) */ like?: { [who: string]: number }; /** 팔 때 값 */ sell?: number;
 }
 export const ITEMS: { [id: string]: Item } = {
@@ -160,9 +160,9 @@ export const ITEMS: { [id: string]: Item } = {
 	moomoo: { icon: 'moomoo-milk', name: '후르츠밀크', price: 350, kind: 'gift', misty: 2, like: { brock: 2, leaf: 2 }, desc: '수영 뒤에 마시면 최고라는 과일 우유' },
 	shellnecklace: { icon: 'shell-bell', name: '조개 목걸이', price: 900, kind: 'gift', misty: 2, like: { brock: 0, leaf: 2 }, desc: '블루곶 조개껍데기로 만든 목걸이' },
 	pearl: { icon: 'lone-earring', name: '진주 귀걸이', price: 1800, kind: 'gift', misty: 2, like: { brock: 0, leaf: 1 }, desc: '진주몽의 진주처럼 빛나는 귀걸이. 아주 특별한 선물' },
-	ricecake: { icon: 'lava-cookie', name: '돌솥 누룽지', price: 300, kind: 'gift', misty: 1, like: { brock: 2, leaf: 1 }, desc: '회색시티 명물. 바삭하고 든든해서 동생 많은 집에 인기' },
-	brush: { icon: 'poke-doll', name: '포켓몬 손질 솔', price: 800, kind: 'gift', misty: 1, like: { brock: 2, leaf: 1 }, desc: '털과 바위 틈을 손질하는 솔. 포켓몬을 돌보는 사람에게' },
-	sketchbook: { icon: 'wave-mail', name: '스케치북', price: 350, kind: 'gift', misty: 1, like: { brock: 1, leaf: 2 }, desc: '만난 포켓몬을 그려 두는 공책. 관찰을 좋아하는 사람에게' },
+	ricecake: { pxi: 'gift', icon: 'lava-cookie', name: '돌솥 누룽지', price: 300, kind: 'gift', misty: 1, like: { brock: 2, leaf: 1 }, desc: '회색시티 명물. 바삭하고 든든해서 동생 많은 집에 인기' },
+	brush: { pxi: 'sparkle', icon: 'poke-doll', name: '포켓몬 손질 솔', price: 800, kind: 'gift', misty: 1, like: { brock: 2, leaf: 1 }, desc: '털과 바위 틈을 손질하는 솔. 포켓몬을 돌보는 사람에게' },
+	sketchbook: { pxi: 'notes', icon: 'wave-mail', name: '스케치북', price: 350, kind: 'gift', misty: 1, like: { brock: 1, leaf: 2 }, desc: '만난 포켓몬을 그려 두는 공책. 관찰을 좋아하는 사람에게' },
 	nugget: { icon: 'nugget', name: '금구슬', price: 0, kind: 'sell', sell: 5000, desc: '순금으로 된 구슬. 가게에 비싸게 팔 수 있다' },
 };
 /** 가게 진열 (지역별). need: 이 표식이 있어야 진열 */

@@ -20,6 +20,7 @@ import { TIMES, TIME_CLS, WHO, LOCS, locOf, TRAINERS, WILDS, ITEMS, SHOPS, START
 import { SCRIPTS } from './scenario-script';
 import * as EM from './scenario-emotes.js';
 import { PXI } from './vendor/pixelarticons';
+import FACES from './gen/scn-faces.json';
 
 const LU = LEVELUP as unknown as { [id: string]: { e?: [string, number]; m: [number, string][] } };
 const PORTRAIT_BASE = 'https://samang600.github.io/BattleSim-KR/portraits/';
@@ -136,7 +137,14 @@ function Chibi({ who, cls = '' }: { who: string; cls?: string }) {
 /** 초상화: 픽셀 상반신(없으면 쇼다운 도트). face = 동그란 아이콘용. emo = 표정(그림이 있으면 바뀜) */
 function Portrait({ id, sprite, cls = '', emo, fb }: { id: string; sprite: string; cls?: string; emo?: string; /** 도트 그림이 없을 때 대신 보일 것 (없으면 아무것도 안 나옴) */ fb?: any }) {
 	const [bad, setBad] = useState(false), [noDot, setNoDot] = useState(false);
-	if (id.startsWith('d_')) return sprite && !noDot ? <img class={'sc-portrait dot ' + cls} src={SPRITE_URL(sprite)} onError={() => setNoDot(true)} alt="" /> : fb || null;
+	if (id.startsWith('d_')) {
+		if (!sprite || noDot) return fb || null;
+		// 도트 그림마다 머리·발 위치가 달라서 재 둔 값(gen/scn-faces.json: [머리 가로 중심, 위, 아래])으로 맞춤:
+		// 얼굴 칸은 머리가 틀 가운데 위쪽에, 큰 그림은 발이 대화창에 닿게
+		const f = (FACES as unknown as { [k: string]: number[] })[sprite] || [40, 4, 78];
+		const st = cls.includes('face') ? { transform: `translate(${Math.round((40 - f[0]) * 1.5)}px, ${Math.round(18 - f[1] * 1.5)}px)` } : { marginBottom: -(80 - f[2]) * 6 - 16 + 'px' };
+		return <img class={'sc-portrait dot ' + cls} style={st} src={SPRITE_URL(sprite)} onError={() => setNoDot(true)} alt="" />;
+	}
 	const src = useVariant(id, emo);
 	if (!id || bad) return sprite ? <img class={'sc-portrait dot ' + cls} src={SPRITE_URL(sprite)} onError={trainerImgError} alt="" /> : null;
 	return <img class={'sc-portrait px ' + (id.startsWith('d_') ? 'dotp ' : '') + cls} src={`${PORTRAIT_BASE}${src}.png`} onError={() => setBad(true)} alt="" />;
@@ -147,7 +155,7 @@ function Ico({ name, size = 32, fb }: { name: string; size?: number; fb?: any })
 	if (bad) return fb || null;
 	return <img class="sc-pico" style={{ width: size, height: size }} src={`${SCN_BASE}ico/${name}.png`} onError={() => setBad(true)} alt="" />;
 }
-const itemIco = (id: string, size: number) => { const it = ITEMS[id]; return <Ico name={it.icon} size={size} fb={it.held ? <ItemIcon item={it.held} size={Math.min(size, 32)} /> : <i class={'sc-ico2 ' + it.kind + ' ' + id} />} />; };
+const itemIco = (id: string, size: number) => { const it = ITEMS[id]; if (it.pxi) return <span class="sc-item-pxi"><Pxi name={it.pxi} size={size >= 48 ? 48 : 24} /></span>; return <Ico name={it.icon} size={size} fb={it.held ? <ItemIcon item={it.held} size={Math.min(size, 32)} /> : <i class={'sc-ico2 ' + it.kind + ' ' + id} />} />; };
 const BADGE_ICO: { [k: string]: string } = { 회색배지: 'badge1', 블루배지: 'badge2' };
 const tWho = (t: Trainer): Who => ({ name: t.name, title: t.title, portrait: 'd_' + t.sprite, sprite: t.sprite });
 const Hearts = ({ v, big }: { v: number; big?: boolean }) => <span class={'sc-hearts' + (big ? ' big' : '')}>{[0, 1, 2, 3].map(i => <i class="sc-heart"><b style={{ width: Math.max(0, Math.min(100, v - i * 100)) + '%' }} /></i>)}</span>;
@@ -226,7 +234,7 @@ function engine(run: Run) {
 	const choose = (who: string | Who | null, text: string, opts: string[], bg = L().bg, mon?: string) => ask<number>(r => <Dialog key={K()} lines={[[who, text]]} bg={bg} tint={run.time} done={r} choice={opts} mon={mon} />);
 	const fx = (kind: string, ms = 700, bg = L().bg) => ask<void>(r => <Fx key={K()} kind={kind} bg={bg} tint={run.time} ms={ms} done={r} />);
 	const card = (title: string, sub: string, small = '', bg = 'black', ms = 2400) => ask<void>(r => <Fx key={K()} kind="card" bg={bg} tint={1} title={title} sub={sub} small={small} ms={ms} done={r} />);
-	const got = async (id: string, n = 1) => { give(run, id, n); persist(run); sfx('select'); await ask<void>(r => <GetCard key={K()} icon={ITEMS[id].icon} title={`${ITEMS[id].name}${n > 1 ? ` ×${n}` : ''}`} sub={ITEMS[id].desc} done={r} />); };
+	const got = async (id: string, n = 1) => { give(run, id, n); persist(run); sfx('select'); await ask<void>(r => <GetCard key={K()} icon={ITEMS[id].icon} pxi={ITEMS[id].pxi} title={`${ITEMS[id].name}${n > 1 ? ` ×${n}` : ''}`} sub={ITEMS[id].desc} done={r} />); };
 	const pay = async (n: number) => { run.money += n; persist(run); await ask<void>(r => <GetCard key={K()} title={won(n)} sub="상금을 받았다!" coin done={r} />); };
 	/** 호감도 올리기(상한까지) → 하트 연출 */
 	const heart = async (id: string, n: number) => {
@@ -336,9 +344,9 @@ function Travel({ run, to, done }: { run: Run; to: string; done: () => void }) {
 	</div>;
 }
 
-function GetCard({ title, sub, icon, coin, done }: { title: string; sub: string; icon?: string; coin?: boolean; done: () => void }) {
+function GetCard({ title, sub, icon, coin, pxi, done }: { title: string; sub: string; icon?: string; coin?: boolean; pxi?: string; done: () => void }) {
 	return <div class="sc-get" onClick={done}><div class="sc-get-box">
-		<span class="sc-get-ico">{coin ? <Ico name="coin-case" size={56} fb={<i class="sc-coin" />} /> : icon ? <Ico name={icon} size={56} fb={<i class="sc-gift" />} /> : <i class="sc-gift" />}</span>
+		<span class="sc-get-ico">{coin ? <Ico name="coin-case" size={56} fb={<i class="sc-coin" />} /> : pxi ? <span class="sc-item-pxi"><Pxi name={pxi} size={48} /></span> : icon ? <Ico name={icon} size={56} fb={<i class="sc-gift" />} /> : <i class="sc-gift" />}</span>
 		<b>{josa(title, '을', '를')} 손에 넣었다!</b><small>{sub}</small><em>화면을 누르면 계속</em>
 	</div></div>;
 }
@@ -369,7 +377,7 @@ function Result({ heading, xp, money, notes, party, cap, done }: { heading: stri
 
 // ───────── 거점 화면 ─────────
 type Node = { k: string; label: string; mark: string; face?: Who; kind?: string; done?: boolean; data?: any };
-type Act = Node | { k: 'map' | 'party' | 'bag' | 'route' | 'box' } | typeof BACK;
+type Act = Node | { k: 'map' | 'party' | 'bag' | 'route' | 'box' | 'wait' } | typeof BACK;
 /** 그린이 기다리는 곳: [대본 id, 장소, 필요한 표식] */
 const RIVAL_AT: [string, string, string][] = [['rival2', 'viridian', 'intro'], ['rival3', 'cerulean', 'met'], ['rival4', 'cape', 'ev4']];
 /** 단추 귀퉁이 표시: 느낌표(승부·이야기) · 물음표(풀숲) · 하트 · 완료 · 가게 · 쉼터 · 이야기 */
@@ -423,7 +431,7 @@ function Hub({ run, banner, done }: { run: Run; banner: boolean; done: (a: Act) 
 		{run.time === 3 && <div class="sc-stars" />}
 		<div class="sh-top sc-top">
 			<button class="st-exit" onClick={async () => { if (await confirmBox('시나리오 나가기', '메인 화면으로 돌아갈까요?\n지금까지의 진행은 저장돼 있어요.', '나가기', '계속하기')) done(BACK); }} aria-label="나가기"><Pxi name="chevron-left" /></button>
-			<div class={'sc-clock ' + TIME_CLS[run.time]}><Pxi name={run.time === 3 ? 'moon' : 'sun'} /><span><small>{run.day}일째</small><b>{TIMES[run.time]}</b></span></div>
+			<button class={'sc-clock ' + TIME_CLS[run.time]} onClick={() => done({ k: 'wait' })} aria-label="시간 보내기"><Pxi name={run.time === 3 ? 'moon' : 'sun'} /><span><small>{run.day}일째</small><b>{TIMES[run.time]}</b></span></button>
 			<div class="sh-title">관동 · {loc.name}<em class="sc-mission">{goalText(run)}</em></div>
 			<div class="sc-wallet"><span>{won(run.money)}</span>{focus && <span class="sc-wallet-h"><small>{focus.name}</small><Hearts v={relOf(run, focus.id).heart} /></span>}</div>
 		</div>
@@ -678,6 +686,7 @@ function Catch({ sp, ok, bg, tint, done }: { sp: string; ok: boolean; bg: string
 function Credits({ run, c, done }: { run: Run; c: Char; done: () => void }) {
 	useEffect(() => { playMusic('scheart'); const t = setTimeout(done, 21000); return () => clearTimeout(t); }, []);
 	return <div class="sc-credits" onClick={done}><div class={'sc-bg fld-' + locOf(c.evAt[3][0]).bg} /><div class="sc-tint evening" />
+		<div class="sc-credits-who"><Portrait id={WHO[c.who].portrait} sprite={WHO[c.who].sprite} cls="big" emo="joy" /></div>
 		<div class="sc-roll">
 			<h1>관동 편</h1><h2>{c.name} 루트</h2><p>— {c.subtitle} —</p>
 			<h3>함께한 날</h3><p>{run.day}일</p>
@@ -776,6 +785,11 @@ export async function runScenario() {
 		banner = false;
 		if (a === BACK) { persist(run); return; }
 		const loc = locOf(run.loc);
+		if (a.k === 'wait') {   // 시계를 누름: 이동하지 않고 시간만 한 칸 (밤에만 열리는 이야기에 시간을 맞추기 쉽게)
+			const next = run.time === 3 ? '다음 날 아침' : TIMES[run.time + 1];
+			if (await confirmBox('시간 보내기', `여기서 ${next}까지 기다릴까요?`, '기다린다', '그만두기')) { await E.fx('fade', 500); await E.tick(); }
+			continue;
+		}
 		if (a.k === 'box') { await ask<void>(r => <BoxScreen run={run} done={r} />); continue; }
 		if (a.k === 'party') { await ask<void>(r => <PartyScreen run={run} done={r} />); continue; }
 		if (a.k === 'bag') { await ask<void>(r => <BagScreen run={run} done={r} />); continue; }
