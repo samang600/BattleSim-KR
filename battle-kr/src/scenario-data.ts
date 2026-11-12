@@ -1,4 +1,4 @@
-/** 시나리오 모드 데이터 — 관동 편 (서북쪽: 태초마을 ~ 블루곶)
+/** 시나리오 모드 데이터 — 관동 편 (태초마을 ~ 블루곶 · 갈색시티 · 보라타운)
  *  지역·길거리 트레이너·야생 포켓몬·가게·선물·인물. 진행 로직과 화면은 scenario.tsx, 이슬 루트 대본은 scenario-misty.ts */
 
 export const TIMES = ['아침', '낮', '저녁', '밤'] as const;
@@ -25,6 +25,16 @@ export const WHO: { [id: string]: Who } = {
 	salesman: { name: '수상한 아저씨', portrait: 'd_gentleman-gen4', sprite: 'gentleman-gen4' },
 	victim: { name: '집주인 아저씨', portrait: 'd_pokefan-gen4', sprite: 'pokefan-gen4' },
 	clefairy: { name: '삐삐…?', portrait: '', sprite: '' },
+	surge: { name: '마티스', title: '갈색 체육관 관장', portrait: 'd_ltsurge', sprite: 'ltsurge' },
+	sailor: { name: '선원', title: '상트앙느호', portrait: 'd_sailor', sprite: 'sailor' },
+	captain: { name: '선장', title: '상트앙느호', portrait: 'd_gentleman', sprite: 'gentleman' },
+	exec2: { name: '로켓단 간부 랜스', title: '로켓단', portrait: 'd_proton', sprite: 'proton' },
+	chairman: { name: '애호가 클럽 회장', title: '포켓몬 애호가 클럽', portrait: 'd_pokefan', sprite: 'pokefan' },
+	fuji: { name: '등나무 노인', title: '포켓몬하우스', portrait: 'd_mrfuji-gen3', sprite: 'mrfuji-gen3' },
+	medium: { name: '기도사', title: '포켓몬타워', portrait: 'd_medium', sprite: 'medium' },
+	sister: { name: '이슬의 큰언니', title: '블루시티 수중 쇼 스타', portrait: 'd_swimmerf', sprite: 'swimmerf' },
+	worker: { name: '굴착 인부', title: '로켓단 하청', portrait: 'd_worker', sprite: 'worker' },
+	ghost: { name: '？？？', portrait: '', sprite: '' },
 };
 
 // ───────── 지역 ─────────
@@ -34,15 +44,22 @@ export interface Loc {
 	/** 배틀 배경 */ arena: string; music: string; /** 쉴 수 있는 곳 이름 (집·포켓몬센터) */ rest?: string;
 }
 export const LOCS: Loc[] = [
-	{ id: 'pallet', name: '태초마을', sub: '태초는 새하얀 시작의 색', bg: 'pallet', x: 15, y: 90, to: ['route1'], town: true, arena: 'field', music: 'sctown', rest: '우리 집' },
-	{ id: 'route1', name: '1번도로', sub: '태초마을 ↔ 상록시티', bg: 'route', x: 15, y: 75, to: ['pallet', 'viridian'], arena: 'field', music: 'scroute' },
-	{ id: 'viridian', name: '상록시티', sub: '상록은 영원한 초록빛', bg: 'viridian', x: 15, y: 60, to: ['route1', 'forest'], town: true, arena: 'field', music: 'sctown', rest: '포켓몬센터' },
-	{ id: 'forest', name: '상록숲', sub: '나무가 빽빽한 천연의 미로', bg: 'forest', x: 17, y: 43, to: ['viridian', 'pewter'], arena: 'field', music: 'scroute' },
-	{ id: 'pewter', name: '회색시티', sub: '회색은 바위의 색', bg: 'pewter', x: 15, y: 24, to: ['forest', 'mtmoon'], town: true, arena: 'gym', music: 'sctown', rest: '포켓몬센터' },
-	{ id: 'mtmoon', name: '달맞이산', sub: '달의돌이 잠든 산', bg: 'mtmoon', x: 46, y: 19, to: ['pewter', 'cerulean'], arena: 'cave', music: 'sccave' },
-	{ id: 'cerulean', name: '블루시티', sub: '블루는 물빛 신비의 색', bg: 'cerulean', x: 74, y: 27, to: ['mtmoon', 'bridge'], town: true, arena: 'beach', music: 'scwater', rest: '포켓몬센터' },
-	{ id: 'bridge', name: '골든볼브리지', sub: '24번도로 · 금빛 난간의 다리', bg: 'bridge', x: 78, y: 13, to: ['cerulean', 'cape'], arena: 'beach', music: 'scroute' },
-	{ id: 'cape', name: '블루곶', sub: '25번도로 끝 · 바다가 보이는 언덕', bg: 'cape', x: 92, y: 7, to: ['bridge'], arena: 'beach', music: 'scheart' },
+	{ id: 'pallet', name: '태초마을', sub: '태초는 새하얀 시작의 색', bg: 'pallet', x: 12, y: 90, to: ['route1'], town: true, arena: 'field', music: 'sctown', rest: '우리 집' },
+	{ id: 'route1', name: '1번도로', sub: '태초마을 ↔ 상록시티', bg: 'route', x: 12, y: 77, to: ['pallet', 'viridian'], arena: 'field', music: 'scroute' },
+	{ id: 'viridian', name: '상록시티', sub: '상록은 영원한 초록빛', bg: 'viridian', x: 12, y: 64, to: ['route1', 'forest'], town: true, arena: 'field', music: 'sctown', rest: '포켓몬센터' },
+	{ id: 'forest', name: '상록숲', sub: '나무가 빽빽한 천연의 미로', bg: 'forest', x: 13, y: 50, to: ['viridian', 'pewter'], arena: 'field', music: 'scroute' },
+	{ id: 'pewter', name: '회색시티', sub: '회색은 바위의 색', bg: 'pewter', x: 12, y: 34, to: ['forest', 'mtmoon', 'diglett'], town: true, arena: 'gym', music: 'sctown', rest: '포켓몬센터' },
+	{ id: 'mtmoon', name: '달맞이산', sub: '달의돌이 잠든 산', bg: 'mtmoon', x: 33, y: 27, to: ['pewter', 'cerulean'], arena: 'cave', music: 'sccave' },
+	{ id: 'cerulean', name: '블루시티', sub: '블루는 물빛 신비의 색', bg: 'cerulean', x: 57, y: 30, to: ['mtmoon', 'bridge', 'route5', 'rocktunnel'], town: true, arena: 'beach', music: 'scwater', rest: '포켓몬센터' },
+	{ id: 'bridge', name: '골든볼브리지', sub: '24번도로 · 금빛 난간의 다리', bg: 'bridge', x: 61, y: 17, to: ['cerulean', 'cape'], arena: 'beach', music: 'scroute' },
+	{ id: 'cape', name: '블루곶', sub: '25번도로 끝 · 바다가 보이는 언덕', bg: 'cape', x: 75, y: 9, to: ['bridge'], arena: 'beach', music: 'scheart' },
+	{ id: 'route5', name: '5번도로', sub: '블루시티 ↔ 갈색시티 · 지하통로', bg: 'route', x: 57, y: 47, to: ['cerulean', 'vermilion'], arena: 'field', music: 'scroute' },
+	{ id: 'vermilion', name: '갈색시티', sub: '갈색은 저녁노을의 색', bg: 'vermilion', x: 57, y: 65, to: ['route5', 'ssanne', 'diglett'], town: true, arena: 'beach', music: 'scwater', rest: '포켓몬센터' },
+	{ id: 'ssanne', name: '상트앙느호', sub: '세계를 도는 호화 여객선', bg: 'ship', x: 62, y: 82, to: ['vermilion'], arena: 'beach', music: 'scheart' },
+	{ id: 'diglett', name: '디그다의 굴', sub: '디그다가 판 긴 굴 · 갈색시티 ↔ 회색시티', bg: 'mtmoon', x: 33, y: 52, to: ['vermilion', 'pewter'], arena: 'cave', music: 'sccave' },
+	{ id: 'rocktunnel', name: '돌산터널', sub: '불빛 하나 없는 바위 굴', bg: 'mtmoon', x: 82, y: 32, to: ['cerulean', 'lavender'], arena: 'cave', music: 'sccave' },
+	{ id: 'lavender', name: '보라타운', sub: '보라는 고귀한 보랏빛', bg: 'lavender', x: 84, y: 52, to: ['rocktunnel', 'tower'], town: true, arena: 'field', music: 'sccave', rest: '포켓몬센터' },
+	{ id: 'tower', name: '포켓몬타워', sub: '세상을 떠난 포켓몬이 잠든 탑', bg: 'tower', x: 92, y: 63, to: ['lavender'], arena: 'cave', music: 'sccave' },
 ];
 export const locOf = (id: string) => LOCS.find(l => l.id === id)!;
 
@@ -102,6 +119,38 @@ export const TRAINERS: Trainer[] = [
 		before: '도시락 먹기 전에 한판!', after: '배고파서 진 거야!', again: '여기 노을이 그렇게 예쁘대.' },
 	{ id: 'k3', loc: 'cape', name: '커플 민호와 지유', sprite: 'youngcouple', team: [['nidorino', 20], ['nidorina', 20]], skill: 0.5, need: 'ev2', at: [2, 3],
 		before: '데이트 방해꾼이다! 둘이서 혼내 주자!', after: '우리 사랑은 지지 않았어!', again: '여기는 연인들의 명소라고. 너도 누구랑 왔어?' },
+	// ── 갈색시티 쪽 ──
+	{ id: 'r5a', loc: 'route5', name: '새조련사 현우', sprite: 'birdkeeper', team: [['pidgeotto', 20], ['spearow', 20], ['fearow', 21]], skill: 0.45,
+		before: '새 포켓몬은 바람을 읽어! 너는 읽을 수 있어?', after: '역풍이었나…', again: '지하통로는 노랑시티 밑을 지나가. 위는 공사 중이래.' },
+	{ id: 'r5b', loc: 'route5', name: '포켓몬 마니아 성재', sprite: 'pokemaniac', team: [['cubone', 20], ['slowpoke', 21]], skill: 0.45, at: [1, 2],
+		before: '희귀한 포켓몬 갖고 있지? 보여 줘, 승부로!', after: '네 포켓몬… 탐난다!', again: '탕구리는 보라타운 쪽에 많이 산대.' },
+	{ id: 'r5c', loc: 'route5', name: '겜블러 동팔', sprite: 'gambler', team: [['growlithe', 21], ['vulpix', 21]], skill: 0.5, at: [2, 3],
+		before: '승부는 운이야! 오늘 내 운을 시험해 보지!', after: '운이 다했군…', again: '무지개시티에는 큰 게임 코너가 있다던데.' },
+	{ id: 'vt1', loc: 'vermilion', name: '선원 덕구', sprite: 'sailor', team: [['machop', 21], ['tentacool', 21], ['shellder', 21]], skill: 0.45, at: [0, 1],
+		before: '바다 사나이의 승부를 받아라!', after: '뱃멀미가 난다…', again: '상트앙느호는 1년에 한 번만 이 항구에 들러.' },
+	{ id: 'vt2', loc: 'vermilion', name: '기타리스트 록키', sprite: 'guitarist', team: [['voltorb', 21], ['magnemite', 22]], skill: 0.5, at: [2, 3],
+		before: '내 기타처럼 찌릿하게 가 보자고!', after: '줄이 끊어졌어…', again: '마티스 관장님? 전쟁터에서 전기 포켓몬 덕에 살아남았다는 분이야.' },
+	{ id: 'vg1', loc: 'vermilion', name: '선원 드와이트', sprite: 'sailor', team: [['pikachu', 22], ['voltorb', 22], ['magnemite', 22]], skill: 0.5, once: true, need: 'anne', arena: 'gym', music: 'boss',
+		before: '관장님 방의 문은 전기 자물쇠로 잠겨 있다! 열쇠는 내가 쥐고 있지!', after: '찌릿… 자물쇠가 풀렸다!', again: '관장님은 안쪽에 계셔. 감전 조심해!' },
+	{ id: 'sa1', loc: 'ssanne', name: '신사 토마스', sprite: 'gentleman', team: [['growlithe', 21], ['nidorino', 22]], skill: 0.5, once: true,
+		before: '선상 파티의 여흥으로 한판 어떻겠나, 젊은이?', after: '훌륭해! 좋은 여흥이었네.', again: '선장님은 뱃멀미가 심하시다네. 선장인데도 말이야.' },
+	{ id: 'sa2', loc: 'ssanne', name: '선원 필립', sprite: 'sailor', team: [['machop', 22], ['shellder', 22], ['tentacool', 23]], skill: 0.5, once: true, need: 'sa1',
+		before: '갑판 청소 끝! 이제 몸 좀 풀어 볼까!', after: '갑판에 드러눕고 싶다…', again: '아래 선실 쪽이 좀 소란스럽던데.' },
+	{ id: 'd1', loc: 'diglett', name: '등산가 만복', sprite: 'hiker', team: [['diglett', 20], ['geodude', 21], ['diglett', 21]], skill: 0.45,
+		before: '이 굴은 디그다들이 판 거야! 사람은 허리를 숙여야 지나가지!', after: '허리가…', again: '굴 끝은 회색시티 아래쪽으로 이어진다네.' },
+	// ── 보라타운 쪽 ──
+	{ id: 't1', loc: 'rocktunnel', name: '등산가 철산', sprite: 'hiker', team: [['geodude', 25], ['graveler', 26], ['onix', 26]], skill: 0.5,
+		before: '어두워서 안 보이지? 나는 발소리로 다 안다네!', after: '발소리가 너무 빨랐어!', again: '터널을 빠져나가면 보라타운이야.' },
+	{ id: 't2', loc: 'rocktunnel', name: '포켓몬 마니아 윈스턴', sprite: 'pokemaniac', team: [['cubone', 26], ['slowpoke', 26]], skill: 0.5, at: [0, 1, 2],
+		before: '어둠 속에서 만난 것도 인연! 네 포켓몬을 보여 줘!', after: '어둠 속으로 사라지고 싶다…', again: '포켓몬타워에 유령이 나온다는 소문, 들었어?' },
+	{ id: 't3', loc: 'rocktunnel', name: '피크닉걸 소피아', sprite: 'picnicker', team: [['jigglypuff', 25], ['pidgeotto', 26], ['meowth', 26]], skill: 0.5, at: [1, 2, 3],
+		before: '소풍 왔다가 길을 잃었어! 화풀이 좀 할게!', after: '출구나 알려 줘…', again: '손전등을 챙겼어야 했는데.' },
+	{ id: 'l1', loc: 'lavender', name: '기도사 순례', sprite: 'medium', team: [['gastly', 26], ['gastly', 27]], skill: 0.5, at: [2, 3],
+		before: '…네 어깨 위에… 하얀 손이…!', after: '…농담이었느니라.', again: '탑의 영혼들은 그저 조용히 잠들고 싶을 뿐이니라.' },
+	{ id: 'tw1', loc: 'tower', name: '기도사 영희', sprite: 'medium', team: [['gastly', 27], ['haunter', 28]], skill: 0.55, once: true, need: 'lav', music: 'evil',
+		before: '케케케… 나가라… 여기서 나가라…!', after: '…어머, 내가 뭘 하고 있었지?', again: '무언가에 씌었던 것 같구나. 고맙다, 얘야.' },
+	{ id: 'tw2', loc: 'tower', name: '기도사 말순', sprite: 'medium', team: [['gastly', 27], ['cubone', 27], ['haunter', 29]], skill: 0.55, once: true, need: 'tw1', music: 'evil',
+		before: '위층에는… 가지 마라… 가지 마…!', after: '…정신이 드는구나. 꼭대기에 검은 옷의 사내들이 있느니라.', again: '등나무 어르신을 부디 구해 다오.' },
 ];
 
 // ───────── 마을 사람 (말을 걸면 그곳 이야기·도움말, 처음 한 번은 선물) ─────────
@@ -119,6 +168,10 @@ export const FOLKS: Folk[] = [
 		lines: ['회색 박물관에 어서 오세요! …라고 하고 싶지만, 오늘은 화석 전시 준비로 휴관이에요.', '달맞이산에는 달의돌과 고대 포켓몬의 화석이 잠들어 있어요. 요즘 수상한 사람들이 파헤친다던데…', '웅 관장님의 롱스톤은 정말 단단해요. 풀이나 물 타입 기술이 잘 통한답니다.', '기념품 가게의 화석 모형, 선물로 인기가 많아요. 받는 사람 취향은 잘 살피시고요!'] },
 	{ loc: 'cerulean', need: 'badge2', who: { name: '수영 코치', title: '블루 체육관', portrait: 'd_swimmerf-gen4', sprite: 'swimmerf-gen4' },
 		lines: ['이슬 관장님? 아침엔 수로에서 수영, 낮엔 체육관, 저녁엔 다리 쪽으로 산책을 나가세요.', '관장님은 벌레 포켓몬을 무서워하세요. 선물로 곤충 표본 같은 걸 드렸다간… 아시죠?', '하루에 한 번은 관장님과 이야기해 보세요. 고르는 대답에 따라 표정이 달라져요.', '태그를 맺으면 길거리 승부가 2대2가 돼요. 같이 이길수록 사이도 가까워진답니다.'] },
+	{ loc: 'vermilion', who: { name: '항구의 선원', title: '갈색 항구', portrait: 'd_sailor', sprite: 'sailor' },
+		lines: ['상트앙느호에서는 트레이너들의 선상 파티가 한창이야. 배지 두 개면 누구든 태워 준다지.', '마티스 관장님 체육관은 선장님이 초대장을 써 줘야 들어갈 수 있어. 번개 미국인이라 불리는 분이지.', '디그다의 굴을 지나면 회색시티까지 금방이야. 먼 길을 돌아갈 필요가 없지.', '자전거가 있으면 같은 시간에 두 배는 멀리 간다고. 애호가 클럽 회장님이 교환권을 갖고 계신다던데?'] },
+	{ loc: 'lavender', who: { name: '포켓몬하우스의 소녀', title: '보라타운', portrait: 'd_lass', sprite: 'lass' },
+		lines: ['등나무 할아버지는 버려진 포켓몬을 데려다 돌보시는 분이야. 요즘 탑에 가셨다가 돌아오지 않으셔…', '탑에 나오는 유령은, 로켓단에게서 새끼를 지키다 죽은 텅구리의 엄마래.', '보라타운의 밤은 조용해. 탑에 잠든 아이들이 깨지 않도록 다들 목소리를 낮추거든.', '돌산터널 건너 블루시티에서 왔어? 먼 길 왔구나. 포켓몬센터에서 쉬어 가.'] },
 ];
 
 // ───────── 야생 포켓몬 (풀숲) ─────────
@@ -131,6 +184,10 @@ export const WILDS: Wild[] = [
 	{ tier: 1, loc: 'mtmoon', name: '동굴 그늘', pool: [['zubat', 8, 10], ['geodude', 8, 10], ['paras', 9, 10], ['sandshrew', 9, 11]], night: [['zubat', 9, 11], ['clefairy', 9, 11], ['paras', 9, 11], ['geodude', 9, 11]] },
 	{ tier: 2, loc: 'bridge', name: '강가 풀숲', pool: [['oddish', 13, 15], ['bellsprout', 13, 15], ['abra', 12, 14], ['pidgey', 13, 15]], night: [['oddish', 14, 16], ['venonat', 13, 15], ['abra', 13, 15], ['psyduck', 14, 16]] },
 	{ tier: 2, loc: 'cape', name: '언덕 풀숲', pool: [['pidgeotto', 16, 18], ['poliwag', 15, 17], ['slowpoke', 15, 17], ['krabby', 15, 17]], night: [['staryu', 15, 17], ['krabby', 15, 17], ['tentacool', 15, 17], ['slowpoke', 16, 18]] },
+	{ tier: 2, loc: 'route5', name: '풀숲', pool: [['pidgeotto', 17, 19], ['meowth', 16, 18], ['oddish', 16, 18], ['jigglypuff', 16, 18], ['mankey', 16, 18]], night: [['meowth', 17, 19], ['abra', 16, 18], ['bellsprout', 16, 18], ['drowzee', 17, 19]] },
+	{ tier: 2, loc: 'diglett', name: '굴 속', pool: [['diglett', 17, 20], ['diglett', 18, 21], ['zubat', 17, 19]] },
+	{ tier: 3, loc: 'rocktunnel', name: '동굴 그늘', pool: [['zubat', 21, 23], ['geodude', 21, 24], ['machop', 21, 24], ['onix', 22, 25]], night: [['golbat', 23, 25], ['geodude', 22, 24], ['machop', 22, 24], ['cubone', 22, 24]] },
+	{ tier: 3, loc: 'tower', name: '안개 낀 묘역', pool: [['gastly', 22, 25], ['cubone', 22, 25], ['gastly', 23, 26], ['haunter', 25, 27]] },
 ];
 
 // ───────── 물건 ─────────
@@ -142,6 +199,7 @@ export interface Item {
 export const ITEMS: { [id: string]: Item } = {
 	pokeball: { icon: 'poke-ball', name: '몬스터볼', price: 200, kind: 'ball', rate: 0.55, desc: '약해진 야생 포켓몬에게 던져서 잡는 볼' },
 	greatball: { icon: 'great-ball', name: '수퍼볼', price: 600, kind: 'ball', rate: 0.8, desc: '몬스터볼보다 잘 잡히는 볼' },
+	ultraball: { icon: 'ultra-ball', name: '하이퍼볼', price: 1200, kind: 'ball', rate: 0.95, desc: '수퍼볼보다 훨씬 잘 잡히는 볼' },
 	oranberry: { icon: 'oran-berry', name: '오랭열매', price: 150, kind: 'held', held: 'oranberry', desc: '지니게 하면 위급할 때 HP 를 조금 회복' },
 	sitrusberry: { icon: 'sitrus-berry', name: '자뭉열매', price: 400, kind: 'held', held: 'sitrusberry', desc: '지니게 하면 위급할 때 HP 를 꽤 회복' },
 	hardstone: { icon: 'hard-stone', name: '딱딱한돌', price: 1000, kind: 'held', held: 'hardstone', desc: '지니게 하면 바위 타입 기술이 강해짐' },
@@ -163,6 +221,13 @@ export const ITEMS: { [id: string]: Item } = {
 	ricecake: { pxi: 'gift', icon: 'lava-cookie', name: '돌솥 누룽지', price: 300, kind: 'gift', misty: 1, like: { brock: 2, leaf: 1 }, desc: '회색시티 명물. 바삭하고 든든해서 동생 많은 집에 인기' },
 	brush: { pxi: 'sparkle', icon: 'poke-doll', name: '포켓몬 손질 솔', price: 800, kind: 'gift', misty: 1, like: { brock: 2, leaf: 1 }, desc: '털과 바위 틈을 손질하는 솔. 포켓몬을 돌보는 사람에게' },
 	sketchbook: { pxi: 'notes', icon: 'wave-mail', name: '스케치북', price: 350, kind: 'gift', misty: 1, like: { brock: 1, leaf: 2 }, desc: '만난 포켓몬을 그려 두는 공책. 관찰을 좋아하는 사람에게' },
+	spelltag: { icon: 'spell-tag', name: '저주의부적', price: 1000, kind: 'held', held: 'spelltag', desc: '지니게 하면 고스트 타입 기술이 강해짐' },
+	sharpbeak: { icon: 'sharp-beak', name: '예리한부리', price: 1000, kind: 'held', held: 'sharpbeak', desc: '지니게 하면 비행 타입 기술이 강해짐' },
+	shellbell: { icon: 'shell-bell', name: '조개껍질방울', price: 3000, kind: 'held', held: 'shellbell', desc: '지니게 하면 준 데미지만큼 HP 를 조금 회복' },
+	seashell: { icon: 'tropical-shell', name: '소라 껍데기', price: 450, kind: 'gift', misty: 2, like: { brock: 1, leaf: 2 }, desc: '갈색 항구 기념품. 귀에 대면 파도 소리가 난다' },
+	honey: { icon: 'honey', name: '항구 벌꿀', price: 400, kind: 'gift', misty: 1, like: { brock: 2, leaf: 1 }, desc: '배로 들어온 달콤한 꿀. 포켓몬 간식을 만드는 사람에게' },
+	letterset: { icon: 'letter', name: '편지지 세트', price: 300, kind: 'gift', misty: 1, like: { brock: 1, leaf: 2 }, desc: '보라타운의 연보랏빛 편지지. 그림을 곁들이기 좋다' },
+	incense: { pxi: 'sparkle', icon: 'sea-incense', name: '보랏빛 향', price: 600, kind: 'gift', misty: 1, like: { brock: 2, leaf: 0 }, desc: '탑에 올리는 향. 마음을 가라앉히지만 무서움 타는 사람에겐…' },
 	nugget: { icon: 'nugget', name: '금구슬', price: 0, kind: 'sell', sell: 5000, desc: '순금으로 된 구슬. 가게에 비싸게 팔 수 있다' },
 };
 /** 가게 진열 (지역별). need: 이 표식이 있어야 진열 */
@@ -170,6 +235,8 @@ export const SHOPS: { [loc: string]: { name: string; who: string; items: [string
 	viridian: { name: '프렌들리숍', who: 'clerk', items: [['pokeball'], ['oranberry'], ['miracleseed'], ['charcoal'], ['freshwater'], ['flowers'], ['sketchbook']] },
 	pewter: { name: '프렌들리숍 · 박물관 매점', who: 'clerk', items: [['pokeball'], ['greatball', 'badge1'], ['oranberry'], ['hardstone'], ['softsand'], ['magnet'], ['fossilmodel'], ['bugspecimen'], ['ricecake'], ['brush']] },
 	cerulean: { name: '프렌들리숍 · 기념품', who: 'clerk', items: [['pokeball'], ['greatball'], ['sitrusberry'], ['mysticwater'], ['quickclaw'], ['leftovers', 'badge2'], ['freshwater'], ['postcard'], ['moomoo'], ['shellnecklace'], ['pearl', 'badge2']] },
+	vermilion: { name: '프렌들리숍 · 항구 상점', who: 'clerk', items: [['pokeball'], ['greatball'], ['sitrusberry'], ['magnet'], ['sharpbeak'], ['shellbell', 'badge3'], ['seashell'], ['honey'], ['moomoo']] },
+	lavender: { name: '프렌들리숍', who: 'clerk', items: [['greatball'], ['ultraball'], ['sitrusberry'], ['spelltag'], ['leftovers'], ['letterset'], ['incense'], ['flowers']] },
 };
 
 // ───────── 처음 포켓몬 ─────────
@@ -177,7 +244,9 @@ export const STARTERS: [string, string][] = [['bulbasaur', '풀 타입 · 웅과
 export const RIVAL_OF: { [k: string]: string } = { bulbasaur: 'charmander', charmander: 'squirtle', squirtle: 'bulbasaur' };
 
 /** 레벨 상한 (배지 수) — 원작의 '배지가 없으면 말을 안 듣는 레벨'처럼 */
-export const LV_CAP = [15, 22, 30];
+export const LV_CAP = [15, 22, 30, 38];
+/** 하트 이벤트 수: 1~4 = 1막(인물의 도시), 5~6 = 2막(갈색시티·보라타운) */
+export const MAX_EV = 6;
 export const expNeed = (lv: number) => 12 + lv * 6;
 
 // ───────── 이슬 ─────────
@@ -185,7 +254,7 @@ export const expNeed = (lv: number) => 12 + lv * 6;
 export const MISTY_AT = ['cape', 'cerulean', 'bridge', 'cerulean'];
 export const MISTY_DOING = ['블루곶에서 아침 수영', '체육관에서 도전자 맞이', '골든볼브리지에서 저녁 산책', '블루시티 물가에서 별 구경'];
 /** 태그 파트너일 때 이슬의 팀 (이야기가 나아갈수록 강해짐) */
-export const mistyTeam = (step: number): [string, number][] => [['starmie', 21 + step * 2], ['psyduck', 18 + step * 2], ['horsea', 18 + step * 2]];
+export const mistyTeam = (step: number): [string, number][] => [['starmie', 21 + step * 2 + Math.max(0, step - 4) * 2], ['psyduck', 18 + step * 2 + Math.max(0, step - 4) * 2], ['horsea', 18 + step * 2 + Math.max(0, step - 4) * 2]];
 /** 매일 한 번 나누는 이야기: [물음, [대답, 호감, 반응] × 3] */
 export const MISTY_TALKS: [string, [string, number, string][]][] = [
 	['있잖아, 넌 물 포켓몬의 어디가 좋다고 생각해?', [['유연하고 강인한 점', 8, '맞아! 부드럽지만 절대 꺾이지 않지. 뭘 좀 아는데?'], ['귀여운 점', 4, '귀엽기만 한 게 아니거든? …뭐, 귀엽긴 하지만.'], ['잘 모르겠어', 1, '에이, 같이 다니다 보면 알게 될 거야.']]],
@@ -210,8 +279,8 @@ export interface Char {
 export const likeOf = (it: Item, who: string) => who === 'misty' ? it.misty ?? 1 : it.like?.[who] ?? 1;
 export const CHARS: Char[] = [
 	{ id: 'misty', name: '이슬', who: 'misty', sprite: 'misty', met: 'met', gate: 'badge2', at: MISTY_AT, doing: MISTY_DOING, home: 'cerulean', team: mistyTeam, talks: MISTY_TALKS,
-		evAt: [['bridge', null], ['cerulean', null], ['cape', 2], ['cape', 2]], evTitle: ['골든볼브리지의 태그 승부', '블루시티 도둑 사건', '블루곶의 노을', '진심 승부'],
-		chapters: ['만남 — 블루 체육관의 말괄량이 인어', '♥1 골든볼브리지의 태그 승부', '♥2 블루시티 도둑 사건', '♥3 블루곶의 노을', '♥4 진심 승부'], tagline: '블루 체육관 관장 · 말괄량이 인어', subtitle: '물빛 신비의 색',
+		evAt: [['bridge', null], ['cerulean', null], ['cape', 2], ['cape', 2], ['vermilion', null], ['cerulean', 2]], evNeed: [undefined, undefined, undefined, undefined, 'verm', 'badge3'], evTitle: ['골든볼브리지의 태그 승부', '블루시티 도둑 사건', '블루곶의 노을', '진심 승부', '처음 보는 바다', '인어는 떠난다'],
+		chapters: ['만남 — 블루 체육관의 말괄량이 인어', '♥1 골든볼브리지의 태그 승부', '♥2 블루시티 도둑 사건', '♥3 블루곶의 노을', '♥4 진심 승부', '♥5 처음 보는 바다', '♥6 인어는 떠난다'], tagline: '블루 체육관 관장 · 말괄량이 인어', subtitle: '물빛 신비의 색',
 		hello: ['도전자… 아니, 너였구나. 무슨 일이야?', '또 왔네? 뭐, 반갑긴 해.', '어서 와! 오늘은 뭐 할 거야?', '아, 너구나. …기다린 건 아니거든?', '왔구나! 오늘은 어디로 갈까?'],
 		tagOn: '태그? 좋아, 오늘은 네 파트너가 되어 줄게. 내 물 포켓몬들 실력, 옆에서 똑똑히 봐 둬!', tagOff: '벌써 끝이야? 뭐, 나도 체육관 일이 있으니까. …또 불러.',
 		cheers: ['나이스! 방금 연계, 완벽했어!', '후훗, 우리 꽤 잘 맞는데?', '봤지? 내 아쿠스타의 스피드!', '좋아, 이 기세로 다음도 가자!'], mateLine: '좋아, 한꺼번에 덤벼! 가자, 파트너!', soloLine: '내 차례도 있는 거지? 아쿠스타, 준비!',
@@ -227,8 +296,8 @@ export const CHARS: Char[] = [
 			['솔직히 말하면, 나는 싸우는 것보다 키우는 쪽이 좋다. 관장답지 않은 소리인가.', [['웅답다고 생각해', 8, '…그런가. 그 말, 오래 기억하겠다.'], ['관장도 잘 어울려', 5, '고맙다. 둘 다 해내 보이마.'], ['의외네', 3, '다들 그렇게 말한다.']]],
 			['요즘 달맞이산에 수상한 놈들이 드나든다. 화석을 캐 가는 모양이다.', [['같이 지키자', 8, '든든하군. 그럼 아침에 산에서 보자.'], ['위험하지 않아?', 4, '위험하니까 가는 거다. 내 도시 옆 산이니까.'], ['경찰에 맡기자', 2, '그것도 방법이지. 하지만 가만있는 건 내 성미가 아니다.']]],
 		],
-		evAt: [['mtmoon', 0], ['pewter', null], ['forest', 2], ['pewter', 3]], evTitle: ['달맞이산의 화석 도둑', '박물관의 밤손님', '숲의 작은 진료소', '바위처럼, 물처럼'],
-		chapters: ['만남 — 회색 체육관의 단단한 사나이', '♥1 달맞이산의 화석 도둑', '♥2 박물관의 밤손님', '♥3 숲의 작은 진료소', '♥4 바위처럼, 물처럼'], tagline: '회색 체육관 관장 · 단단한 사나이', subtitle: '회색은 바위의 색',
+		evAt: [['mtmoon', 0], ['pewter', null], ['forest', 2], ['pewter', 3], ['diglett', null], ['lavender', null]], evNeed: [undefined, undefined, undefined, undefined, 'verm', 'tower'], evTitle: ['달맞이산의 화석 도둑', '박물관의 밤손님', '숲의 작은 진료소', '바위처럼, 물처럼', '무너진 굴', '돌보는 사람'],
+		chapters: ['만남 — 회색 체육관의 단단한 사나이', '♥1 달맞이산의 화석 도둑', '♥2 박물관의 밤손님', '♥3 숲의 작은 진료소', '♥4 바위처럼, 물처럼', '♥5 무너진 굴', '♥6 돌보는 사람'], tagline: '회색 체육관 관장 · 단단한 사나이', subtitle: '회색은 바위의 색',
 		hello: ['도전자였던 너로군. 무슨 일이지?', '왔나. 마침 쉬던 참이다.', '어서 와라. 차라도 한잔 하겠나.', '기다렸다. …아니, 그냥 그렇다는 거다.', '왔구나, 파트너. 오늘은 어디로 가지?'],
 		tagOn: '태그라. 좋다, 내 바위 포켓몬들이 네 앞을 막아 주마. 뒤는 맡겨라.', tagOff: '알겠다. 체육관도 비울 수 없으니. 또 불러라.',
 		cheers: ['좋은 호흡이었다.', '네가 치고 내가 버틴다. 나쁘지 않군.', '롱스톤도 만족한 얼굴이다.', '이 기세로 가자.'], mateLine: '둘이 오든 셋이 오든 같다. 간다, 파트너!', soloLine: '내 차례도 남겨 둬라. 롱스톤, 나가라!',
@@ -244,8 +313,8 @@ export const CHARS: Char[] = [
 			['언젠가 관동 말고 다른 지방에도 가 보고 싶어. 넌 어디 가 보고 싶어?', [['너랑 가면 어디든', 8, '에엣?! …그, 그런 말은 반칙이야.'], ['성도 지방', 5, '금빛 도시가 있대! 나도 가 보고 싶다.'], ['아직 생각 안 해 봤어', 3, '그럼 같이 생각해 보자.']]],
 			['내 첫 포켓몬 있잖아, 요즘 나보다 씩씩해. 나도 닮아야 하는데.', [['이미 닮았어', 8, '…정말? 헤헤, 그럼 조금 자신 가져도 되려나.'], ['트레이너가 좋아서 그래', 7, '그렇게 말해 주면 쑥스럽잖아!'], ['포켓몬이 더 낫네', 1, '으으, 인정하긴 싫은데…']]],
 		],
-		evAt: [['forest', null], ['viridian', null], ['route1', 3], ['pallet', 3]], evNeed: [undefined, undefined, 'badge1', 'badge1'], evTitle: ['숲에서 길을 잃다', '도감을 노리는 손', '별이 지는 길', '출발선에서'],
-		chapters: ['만남 — 같은 날 여행을 떠난 아이', '♥1 숲에서 길을 잃다', '♥2 도감을 노리는 손', '♥3 별이 지는 길', '♥4 출발선에서'], tagline: '태초마을의 트레이너 · 도감 그리는 아이', subtitle: '새하얀 시작의 색',
+		evAt: [['forest', null], ['viridian', null], ['route1', 3], ['pallet', 3], ['vermilion', 1], ['tower', null]], evNeed: [undefined, undefined, 'badge1', 'badge1', 'verm', 'tower'], evTitle: ['숲에서 길을 잃다', '도감을 노리는 손', '별이 지는 길', '출발선에서', '첫 전시회', '그리지 못한 페이지'],
+		chapters: ['만남 — 같은 날 여행을 떠난 아이', '♥1 숲에서 길을 잃다', '♥2 도감을 노리는 손', '♥3 별이 지는 길', '♥4 출발선에서', '♥5 첫 전시회', '♥6 그리지 못한 페이지'], tagline: '태초마을의 트레이너 · 도감 그리는 아이', subtitle: '새하얀 시작의 색',
 		hello: ['아, {me}! 여기서 다 만나네.', '또 만났다! 오늘은 뭐 봤어?', '어서 와! 마침 보여 주고 싶은 게 있었어.', '{me}다! …아, 아니, 그냥 반가워서.', '기다렸어! 오늘은 어디로 갈까?'],
 		tagOn: '태그? 나, 나도 괜찮을까? …응, 해 볼게! 발목 잡지 않도록 열심히 할게!', tagOff: '벌써? 아쉽다… 다음에 또 같이 가자!',
 		cheers: ['해냈다! 봤어? 봤지?', '우리 꽤 잘 맞는 것 같아!', '방금 건 공책에 그려 둬야지!', '다음도 이 기세로!'], mateLine: '두, 둘이나? …괜찮아, 우리도 둘이니까!', soloLine: '나도 나갈게! 지켜봐 줘!',

@@ -3104,6 +3104,7 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .fld-cape { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/cape.jpg), url(__IMG_field_cape__); }
 .fld-pool { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/pool.jpg), url(__IMG_field_pool__); }
 .fld-lab { background-image: url(https://samang600.github.io/BattleSim-KR/scn/bg/lab.jpg), url(__IMG_field_lab__); }
+.fld-vermilion { background-image: url(__IMG_field_vermilion__); } .fld-ship { background-image: url(__IMG_field_ship__); } .fld-lavender { background-image: url(__IMG_field_lavender__); } .fld-tower { background-image: url(__IMG_field_tower__); }
 .fld-black { background: #05070c; }
 .sc-stage { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin: 4px 0; background: #1a2438; box-shadow: 0 0 0 2px #0a0f18; font-size: 13px; }
 .sc-stage-no { flex: none; padding: 2px 8px; color: #241a04; background: linear-gradient(180deg, #ffe890 0 2px, #f0c040 2px 70%, #c89420 70%); box-shadow: 0 0 0 2px #3a2804; }
@@ -3671,3 +3672,6 @@ button.sc-clock { font: inherit; cursor: pointer; } button.sc-clock:active { tra
 /* 행동 칸: 한 시간대에 4번. 쓴 칸은 꺼짐 */
 .sc-clock .sc-ap { flex-direction: row; gap: 2px; margin-top: 2px; } .sc-ap i { width: 6px; height: 4px; background: #7fe0ff; box-shadow: 0 0 0 1px #0a0f18; } .sc-ap i.used { background: #24365c; }
 .sc-top .sc-clock { height: 44px; } .sc-top .sc-clock > span { line-height: 1; gap: 1px; } .sc-maptags span.t { background: #10203f; color: #9fe4ff; }
+/* v2.74: 위 띠의 하트는 하나 + 숫자 (하트가 6칸으로 늘어 자리가 모자람) · 배지 줄이 눌려 겹치지 않게 */
+.sc-hmini { display: inline-flex; align-items: center; gap: 4px; } .sc-hmini b { font-weight: normal; font-size: 12px; color: #ffc0d4; }
+.sc-badgerow { white-space: nowrap; } .sc-badgerow > * { flex: none; }

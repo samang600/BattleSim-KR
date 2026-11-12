@@ -243,29 +243,122 @@ def lab():
 		d.ellipse([x - 6, G + 9, x + 6, G + 21], fill='#f4f4f4'); d.pieslice([x - 6, G + 9, x + 6, G + 21], 180, 360, fill='#e83a3a'); d.rectangle([x - 6, G + 14, x + 6, G + 15], fill='#2a2a32'); d.ellipse([x - 2, G + 13, x + 2, G + 17], fill='#f4f4f4', outline='#2a2a32')
 	return im
 
+def vermilion():
+	"""갈색시티: 항구 도시. 수평선, 부두와 큰 배(상트앙느호), 창고, 돌바닥"""
+	im = Image.new('RGB', (W, H)); d = ImageDraw.Draw(im)
+	bands(d, 0, 54, ['#f09a4a', '#f4ac5c', '#f8be74', '#fad090', '#fce0ac', '#fdecc8'])
+	cloud(d, 18, 10, 40); cloud(d, 170, 18, 36)
+	bands(d, 54, G, ['#2a78d0', '#3484d8', '#3e90de', '#489ae4'])
+	d.rectangle([0, 54, W, 54], fill='#fff4d8')
+	for y in range(58, G, 5):
+		for x in range((y * 7) % 23, W, 23): d.line([(x, y), (x + 8, y)], fill='#b8e0fc')
+	# 배
+	d.polygon([(120, 66), (238, 66), (228, 86), (130, 86)], fill='#f4f4f4'); d.polygon([(124, 78), (234, 78), (228, 86), (130, 86)], fill='#d84a3a')
+	d.rectangle([144, 50, 214, 66], fill='#e8e8ee'); d.rectangle([160, 40, 198, 50], fill='#d8d8e0')
+	for x in (166, 184): d.rectangle([x, 26, x + 8, 40], fill='#d84a3a'); d.rectangle([x, 26, x + 8, 29], fill='#2a2a32')
+	for x in range(148, 212, 9): d.rectangle([x, 55, x + 4, 59], fill='#4a8ad8')
+	for x in range(136, 228, 8): d.point((x, 72), fill='#2a2a32'); d.point((x + 1, 72), fill='#2a2a32')
+	# 창고
+	d.rectangle([8, 50, 70, G], fill='#b86a4a'); d.polygon([(4, 50), (39, 34), (74, 50)], fill='#8a4a34'); d.rectangle([28, 66, 50, G], fill='#6a3a28')
+	for y in range(56, G, 8): d.line([(8, y), (70, y)], fill='#a05a3e')
+	# 부두
+	bands(d, G, H, ['#b8b0a0', '#b0a898', '#a8a090', '#a09888'])
+	for y in range(G, H, 12):
+		d.line([(0, y), (W, y)], fill='#8a8274')
+		for x in range((y // 12 % 2) * 14, W, 28): d.line([(x, y), (x, y + 12)], fill='#8a8274')
+	d.rectangle([0, G, W, G + 3], fill='#7a5430'); d.rectangle([0, G, W, G], fill='#c89860')
+	for x in range(20, W, 56):   # 계선주와 밧줄
+		d.rectangle([x, G - 8, x + 6, G + 2], fill='#3a3a44'); d.rectangle([x - 1, G - 9, x + 7, G - 7], fill='#5a5a66')
+	for x, y in [(86, G + 30), (96, G + 30), (91, G + 20)]: d.rectangle([x, y, x + 9, y + 9], fill='#c89860'); d.rectangle([x, y, x + 9, y], fill='#e8c080'); d.line([(x, y + 9), (x + 9, y + 9)], fill='#7a5430')
+	return im
+
+def ship():
+	"""상트앙느호 갑판: 밤바다, 난간, 등불, 나무 갑판"""
+	im = Image.new('RGB', (W, H)); d = ImageDraw.Draw(im)
+	bands(d, 0, 60, ['#1a2a5a', '#22346a', '#2a3e7a', '#34488a', '#40549a'])
+	r = random.Random(41)
+	for _ in range(50): d.point((r.randint(0, W - 1), r.randint(0, 50)), fill=r.choice(['#ffffff', '#a8c0ff']))
+	d.ellipse([200, 10, 222, 32], fill='#fff4c0')
+	bands(d, 60, G, ['#16306a', '#1a3876', '#1e4082'])
+	for y in range(64, G - 8, 5):
+		for x in range((y * 7) % 23, W, 23): d.line([(x, y), (x + 8, y)], fill='#5a80c8')
+	d.rectangle([0, G - 22, W, G - 20], fill='#f4f4f4'); d.rectangle([0, G - 10, W, G - 9], fill='#d8d8e0')   # 난간
+	for x in range(6, W, 22): d.rectangle([x, G - 22, x + 2, G], fill='#f4f4f4')
+	for x in (60, 196):   # 등불
+		d.rectangle([x, 44, x + 2, G - 22], fill='#d8d8e0'); d.rectangle([x - 3, 38, x + 5, 44], fill='#ffe070'); d.rectangle([x - 4, 36, x + 6, 37], fill='#3a3a44')
+	bands(d, G, H, ['#c89860', '#c09058', '#b88850', '#b08048'])
+	for y in range(G, H, 8): d.line([(0, y), (W, y)], fill='#8a6030')
+	for y in range(G, H, 8):
+		for x in range((y // 8 % 2) * 20, W, 40): d.line([(x, y), (x, y + 8)], fill='#8a6030')
+	d.ellipse([20, G + 26, 44, G + 50], outline='#f4f4f4', width=3); d.ellipse([22, G + 28, 42, G + 48], outline='#d84a3a')   # 구명 튜브
+	return im
+
+def lavender():
+	"""보라타운: 보랏빛 저녁 하늘, 멀리 포켓몬타워, 낮은 집들, 안개"""
+	im = Image.new('RGB', (W, H)); d = ImageDraw.Draw(im)
+	bands(d, 0, G, ['#3a2a5a', '#4a3470', '#5c4088', '#704c9c', '#8a60b0', '#a47ac0', '#c09ad0'])
+	d.polygon([(0, G), (40, 56), (90, 70), (130, 50), (190, 72), (256, 54), (256, G)], fill='#4a3a6a')
+	d.polygon([(0, G), (60, 74), (140, 82), (200, 70), (256, 80), (256, G)], fill='#5a4a7c')
+	# 탑
+	for i, (w, y) in enumerate([(44, 76), (38, 62), (32, 48), (26, 34), (20, 22)]):
+		x = 196 - w // 2; d.rectangle([x, y, x + w, y + 14 if i else G], fill='#6a6a80'); d.rectangle([x - 2, y, x + w + 2, y + 2], fill='#8a8aa4'); d.rectangle([x + w - 5, y + 3, x + w, y + 14 if i else G], fill='#54546a')
+		for wx in range(x + 4, x + w - 6, 8): d.rectangle([wx, y + 6, wx + 3, y + 10], fill='#ffe070' if (wx + i) % 3 == 0 else '#2a2a3c')
+	d.polygon([(186, 22), (196, 6), (206, 22)], fill='#54546a')
+	house(d, 20, 56, 52, 40, '#8a5aa8', wall='#e8e0f0'); house(d, 92, 62, 44, 34, '#6a4a98', wall='#e0d8ec')
+	ground(d, ['#8a8aa0', '#828298', '#7a7a90', '#727288'], '#a0a0b8', 61, path=('#b0a8c0', '#c8c0d8', '#9088a4'))
+	r = random.Random(62)
+	for _ in range(7):   # 안개
+		x, y = r.randint(0, W - 50), r.randint(G - 14, G + 14); d.rectangle([x, y, x + r.randint(30, 60), y + 1], fill='#d8d0e8')
+	for x in (150, 162, 174):   # 비석
+		d.rectangle([x, G + 6, x + 7, G + 16], fill='#c8c8d4'); d.rectangle([x + 1, G + 5, x + 6, G + 5], fill='#c8c8d4'); d.rectangle([x, G + 16, x + 7, G + 17], fill='#5a5a6c')
+	return im
+
+def tower():
+	"""포켓몬타워 안: 어두운 석실, 줄지은 비석, 촛불, 보랏빛 안개"""
+	im = Image.new('RGB', (W, H)); d = ImageDraw.Draw(im)
+	bands(d, 0, G, ['#181428', '#1e1a32', '#24203c', '#2a2646'])
+	for x in range(0, W, 32): d.rectangle([x, 0, x + 1, G], fill='#141022')
+	for y in range(0, G, 16): d.line([(0, y), (W, y)], fill='#141022')
+	for x in (36, 128, 220):   # 창
+		d.rectangle([x - 8, 20, x + 8, 56], fill='#3a2a5a'); d.pieslice([x - 8, 12, x + 8, 28], 180, 360, fill='#3a2a5a'); d.rectangle([x - 1, 14, x, 56], fill='#181428'); d.rectangle([x - 8, 38, x + 8, 39], fill='#181428')
+	r = random.Random(73)
+	for x in range(14, W, 30):   # 비석 줄
+		y = G - 18; d.rectangle([x, y, x + 12, G], fill='#6a6a80'); d.pieslice([x, y - 6, x + 12, y + 6], 180, 360, fill='#6a6a80'); d.rectangle([x + 9, y, x + 12, G], fill='#54546a'); d.rectangle([x + 3, y + 4, x + 8, y + 5], fill='#3a3a4c'); d.rectangle([x + 5, y + 2, x + 6, y + 9], fill='#3a3a4c')
+	ground(d, ['#3a3650', '#343048', '#2e2a40', '#282438'], '#4a4664', 74)
+	for y in range(G, H, 16): d.line([(0, y), (W, y)], fill='#221e32')
+	for x, y in [(60, G + 14), (190, G + 20), (120, G + 44)]:   # 촛불
+		d.rectangle([x, y, x + 2, y + 8], fill='#e8e0d0'); d.rectangle([x, y - 3, x + 2, y - 1], fill='#ffb040'); d.point((x + 1, y - 4), fill='#fff0a0')
+	for _ in range(8):
+		x, y = r.randint(0, W - 60), r.randint(G - 30, H - 6); d.rectangle([x, y, x + r.randint(30, 70), y + 1], fill='#5a4a80')
+	return im
+
 def kantomap():
-	"""관동 서북쪽 지도 (월드 화면): 바다·육지·산줄기·숲·강. 마을과 길은 화면(CSS)에서 그림. 240×240"""
+	"""관동 지도 (월드 화면): 서쪽(태초~회색) · 북쪽(달맞이산~블루곶) · 가운데 항구(갈색시티) · 동쪽(돌산터널~보라타운).
+	바다·육지·산줄기·숲·강. 마을과 길은 화면(CSS)에서 그림. 240×240"""
 	S = 240
 	im = Image.new('RGB', (S, S)); d = ImageDraw.Draw(im)
 	for y in range(0, S, 4): d.rectangle([0, y, S, y + 3], fill=['#2a78d0', '#2e7cd4'][y // 4 % 2])
 	for y in range(6, S, 12):
 		for x in range((y * 7) % 29, S, 29): d.line([(x, y), (x + 5, y)], fill='#6ab0f0')
-	land = [(8, 232), (8, 30), (20, 12), (120, 6), (150, 12), (196, 4), (232, 10), (232, 60), (214, 84), (188, 92), (150, 86), (120, 100), (96, 120), (80, 150), (70, 190), (60, 232)]
+	land = [(6, 234), (6, 26), (18, 10), (130, 6), (160, 2), (200, 8), (234, 16), (234, 160), (224, 178), (196, 172), (176, 150), (160, 160), (152, 178), (132, 182), (116, 170), (104, 148), (72, 152), (56, 176), (52, 234)]
 	d.polygon([(x + 2, y + 3) for x, y in land], fill='#1a5aa8'); d.polygon(land, fill='#6ab85a')
 	r = random.Random(77)
-	for _ in range(260):
-		x, y = r.randint(10, 230), r.randint(8, 230)
+	for _ in range(420):
+		x, y = r.randint(8, 232), r.randint(6, 232)
 		if im.getpixel((x, y)) == (106, 184, 90): d.point((x, y), fill='#84d072')
-	for cx, cy, n in [(46, 96, 16), (30, 110, 8)]:   # 상록숲
+	for cx, cy, n in [(32, 120, 14), (22, 132, 6)]:   # 상록숲
 		for _ in range(n * 3):
-			x, y = cx + r.randint(-18, 18), cy + r.randint(-14, 14); d.ellipse([x - 4, y - 4, x + 4, y + 4], fill='#2e7a3a'); d.point((x - 1, y - 2), fill='#4a9a54')
-	for x in range(86, 150, 9):   # 달맞이산 줄기
-		h = r.randint(12, 22); y = 44 + r.randint(-6, 8)
-		d.polygon([(x - 10, y + 12), (x, y - h), (x + 10, y + 12)], fill='#8a8a96'); d.polygon([(x - 3, y - h + 6), (x, y - h), (x + 3, y - h + 6)], fill='#f0f0f4'); d.polygon([(x, y - h), (x + 10, y + 12), (x + 3, y + 12)], fill='#6e6e7c')
-	d.line([(196, 4), (190, 40), (198, 70), (188, 92)], fill='#4a98e0', width=4); d.line([(196, 4), (190, 40), (198, 70), (188, 92)], fill='#7cc0f6', width=1)   # 블루시티 강
-	d.polygon([(206, 10), (232, 10), (232, 26), (212, 22)], fill='#84d072')
+			x, y = cx + r.randint(-14, 14), cy + r.randint(-12, 12); d.ellipse([x - 4, y - 4, x + 4, y + 4], fill='#2e7a3a'); d.point((x - 1, y - 2), fill='#4a9a54')
+	def ridge(x0, x1, y0, step=9):
+		for x in range(x0, x1, step):
+			h = r.randint(12, 20); y = y0 + r.randint(-5, 6)
+			d.polygon([(x - 9, y + 12), (x, y - h), (x + 9, y + 12)], fill='#8a8a96'); d.polygon([(x - 3, y - h + 6), (x, y - h), (x + 3, y - h + 6)], fill='#f0f0f4'); d.polygon([(x, y - h), (x + 9, y + 12), (x + 3, y + 12)], fill='#6e6e7c')
+	ridge(58, 108, 62)   # 달맞이산
+	ridge(182, 214, 70, 8)   # 돌산터널
+	d.line([(150, 4), (146, 40), (150, 70), (142, 110)], fill='#4a98e0', width=4); d.line([(150, 4), (146, 40), (150, 70), (142, 110)], fill='#7cc0f6', width=1)   # 블루시티 강
+	for x, y in [(78, 118), (86, 126), (72, 128)]: d.ellipse([x - 3, y - 2, x + 3, y + 2], fill='#8a6a4a'); d.point((x, y), fill='#3a2a1a')   # 디그다굴
 	return im
 
 if __name__ == '__main__':
-	for name, fn in [('pallet', pallet), ('route', route), ('forest', forest), ('pewter', pewter), ('mtmoon', mtmoon), ('viridian', viridian), ('cerulean', cerulean), ('bridge', bridge), ('cape', cape), ('pool', pool), ('lab', lab), ('kantomap', kantomap)]:
+	for name, fn in [('pallet', pallet), ('route', route), ('forest', forest), ('pewter', pewter), ('mtmoon', mtmoon), ('viridian', viridian), ('cerulean', cerulean), ('bridge', bridge), ('cape', cape), ('pool', pool), ('lab', lab), ('vermilion', vermilion), ('ship', ship), ('lavender', lavender), ('tower', tower), ('kantomap', kantomap)]:
 		fn().save(os.path.join(OUT, f'field_{name}.png'), optimize=True); print('field_' + name)
