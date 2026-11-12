@@ -3656,3 +3656,18 @@ button.sc-clock { font: inherit; cursor: pointer; } button.sc-clock:active { tra
 .sc-credits-who .sc-portrait.dot { height: 480px; width: 480px; image-rendering: pixelated; }
 @media (min-width: 900px) and (min-height: 541px) { .sc-wildmon { width: 340px; height: 300px; } .sc-wildmon .sprite { width: 336px !important; height: 336px !important; margin-bottom: -56px; } }
 @media (orientation: landscape) and (max-height: 540px) { .sc-stp .sc-portrait.big.dot { width: 320px; height: 320px; } .sc-boxscr .sc-box-grid { grid-template-columns: repeat(10, 1fr); } .sc-boxscr .sc-box-grid.party { grid-template-columns: repeat(6, 1fr); max-width: 60%; } }
+/* v2.73.2: CSS 로 흉내 낸 그림(동그라미·그라데이션·다각형)을 도트 그림(Px)으로 */
+.sc-px { display: block; flex: none; image-rendering: pixelated; }
+.sc-heart { width: auto; height: auto; background: none; clip-path: none; display: inline-block; } .sc-hearts.big .sc-heart { width: auto; height: auto; }
+.sc-heart b { position: absolute; left: 0; top: 0; bottom: 0; overflow: hidden; background: none; transition: width .9s steps(10); }
+.sc-stars { background-image: none; background-size: 96px 96px !important; background-position: 0 0 !important; image-rendering: pixelated; }
+.sc-wildmon .sc-wildgrass { position: absolute; left: 50%; right: auto; bottom: 10px; margin-left: -80px; height: auto; background: none; }
+.sc-starter-table::after { display: none; }
+.sc-starter-desk { position: absolute; left: 2%; right: 2%; bottom: 0; height: 36px; background-size: 32px 36px; background-repeat: repeat-x; image-rendering: pixelated; }
+.sc-starter-ball .sc-sball { position: relative; z-index: 1; } .sc-starter-ball.on .sc-sball { animation: scClick .3s steps(3); filter: drop-shadow(2px 0 0 #ffe070) drop-shadow(-2px 0 0 #ffe070) drop-shadow(0 2px 0 #ffe070) drop-shadow(0 -2px 0 #ffe070); }
+.sc-cball { width: 48px; height: 48px; margin-left: -24px; border-radius: 0; background: none; box-shadow: none; display: block; }
+.sc-cstars i { display: none; } .sc-cstars .sc-px { position: absolute; animation: scStar .7s steps(6) forwards; }
+.sc-cstars .sc-px:nth-child(1) { --dx: -46px; --dy: -34px; } .sc-cstars .sc-px:nth-child(2) { --dx: 0px; --dy: -54px; animation-delay: .08s; } .sc-cstars .sc-px:nth-child(3) { --dx: 46px; --dy: -34px; animation-delay: .16s; }
+/* 행동 칸: 한 시간대에 4번. 쓴 칸은 꺼짐 */
+.sc-clock .sc-ap { flex-direction: row; gap: 2px; margin-top: 2px; } .sc-ap i { width: 6px; height: 4px; background: #7fe0ff; box-shadow: 0 0 0 1px #0a0f18; } .sc-ap i.used { background: #24365c; }
+.sc-top .sc-clock { height: 44px; } .sc-top .sc-clock > span { line-height: 1; gap: 1px; } .sc-maptags span.t { background: #10203f; color: #9fe4ff; }

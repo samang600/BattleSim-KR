@@ -39,10 +39,12 @@ interface Mon { sp: string; lv: number; exp: number; item?: string; moves?: stri
 interface Rel { /** 호감도 0~400 (하트 하나 = 100) */ heart: number; /** 끝낸 하트 이벤트 수 */ ev: number; /** 마지막으로 이야기한 날 */ talked: number }
 interface Run {
 	v: 3; starter: string; party: Mon[]; box: Mon[]; money: number; bag: { [id: string]: number };
-	loc: string; town: string; day: number; time: number; flags: { [k: string]: number }; beaten: { [id: string]: number };
+	loc: string; town: string; day: number; time: number; /** 이번 시간대에 쓴 행동 수 (AP 가 차면 다음 시간대로) */ ap?: number; flags: { [k: string]: number }; beaten: { [id: string]: number };
 	/** 인물별 사이 (이슬·웅·리프) · 지금 태그 중인 인물 id ('' = 없음) */
 	rel: { [id: string]: Rel }; tag: string; badges: string[];
 }
+/** 한 시간대에 할 수 있는 행동 수: 배틀·이야기·선물 = 1, 이동 = 지나는 길 한 칸마다 1 */
+const AP = 4;
 const newRun = (): Run => ({ v: 3, starter: '', party: [], box: [], money: 0, bag: {}, loc: 'pallet', town: 'pallet', day: 1, time: 0, flags: {}, beaten: {}, rel: {}, tag: '', badges: [] });
 /** 예전 저장(v2: 이슬만) → 인물별 */
 function migrate(o: any): Run | null {
@@ -118,6 +120,33 @@ function useVariant(id: string, emo?: string): string {
 }
 /** 픽셀 아이콘 (pixelarticons, 24칸 격자) — 크기는 2px 격자에 맞게 24·36·48 */
 const Pxi = ({ name, size = 24 }: { name: string; size?: number }) => <svg class="sc-pxi" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" shape-rendering="crispEdges"><path d={PXI[name] || ''} /></svg>;
+/** 도트 그림 (격자 한 글자 = 한 칸): CSS 로 흉내 낸 동그라미·그라데이션 대신 픽셀로 그린 것. Px 로 그리거나 pxUrl 로 배경 무늬에 씀 */
+const ART: { [k: string]: [string[], { [c: string]: string }] } = {
+	ball: [['....kkkk....', '..kkRRRRkk..', '.kRhRRRRRRk.', '.kRhRRRRRRk.', 'kRRRRRRRRRRk', 'kRRRRkkRRRRk', 'kkkkkWWkkkkk', 'kWWWWkkWWWWk', '.kWWWWWWWWk.', '.kWWWWWWggk.', '..kkWWggkk..', '....kkkk....'],
+		{ k: '#14182a', R: '#e8402c', h: '#ff9a8a', W: '#f4f4f4', g: '#c0c4d0' }],
+	greatball: [['....kkkk....', '..kkBBBBkk..', '.kBrBBBBrBk.', '.kBrBBBBrBk.', 'kBBBBBBBBBBk', 'kBBBBkkBBBBk', 'kkkkkWWkkkkk', 'kWWWWkkWWWWk', '.kWWWWWWWWk.', '.kWWWWWWggk.', '..kkWWggkk..', '....kkkk....'],
+		{ k: '#14182a', B: '#3a7ad8', r: '#e8402c', W: '#f4f4f4', g: '#c0c4d0' }],
+	shadow: [['...ssssssssss...', '.ssssssssssssss.', '.ssssssssssssss.', '...ssssssssss...'], { s: 'rgba(0,0,0,.42)' }],
+	star: [['...y...', '...y...', '.yyyyy.', 'yyyWyyy', '.yyyyy.', '...y...', '...y...'], { y: '#ffe070', W: '#ffffff' }],
+	heart: [['.kk...kk.', 'kPPk.kPPk', 'kPhPkPPPk', 'kPPPPPPPk', '.kPPPPPk.', '..kPPPk..', '...kPk...', '....k....'], { k: '#5a0a2a', P: '#ff5a8a', h: '#ffc0d4' }],
+	heart0: [['.kk...kk.', 'kPPk.kPPk', 'kPPPkPPPk', 'kPPPPPPPk', '.kPPPPPk.', '..kPPPk..', '...kPk...', '....k....'], { k: '#0a0f18', P: '#2a3350' }],
+	coin: [['...kkkk...', '.kkYYYYkk.', '.kYhYYYYk.', 'kYhYYkYYYk', 'kYYYkkYYYk', 'kYYYYkYYYk', 'kYYYYkYYdk', '.kYYkkkdk.', '.kkYYYdkk.', '...kkkk...'], { k: '#5a3a08', Y: '#ffd84a', h: '#fff4b0', d: '#c89420' }],
+	gift: [['..kk..kk..', '.kRRkkRRk.', '..kRRRRk..', 'kkkkRRkkkk', 'kWWWRRWWWk', 'kkkkRRkkkk', '.kBBRRBBk.', '.kBBRRBBk.', '.kBBRRBBk.', '.kkkkkkkk.'], { k: '#14182a', R: '#e8402c', W: '#f4f4f4', B: '#3a8ad8' }],
+	// 탁자 (가로로 이어 붙이는 무늬): 윗면 밝은 줄 · 옆면 · 아래 그림자
+	table: [['LLLLLLLL', 'LLLLLLLL', 'MMMMMMMd', 'MMMMMMMd', 'MMMMMMMd', 'kkkkkkkk', 'DDDDDDDD', 'DDDDDDDk', 'DDDDDDDD'], { L: '#d8aa6a', M: '#b8843e', d: '#9a6a2a', D: '#7a5424', k: '#2a1a08' }],
+	// 밤하늘 (타일): 한 칸짜리 별 몇 개
+	sky: [['........................', '....w...................', '..............b.........', '........................', '.....................w..', '........................', '.........b..............', '........................', '..w.....................', '................w.......', '........................', '......................b.',
+		'........................', '.......w................', '........................', '...b..............w.....', '........................', '............b...........', '........................', '.w......................', '....................b...', '........................', '..........w.............', '........................'], { w: '#ffffff', b: '#a8c0ff' }],
+};
+const artRects = (g: string[], pal: { [c: string]: string }) => g.flatMap((row, y) => [...row].map((c, x) => pal[c] ? `<rect x='${x}' y='${y}' width='1' height='1' fill='${pal[c]}'/>` : '')).join('');
+/** 도트 그림 하나. scale = 한 칸의 px (2의 배수) */
+function Px({ art, scale = 2, cls = '' }: { art: string; scale?: number; cls?: string }) {
+	const [g, pal] = ART[art], w = Math.max(...g.map(r => r.length));
+	return <svg class={'sc-px px-' + art + ' ' + cls} width={w * scale} height={g.length * scale} viewBox={`0 0 ${w} ${g.length}`} shape-rendering="crispEdges">
+		{g.flatMap((row, y) => [...row].map((c, x) => pal[c] ? <rect x={x} y={y} width="1" height="1" fill={pal[c]} /> : null))}</svg>;
+}
+/** 도트 그림을 배경 무늬(url)로 */
+const pxUrl = (art: string) => { const [g, pal] = ART[art], w = Math.max(...g.map(r => r.length)); return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${w} ${g.length}' shape-rendering='crispEdges'>${artRects(g, pal)}</svg>`)}")`; };
 /** 지도 위 말: 데포르메 도트 얼굴 (한 칸 = 2px). me = 빨간 모자의 나 · misty = 주황 머리의 이슬 */
 const CHIBI: { [k: string]: [string[], { [c: string]: string }] } = {
 	me: [['...kkkkk...', '..kRRRRRk..', '.kRRWWRRRk.', '.kRRRRRRRkk', 'kkkkkkkkkkk', '.kSSSSSSSk.', '.kSkSSSkSk.', '.kSSSSSSSk.', '..kSSpSSk..', '..kkkkkkk..', '.kBBBWBBBk.', '.kBBBBBBBk.', '..kkk.kkk..'],
@@ -155,10 +184,10 @@ function Ico({ name, size = 32, fb }: { name: string; size?: number; fb?: any })
 	if (bad) return fb || null;
 	return <img class="sc-pico" style={{ width: size, height: size }} src={`${SCN_BASE}ico/${name}.png`} onError={() => setBad(true)} alt="" />;
 }
-const itemIco = (id: string, size: number) => { const it = ITEMS[id]; if (it.pxi) return <span class="sc-item-pxi"><Pxi name={it.pxi} size={size >= 48 ? 48 : 24} /></span>; return <Ico name={it.icon} size={size} fb={it.held ? <ItemIcon item={it.held} size={Math.min(size, 32)} /> : <i class={'sc-ico2 ' + it.kind + ' ' + id} />} />; };
+const itemIco = (id: string, size: number) => { const it = ITEMS[id]; if (it.pxi) return <span class="sc-item-pxi"><Pxi name={it.pxi} size={size >= 48 ? 48 : 24} /></span>; return <Ico name={it.icon} size={size} fb={it.held ? <ItemIcon item={it.held} size={Math.min(size, 32)} /> : <Px art={it.kind === 'ball' ? (id === 'greatball' ? 'greatball' : 'ball') : it.kind === 'sell' ? 'coin' : 'gift'} scale={2} />} />; };
 const BADGE_ICO: { [k: string]: string } = { 회색배지: 'badge1', 블루배지: 'badge2' };
 const tWho = (t: Trainer): Who => ({ name: t.name, title: t.title, portrait: 'd_' + t.sprite, sprite: t.sprite });
-const Hearts = ({ v, big }: { v: number; big?: boolean }) => <span class={'sc-hearts' + (big ? ' big' : '')}>{[0, 1, 2, 3].map(i => <i class="sc-heart"><b style={{ width: Math.max(0, Math.min(100, v - i * 100)) + '%' }} /></i>)}</span>;
+const Hearts = ({ v, big }: { v: number; big?: boolean }) => <span class={'sc-hearts' + (big ? ' big' : '')}>{[0, 1, 2, 3].map(i => <i class="sc-heart"><Px art="heart0" scale={big ? 4 : 2} /><b style={{ width: Math.max(0, Math.min(100, v - i * 100)) + '%' }}><Px art="heart" scale={big ? 4 : 2} /></b></i>)}</span>;
 
 type Line = [who: string | Who | null, text: string, emo?: string];
 /** 지난 대사 (기록 보기) · 자동 넘김 설정 */
@@ -195,8 +224,8 @@ function Dialog({ lines, bg, tint, done, choice, mon }: { lines: Line[]; bg: str
 	const dark = bg === 'black' || bg === 'space';
 	return <div class={'story-talk sc-talk' + (w ? '' : ' narr') + (dark ? ' black' : '') + (mon ? ' wild' : '')} onClick={next}>
 		<div class={'st-bg sc-bg fld-' + (dark ? 'black' : bg)} /><div class={'sc-tint ' + TIME_CLS[tint]} />
-		{bg === 'space' && <><div class="sc-stars full" /><div class="sc-stars full far" /></>}
-		{mon && <div class="sc-wildmon"><i class="sc-wildgrass" /><Sprite species={mon} gen={9} size={192} anim={false} /></div>}
+		{bg === 'space' && <><div class="sc-stars full" style={{ backgroundImage: pxUrl('sky') }} /><div class="sc-stars full far" style={{ backgroundImage: pxUrl('sky') }} /></>}
+		{mon && <div class="sc-wildmon"><Px art="shadow" scale={10} cls="sc-wildgrass" /><Sprite species={mon} gen={9} size={192} anim={false} /></div>}
 		{w && <div class="st-portrait sc-stp" key={w.name}>
 			<div class={'sc-act' + (emo ? ' mv-' + emo : '')} key={i}><Portrait id={w.portrait} sprite={w.sprite} cls="big" emo={emo} /></div>
 			{emo && <Emote kind={emo} key={'e' + i} />}
@@ -245,8 +274,16 @@ function engine(run: Run) {
 	};
 	/** 시간을 한 칸 보냄. 밤이 지나면 다음 날 아침 (날짜 카드) */
 	const tick = async (toMorning = false) => {
+		run.ap = 0;
 		if (toMorning || run.time === 3) { run.day++; run.time = 0; persist(run); await card(`${run.day}일째`, '아침이 밝았다', '관동 편', 'black', 1500); }
 		else { run.time++; persist(run); }
+	};
+	/** 행동 n 번만큼 시간을 씀. AP 번을 채우면 다음 시간대로 넘어감 */
+	const spend = async (n = 1) => {
+		let ap = (run.ap || 0) + n, moved = false;
+		while (ap >= AP) { ap -= AP; await tick(); moved = true; }
+		run.ap = ap; persist(run);
+		if (moved && run.time !== 0) toast(`어느덧 ${josa(TIMES[run.time], '이', '가')} 되었다`);
 	};
 	/** 배틀 (전환 연출 포함). tag = 그 인물과 멀티배틀: 내 앞 3마리 + 파트너 3마리. wild = 야생(기권 대신 도망) → 도망쳤으면 'fled' */
 	const fight = async (o: { name: string; title?: string; sprite: string; sprite2?: string; team: Mon[]; skill: number; arena?: string; music?: string; tag?: string; line?: string; wild?: boolean }): Promise<boolean | 'fled'> => {
@@ -281,7 +318,7 @@ function engine(run: Run) {
 		await say([[null, `${playerName()}의 포켓몬은 모두 쓰러졌다…\n눈앞이 캄캄해졌다!`], [null, `${t.name}의 ${josa(t.rest || '포켓몬센터', '으로', '로')} 서둘러 돌아갔다.${lost ? `\n(허둥대다 ${josa(won(lost), '을', '를')} 떨어뜨렸다)` : ''}`]], 'black');
 		await tick();
 	};
-	return { L, say, choose, fx, card, got, pay, heart, tick, fight, reward, blackout };
+	return { L, say, choose, fx, card, got, pay, heart, tick, spend, fight, reward, blackout };
 }
 type Eng = ReturnType<typeof engine>;
 
@@ -314,6 +351,11 @@ async function play(run: Run, E: Eng, id: string): Promise<boolean> {
 	await flush();
 	return true;
 }
+/** 시계: 날짜·시간대 + 이번 시간대에 남은 행동 칸. onClick 이 있으면 누를 수 있음(시간 보내기) */
+function Clock({ run, onClick }: { run: Run; onClick?: () => void }) {
+	const body = <><Pxi name={run.time === 3 ? 'moon' : 'sun'} /><span><small>{run.day}일째</small><b>{TIMES[run.time]}</b><span class="sc-ap">{Array.from({ length: AP }, (_, i) => <i class={i < (run.ap || 0) ? 'used' : ''} />)}</span></span></>;
+	return onClick ? <button class={'sc-clock ' + TIME_CLS[run.time]} onClick={onClick} aria-label="시간 보내기">{body}</button> : <div class={'sc-clock ' + TIME_CLS[run.time]}>{body}</div>;
+}
 /** 지도 위 이동 연출 (웨스노스의 여정 지도처럼): 길을 따라 점선이 그어지고 내 트레이너가 한 곳씩 옮겨 감 */
 function routeBetween(run: Run, a: string, b: string): string[] {
 	const prev: { [id: string]: string } = { [a]: '' }, q = [a];
@@ -327,7 +369,7 @@ function Travel({ run, to, done }: { run: Run; to: string; done: () => void }) {
 	useEffect(() => { const t = setTimeout(() => k + 1 < path.length ? setK(k + 1) : done(), k + 1 < path.length ? 430 : 420); return () => clearTimeout(t); }, [k]);
 	return <div class="sc-mapscr sc-travel" onClick={done}>
 		<div class="sh-top sc-top"><div class="sh-title">{locOf(run.loc).name} → {locOf(to).name}<em class="sc-mission">이동 중…</em></div>
-			<div class={'sc-clock ' + TIME_CLS[run.time]}><Pxi name={run.time === 3 ? 'moon' : 'sun'} /><span><small>{run.day}일째</small><b>{TIMES[run.time]}</b></span></div></div>
+			<Clock run={run} /></div>
 		<div class="sc-mapwrap"><div class="sc-map">
 			<svg class="sc-roads" viewBox="0 0 100 100" preserveAspectRatio="none">
 				{LOCS.flatMap(a => a.to.filter(b => a.id < b).map(b => { const B = locOf(b); return <line x1={a.x} y1={a.y} x2={B.x} y2={B.y} class="off" />; }))}
@@ -346,7 +388,7 @@ function Travel({ run, to, done }: { run: Run; to: string; done: () => void }) {
 
 function GetCard({ title, sub, icon, coin, pxi, done }: { title: string; sub: string; icon?: string; coin?: boolean; pxi?: string; done: () => void }) {
 	return <div class="sc-get" onClick={done}><div class="sc-get-box">
-		<span class="sc-get-ico">{coin ? <Ico name="coin-case" size={56} fb={<i class="sc-coin" />} /> : pxi ? <span class="sc-item-pxi"><Pxi name={pxi} size={48} /></span> : icon ? <Ico name={icon} size={56} fb={<i class="sc-gift" />} /> : <i class="sc-gift" />}</span>
+		<span class="sc-get-ico">{coin ? <Ico name="coin-case" size={56} fb={<Px art="coin" scale={4} />} /> : pxi ? <span class="sc-item-pxi"><Pxi name={pxi} size={48} /></span> : icon ? <Ico name={icon} size={56} fb={<Px art="gift" scale={4} />} /> : <Px art="gift" scale={4} />}</span>
 		<b>{josa(title, '을', '를')} 손에 넣었다!</b><small>{sub}</small><em>화면을 누르면 계속</em>
 	</div></div>;
 }
@@ -428,10 +470,10 @@ function Hub({ run, banner, done }: { run: Run; banner: boolean; done: (a: Act) 
 	const SL = land ? SLOTS_LAND : SLOTS;
 	return <div class={'story-hub sc-hub' + (banner ? ' sc-open' : '')}>
 		<div class={'sh-bg sc-bg fld-' + loc.bg} /><div class={'sc-tint ' + TIME_CLS[run.time]} />
-		{run.time === 3 && <div class="sc-stars" />}
+		{run.time === 3 && <div class="sc-stars" style={{ backgroundImage: pxUrl('sky') }} />}
 		<div class="sh-top sc-top">
 			<button class="st-exit" onClick={async () => { if (await confirmBox('시나리오 나가기', '메인 화면으로 돌아갈까요?\n지금까지의 진행은 저장돼 있어요.', '나가기', '계속하기')) done(BACK); }} aria-label="나가기"><Pxi name="chevron-left" /></button>
-			<button class={'sc-clock ' + TIME_CLS[run.time]} onClick={() => done({ k: 'wait' })} aria-label="시간 보내기"><Pxi name={run.time === 3 ? 'moon' : 'sun'} /><span><small>{run.day}일째</small><b>{TIMES[run.time]}</b></span></button>
+			<Clock run={run} onClick={() => done({ k: 'wait' })} />
 			<div class="sh-title">관동 · {loc.name}<em class="sc-mission">{goalText(run)}</em></div>
 			<div class="sc-wallet"><span>{won(run.money)}</span>{focus && <span class="sc-wallet-h"><small>{focus.name}</small><Hearts v={relOf(run, focus.id).heart} /></span>}</div>
 		</div>
@@ -448,7 +490,7 @@ function Hub({ run, banner, done }: { run: Run; banner: boolean; done: (a: Act) 
 		</div>
 		<div class="sc-tabs2 sc-menu">
 			<button class="map" onClick={() => done({ k: 'map' })}><Pxi name="map" />지도</button>
-			<button class="mon" onClick={() => done({ k: 'box' })}><i class="sc-pball" />박스</button>
+			<button class="mon" onClick={() => done({ k: 'box' })}><Px art="ball" scale={2} />박스</button>
 			<button class="bag" onClick={() => done({ k: 'bag' })}><Pxi name="backpack" />가방</button>
 			<button class="love" onClick={() => done({ k: 'route' })}><Pxi name="heart" />루트</button>
 		</div>
@@ -470,15 +512,17 @@ function goalText(run: Run): string {
 	return `${josa(c.name, '과', '와')} 가까워지자 (${TIMES[run.time]}: ${locOf(charLoc(run, c)).name})`;
 }
 
-/** 월드맵: 갈 곳 고르기 (이동하면 시간이 한 칸 흐름) */
+/** 월드맵: 갈 곳 고르기 (지나는 길 한 칸마다 행동 1) */
 function WorldMap({ run, done }: { run: Run; done: (id: string | null) => void }) {
 	/** 만난 인물이 지금 있는 곳 (태그 중이면 나와 함께) */
 	const where = metChars(run).map(c => [c, run.tag === c.id ? run.loc : charLoc(run, c)] as [Char, string]);
 	const [sel, setSel] = useState(run.loc);
 	const s = locOf(sel), open = unlocked(run, sel);
+	/** 가는 길의 칸 수 = 드는 행동 수, 도착했을 때의 시간대 */
+	const hops = open && sel !== run.loc ? routeBetween(run, run.loc, sel).length - 1 : 0, pass = Math.floor(((run.ap || 0) + hops) / AP), arrive = (run.time + pass) % 4;
 	return <div class="sc-mapscr sc-open">
-		<div class="sh-top sc-top"><button class="st-exit" onClick={() => done(null)} aria-label="닫기"><Pxi name="chevron-left" /></button><div class="sh-title">관동 지방<em class="sc-mission">갈 곳을 고르세요 · 이동하면 시간이 흐릅니다</em></div>
-			<div class={'sc-clock ' + TIME_CLS[run.time]}><Pxi name={run.time === 3 ? 'moon' : 'sun'} /><span><small>{run.day}일째</small><b>{TIMES[run.time]}</b></span></div></div>
+		<div class="sh-top sc-top"><button class="st-exit" onClick={() => done(null)} aria-label="닫기"><Pxi name="chevron-left" /></button><div class="sh-title">관동 지방<em class="sc-mission">갈 곳을 고르세요</em></div>
+			<Clock run={run} /></div>
 		<div class="sc-mapwrap"><div class="sc-map">
 			<svg class="sc-roads" viewBox="0 0 100 100" preserveAspectRatio="none">{LOCS.flatMap(a => a.to.filter(b => a.id < b).map(b => { const B = locOf(b); return <line x1={a.x} y1={a.y} x2={B.x} y2={B.y} class={unlocked(run, a.id) && unlocked(run, b) ? '' : 'off'} />; }))}</svg>
 			{LOCS.map(l => <button class={'sc-node' + (l.town ? ' town' : '') + (l.id === run.loc ? ' here' : '') + (l.id === sel ? ' sel' : '') + (unlocked(run, l.id) ? '' : ' lock')} style={{ left: l.x + '%', top: l.y + '%' }} onClick={() => { sfx('select'); setSel(l.id); }}>
@@ -490,7 +534,7 @@ function WorldMap({ run, done }: { run: Run; done: (id: string | null) => void }
 		<div class="sc-mapinfo">
 			<div class={'sc-mapthumb sc-bg fld-' + (open ? s.bg : 'black')}><div class={'sc-tint ' + TIME_CLS[run.time]} /></div>
 			<div class="sc-mapdesc"><b>{open ? s.name : '？？？'}</b><small>{open ? s.sub : LOCK_WHY[sel]}</small>
-				{open && <small class="sc-maptags">{WILDS.some(w => w.loc === sel) && <span>풀숲</span>}{SHOPS[sel] && <span>가게</span>}{s.rest && <span>쉼터</span>}{where.filter(([, at]) => at === sel).map(([c]) => <span class="h">♥ {c.name}</span>)}</small>}</div>
+				{open && <small class="sc-maptags">{hops > 0 && <span class="t">행동 {hops}칸{pass > 0 ? ` · 도착하면 ${run.time + pass > 3 ? '다음 날 ' : ''}${TIMES[arrive]}` : ''}</span>}{WILDS.some(w => w.loc === sel) && <span>풀숲</span>}{SHOPS[sel] && <span>가게</span>}{s.rest && <span>쉼터</span>}{where.filter(([, at]) => at === sel).map(([c]) => <span class="h">♥ {c.name}</span>)}</small>}</div>
 			<button class="btn primary" disabled={!open || sel === run.loc} onClick={() => done(sel)}>{sel === run.loc ? '지금 있는 곳' : '이동'}</button>
 		</div>
 	</div>;
@@ -655,9 +699,9 @@ function StarterPick({ done }: { done: (i: number) => void }) {
 	return <div class="sc-starter">
 		<div class="sc-bg fld-lab" /><div class="sc-starter-shade" />
 		<div class="sc-starter-head"><small>오박사 연구소</small><b>함께 여행할 포켓몬을 한 마리 고르자</b></div>
-		<div class="sc-starter-table">{STARTERS.map(([id], i) => <button class={'sc-starter-ball' + (sel === i ? ' on' : sel >= 0 ? ' off' : '')} onClick={() => { sfx('ballOpen'); cry(id); setSel(i); }}>
+		<div class="sc-starter-table"><i class="sc-starter-desk" style={{ backgroundImage: pxUrl('table') }} />{STARTERS.map(([id], i) => <button class={'sc-starter-ball' + (sel === i ? ' on' : sel >= 0 ? ' off' : '')} onClick={() => { sfx('ballOpen'); cry(id); setSel(i); }}>
 			<span class="sc-starter-mon" key={sel === i ? 'on' : 'off'}><Sprite species={id} gen={9} size={192} anim={false} /></span>
-			<i class="sc-ball" /><b>{speciesKo(id)}</b>
+			<Px art="ball" scale={4} cls="sc-sball" /><b>{speciesKo(id)}</b>
 		</button>)}</div>
 		<div class="sc-starter-info">{sel < 0 ? <p class="sc-starter-hint">몬스터볼을 눌러 안을 들여다보자 ▼</p> : <>
 			<p><b>{speciesKo(sp)}</b> <small>Lv5</small> <span class="sc-types">{((speciesData(sp, 9) as any)?.t || []).map((t: string) => <TypeBadge type={t} />)}</span></p>
@@ -667,7 +711,7 @@ function StarterPick({ done }: { done: (i: number) => void }) {
 	</div>;
 }
 /** 볼 던지기 연출 (그 자리 풍경 위에서): 볼이 날아감 → 포켓몬이 빛이 되어 빨려 들어감 → 떨어져 세 번 흔들림 → 딸깍·별(성공) / 튀어나옴(실패) */
-function Catch({ sp, ok, bg, tint, done }: { sp: string; ok: boolean; bg: string; tint: number; done: () => void }) {
+function Catch({ sp, ok, bg, tint, ball = 'ball', done }: { sp: string; ok: boolean; bg: string; tint: number; ball?: string; done: () => void }) {
 	const [st, setSt] = useState(0);   // 0 던짐 · 1 빨려 듦 · 2 흔들림 · 3 결과
 	useEffect(() => {
 		sfx('ballThrow');
@@ -678,8 +722,8 @@ function Catch({ sp, ok, bg, tint, done }: { sp: string; ok: boolean; bg: string
 	}, []);
 	return <div class={'story-talk sc-talk narr wild sc-catch2 st' + st + (ok ? ' ok' : ' no')} onClick={() => st === 3 && done()}>
 		<div class={'st-bg sc-bg fld-' + bg} /><div class={'sc-tint ' + TIME_CLS[tint]} />
-		<div class="sc-wildmon"><i class="sc-wildgrass" /><Sprite species={sp} gen={9} size={192} anim={false} /></div>
-		<i class="sc-cball" />{st === 3 && ok && <span class="sc-cstars"><i /><i /><i /></span>}
+		<div class="sc-wildmon"><Px art="shadow" scale={10} cls="sc-wildgrass" /><Sprite species={sp} gen={9} size={192} anim={false} /></div>
+		<span class="sc-cball"><Px art={ball} scale={4} /></span>{st === 3 && ok && <span class="sc-cstars"><Px art="star" scale={2} /><Px art="star" scale={2} /><Px art="star" scale={2} /></span>}
 		<div class="st-box"><div class="st-text">{st < 3 ? '…' : ok ? `신난다! ${josa(speciesKo(sp), '을', '를')} 잡았다!` : `앗! ${josa(speciesKo(sp), '이', '가')} 볼에서 나와 달아났다…`}{st === 3 && <span class="st-arrow">▼</span>}</div></div>
 	</div>;
 }
@@ -744,14 +788,14 @@ async function friendMenu(run: Run, E: Eng, c: Char) {
 		const a = await E.choose(w, fill(run, q), ans.map(t => t[0]));
 		x.talked = run.day; persist(run);
 		await E.say([[w, fill(run, ans[a][2]), ans[a][1] >= 8 ? 'shy' : ans[a][1] >= 5 ? 'joy' : ans[a][1] <= 1 ? 'angry' : undefined]]);
-		await E.heart(c.id, ans[a][1]);
+		await E.heart(c.id, ans[a][1]); await E.spend();
 	} else if (pick === 1) {
 		if (!gifts.length) { await E.say([[w, c.noGift]]); return; }
 		const g = await E.choose(w, '(무엇을 건넬까?)', [...gifts.map(id => `${ITEMS[id].name} ×${run.bag[id]}`), '그만두기']);
 		if (g >= gifts.length) return;
 		const id = gifts[g], like = likeOf(ITEMS[id], c.id); give(run, id, -1); persist(run);
 		await E.say([[w, c.gift[2 - like].replace('{item}', ITEMS[id].name), like === 2 ? 'love' : like === 1 ? 'joy' : 'angry']]);
-		await E.heart(c.id, like === 2 ? 25 : like === 1 ? 10 : -15);
+		await E.heart(c.id, like === 2 ? 25 : like === 1 ? 10 : -15); await E.spend();
 	} else if (pick === 2) {
 		const on = run.tag !== c.id; run.tag = on ? c.id : ''; persist(run);
 		await E.say([[w, on ? c.tagOn : c.tagOff, on ? 'joy' : 'sad']]);
@@ -763,7 +807,7 @@ async function friendEvent(run: Run, E: Eng, c: Char) {
 	const x = relOf(run, c.id), k = x.ev + 1;
 	if (!(await play(run, E, fk(c, 'ev', k)))) { await E.tick(); return; }
 	x.ev = k; run.flags[fk(c, 'ev', k)] = 1; if (k === 4) run.tag = c.id; persist(run);
-	if (k < 4) { await E.card(c.evTitle[k - 1], '하트 이벤트 클리어', `♥ ${k} / 4`, E.L().bg, 2200); return; }
+	if (k < 4) { await E.card(c.evTitle[k - 1], '하트 이벤트 클리어', `♥ ${k} / 4`, E.L().bg, 2200); await E.spend(); return; }
 	await E.fx('fade', 900);
 	await ask<void>(r => <Credits key={K()} run={run} c={c} done={r} />);
 	await E.card(`${c.name} 루트 · 클리어`, `${josa(c.name, '과', '와')} 언제든 태그를 맺을 수 있어요`, 'CONGRATULATIONS', locOf(c.evAt[3][0]).bg, 3200);
@@ -797,9 +841,10 @@ export async function runScenario() {
 		if (a.k === 'map') {
 			const to = await ask<string | null>(r => <WorldMap run={run} done={r} />);
 			if (!to) continue;
+			const hops = routeBetween(run, run.loc, to).length - 1;
 			await ask<void>(r => <Travel key={K()} run={run} to={to} done={r} />);
 			run.loc = to; if (locOf(to).rest) run.town = to;
-			await E.tick();
+			await E.spend(hops);
 			banner = true;
 			if (to === 'cerulean' && !has(run, 'met')) await mistyMeet(run, E);
 			if (to === 'viridian' && !has(run, 'leafmet')) await play(run, E, 'leafmeet');
@@ -828,17 +873,17 @@ export async function runScenario() {
 			continue;
 		}
 		if (n.k === 'bike') { await E.say([[{ name: '자전거 가게 주인', portrait: '', sprite: 'cyclist' }, '어서 와요! 최신형 자전거가 단돈 1,000,000원!'], [null, `…가진 돈은 ${won(run.money)}. 도저히 살 수 없다.`]]); continue; }
-		if (n.k === 'script') { if (await play(run, E, n.data)) { run.flags[n.data] = 1; persist(run); } else await E.tick(); continue; }
+		if (n.k === 'script') { if (await play(run, E, n.data)) { run.flags[n.data] = 1; persist(run); await E.spend(); } else await E.tick(); continue; }
 		if (n.k === 'folk') {
 			const f = n.data as typeof FOLKS[number], first = f.gift && !has(run, 'folk-' + f.loc);
 			await E.say((first ? f.first! : [f.lines[(run.day + run.time) % f.lines.length]]).map(t => [f.who, fill(run, t)] as Line));
 			if (first) { run.flags['folk-' + f.loc] = 1; await E.got(f.gift!, f.n || 1); }
 			continue;
 		}
-		if (n.k === 'gym') { await mistyGym(run, E); continue; }
+		if (n.k === 'gym') { if (await mistyGym(run, E)) await E.spend(); continue; }
 		if (n.k === 'friend') { await friendMenu(run, E, n.data as Char); continue; }
 		if (n.k === 'event') { await friendEvent(run, E, n.data as Char); banner = true; continue; }
-		if (n.k === 'brock') { if (!(await play(run, E, 'brock'))) await E.tick(); continue; }
+		if (n.k === 'brock') { if (await play(run, E, 'brock')) await E.spend(); else await E.tick(); continue; }
 		if (n.k === 'wild') {
 			const w = WILDS.find(x => x.loc === run.loc)!, pool = run.time === 3 && w.night ? w.night : w.pool;
 			const [sp, lo, hi] = pool[Math.floor(Math.random() * pool.length)], foe: Mon = { sp, lv: lo + Math.floor(Math.random() * (hi - lo + 1)) + wildBonus(w, run.badges.length), exp: 0 };
@@ -847,7 +892,7 @@ export async function runScenario() {
 			const res = await E.fight({ name: `야생 ${speciesKo(sp)}`, sprite: '', team: [foe], skill: 0.1, music: 'battle', wild: true });
 			if (res === 'fled') { await E.say([[null, '무사히 도망쳤다!']]); continue; }
 			if (!res) { await E.blackout(); banner = true; continue; }
-			await E.reward([foe], `야생 ${josa(speciesKo(sp), '을', '를')} 쓰러뜨렸다!`, 0, true);
+			await E.reward([foe], `야생 ${josa(speciesKo(sp), '을', '를')} 쓰러뜨렸다!`, 0, true); await E.spend();
 			const balls = Object.keys(run.bag).filter(id => ITEMS[id]?.kind === 'ball');
 			if (!balls.length) { toast('볼이 없어서 잡을 수 없었다 — 프렌들리숍에서 살 수 있어요'); continue; }
 			const c = await E.choose(null, `${josa(speciesKo(sp), '은', '는')} 지쳐서 움직이지 못한다.\n볼을 던질까?`, [...balls.map(id => `${ITEMS[id].name} ×${run.bag[id]} (${Math.round(ITEMS[id].rate! * 100)}%)`), '그냥 보내 준다'], undefined, sp);
@@ -856,7 +901,7 @@ export async function runScenario() {
 			const ok = Math.random() < ITEMS[balls[c]].rate!;
 			if (ok) (run.party.length < 6 ? run.party : run.box).push(foe);
 			persist(run);
-			await ask<void>(r => <Catch key={K()} sp={sp} ok={ok} bg={E.L().bg} tint={run.time} done={r} />);
+			await ask<void>(r => <Catch key={K()} sp={sp} ok={ok} bg={E.L().bg} tint={run.time} ball={balls[c] === 'greatball' ? 'greatball' : 'ball'} done={r} />);
 			if (ok && !run.party.includes(foe)) toast(`파티가 가득 차서 ${josa(speciesKo(sp), '을', '를')} 박스로 보냈다`);
 			continue;
 		}
@@ -874,7 +919,7 @@ export async function runScenario() {
 			if (!win) { await E.blackout(); banner = true; continue; }
 			if (t.once) run.flags[t.id] = 1; run.beaten[t.id] = run.day; if (mate && tag) run.beaten[mate.id] = run.day;
 			await E.reward(team, `${mate && tag ? `${t.name} 팀` : t.name}에게 이겼다!`, Math.max(...team.map(m => m.lv)) * (mate && tag ? 60 : 30) * (t.title ? 2 : 1));
-			await E.say([[who, t.after]]);
+			await E.say([[who, t.after]]); await E.spend();
 			if (tag) { await E.say([[pc!.who, pc!.cheers[Math.floor(Math.random() * pc!.cheers.length)], 'joy']]); await E.heart(pc!.id, 10); }
 			continue;
 		}
