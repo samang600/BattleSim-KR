@@ -522,6 +522,53 @@ NEW = {
     ], {'main': 'k.hhkchhk.hhkchh', 'b': 'kkhhkchhk.hhkchc', 'intro': 'k.k.k.k.k.k.kkkk'}, 'c.c.c.c.cccccccc',
      {'lead': 'p50', 'vib': 0.4, 'oct': 1, 'echo': [0.1, 0.2, 0.15], 'harm': 'p25', 'arp': 0.125, 'bassv': 'p50'}),
 }
+# ── 시나리오 모드 전용 (새로 쓴 선율): 마을 · 길 · 동굴 · 인연 ──
+NEW.update({
+    # 마을 (G장조 104): 느긋한 순차 진행, 3도 아래 대선율, 걷는 베이스
+    'sctown': (104, [
+        ('intro', ['G', 'D'], 'd5.4 g5.4 b5.4 d6.4|c6.4 a5.4 f#5.4 d5.4', {'harm': 'third', 'bass': 'walk', 'drum': 'intro'}),
+        ('A', ['G', 'C', 'G', 'D', 'Em', 'C', 'D', 'G'],
+         'b5.6 a5.2 g5.4 d5.4|e5.4 g5.4 c6.6 b5.2|b5.4 d6.4 g6.6 d6.2|a5.4 f#5.4 a5.8|'
+         'g5.4 b5.4 e6.6 d6.2|c6.4 e6.2 d6.2 c6.4 g5.4|a5.2 b5.2 c6.2 d6.2 f#6.4 a5.4|g5.12 r.4', {'harm': 'third', 'bass': 'walk'}),
+        ('B', ['C', 'G', 'Am', 'D', 'C', 'G', 'D', 'G'],
+         'e6.6 c6.2 g5.8|d6.6 b5.2 g5.8|c6.4 e6.4 a6.6 g6.2|f#6.8 d6.4 a5.4|'
+         'e6.4 g6.4 e6.4 c6.4|d6.4 g6.4 d6.4 b5.4|a5.2 d6.2 f#6.2 a6.2 f#6.4 d6.4|g6.8 r.4 d5.4', {'harm': 'pad', 'bass': 'walk', 'arp': True}),
+    ], {'main': 'k...h.h.s...h.h.', 'intro': 'k.......s...s.s.'}, 'k...h.h.s.h.s.ss',
+     {'lead': 'p50', 'vib': 0.5, 'echo': [0.16, 0.3, 0.25], 'harm': 'tri', 'bassv': 'tri'}),
+    # 길 (C장조 140): 발걸음이 가벼운 행진, 도약하는 선율
+    'scroute': (140, [
+        ('intro', ['C', 'G'], 'g5.2 g5.2 c6.4 e6.4 g6.4|f6.2 e6.2 d6.4 g5.4 b5.4', {'harm': 'none', 'bass': 'march', 'drum': 'intro'}),
+        ('A', ['C', 'F', 'C', 'G', 'Am', 'F', 'G', 'C'],
+         'e6.3 d6.1 c6.4 g5.4 c6.4|a5.4 c6.4 f6.6 e6.2|e6.2 g6.2 c7.4 g6.4 e6.4|d6.6 b5.2 g5.8|'
+         'c6.4 e6.4 a6.6 g6.2|f6.4 a6.2 g6.2 f6.4 c6.4|d6.2 e6.2 f6.2 g6.2 b6.4 d7.4|c7.8 r.4 g5.4', {'harm': 'third', 'bass': 'march'}),
+        ('B', ['F', 'C', 'Dm', 'G', 'F', 'Em', 'Dm', 'G7'],
+         'a6.6 f6.2 c6.8|g6.6 e6.2 c6.8|f6.4 d6.4 a5.4 d6.4|g6.2 r.2 g6.2 r.2 b6.4 d7.4|'
+         'c7.4 a6.4 f6.4 a6.4|b6.4 g6.4 e6.4 g6.4|a6.2 g6.2 f6.2 e6.2 d6.4 f6.4|g6.4 b6.4 d7.4 g6.4', {'harm': 'offbeat', 'bass': 'march', 'drum': 'b'}),
+    ], {'main': 'k.h.s.h.k.h.s.hh', 'b': 'k.hhs.h.k.hhs.hs', 'intro': 's...s...s.s.s.ss'}, 'k.s.k.s.s.ssssss',
+     {'lead': 'p25', 'vib': 0.6, 'echo': [0.12, 0.25, 0.2], 'harm': 'p25'}),
+    # 동굴 (E단조 92): 느린 단조, 길게 끄는 음과 종소리 아르페지오
+    'sccave': (92, [
+        ('intro', ['Em', 'Em'], 'e5.8 b5.8|g5.8 e5.8', {'harm': 'none', 'bass': 'sustain', 'drum': 'intro'}),
+        ('A', ['Em', 'C', 'Am', 'B7', 'Em', 'C', 'D', 'Em'],
+         'e5.4 g5.4 b5.8|c6.6 b5.2 g5.8|a5.4 c6.4 e6.8|d#6.6 b5.2 f#5.8|'
+         'e6.4 b5.4 g5.4 b5.4|c6.4 e6.4 g6.8|f#6.6 d6.2 a5.8|e5.12 r.4', {'harm': 'pad', 'bass': 'sustain', 'arp': 'bell'}),
+        ('B', ['C', 'G', 'Am', 'Em', 'C', 'D', 'B7', 'B7'],
+         'e6.8 c6.4 g5.4|d6.8 b5.4 g5.4|c6.6 a5.2 e5.8|b5.8 g5.4 e5.4|'
+         'e6.4 g6.4 c7.8|a6.6 f#6.2 d6.8|b6.8 f#6.4 d#6.4|b5.12 r.4', {'harm': 'pad', 'bass': 'pedal', 'arp': 'bell'}),
+    ], {'main': 'k.......s.....h.', 'intro': 'k...............'}, 'k.......s...s.s.',
+     {'lead': 'tri', 'env': 'swell', 'vib': 1, 'echo': [0.26, 0.42, 0.3], 'harm': 'wave', 'bassv': 'tri'}),
+    # 인연 (F장조 96): 인물과 가까워지는 장면 — 길게 노래하는 선율
+    'scheart': (96, [
+        ('intro', ['F', 'C'], 'c6.4 a5.4 f5.8|e5.4 g5.4 c6.8', {'harm': 'none', 'bass': 'sustain', 'drum': 'intro'}),
+        ('A', ['F', 'Dm', 'Bb', 'C', 'F', 'Dm', 'Gm', 'C7'],
+         'a5.6 c6.2 f6.8|f6.4 d6.4 a5.8|d6.4 f6.4 bb6.6 a6.2|g6.8 e6.4 c6.4|'
+         'a6.6 g6.2 f6.4 c6.4|d6.4 f6.4 a6.8|bb6.4 g6.4 d6.4 g6.4|e6.8 c6.4 bb5.4', {'harm': 'pad', 'bass': 'sustain', 'arp': 'updown'}),
+        ('B', ['Bb', 'F', 'Gm', 'C', 'Bb', 'Am', 'Gm', 'C7'],
+         'd6.6 f6.2 bb6.8|a6.6 f6.2 c6.8|bb6.4 g6.4 d6.8|c6.4 e6.4 g6.8|'
+         'f6.4 d6.4 bb5.4 d6.4|e6.4 c6.4 a5.4 c6.4|d6.2 e6.2 f6.2 g6.2 bb6.8|g6.8 e6.8', {'harm': 'third', 'bass': 'sustain', 'arp': 'updown'}),
+    ], {'main': 'k.....h.s.....h.', 'intro': '................'}, 'k.....h.s...s.s.',
+     {'lead': 'p50', 'env': 'swell', 'vib': 1.2, 'echo': [0.22, 0.38, 0.3], 'harm': 'tri', 'bassv': 'tri'}),
+})
 for k, (bpm, secs, *dr) in NEW.items():
     bar = dr[3] if len(dr) > 3 else 16
     print(consonance(k, secs, bar))

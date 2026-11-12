@@ -32,6 +32,8 @@ export interface BattleSetup {
 	noRecord?: boolean;
 	/** 승패가 정해진 순간(결과 화면을 넘기기 전)에 부름 — 결과 화면에서 앱을 꺼도 결과가 남아야 하는 모드용 */
 	onDecided?: (win: boolean) => void;
+	/** 야생 포켓몬과의 배틀: '기권' 대신 '도망' (시나리오) */
+	runAway?: boolean;
 	/** 치트 팀 허용: 능력 포인트 합계 제한 없음 */
 	cheat?: boolean;
 	/** 거꾸로 배틀 */
@@ -1132,7 +1134,9 @@ function typeTint(type: string) {
 	}
 
 	async function forfeit() {
-		if (!(await confirmBox('기권', '정말 기권할까요? 이 승부는 패배로 기록됩니다.', '기권', '취소'))) return;
+		if (!(await confirmBox(setup.runAway ? '도망' : '기권', setup.runAway ? '야생 포켓몬에게서 도망칠까요?' : '정말 기권할까요? 이 승부는 패배로 기록됩니다.', setup.runAway ? '도망친다' : '기권', '취소'))) return;
+		// 야생 포켓몬에게서 도망: 승패 문구 없이 바로 끝냄
+		if (setup.runAway) { const b = sessionRef.current!.battle; onEnd({ win: false, forfeit: true, turns: b.turn, p1Left: b.p1.pokemon.filter((p: any) => !p.fainted).length, p2Left: b.p2.pokemon.filter((p: any) => !p.fainted).length }); return; }
 		const lines = sessionRef.current!.forfeit();
 		if (setup.online) { setPhase('playing'); setMessage('기권했습니다…'); return; }   // 서버가 중계해 돌려주면 끝남
 		await play(lines);
@@ -1605,11 +1609,11 @@ function typeTint(type: string) {
 				{land ? <div class="sd-cmds">
 					{/* 휴대폰 가로: 교체는 '포켓몬' 버튼으로 오른쪽 칸 전체를 써서 */}
 					<button class="cmd-sub green" onClick={() => setMenu('switch')}>포켓몬</button>
-					<button class="cmd-sub blue" onClick={forfeit}>기권</button>
+					<button class="cmd-sub blue" onClick={forfeit}>{setup.runAway ? '도망' : '기권'}</button>
 					{!wide && <button class="cmd-sub red sd-foe" onClick={() => setFoeOpen(true)}>상대</button>}
 					<button class="cmd-sub yellow" onClick={() => setShowLog(true)}>기록</button>
 				</div> : <>
-					<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>기권</button>{!wide && <button class="btn small sd-foe2" onClick={() => setFoeOpen(true)}>상대</button>}<button class="btn small sd-log" onClick={() => setShowLog(true)}>기록</button></div>
+					<div class="sd-label">교체 <button class="btn small sd-forfeit" onClick={forfeit}>{setup.runAway ? '도망' : '기권'}</button>{!wide && <button class="btn small sd-foe2" onClick={() => setFoeOpen(true)}>상대</button>}<button class="btn small sd-log" onClick={() => setShowLog(true)}>기록</button></div>
 					{renderSwitch()}
 				</>}
 			</div>}
@@ -1617,7 +1621,7 @@ function typeTint(type: string) {
 				<button class="cmd-fight" onClick={() => { setFocus(0); setMenu('moves'); }}><span>싸운다</span></button>
 				<div class="cmd-row">
 					<button class="cmd-sub yellow" onClick={() => setFieldOpen(true)}>필드</button>
-					<button class="cmd-sub blue" onClick={forfeit}>기권</button>
+					<button class="cmd-sub blue" onClick={forfeit}>{setup.runAway ? '도망' : '기권'}</button>
 					<button class="cmd-sub green" onClick={() => setMenu('switch')}>포켓몬</button>
 				</div>
 			</div>}
@@ -1873,7 +1877,7 @@ function typeTint(type: string) {
 				<button class="btn big" onClick={() => cycleSpeed()}>배속 {SPEED_LABEL[settings.speed]}</button>
 				<button class="btn big" onClick={() => toggleManual()}>메시지 진행: {settings.textManual ? '수동 (화면을 눌러 넘김)' : '자동'}</button>
 				{canFullscreen() && <button class="btn big" onClick={() => { setMenuOpen(false); toggleFullscreen(); }}>{fullscreen ? '전체화면 끄기' : '전체화면'}</button>}
-				{phase === 'input' && <button class="btn big" onClick={() => { setMenuOpen(false); forfeit(); }}>기권</button>}
+				{phase === 'input' && <button class="btn big" onClick={() => { setMenuOpen(false); forfeit(); }}>{setup.runAway ? '도망친다' : '기권'}</button>}
 				<button class="btn big danger" onClick={quitToMenu}>메인 메뉴로</button>
 			</div>
 		</Modal>}
