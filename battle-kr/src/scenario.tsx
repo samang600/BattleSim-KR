@@ -1,4 +1,4 @@
-/** 시나리오 모드 (개발자 빌드) — 관동 편 · 이슬 루트
+/** 시나리오 모드 (개발자 빌드) — 관동 편 (이슬·웅·리프·민화 루트)
  *  틀: 「유희왕 태그 포스」식 — 시리즈(지방)를 고르고, 지도를 자유롭게 돌아다니며(이동하면 시간이 흐름: 아침·낮·저녁·밤) 길거리 트레이너와 배틀,
  *      인물을 찾아가 이야기·선물로 호감도(하트 4개)를 올리고, 태그를 맺어 멀티배틀. 하트가 찰 때마다 그 인물의 이야기(하트 이벤트)가 열림.
  *  본가에서 가져온 것: 처음 포켓몬·라이벌전, 풀숲의 야생 포켓몬과 볼로 잡기, 경험치·레벨업·진화·레벨업 기술, 배지와 레벨 상한,
@@ -828,10 +828,10 @@ function Credits({ run, c, done }: { run: Run; c: Char; done: () => void }) {
 }
 function SeriesSelect({ saved, done }: { saved: Run | null; done: (a: 'go' | 'new' | null) => void }) {
 	return <Screen title="시나리오" onBack={() => done(null)} cls="sc-scr sc-series">
-		<p class="hint">지방을 고르면 그 지방을 자유롭게 돌아다니며, 만나는 인물과 태그를 맺고 그 인물의 이야기를 따라갑니다.</p>
+		<p class="hint">지방을 고르면 그 지방을 자유롭게 돌아다니며 배지를 모으고, 만나는 인물과 가까워져 태그를 맺고 그 인물의 이야기를 따라갑니다.</p>
 		<div class="sc-series-card on">
 			<div class="sc-bg fld-cerulean" />
-			<div class="sc-series-body"><small>SERIES 1</small><b>관동 편</b><span>레드·그린의 무대 — 태초마을에서 블루곶까지</span>
+			<div class="sc-series-body"><small>SERIES 1</small><b>관동 편</b><span>레드·그린의 무대 — 태초마을에서 무지개시티까지</span>
 				<span class="sc-series-ch"><span class="sc-route-face"><Portrait id="misty" sprite="misty" cls="face" /></span>이슬·웅·리프·민화 루트{saved ? ` ★${CHARS.filter(c => (saved.rel?.[c.id]?.ev || 0) >= 4).length}/${CHARS.length}` : ''}</span>
 				{saved?.flags.intro ? <small class="sc-series-save">{saved.day}일째 · {locOf(saved.loc).name} · 배지 {saved.badges.length}개</small> : null}
 				<div class="sc-series-btns">{saved?.flags.intro ? <><button class="btn primary" onClick={() => done('go')}>이어서 하기</button><button class="btn ghost" onClick={() => done('new')}>처음부터</button></> : <button class="btn primary" onClick={() => done('new')}>시작하기</button>}</div>

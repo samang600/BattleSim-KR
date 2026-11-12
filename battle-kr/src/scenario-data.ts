@@ -1,5 +1,5 @@
 /** 시나리오 모드 데이터 — 관동 편 (태초마을 ~ 블루곶 · 갈색시티 · 보라타운)
- *  지역·길거리 트레이너·야생 포켓몬·가게·선물·인물. 진행 로직과 화면은 scenario.tsx, 이슬 루트 대본은 scenario-misty.ts */
+ *  지역·길거리 트레이너·야생 포켓몬·가게·선물·인물. 진행 로직과 화면은 scenario.tsx, 대본은 scenario-script.ts */
 
 export const TIMES = ['아침', '낮', '저녁', '밤'] as const;
 export const TIME_CLS = ['morning', 'day', 'evening', 'night'];
