@@ -173,6 +173,13 @@ export class Session {
 		if (this.cfg.partnerFlags) {
 			const side: any = this.battle.p1;
 			side.pokemon.forEach((p: any, i: number) => { p.kPartner = !!this.cfg.partnerFlags![i]; });
+			// 포켓몬이 쓰러진 자리는 그 주인만 채움: 주인(나 또는 파트너)에게 남은 포켓몬이 없으면 그 자리는 비워 둠
+			// (다른 쪽의 포켓몬이 대신 나가지 않게 — 시뮬레이터가 그 자리의 교체를 요구하지 않도록 표시를 지움)
+			const bt: any = this.battle, origCF = bt.checkFainted.bind(bt);
+			bt.checkFainted = () => {
+				origCF();
+				for (const pk of side.active) if (pk?.fainted && !side.pokemon.some((x: any) => !!x.kPartner === !!pk.kPartner && !x.fainted && !x.isActive)) pk.switchFlag = false;
+			};
 			// Z기술·다이맥스의 '편 단위 1회' 표시는 끄고, 주인별 판단(filterGimmicks)에 맡김
 			for (const k of ['zMoveUsed', 'dynamaxUsed']) Object.defineProperty(side, k, { get: () => false, set: () => {}, configurable: true });
 			// 메가진화·테라스탈은 시뮬레이터가 같은 편 전원을 막으므로, 다른 주인의 포켓몬은 원래대로 되돌림 (같은 턴에 둘 다 써도 되게)

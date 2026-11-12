@@ -295,7 +295,10 @@ function engine(run: Run) {
 	/** 시간을 한 칸 보냄. 밤이 지나면 다음 날 아침 (날짜 카드) */
 	const tick = async (toMorning = false) => {
 		run.ap = 0;
-		if (toMorning || run.time === 3) { run.day++; run.time = 0; persist(run); await card(`${run.day}일째`, '아침이 밝았다', '관동 편', 'black', 1500); }
+		if (toMorning || run.time === 3) { run.day++; run.time = 0;
+			// 날이 바뀌면 태그 파트너는 제자리로 돌아감 (다시 말을 걸어 태그를 맺음)
+			if (run.tag) { const pc = charOf(run.tag); run.tag = ''; setTimeout(() => toast(`날이 바뀌어 ${josa(pc.name, '과', '와')}의 태그가 풀렸다`), 1700); }
+			persist(run); await card(`${run.day}일째`, '아침이 밝았다', '관동 편', 'black', 1500); }
 		else { run.time++; persist(run); }
 	};
 	/** 행동 n 번만큼 시간을 씀. AP 번을 채우면 다음 시간대로 넘어감 */
@@ -847,7 +850,7 @@ async function friendMenu(run: Run, E: Eng, c: Char) {
 	const other = run.tag && run.tag !== c.id ? charOf(run.tag) : null;
 	// 가까울수록 하루에 더 여러 번 이야기할 수 있고(200~ 두 번, 400~ 세 번), 더 깊은 이야기가 섞여 나옴
 	const talksMax = 1 + (x.heart >= 200 ? 1 : 0) + (x.heart >= 400 ? 1 : 0), talksDone = x.talked === run.day ? x.n || 1 : 0;
-	const opts = [talksDone >= talksMax ? '이야기하기 (오늘은 충분히 했다)' : talksMax > 1 ? `이야기하기 (오늘 ${talksDone}/${talksMax})` : '이야기하기', `선물하기${gifts.length ? '' : ' (선물 없음)'}`, run.tag === c.id ? '태그를 푼다' : other ? `태그를 신청한다 (${other.name}와는 풀림)` : '태그를 신청한다', '그만두기'];
+	const opts = [talksDone >= talksMax ? '이야기하기 (오늘은 충분히 했다)' : talksMax > 1 ? `이야기하기 (오늘 ${talksDone}/${talksMax})` : '이야기하기', `선물하기${gifts.length ? '' : ' (선물 없음)'}`, run.tag === c.id ? '태그를 푼다' : other ? `태그를 신청한다 (${other.name}와는 풀림)` : '태그를 신청한다', run.flags['spar-' + c.id] === run.day ? '승부한다 (오늘은 이미 했다)' : '승부한다', '그만두기'];
 	// 함께 다니는 중이면 '여기서 만나네' 같은 인사 대신 곁에 있는 사람의 말투로
 	const hello = fill(run, run.tag === c.id ? c.tagHello[(run.day + run.time + (run.ap || 0)) % c.tagHello.length] : c.hello[x.ev >= 4 ? 4 : Math.min(3, Math.floor(x.heart / 100))]);
 	const pick = await E.choose(w, hello, opts);
@@ -872,7 +875,17 @@ async function friendMenu(run: Run, E: Eng, c: Char) {
 		if (run.tag !== c.id && x.ev < 4 && x.heart < TAG_NEED) { await E.say([[w, c.tagNo, 'think']]); toast(`호감도 ${TAG_NEED}부터 태그를 맺을 수 있어요 (지금 ${x.heart}) — 이야기와 선물로 가까워지세요`); return; }
 		const on = run.tag !== c.id; run.tag = on ? c.id : ''; persist(run);
 		await E.say([[w, on ? c.tagOn : c.tagOff, on ? 'joy' : 'sad']]);
-		if (on) toast(`${josa(c.name, '과', '와')} 태그를 맺었다 — 길거리 트레이너와의 배틀이 멀티배틀이 돼요`);
+		if (on) toast(`${josa(c.name, '과', '와')} 태그를 맺었다 — 길거리 트레이너와의 배틀이 멀티배틀이 돼요 (날이 바뀌면 풀려요)`);
+	} else if (pick === 3) {
+		// 연습 승부 (하루 한 번): 그 인물의 지금 팀과 1대1. 이기든 지든 가까워지고, 지면 그 자리에서 치료해 줌
+		if (run.flags['spar-' + c.id] === run.day) { await E.say([[null, `오늘은 이미 ${josa(c.name, '과', '와')} 승부를 했다. 내일 다시 청해 보자.`]]); return; }
+		await E.say([[w, c.spar[0], 'smug']]);
+		const team = mk(c.team(x.ev, thirdOf(run)).map(([sp, lv]) => [evoAt(sp, lv), lv] as [string, number]));
+		const win = await E.fight({ name: c.name, title: c.tagline.split(' · ')[0], sprite: c.sprite, team, skill: Math.min(0.75, 0.45 + x.ev * 0.05), music: 'boss' });
+		run.flags['spar-' + c.id] = run.day; persist(run);
+		if (win) { await E.reward(team, `${c.name}에게 이겼다!`, Math.max(...team.map(m => m.lv)) * 40); await E.say([[w, c.spar[1], 'joy']]); await E.heart(c.id, 8); }
+		else { healAll(run); persist(run); await E.say([[w, c.spar[2], 'joy']]); await E.heart(c.id, 4); }
+		await E.spend();
 	}
 }
 /** 하트 이벤트 (지면 다음에 처음부터 다시) */
