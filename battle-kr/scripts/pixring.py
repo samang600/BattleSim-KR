@@ -74,7 +74,9 @@ css.append(f'\t--ring-i4: {ring_svg(4, "#0a0d12", "#f4f6fa", 5)};')  # HP 상자
 for k, (o, i) in {'p-stone': ('#0d1830', '#eef4ff'), 'p-silver': ('#2a0a0e', '#fff1f1'), 'p-dark': ('#0a0b0d', '#d8dce4'),
                   'hi': ('#0d1830', '#ffd84a'), 'red': ('#3a0a04', '#ffffff'), 'grey': ('#121a2a', '#f4f6fa'),
                   # 시나리오: 하늘색 창·분홍(이야기)·초록(풀숲)
-                  'sky': ('#0a0f18', '#7fe0ff'), 'pink': ('#3a0a1e', '#ff9ac0'), 'leaf': ('#0a2a12', '#a8e890')}.items():
+                  'sky': ('#0a0f18', '#7fe0ff'), 'pink': ('#3a0a1e', '#ff9ac0'), 'leaf': ('#0a2a12', '#a8e890'),
+                  # 시나리오 인물: 남자 = 파랑, 큰 줄거리(체육관·사건) = 금색
+                  'blue': ('#061240', '#3a78ff'), 'gold': ('#3a2804', '#ffd84a')}.items():
     css.append(f'\t--ring4-{k}: {ring_svg(4, o, i, 5)};')
 css.append(f'\t--ring2-red: {ring_svg(2, "#3a0a04", "#ffffff", K2)};')
 css.append(f'\t--ring2-hi: {ring_svg(2, "#0d1830", "#ffd84a", K2)};')

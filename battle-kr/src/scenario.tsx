@@ -16,7 +16,7 @@ import { playMusic, sfx, cry } from './sound';
 import type { PSet } from './sets';
 import LEVELUP from './gen/levelup.json';
 import { TIMES, TIME_CLS, WHO, LOCS, locOf, TRAINERS, WILDS, ITEMS, SHOPS, STARTERS, RIVAL_OF, LV_CAP, expNeed,
-	FOLKS, CHARS, charOf, likeOf, wildBonus, MAX_EV, type Who, type Trainer, type Char } from './scenario-data';
+	FOLKS, CHARS, charOf, likeOf, wildBonus, MAX_EV, TAG_NEED, type Who, type Trainer, type Char } from './scenario-data';
 import { SCRIPTS } from './scenario-script';
 import * as EM from './scenario-emotes.js';
 import { PXI } from './vendor/pixelarticons';
@@ -63,16 +63,18 @@ const thirdOf = (r: Run) => ['bulbasaur', 'charmander', 'squirtle'].find(x => x 
 const persist = (r: Run) => save(KEY, r);
 const has = (r: Run, f?: string) => !f || !!r.flags[f];
 const lvCap = (r: Run) => LV_CAP[Math.min(r.badges.length, LV_CAP.length - 1)];
-const heartCap = (r: Run, c: Char) => !r.flags[c.gate] ? 40 : Math.min(100 * MAX_EV, 100 * (relOf(r, c.id).ev + 1));
+/** 그 인물의 하트 이벤트 수 */
+const maxEv = (c: Char) => c.max ?? MAX_EV;
+const heartCap = (r: Run, c: Char) => !r.flags[c.gate] ? 40 : Math.min(100 * maxEv(c), 100 * (relOf(r, c.id).ev + 1));
 const give = (r: Run, id: string, n = 1) => { r.bag[id] = (r.bag[id] || 0) + n; if (r.bag[id] <= 0) delete r.bag[id]; };
-const unlocked = (r: Run, id: string) => id === 'mtmoon' ? has(r, 'badge1') : id === 'cerulean' ? has(r, 'rocket1') : id === 'bridge' ? has(r, 'inv1') : id === 'cape' ? has(r, 'ev2') : id === 'route5' || id === 'vermilion' ? has(r, 'badge2') : id === 'ssanne' || id === 'diglett' ? has(r, 'verm') : id === 'rocktunnel' || id === 'lavender' ? has(r, 'badge3') : id === 'tower' ? has(r, 'lav') : true;
-const LOCK_WHY: { [id: string]: string } = { mtmoon: '회색배지가 있어야 지나갈 수 있어요', cerulean: '달맞이산의 로켓단이 길을 막고 있어요', bridge: '아직 갈 일이 없는 곳이에요', cape: '아직 갈 일이 없는 곳이에요', route5: '블루배지가 있어야 지나갈 수 있어요', vermilion: '블루배지가 있어야 갈 수 있어요', ssanne: '갈색시티에 먼저 가 보세요', diglett: '갈색시티에 먼저 가 보세요', rocktunnel: '오렌지배지가 있어야 지나갈 수 있어요', lavender: '오렌지배지가 있어야 갈 수 있어요', tower: '보라타운에 먼저 가 보세요' };
+const unlocked = (r: Run, id: string) => id === 'mtmoon' ? has(r, 'badge1') : id === 'cerulean' ? has(r, 'rocket1') : id === 'bridge' ? has(r, 'inv1') : id === 'cape' ? has(r, 'ev2') : id === 'route5' || id === 'vermilion' ? has(r, 'badge2') : id === 'ssanne' || id === 'diglett' ? has(r, 'verm') : id === 'rocktunnel' || id === 'lavender' ? has(r, 'badge3') : id === 'tower' ? has(r, 'lav') : id === 'route7' || id === 'celadon' ? has(r, 'tower') : true;
+const LOCK_WHY: { [id: string]: string } = { mtmoon: '회색배지가 있어야 지나갈 수 있어요', cerulean: '달맞이산의 로켓단이 길을 막고 있어요', bridge: '아직 갈 일이 없는 곳이에요', cape: '아직 갈 일이 없는 곳이에요', route5: '블루배지가 있어야 지나갈 수 있어요', vermilion: '블루배지가 있어야 갈 수 있어요', ssanne: '갈색시티에 먼저 가 보세요', diglett: '갈색시티에 먼저 가 보세요', rocktunnel: '오렌지배지가 있어야 지나갈 수 있어요', lavender: '오렌지배지가 있어야 갈 수 있어요', tower: '보라타운에 먼저 가 보세요', route7: '포켓몬타워의 소동이 끝나야 지하통로가 열려요', celadon: '포켓몬타워의 소동이 끝나야 갈 수 있어요' };
 /** 이동에 드는 행동 칸: 길 한 칸마다 1, 자전거가 있으면 절반(올림) */
 const moveCost = (r: Run, hops: number) => has(r, 'bike') ? Math.ceil(hops / 2) : hops;
 /** 인물이 지금 있는 곳 (못 가는 곳이면 그 인물의 본거지) */
 const charLoc = (r: Run, c: Char) => { const l = c.at[r.time]; return unlocked(r, l) ? l : c.home; };
 /** 다음 하트 이벤트를 시작할 수 있는가 (하트가 다 차고 필요한 표식이 있음) */
-const evReady = (r: Run, c: Char) => { const x = relOf(r, c.id); return !!r.flags[c.gate] && x.ev < MAX_EV && x.heart >= 100 * (x.ev + 1) && has(r, c.evNeed?.[x.ev]); };
+const evReady = (r: Run, c: Char) => { const x = relOf(r, c.id); return !!r.flags[c.gate] && x.ev < maxEv(c) && x.heart >= 100 * (x.ev + 1) && has(r, c.evNeed?.[x.ev]); };
 
 // ───────── 포켓몬 ─────────
 const learned = (sp: string, lv: number) => [...new Set((LU[sp]?.m || []).filter(m => m[0] <= lv).map(m => m[1]))];
@@ -159,6 +161,8 @@ const CHIBI: { [k: string]: [string[], { [c: string]: string }] } = {
 		{ k: '#14182a', O: '#ff9a3a', S: '#ffd8b0', p: '#e8907a', Y: '#ffe070', r: '#d84a3a' }],
 	brock: [['..k.k.k.k...', '.kHkHkHkHk..', '.kHHHHHHHk..', '.kHHHHHHHk..', '.kTTTTTTTk..', '.kTkkTkkTk..', '.kTTTTTTTk..', '..kTTppTk...', '...kkkkk....', '..kGGGGGk...', '.kTGOOOGTk..', '..kkGGGkk...', '...kk.kk....'],
 		{ k: '#14182a', H: '#6a4a2a', T: '#d8a878', p: '#b87a5a', G: '#5a7a3a', O: '#e88a3a' }],
+	erika: [['...kkkkkk...', '..kHHHHHHk..', '.kHRRRRRRHk.', '.kHHHHHHHHk.', '.kHSSSSSSHk.', '.kHSkSSkSHk.', '.kHSSSSSSHk.', '..kSSppSSk..', '...kkkkkk...', '..kGGYYGGk..', '.kGGGYYGGGk.', '..kkRRRRkk..', '...kk..kk...'],
+		{ k: '#14182a', H: '#2a2a3a', R: '#e8402c', S: '#ffd8b0', p: '#e8907a', G: '#6aa84a', Y: '#ffe070' }],
 	leaf: [['...kkkkkk...', '..kWWWWWWk..', '.kWWRRWWWWk.', '.kkkkkkkkkk.', '.kBSSSSSSBk.', 'kBBSkSSkSBBk', 'kBBSSSSSSBBk', 'kBkSSppSSkBk', '.k.kkkkkk.k.', '..kCCCCCCk..', '.kSCCCCCCSk.', '..kkRRRRkk..', '...kk..kk...'],
 		{ k: '#14182a', W: '#f4f4f4', R: '#e8402c', B: '#8a5a2a', S: '#ffd8b0', p: '#e8907a', C: '#5ab8e8' }],
 };
@@ -189,9 +193,9 @@ function Ico({ name, size = 32, fb }: { name: string; size?: number; fb?: any })
 	return <img class="sc-pico" style={{ width: size, height: size }} src={`${SCN_BASE}ico/${name}.png`} onError={() => setBad(true)} alt="" />;
 }
 const itemIco = (id: string, size: number) => { const it = ITEMS[id]; if (it.pxi) return <span class="sc-item-pxi"><Pxi name={it.pxi} size={size >= 48 ? 48 : 24} /></span>; return <Ico name={it.icon} size={size} fb={it.held ? <ItemIcon item={it.held} size={Math.min(size, 32)} /> : <Px art={it.kind === 'ball' ? (ART[id] ? id : 'ball') : it.kind === 'sell' ? 'coin' : 'gift'} scale={2} />} />; };
-const BADGE_ICO: { [k: string]: string } = { 회색배지: 'badge1', 블루배지: 'badge2', 오렌지배지: 'badge3' };
+const BADGE_ICO: { [k: string]: string } = { 회색배지: 'badge1', 블루배지: 'badge2', 오렌지배지: 'badge3', 무지개배지: 'badge4' };
 const tWho = (t: Trainer): Who => ({ name: t.name, title: t.title, portrait: 'd_' + t.sprite, sprite: t.sprite });
-const Hearts = ({ v, big }: { v: number; big?: boolean }) => <span class={'sc-hearts' + (big ? ' big' : '')}>{Array.from({ length: MAX_EV }, (_, i) => i).map(i => <i class="sc-heart"><Px art="heart0" scale={big ? 4 : 2} /><b style={{ width: Math.max(0, Math.min(100, v - i * 100)) + '%' }}><Px art="heart" scale={big ? 4 : 2} /></b></i>)}</span>;
+const Hearts = ({ v, big, n = MAX_EV }: { v: number; big?: boolean; n?: number }) => <span class={'sc-hearts' + (big ? ' big' : '')}>{Array.from({ length: n }, (_, i) => i).map(i => <i class="sc-heart"><Px art="heart0" scale={big ? 4 : 2} /><b style={{ width: Math.max(0, Math.min(100, v - i * 100)) + '%' }}><Px art="heart" scale={big ? 4 : 2} /></b></i>)}</span>;
 
 type Line = [who: string | Who | null, text: string, emo?: string];
 /** 지난 대사 (기록 보기) · 자동 넘김 설정 */
@@ -331,7 +335,7 @@ const fill = (run: Run, t: string) => t.replace(/\{me\}/g, playerName()).replace
 const toLine = (run: Run, t: string): Line => { const m = /^([a-z0-9]*)(?:\[(\w+)\])?: ([\s\S]*)$/.exec(t); return m ? [m[1] || null, fill(run, m[3]), m[2]] : [null, fill(run, t)]; };
 async function play(run: Run, E: Eng, id: string): Promise<boolean> {
 	let bg: string | null = null, buf: Line[] = [];
-	const cid = id.startsWith('leaf') ? 'leaf' : id.startsWith('brock_') ? 'brock' : 'misty';   // 이 대본의 인물 (태그 파트너·호감도)
+	const cid = id.startsWith('leaf') ? 'leaf' : CHARS.find(c => id === c.id || id.startsWith(c.id + '_'))?.id || 'misty';   // 이 대본의 인물 (태그 파트너·호감도)
 	const at = () => bg || E.L().bg;
 	const flush = async () => { if (buf.length) { const b = buf; buf = []; await E.say(b, at()); } };
 	for (const c of SCRIPTS[id] || []) {
@@ -402,9 +406,9 @@ function HeartCard({ c, from, to, done }: { c: Char; from: number; to: number; d
 	const up = Math.floor(to / 100) > Math.floor(from / 100), down = to < from, w = WHO[c.who];
 	return <div class="sc-get sc-heartcard" onClick={done}><div class="sc-get-box">
 		<span class="sc-hc-face"><Portrait id={w.portrait} sprite={w.sprite} cls="face" /></span>
-		<Hearts v={v} big />
+		<Hearts v={v} big n={maxEv(c)} />
 		<b>{down ? `${c.name}의 표정이 굳었다…` : up ? `${josa(c.name, '과', '와')}의 사이가 깊어졌다!` : `${josa(c.name, '과', '와')} 조금 더 가까워졌다`}</b>
-		<small>{down ? `호감도 ${to - from}` : `호감도 +${to - from}`}{up && to < 100 * MAX_EV ? ` · ${c.name}에게 말을 걸어 보자` : ''}</small>
+		<small>{down ? `호감도 ${to - from}` : `호감도 +${to - from}`}{up && to < 100 * maxEv(c) ? ` · ${c.name}에게 말을 걸어 보자` : ''}</small>
 		{!down && <i class="sc-hc-float">♥</i>}<em>화면을 누르면 계속</em>
 	</div></div>;
 }
@@ -427,10 +431,10 @@ type Act = Node | { k: 'map' | 'party' | 'bag' | 'route' | 'box' | 'wait' } | ty
 /** 그린이 기다리는 곳: [대본 id, 장소, 필요한 표식] */
 const RIVAL_AT: [string, string, string][] = [['rival2', 'viridian', 'intro'], ['rival3', 'cerulean', 'met'], ['rival4', 'cape', 'ev4']];
 /** 큰 줄거리 (체육관·사건): [대본 id, 장소, 필요한 표식, 끝난 표식, 단추 이름, 얼굴] */
-const STORY_AT: [string, string, string, string, string, string][] = [['anne', 'ssanne', 'sa2', 'anne', '선장실', 'captain'], ['surge', 'vermilion', 'vg1', 'badge3', '마티스', 'surge'], ['tower', 'tower', 'tw2', 'tower', '꼭대기 층', 'fuji']];
+const STORY_AT: [string, string, string, string, string, string][] = [['anne', 'ssanne', 'sa2', 'anne', '선장실', 'captain'], ['surge', 'vermilion', 'vg1', 'badge3', '마티스', 'surge'], ['tower', 'tower', 'tw2', 'tower', '꼭대기 층', 'fuji'], ['erika', 'celadon', 'cg2', 'badge4', '민화', 'erika']];
 /** 단추 귀퉁이 표시: 느낌표(승부·이야기) · 물음표(풀숲) · 하트 · 완료 · 가게 · 쉼터 · 이야기 */
-const MARK_ICO: { [m: string]: string } = { '✓': 'check', '♥': 'heart', '₩': 'coins', z: 'bed', '…': 'message-text' };
-const MARK_CLS: { [m: string]: string } = { '!': 'go', '?': 'q', '✓': 'ok', '♥': 'love', '₩': 'shop', z: 'rest', '…': 'talk' };
+const MARK_ICO: { [m: string]: string } = { '✓': 'check', '♥': 'heart', '★': 'star', '✦': 'sparkle', '₩': 'coins', z: 'bed', '…': 'message-text' };
+const MARK_CLS: { [m: string]: string } = { '!': 'go', '?': 'q', '✓': 'ok', '♥': 'love', '★': 'star', '✦': 'spark', '₩': 'shop', z: 'rest', '…': 'talk' };
 const SLOTS: [number, number][] = [[24, 30], [72, 28], [48, 38], [20, 46], [76, 46], [48, 54], [22, 62], [70, 62], [48, 22], [80, 76]];
 /** 휴대폰 가로: 높이가 낮아 두 줄로 (오른쪽은 내 트레이너 자리) */
 const SLOTS_LAND: [number, number][] = [[8, 36], [22, 36], [36, 36], [50, 36], [64, 36], [8, 66], [22, 66], [36, 66], [50, 66], [64, 66]];
@@ -443,9 +447,9 @@ function nodesAt(run: Run): Node[] {
 	for (const [id, at, need, end, label, who] of STORY_AT) if (at === run.loc && has(run, need) && !has(run, end)) out.push({ k: 'script', label, mark: '!', face: WHO[who], kind: 'story', data: id });
 	for (const c of metChars(run)) {
 		const x = relOf(run, c.id), inv = run.flags[fk(c, 'inv', x.ev + 1)], at = c.evAt[x.ev], w = WHO[c.who];
-		if (inv && at && at[0] === run.loc && (at[1] === null || at[1] === run.time)) out.push({ k: 'event', label: c.name, mark: '♥', face: w, kind: 'story', data: c });
+		if (inv && at && at[0] === run.loc && (at[1] === null || at[1] === run.time)) out.push({ k: 'event', label: c.name, mark: '✦', face: w, kind: 'story g-' + c.g, data: c });
 		else if ((run.tag === c.id || charLoc(run, c) === run.loc) && !(c.id === 'misty' && run.loc === 'cerulean' && !has(run, 'badge2') && has(run, 'c2')))
-			out.push({ k: 'friend', label: c.name, mark: evReady(run, c) && !inv ? '!' : '♥', face: w, kind: 'friend', data: c });
+			out.push({ k: 'friend', label: c.name, mark: evReady(run, c) && !inv ? '!' : '★', face: w, kind: 'friend g-' + c.g, data: c });
 	}
 	// 라이벌 그린: 상록시티(여행 초반) · 블루시티(이슬을 만난 뒤) · 블루곶(이슬 루트를 끝낸 뒤)
 	const rv = RIVAL_AT.find(([id, at, need]) => at === run.loc && has(run, need) && !has(run, id));
@@ -483,7 +487,7 @@ function Hub({ run, banner, done }: { run: Run; banner: boolean; done: (a: Act) 
 			<button class="st-exit" onClick={async () => { if (await confirmBox('시나리오 나가기', '메인 화면으로 돌아갈까요?\n지금까지의 진행은 저장돼 있어요.', '나가기', '계속하기')) done(BACK); }} aria-label="나가기"><Pxi name="chevron-left" /></button>
 			<Clock run={run} onClick={() => done({ k: 'wait' })} />
 			<div class="sh-title">관동 · {loc.name}<em class="sc-mission">{goalText(run)}</em></div>
-			<div class="sc-wallet"><span>{won(run.money)}</span>{focus && <span class="sc-wallet-h"><small>{focus.name}</small><span class="sc-hearts sc-hmini"><Px art="heart" scale={2} /><b>{Math.floor(relOf(run, focus.id).heart / 100)}/{MAX_EV}</b></span></span>}</div>
+			<div class="sc-wallet"><span>{won(run.money)}</span>{focus && <span class="sc-wallet-h"><small>{focus.name}</small><span class="sc-hearts sc-hmini"><Px art="heart" scale={2} /><b>{Math.floor(relOf(run, focus.id).heart / 100)}/{maxEv(focus)}</b></span></span>}</div>
 		</div>
 		{banner && <div class="sc-banner"><b>{loc.name}</b><span>{loc.sub}</span></div>}
 		{nodes.slice(0, SLOTS.length).map((n, i) => <button class={'sh-npc' + (n.done ? ' done' : '') + (n.kind ? ' ' + n.kind : '')} style={{ left: SL[i][0] + '%', top: SL[i][1] + '%' }} onClick={() => { sfx('select'); done(n); }}>
@@ -511,7 +515,7 @@ function goalText(run: Run): string {
 	if (!has(run, 'met')) return '블루시티로 가 보자';
 	if (!has(run, 'badge2')) return '블루 체육관 관장 이슬에게 도전하자';
 	const mc = metChars(run);
-	for (const c of mc) { const x = relOf(run, c.id), at = c.evAt[x.ev]; if (x.ev < MAX_EV && run.flags[fk(c, 'inv', x.ev + 1)]) return `${at[1] === null ? '' : TIMES[at[1]] + '에 '}${locOf(at[0]).name}에서 ${josa(c.name, '이', '가')} 기다리고 있다`; }
+	for (const c of mc) { const x = relOf(run, c.id), at = c.evAt[x.ev]; if (x.ev < maxEv(c) && run.flags[fk(c, 'inv', x.ev + 1)]) return `${at[1] === null ? '' : TIMES[at[1]] + '에 '}${locOf(at[0]).name}에서 ${josa(c.name, '이', '가')} 기다리고 있다`; }
 	const rdy = mc.find(c => evReady(run, c));
 	if (rdy) return `하트가 가득 찼다 — ${rdy.name}에게 말을 걸자`;
 	if (!has(run, 'verm')) return '남쪽 5번도로를 지나 갈색시티로';
@@ -519,7 +523,9 @@ function goalText(run: Run): string {
 	if (!has(run, 'badge3')) return '갈색 체육관 관장 마티스에게 도전하자';
 	if (!has(run, 'lav')) return '블루시티 동쪽 돌산터널을 지나 보라타운으로';
 	if (!has(run, 'tower')) return '포켓몬타워 꼭대기의 등나무 노인을 구하자';
-	const open = mc.filter(c => relOf(run, c.id).ev < MAX_EV);
+	if (!has(run, 'cel')) return '보라타운 서쪽 7번도로를 지나 무지개시티로';
+	if (!has(run, 'badge4')) return '무지개 체육관 관장 민화에게 도전하자';
+	const open = mc.filter(c => relOf(run, c.id).ev < maxEv(c));
 	if (!open.length) return '지금까지의 이야기를 모두 봤어요 — 다음 막은 준비 중';
 	const c = open.find(x => x.id === run.tag) || open[0];
 	return `${josa(c.name, '과', '와')} 가까워지자 (${TIMES[run.time]}: ${locOf(charLoc(run, c)).name})`;
@@ -633,15 +639,15 @@ function ShopScreen({ run, done }: { run: Run; done: () => void }) {
 		<button class="btn big" onClick={done}>나가기</button>
 	</Screen>;
 }
-const UNMET: { [id: string]: string } = { misty: '블루시티에서 만날 수 있다', brock: '회색 체육관에서 이기면 가까워질 수 있다', leaf: '상록시티에서 만날 수 있다' };
+const UNMET: { [id: string]: string } = { misty: '블루시티에서 만날 수 있다', brock: '회색 체육관에서 이기면 가까워질 수 있다', leaf: '상록시티에서 만날 수 있다', erika: '무지개 체육관에서 이기면 가까워질 수 있다' };
 function RouteScreen({ run, done }: { run: Run; done: () => void }) {
 	return <Screen title="인물 루트 · 관동 편" onBack={done} cls="sc-scr"><Back />
 		{CHARS.map(c => {
 			const met = has(run, c.met), x = relOf(run, c.id), stage = !has(run, c.gate) ? 0 : x.ev + 1, w = WHO[c.who], cap = heartCap(run, c);
-			return <><div class={'sc-route' + (met ? '' : ' unk')}>
+			return <><div class={'sc-route g-' + c.g + (met ? '' : ' unk')}>
 				<span class="sc-route-face">{met && <Portrait id={w.portrait} sprite={w.sprite} cls="face" />}</span>
 				<div class="sc-route-body"><b>{met ? c.name : '？？？'} <small>{met ? c.tagline : UNMET[c.id]}</small></b>
-					{met && <><Hearts v={x.heart} big /><small>호감도 {x.heart} / {cap}{x.heart >= cap && x.ev < MAX_EV ? (has(run, c.evNeed?.[x.ev]) ? ' (말을 걸면 다음 이야기)' : ' (여행을 더 나아가면 다음 이야기)') : ''}</small>
+					{met && <><Hearts v={x.heart} big n={maxEv(c)} /><small>호감도 {x.heart} / {cap}{x.heart >= cap && x.ev < maxEv(c) ? (has(run, c.evNeed?.[x.ev]) ? ' (말을 걸면 다음 이야기)' : ' (여행을 더 나아가면 다음 이야기)') : ''}</small>
 						<small>{run.tag === c.id ? '지금 태그 중 — 함께 다니고 있어요' : `지금(${TIMES[run.time]}): ${locOf(charLoc(run, c)).name} — ${c.doing[run.time]}`}</small></>}</div>
 			</div>
 			{met && <div class="sc-chapters">{c.chapters.map((t, i) => <div class={i < stage ? 'done' : i === stage ? 'now' : 'lock'}><i>{i < stage ? '✓' : i === stage ? '▶' : '🔒'}</i>{i <= stage ? t : '？？？'}</div>)}
@@ -749,7 +755,7 @@ function Credits({ run, c, done }: { run: Run; c: Char; done: () => void }) {
 			<h3>함께한 날</h3><p>{run.day}일</p>
 			<h3>함께한 포켓몬</h3><p class="sc-roll-mons">{run.party.map(m => <PokeIcon species={m.sp} />)}</p>
 			<h3>배지</h3><p>{run.badges.join(' · ')}</p>
-			<h3>나온 사람들</h3><p>이슬 · 웅 · 리프 · 그린 · 오박사</p><p>블루시티와 관동의 트레이너들</p>
+			<h3>나온 사람들</h3><p>이슬 · 웅 · 리프 · 민화 · 그린 · 오박사</p><p>블루시티와 관동의 트레이너들</p>
 			<h3>바탕</h3><p>포켓몬스터 레드·그린 / 하트골드·소울실버의 관동</p><p>유희왕 태그 포스의 파트너 시스템</p>
 			<h2 class="sc-fin">{c.name} 루트 · 1막 클리어</h2><p>여행은 계속된다 — 2막은 갈색시티에서</p>
 		</div>
@@ -761,7 +767,7 @@ function SeriesSelect({ saved, done }: { saved: Run | null; done: (a: 'go' | 'ne
 		<div class="sc-series-card on">
 			<div class="sc-bg fld-cerulean" />
 			<div class="sc-series-body"><small>SERIES 1</small><b>관동 편</b><span>레드·그린의 무대 — 태초마을에서 블루곶까지</span>
-				<span class="sc-series-ch"><span class="sc-route-face"><Portrait id="misty" sprite="misty" cls="face" /></span>이슬·웅·리프 루트{saved ? ` ★${CHARS.filter(c => (saved.rel?.[c.id]?.ev || 0) >= 4).length}/3` : ''}</span>
+				<span class="sc-series-ch"><span class="sc-route-face"><Portrait id="misty" sprite="misty" cls="face" /></span>이슬·웅·리프·민화 루트{saved ? ` ★${CHARS.filter(c => (saved.rel?.[c.id]?.ev || 0) >= 4).length}/${CHARS.length}` : ''}</span>
 				{saved?.flags.intro ? <small class="sc-series-save">{saved.day}일째 · {locOf(saved.loc).name} · 배지 {saved.badges.length}개</small> : null}
 				<div class="sc-series-btns">{saved?.flags.intro ? <><button class="btn primary" onClick={() => done('go')}>이어서 하기</button><button class="btn ghost" onClick={() => done('new')}>처음부터</button></> : <button class="btn primary" onClick={() => done('new')}>시작하기</button>}</div>
 			</div>
@@ -809,7 +815,10 @@ async function friendMenu(run: Run, E: Eng, c: Char) {
 		const id = gifts[g], like = likeOf(ITEMS[id], c.id); give(run, id, -1); persist(run);
 		await E.say([[w, c.gift[2 - like].replace('{item}', ITEMS[id].name), like === 2 ? 'love' : like === 1 ? 'joy' : 'angry']]);
 		await E.heart(c.id, like === 2 ? 25 : like === 1 ? 10 : -15); await E.spend();
+		if (run.tag === c.id && x.ev < 4 && x.heart < TAG_NEED) { run.tag = ''; persist(run); toast(`${c.name}의 기분이 상해 태그가 풀렸다`); }
 	} else if (pick === 2) {
+		// 아직 서먹하면 태그를 받아 주지 않음 (1막을 끝낸 인물은 언제나 받아 줌)
+		if (run.tag !== c.id && x.ev < 4 && x.heart < TAG_NEED) { await E.say([[w, c.tagNo, 'think']]); toast(`호감도 ${TAG_NEED}부터 태그를 맺을 수 있어요 (지금 ${x.heart}) — 이야기와 선물로 가까워지세요`); return; }
 		const on = run.tag !== c.id; run.tag = on ? c.id : ''; persist(run);
 		await E.say([[w, on ? c.tagOn : c.tagOff, on ? 'joy' : 'sad']]);
 		if (on) toast(`${josa(c.name, '과', '와')} 태그를 맺었다 — 길거리 트레이너와의 배틀이 멀티배틀이 돼요`);
@@ -820,7 +829,7 @@ async function friendEvent(run: Run, E: Eng, c: Char) {
 	const x = relOf(run, c.id), k = x.ev + 1;
 	if (!(await play(run, E, fk(c, 'ev', k)))) { await E.tick(); return; }
 	x.ev = k; run.flags[fk(c, 'ev', k)] = 1; if (k === 4) run.tag = c.id; persist(run);
-	if (k !== 4) { await E.card(c.evTitle[k - 1], k === MAX_EV ? `${c.name} 루트 · 2막 클리어` : '하트 이벤트 클리어', `♥ ${k} / ${MAX_EV}`, E.L().bg, 2200); await E.spend(); return; }
+	if (k !== 4) { await E.card(c.evTitle[k - 1], k === maxEv(c) ? `${c.name} 루트 · 2막 클리어` : '하트 이벤트 클리어', `♥ ${k} / ${maxEv(c)}`, E.L().bg, 2200); await E.spend(); return; }
 	await E.fx('fade', 900);
 	await ask<void>(r => <Credits key={K()} run={run} c={c} done={r} />);
 	await E.card(`${c.name} 루트 · 1막 클리어`, `${josa(c.name, '과', '와')} 언제든 태그를 맺을 수 있어요`, 'CONGRATULATIONS', locOf(c.evAt[3][0]).bg, 3200);
@@ -863,6 +872,7 @@ export async function runScenario() {
 			if (to === 'viridian' && !has(run, 'leafmet')) await play(run, E, 'leafmeet');
 			if (to === 'vermilion' && !has(run, 'verm')) await play(run, E, 'vermilion');
 			if (to === 'lavender' && !has(run, 'lav')) await play(run, E, 'lavender');
+			if (to === 'celadon' && !has(run, 'cel')) await play(run, E, 'celadon');
 			continue;
 		}
 		const n = a as Node;
