@@ -23,7 +23,7 @@ import * as EM from './scenario-emotes.js';
 import { PXI } from './vendor/pixelarticons';
 import FACES from './gen/scn-faces.json';
 
-const LU = LEVELUP as unknown as { [id: string]: { e?: [string, number]; m: [number, string][] } };
+const LU = LEVELUP as unknown as { [id: string]: { /** 레벨업 진화 [다음, 레벨] */ e?: [string, number]; /** 돌로 진화 [[다음, 도구 id], ...] */ s?: [string, string][]; m: [number, string][] } };
 const PORTRAIT_BASE = 'https://samang600.github.io/BattleSim-KR/portraits/';
 /** 외부 저장소에서 가져온 배경·아이콘 (scenario-assets 브랜치 → Pages /scn/). 없으면 직접 그린 그림으로 대신함 */
 const SCN_BASE = 'https://samang600.github.io/BattleSim-KR/scn/';
@@ -142,6 +142,7 @@ const ART: { [k: string]: [string[], { [c: string]: string }] } = {
 		{ k: '#14182a', B: '#3a7ad8', r: '#e8402c', W: '#f4f4f4', g: '#c0c4d0' }],
 	ultraball: [['....kkkk....', '..kkyKKykk..', '.kKyyKKyyKk.', '.kKyKKKKyKk.', 'kKKKKKKKKKKk', 'kKKKKkkKKKKk', 'kkkkkWWkkkkk', 'kWWWWkkWWWWk', '.kWWWWWWWWk.', '.kWWWWWWggk.', '..kkWWggkk..', '....kkkk....'],
 		{ k: '#14182a', K: '#3a3a48', y: '#ffd84a', W: '#f4f4f4', g: '#c0c4d0' }],
+	stone: [['....kk....', '...kSSk...', '..kShSSk..', '.kSShSSSk.', 'kSSSSSSdSk', 'kSSSSSddSk', '.kSSSddSk.', '..kSddSk..', '...kkkk...'], { k: '#14182a', S: '#7ad8c8', h: '#e0fff8', d: '#3a9a8a' }],
 	potion: [['....kkkk..', '....kWWk..', '...kkWWkk.', '..kPPPPPPk', '..kPhPPPPk', '..kPhPPPPk', '..kPPPPPPk', '..kPPPPPPk', '..kkkkkkkk'], { k: '#14182a', W: '#f4f4f4', P: '#b070e8', h: '#e0c0ff' }],
 	tm: [['...kkkk...', '.kkYYYYkk.', '.kYYhhYYk.', 'kYYhYYYYYk', 'kYYYkkYYYk', 'kYYYkkYYYk', 'kYYYYYYYYk', '.kYYYYYYk.', '.kkYYYYkk.', '...kkkk...'], { k: '#14182a', Y: '#f0a030', h: '#ffe0a0' }],
 	shadow: [['...ssssssssss...', '.ssssssssssssss.', '.ssssssssssssss.', '...ssssssssss...'], { s: 'rgba(0,0,0,.42)' }],
@@ -204,7 +205,7 @@ function Ico({ name, size = 32, fb }: { name: string; size?: number; fb?: any })
 	if (bad) return fb || null;
 	return <img class="sc-pico" style={{ width: size, height: size }} src={`${SCN_BASE}ico/${name}.png`} onError={() => setBad(true)} alt="" />;
 }
-const itemIco = (id: string, size: number) => { const it = ITEMS[id]; if (it.pxi) return <span class="sc-item-pxi"><Pxi name={it.pxi} size={size >= 48 ? 48 : 24} /></span>; return <Ico name={it.icon} size={size} fb={it.held ? <ItemIcon item={it.held} size={Math.min(size, 32)} /> : <Px art={it.kind === 'ball' ? (ART[id] ? id : 'ball') : it.kind === 'sell' ? 'coin' : it.kind === 'med' ? 'potion' : it.kind === 'tm' ? 'tm' : 'gift'} scale={2} />} />; };
+const itemIco = (id: string, size: number) => { const it = ITEMS[id]; if (it.pxi) return <span class="sc-item-pxi"><Pxi name={it.pxi} size={size >= 48 ? 48 : 24} /></span>; return <Ico name={it.icon} size={size} fb={it.held ? <ItemIcon item={it.held} size={Math.min(size, 32)} /> : <Px art={it.kind === 'ball' ? (ART[id] ? id : 'ball') : it.kind === 'sell' ? 'coin' : it.kind === 'med' ? 'potion' : it.kind === 'tm' ? 'tm' : it.kind === 'evo' ? 'stone' : 'gift'} scale={2} />} />; };
 const BADGE_ICO: { [k: string]: string } = { 회색배지: 'badge1', 블루배지: 'badge2', 오렌지배지: 'badge3', 무지개배지: 'badge4' };
 const tWho = (t: Trainer): Who => ({ name: t.name, title: t.title, portrait: 'd_' + t.sprite, sprite: t.sprite });
 const Hearts = ({ v, big, n = MAX_EV }: { v: number; big?: boolean; n?: number }) => <span class={'sc-hearts' + (big ? ' big' : '')}>{Array.from({ length: n }, (_, i) => i).map(i => <i class="sc-heart"><Px art="heart0" scale={big ? 4 : 2} /><b style={{ width: Math.max(0, Math.min(100, v - i * 100)) + '%' }}><Px art="heart" scale={big ? 4 : 2} /></b></i>)}</span>;
@@ -308,6 +309,8 @@ function engine(run: Run) {
 		run.ap = ap; persist(run);
 		if (moved && run.time !== 0) toast(`어느덧 ${josa(TIMES[run.time], '이', '가')} 되었다`);
 	};
+	/** 지난 배틀에 나온 내 포켓몬 (경험치는 이 포켓몬들만 나눠 받음) */
+	let fought = new Set<Mon>();
 	/** 배틀 (전환 연출 포함). tag = 그 인물과 멀티배틀: 내 앞 3마리 + 파트너 3마리. wild = 야생(기권 대신 도망) → 도망쳤으면 'fled' */
 	const fight = async (o: { name: string; title?: string; sprite: string; sprite2?: string; team: Mon[]; skill: number; arena?: string; music?: string; tag?: string; line?: string; wild?: boolean }): Promise<boolean | 'fled'> => {
 		if (!run.party.some(alive)) { await say([[null, '싸울 수 있는 포켓몬이 없다…!\n포켓몬센터나 집에서 회복시키자.']]); return false; }
@@ -322,14 +325,14 @@ function engine(run: Run) {
 		}
 		await fx('battle', 900);
 		const res = await battle({
-			gen: 9, doubles: !!o.tag, aiSkill: o.skill, bg: (o.arena || L().arena) as any, music: (o.music || 'battle') as any, label: `시나리오 · ${L().name}`, noRecord: true, ruleId: NO_GIMMICK,
+			gen: 9, doubles: !!o.tag, aiSkill: Math.min(0.95, o.skill + HARDER), bg: (o.arena || L().arena) as any, music: (o.music || 'battle') as any, label: `시나리오 · ${L().name}`, noRecord: true, ruleId: NO_GIMMICK,
 			p1: { name: playerName(), team, sprite: playerSprite() },
 			p2: { name: o.name, title: o.title || '', team: o.team.map(toSet), sprite: o.sprite, sprite2: o.sprite2, line: o.line },
 			partner: flags ? { name: charOf(o.tag!).name, theirs: flags, skill: 0.75, sprite: charOf(o.tag!).sprite } : undefined, runAway: !!o.wild,
 			// 지난 배틀에서 남은 HP·PP 로 시작하고, 끝난 상태를 다시 받아 둠. 배틀 중에는 가방의 회복 도구를 쓸 수 있음
 			story: {
 				state: owner.map(m => m ? { hp: m.hpf, pp: m.pp } : undefined),
-				onFinal: (st: { hp: number; pp: { [k: string]: number } }[]) => { owner.forEach((m, i) => { if (!m || !st[i]) return; if (st[i].hp >= 0.999) delete m.hpf; else m.hpf = st[i].hp; m.pp = st[i].pp; }); persist(run); },
+				onFinal: (st: { hp: number; pp: { [k: string]: number }; used: boolean }[]) => { fought = new Set(owner.filter((m, i) => m && st[i]?.used) as Mon[]); owner.forEach((m, i) => { if (!m || !st[i]) return; if (st[i].hp >= 0.999) delete m.hpf; else m.hpf = st[i].hp; m.pp = st[i].pp; }); persist(run); },
 				bag: () => Object.keys(run.bag).filter(id => ITEMS[id]?.kind === 'med').map(id => ({ id, name: ITEMS[id].name, desc: ITEMS[id].desc, n: run.bag[id], fx: ITEMS[id].fx! })),
 				used: (id: string) => { give(run, id, -1); persist(run); },
 			},
@@ -339,10 +342,13 @@ function engine(run: Run) {
 	};
 	/** 이긴 뒤: 경험치(파티 전원)·상금 → 결과 화면 */
 	const reward = async (foes: Mon[], heading: string, money: number, wild = false) => {
-		const xp = Math.round(foes.reduce((a, f) => a + f.lv, 0) * (wild ? 2.5 : 4)), cap = lvCap(run), notes: string[] = [];
-		for (const m of run.party) notes.push(...addExp(m, xp, cap));
+		// 경험치는 배틀에 나와서 끝까지 서 있던 포켓몬만, 사람 수대로 나눠 받음 (혼자 싸우면 1.5배 · 둘이면 0.75배씩 …). 나오지 않은 포켓몬은 받지 않음
+		const pool = Math.round(foes.reduce((a, f) => a + f.lv, 0) * (wild ? 2.5 : 4) * 1.5), cap = lvCap(run), notes: string[] = [];
+		let got = run.party.filter(m => fought.has(m) && alive(m)); if (!got.length) got = run.party.filter(m => fought.has(m)); if (!got.length) got = run.party.slice(0, 1);
+		const xp = Math.round(pool / got.length);
+		for (const m of got) notes.push(...addExp(m, xp, cap));
 		run.money += money; persist(run);
-		await ask<void>(r => <Result key={K()} heading={heading} xp={xp} money={money} notes={notes} party={run.party} cap={cap} done={r} />);
+		await ask<void>(r => <Result key={K()} heading={heading} xp={xp} n={got.length} got={got} money={money} notes={notes} party={run.party} cap={cap} done={r} />);
 	};
 	/** 눈앞이 캄캄해짐: 가까운 포켓몬센터(집)로, 돈 10% 잃음 */
 	const blackout = async () => {
@@ -437,12 +443,12 @@ function HeartCard({ c, from, to, done }: { c: Char; from: number; to: number; d
 		{!down && <i class="sc-hc-float">♥</i>}<em>화면을 누르면 계속</em>
 	</div></div>;
 }
-function Result({ heading, xp, money, notes, party, cap, done }: { heading: string; xp: number; money: number; notes: string[]; party: Mon[]; cap: number; done: () => void }) {
+function Result({ heading, xp, n, got, money, notes, party, cap, done }: { heading: string; xp: number; /** 경험치를 받은 포켓몬 수 · 그 포켓몬들 */ n: number; got: Mon[]; money: number; notes: string[]; party: Mon[]; cap: number; done: () => void }) {
 	useEffect(() => { if (notes.some(l => / → Lv/.test(l))) { const t = setTimeout(() => sfx(notes.some(l => l.startsWith('✨')) ? 'heal' : 'statUp'), 250); return () => clearTimeout(t); } }, []);
 	return <Screen title="배틀 결과" cls="sc-scr"><Back />
 		<div class="sc-result"><h2>{heading}</h2>
-			<p class="sc-res-row"><span>경험치</span><b>+{xp}</b>{money > 0 && <><span>상금</span><b>{won(money)}</b></>}</p>
-			<div class="sc-res-party">{party.map(m => <div class="sc-res-mon"><PokeIcon species={m.sp} /><span>Lv{m.lv}</span><i class="sc-xp"><b style={{ width: (m.lv >= cap ? 100 : Math.round(100 * m.exp / expNeed(m.lv))) + '%' }} /></i></div>)}</div>
+			<p class="sc-res-row"><span>경험치{n > 1 ? ` (싸운 ${n}마리가 각각)` : ''}</span><b>+{xp}</b>{money > 0 && <><span>상금</span><b>{won(money)}</b></>}</p>
+			<div class="sc-res-party">{party.map(m => <div class={'sc-res-mon' + (got.includes(m) ? '' : ' off')}><PokeIcon species={m.sp} /><span>Lv{m.lv}</span><i class="sc-xp"><b style={{ width: (m.lv >= cap ? 100 : Math.round(100 * m.exp / expNeed(m.lv))) + '%' }} /></i></div>)}</div>
 			{notes.map((l, i) => <p class={'sc-res-note ' + (l.startsWith('✨') ? 'evo' : / → Lv/.test(l) ? 'lv' : 'mv')} style={{ animationDelay: 200 + i * 140 + 'ms' }}>{/ → Lv/.test(l) && <i>LEVEL UP</i>}{l}</p>)}
 			{party.some(m => m.lv >= cap) && <p class="muted small">레벨 상한 Lv{cap} — 다음 배지를 얻으면 더 올릴 수 있어요.</p>}
 		</div>
@@ -533,6 +539,8 @@ function Hub({ run, banner, done }: { run: Run; banner: boolean; done: (a: Act) 
 		</div>
 	</div>;
 }
+/** 난이도 보정: 모든 상대의 판단력을 이만큼 올림 (경험치는 싸운 포켓몬만 받음 — reward) */
+const HARDER = 0.12;
 /** 지금 할 일 한 줄 */
 function goalText(run: Run): string {
 	if (!has(run, 'badge1')) return has(run, 'p1') ? '회색 체육관 관장 웅에게 도전하자' : '북쪽 회색시티의 체육관을 목표로';
@@ -594,7 +602,7 @@ function MonEdit({ run, m, done }: { run: Run; m: Mon; done: () => void }) {
 		<div class="sc-mon big"><Sprite species={m.sp} gen={9} size={96} anim={false} />
 			<div class="sc-mon-body"><b>{speciesKo(m.sp)} <small>Lv{m.lv}</small></b><span class="sc-types">{(s?.t || []).map((t: string) => <TypeBadge type={t} />)}</span>
 				<i class="sc-xp wide"><b style={{ width: (m.lv >= lvCap(run) ? 100 : Math.round(100 * m.exp / expNeed(m.lv))) + '%' }} /></i>
-				<small>{m.lv >= lvCap(run) ? `레벨 상한 (Lv${lvCap(run)})` : `다음 레벨까지 ${expNeed(m.lv) - m.exp}`}{LU[m.sp]?.e ? ` · Lv${LU[m.sp].e![1]}에 ${josa(speciesKo(LU[m.sp].e![0]), '으로', '로')} 진화` : ''}</small></div></div>
+				<small>{m.lv >= lvCap(run) ? `레벨 상한 (Lv${lvCap(run)})` : `다음 레벨까지 ${expNeed(m.lv) - m.exp}`}{LU[m.sp]?.e ? ` · Lv${LU[m.sp].e![1]}에 ${josa(speciesKo(LU[m.sp].e![0]), '으로', '로')} 진화` : LU[m.sp]?.s ? ` · ${LU[m.sp].s!.map(([, st]) => ITEMS[st]?.name).filter(Boolean).join('·')}로 진화` : ''}</small></div></div>
 		<h3 class="sec">기술 <small class="muted">{cur.length}/4 · 눌러서 넣고 빼기</small></h3>
 		<div class="sc-moves">{all.map(mv => <button class={cur.includes(mv) ? 'on' : ''} onClick={() => toggle(mv)}>{moveKo(mv)}</button>)}</div>
 		<h3 class="sec">지닌 도구</h3>
@@ -636,7 +644,7 @@ function PartyScreen({ run, done }: { run: Run; done: () => void }) {
 		<button class="btn big" onClick={done}>돌아가기</button>
 	</Screen>;
 }
-const KIND_KO: { [k: string]: string } = { ball: '볼', held: '지닌 도구', gift: '선물', sell: '귀중품', med: '회복', tm: '기술머신' };
+const KIND_KO: { [k: string]: string } = { ball: '볼', held: '지닌 도구', gift: '선물', sell: '귀중품', med: '회복', tm: '기술머신', evo: '진화의 돌' };
 function ItemRow({ id, right, sub }: { id: string; right: any; sub?: string }) {
 	const it = ITEMS[id];
 	return <div class="sc-item"><span class="sc-item-ico">{itemIco(id, 36)}</span>
@@ -647,10 +655,16 @@ function BagScreen({ run, done }: { run: Run; done: () => void }) {
 	const ids = Object.keys(run.bag).sort((a, b) => Object.keys(ITEMS).indexOf(a) - Object.keys(ITEMS).indexOf(b));
 	const it = use ? ITEMS[use] : null;
 	/** 그 포켓몬에게 지금 쓸 수 있는가 (기술머신: 배울 수 있고 아직 모르는 기술) */
-	const ok = (m: Mon) => !it ? false : it.kind === 'tm' ? learnset(m.sp, 9).includes(it.move!) && !known(m).includes(it.move!) : canMed(m, it.fx!);
+	const stoneTo = (m: Mon) => LU[m.sp]?.s?.find(([, st]) => st === use)?.[0];
+	const ok = (m: Mon) => !it ? false : it.kind === 'evo' ? !!stoneTo(m) : it.kind === 'tm' ? learnset(m.sp, 9).includes(it.move!) && !known(m).includes(it.move!) : canMed(m, it.fx!);
 	const apply = (m: Mon) => {
 		if (!it || !use) return;
-		if (it.kind === 'tm') { (m.tm = m.tm || []).push(it.move!); toast(`${josa(speciesKo(m.sp), '은', '는')} ${josa(moveKo(it.move!), '을', '를')} 배웠다! (「포켓몬」 화면에서 기술을 골라 넣으세요)`); sfx('statUp'); }
+		if (it.kind === 'evo') {
+			const to = stoneTo(m); if (!to) return;
+			const old = learned(m.sp, m.lv), from = speciesKo(m.sp); m.sp = to; give(run, use, -1);
+			const fresh = learned(m.sp, m.lv).filter(x => !old.includes(x)); if (m.moves) for (const f of fresh) if (m.moves.length < 4) m.moves.push(f);
+			toast(`✨ ${josa(from, '은', '는')} ${josa(speciesKo(to), '으로', '로')} 진화했다!${fresh.length ? ` 새 기술: ${fresh.map(moveKo).join(' · ')}` : ''}`); sfx('heal'); if (!run.bag[use]) setUse(null);
+		} else if (it.kind === 'tm') { (m.tm = m.tm || []).push(it.move!); toast(`${josa(speciesKo(m.sp), '은', '는')} ${josa(moveKo(it.move!), '을', '를')} 배웠다! (「포켓몬」 화면에서 기술을 골라 넣으세요)`); sfx('statUp'); }
 		else { useMed(m, it.fx!); give(run, use, -1); sfx('heal'); if (!run.bag[use]) setUse(null); }
 		persist(run); tick(x => x + 1);
 	};
@@ -661,11 +675,12 @@ function BagScreen({ run, done }: { run: Run; done: () => void }) {
 			<h3 class="sec">누구에게 쓸까요?</h3>
 			{run.party.map(m => <button class="sc-mon sc-usemon" disabled={!ok(m)} onClick={() => apply(m)}><PokeIcon species={m.sp} />
 				<div class="sc-mon-body"><b>{speciesKo(m.sp)} <small>Lv{m.lv}</small></b><HpLine m={m} />
-					{it.kind === 'tm' && <small>{known(m).includes(it.move!) ? '이미 배웠다' : learnset(m.sp, 9).includes(it.move!) ? '배울 수 있다' : '배울 수 없다'}</small>}</div></button>)}
+					{it.kind === 'tm' && <small>{known(m).includes(it.move!) ? '이미 배웠다' : learnset(m.sp, 9).includes(it.move!) ? '배울 수 있다' : '배울 수 없다'}</small>}
+					{it.kind === 'evo' && <small>{stoneTo(m) ? `${josa(speciesKo(stoneTo(m)!), '으로', '로')} 진화한다` : '쓸 수 없다'}</small>}</div></button>)}
 			<button class="btn big" onClick={() => setUse(null)}>다른 도구</button>
 		</> : <>
 			{!ids.length && <p class="hint">가방이 비어 있어요.</p>}
-			{ids.map(id => <ItemRow id={id} right={<>{ITEMS[id].kind !== 'tm' && <b class="sc-count">×{run.bag[id]}</b>}{(ITEMS[id].kind === 'med' || ITEMS[id].kind === 'tm') && <button class="btn small yellow" onClick={() => setUse(id)}>{ITEMS[id].kind === 'tm' ? '가르친다' : '쓴다'}</button>}</>} />)}
+			{ids.map(id => <ItemRow id={id} right={<>{ITEMS[id].kind !== 'tm' && <b class="sc-count">×{run.bag[id]}</b>}{['med', 'tm', 'evo'].includes(ITEMS[id].kind) && <button class="btn small yellow" onClick={() => setUse(id)}>{ITEMS[id].kind === 'tm' ? '가르친다' : '쓴다'}</button>}</>} />)}
 			<p class="muted small">회복 도구는 여기서나 배틀 중 「가방」에서 씁니다. 볼은 야생 포켓몬을 이긴 뒤에, 지닌 도구는 「포켓몬」 화면에서, 선물은 상대에게 말을 걸어 건넵니다.</p>
 			<button class="btn big" onClick={done}>돌아가기</button>
 		</>}

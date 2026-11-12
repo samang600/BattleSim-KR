@@ -3697,3 +3697,4 @@ button.sc-clock { font: inherit; cursor: pointer; } button.sc-clock:active { tra
 .sc-hpline.mid i b { background: #f0d040; } .sc-hpline.low i b { background: #f05a4a; } .sc-hpline.low { color: #ffb0a8; } .sc-hpline.fnt { color: #ff8a80; }
 button.sc-usemon { display: flex; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; margin-bottom: 6px; align-items: center; gap: 8px; } button.sc-usemon:disabled { filter: grayscale(.7) brightness(.7); cursor: default; } button.sc-usemon:active:not(:disabled) { transform: translate(2px, 2px); }
 .sc-pmon.fnt { filter: grayscale(1) brightness(.6); } .sc-pmon.hurt small { color: #ff9a8a; }
+.sc-res-mon.off { filter: grayscale(.8) brightness(.65); }

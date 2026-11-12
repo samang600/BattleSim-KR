@@ -210,7 +210,7 @@ export const WILDS: Wild[] = [
 
 // ───────── 물건 ─────────
 export interface Item {
-	name: string; price: number; kind: 'ball' | 'held' | 'gift' | 'sell' | 'med' | 'tm'; desc: string;
+	name: string; price: number; kind: 'ball' | 'held' | 'gift' | 'sell' | 'med' | 'tm' | 'evo'; desc: string;
 	/** 회복 도구: HP 회복량 · 기절 회복 · PP 회복량 */ fx?: { heal?: number; revive?: boolean; pp?: number }; /** 기술머신: 가르치는 기술 */ move?: string;
 	/** 아이콘: PokeAPI sprites 의 도구 그림 이름 (scenario-assets 브랜치 /scn/ico/) */ icon: string; /** 맞는 그림이 없는 물건: 픽셀 아이콘 이름 (vendor/pixelarticons) */ pxi?: string;
 	/** 볼: 잡힐 확률 */ rate?: number; /** 지닌 도구: 쇼다운 도구 id */ held?: string; /** 선물: 이슬의 취향 (2 좋아함 · 1 보통 · 0 싫어함) */ misty?: number; /** 다른 인물의 취향 (없으면 보통) */ like?: { [who: string]: number }; /** 팔 때 값 */ sell?: number;
@@ -267,6 +267,11 @@ export const ITEMS: { [id: string]: Item } = {
 	tm_flamethrower: { icon: 'tm', name: '기술머신 화염방사', price: 5000, kind: 'tm', move: 'flamethrower', desc: '배울 수 있는 포켓몬에게 「화염방사」를 가르친다. 몇 번이든 쓸 수 있다' },
 	tm_surf: { icon: 'tm', name: '기술머신 파도타기', price: 5000, kind: 'tm', move: 'surf', desc: '배울 수 있는 포켓몬에게 「파도타기」를 가르친다. 몇 번이든 쓸 수 있다' },
 	tm_psychic: { icon: 'tm', name: '기술머신 사이코키네시스', price: 5000, kind: 'tm', move: 'psychic', desc: '배울 수 있는 포켓몬에게 「사이코키네시스」를 가르친다. 몇 번이든 쓸 수 있다' },
+	firestone: { icon: 'fire-stone', name: '불꽃의돌', price: 2100, kind: 'evo', desc: '특정 포켓몬을 진화시키는 돌 (식스테일 · 가디 · 이브이)' },
+	waterstone: { icon: 'water-stone', name: '물의돌', price: 2100, kind: 'evo', desc: '특정 포켓몬을 진화시키는 돌 (슈륙챙이 · 셀러 · 별가사리 · 이브이)' },
+	thunderstone: { icon: 'thunder-stone', name: '천둥의돌', price: 2100, kind: 'evo', desc: '특정 포켓몬을 진화시키는 돌 (피카츄 · 이브이)' },
+	leafstone: { icon: 'leaf-stone', name: '리프의돌', price: 2100, kind: 'evo', desc: '특정 포켓몬을 진화시키는 돌 (냄새꼬 · 우츠동 · 아라리)' },
+	moonstone: { icon: 'moon-stone', name: '달의돌', price: 3000, kind: 'evo', desc: '특정 포켓몬을 진화시키는 돌 (니드리나 · 니드리노 · 삐삐 · 푸린)' },
 	nugget: { icon: 'nugget', name: '금구슬', price: 0, kind: 'sell', sell: 5000, desc: '순금으로 된 구슬. 가게에 비싸게 팔 수 있다' },
 };
 /** 가게 진열 (지역별). need: 이 표식이 있어야 진열 */
@@ -276,7 +281,7 @@ export const SHOPS: { [loc: string]: { name: string; who: string; items: [string
 	cerulean: { name: '프렌들리숍 · 기념품', who: 'clerk', items: [['potion'], ['superpotion'], ['pokeball'], ['greatball'], ['sitrusberry'], ['mysticwater'], ['quickclaw'], ['leftovers', 'badge2'], ['freshwater'], ['postcard'], ['moomoo'], ['shellnecklace'], ['pearl', 'badge2']] },
 	vermilion: { name: '프렌들리숍 · 항구 상점', who: 'clerk', items: [['potion'], ['superpotion'], ['revive'], ['pokeball'], ['greatball'], ['sitrusberry'], ['magnet'], ['sharpbeak'], ['shellbell', 'badge3'], ['seashell'], ['honey'], ['moomoo'], ['tm_dig'], ['tm_thunderwave']] },
 	lavender: { name: '프렌들리숍', who: 'clerk', items: [['superpotion'], ['hyperpotion'], ['revive'], ['elixir'], ['greatball'], ['ultraball'], ['sitrusberry'], ['spelltag'], ['leftovers'], ['letterset'], ['incense'], ['flowers']] },
-	celadon: { name: '무지개백화점', who: 'clerk', items: [['superpotion'], ['hyperpotion'], ['revive'], ['elixir'], ['greatball'], ['ultraball'], ['sitrusberry'], ['miracleseed'], ['charcoal'], ['mysticwater'], ['bigroot', 'badge4'], ['flowers'], ['vase'], ['pillow'], ['moomoo'], ['pearl'], ['tm_aerialace'], ['tm_brickbreak'], ['tm_rockslide'], ['tm_shadowball'], ['tm_energyball'], ['tm_thunderbolt'], ['tm_icebeam'], ['tm_flamethrower'], ['tm_surf'], ['tm_psychic']] },
+	celadon: { name: '무지개백화점', who: 'clerk', items: [['firestone'], ['waterstone'], ['thunderstone'], ['leafstone'], ['moonstone'], ['superpotion'], ['hyperpotion'], ['revive'], ['elixir'], ['greatball'], ['ultraball'], ['sitrusberry'], ['miracleseed'], ['charcoal'], ['mysticwater'], ['bigroot', 'badge4'], ['flowers'], ['vase'], ['pillow'], ['moomoo'], ['pearl'], ['tm_aerialace'], ['tm_brickbreak'], ['tm_rockslide'], ['tm_shadowball'], ['tm_energyball'], ['tm_thunderbolt'], ['tm_icebeam'], ['tm_flamethrower'], ['tm_surf'], ['tm_psychic']] },
 };
 
 // ───────── 처음 포켓몬 ─────────

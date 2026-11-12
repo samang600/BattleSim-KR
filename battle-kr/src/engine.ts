@@ -212,8 +212,8 @@ export class Session {
 	/** 시나리오: 내 팀 포켓몬 (처음 팀 순서 그대로) */
 	p1Orig: any[] = [];
 	/** 시나리오: 배틀이 끝난 뒤의 내 팀 상태 (팀 순서대로) — 남은 체력 비율과 기술별 PP */
-	p1Final(): { hp: number; pp: { [move: string]: number } }[] {
-		return this.p1Orig.map((p: any) => ({ hp: p.fainted || p.hp <= 0 ? 0 : p.hp / p.maxhp, pp: Object.fromEntries(p.baseMoveSlots.map((ms: any) => [ms.id, ms.pp])) }));
+	p1Final(): { hp: number; pp: { [move: string]: number }; used: boolean }[] {
+		return this.p1Orig.map((p: any) => ({ used: p.previouslySwitchedIn > 0, hp: p.fainted || p.hp <= 0 ? 0 : p.hp / p.maxhp, pp: Object.fromEntries(p.baseMoveSlots.map((ms: any) => [ms.id, ms.pp])) }));
 	}
 	/** 시나리오: 배틀 중 도구 사용 (회복·되살리기·PP 회복). 로그 줄만 쌓고, 턴은 choose('pass', true) 로 넘김. 쓸 수 없으면 false */
 	useItem(i: number, fx: { heal?: number; revive?: boolean; pp?: number }, label: string): boolean {

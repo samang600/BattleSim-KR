@@ -35,7 +35,7 @@ export interface BattleSetup {
 	/** 시나리오: 내 팀의 시작 HP·PP(팀 순서대로) · 끝난 뒤 상태를 돌려받음 · 배틀 중 쓸 수 있는 가방 */
 	story?: {
 		state?: ({ hp?: number; pp?: { [move: string]: number } } | undefined)[];
-		onFinal?: (st: { hp: number; pp: { [move: string]: number } }[]) => void;
+		onFinal?: (st: { hp: number; pp: { [move: string]: number }; /** 이 배틀에 한 번이라도 나왔는가 */ used: boolean }[]) => void;
 		/** 지금 가진 회복 도구 */
 		bag?: () => { id: string; name: string; desc: string; n: number; fx: { heal?: number; revive?: boolean; pp?: number } }[];
 		/** 하나 씀 */
