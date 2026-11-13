@@ -50,7 +50,7 @@ import type { ExtraTrainer } from './trainer-lore'; // battle-kr/src 에 넣을 
 export const MORE_ANIME: ExtraTrainer[] = [
 	{ id: "ash-sinnoh", name: "지우", title: "신오리그 영란대회 4강", region: "애니메이션", role: "hero", team: ["heracross", "torkoal", "swellow", "sceptile", "pikachu", "infernape"], sprite: "ash-sinnoh",
 		line: "신오리그에서 여기까지 왔어! 이번엔 꼭 이길 거야!", ace: "초염몽, 너로 정했다! 맹화로 단숨에 뒤집자!", lose: "졌다… 그래도 끝까지 싸워 준 모두가 자랑스러워!", win: "해냈다! 우리 팀워크가 최고야!", src: "written" },
-	{ id: "ash-orange", name: "지우", title: "오렌지리그 위너즈컵 우승", region: "애니메이션", role: "champion", team: ["bulbasaur", "squirtle", "tauros", "lapras", "charizard", "pikachu"], sprite: "ash-capbackward",
+	{ id: "ash-orange", name: "지우", title: "오렌지리그 위너즈컵 우승", region: "애니메이션", role: "hero", team: ["venusaur", "blastoise", "tauros", "lapras", "charizard", "pikachu"], sprite: "ash-capbackward",
 		line: "오렌지리그 우승자 태초마을의 지우다! 승부하자!", ace: "피카츄, 너로 정했다! 10만볼트!", lose: "으윽… 다음엔 꼭 이길 거야!", win: "해냈다, 피카츄! 우리가 이겼어!", src: "mixed" },
 	{ id: "gary", name: "오바람", title: "지우의 라이벌", region: "애니메이션", role: "rival", team: ["electivire", "tyranitar", "umbreon", "arcanine", "hatterene", "blastoise"], sprite: "blue-gen2",
 		line: "오랜만이다, 지우. 아니, 네가 상대였나? 실망시키지 마라.", ace: "거북왕, 나와라! 진짜 실력을 보여 줄 때다!", lose: "…흥, 인정하지. 너 꽤 강해졌구나.", win: "역시 아직 내가 한 수 위로군. 바이바이~", src: "written" },
