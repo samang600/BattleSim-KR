@@ -595,7 +595,8 @@ export async function runPWT() {
 	// 참가자 구성
 	const me = playerName();
 	let entrants: { name: string; title: string; team: () => PSet[]; skill: number; line?: string; named?: NamedTrainer; sprite?: string; lines?: any }[];
-	const named = cup.trainers().slice(0, 7).map(id => namedById(id));
+	// 같은 인물(예: 시기별 지우)은 한 대회에 한 번만 나옴 — 이름이 같으면 먼저 뽑힌 쪽만
+	const named = cup.trainers().map(id => namedById(id)).filter((t, i, a) => t && a.findIndex(x => x && x.name === t.name) === i).slice(0, 7);
 	if (named.length) {
 		entrants = named.map(t => ({ name: t.name, title: t.role === 'champion' ? '챔피언' : t.role === 'elite' ? '사천왕' : t.role === 'leader' ? '관장' : namedTitle(t), team: () => namedTeam(t, 6), skill: ['champion', 'boss', 'hero'].includes(t.role) ? 0.95 : ['elite', 'rival'].includes(t.role) ? 0.88 : 0.8, line: t.line, named: t, sprite: namedSprite(t), lines: namedLines(t) }));
 	} else {

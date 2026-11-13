@@ -597,6 +597,7 @@ function typeTint(type: string) {
 		case '-crit': { sfx('crit'); vibrate([30, 40, 30]); if (fxRef.current) FX.flash(fxRef.current); return 0; }
 		case '-miss': { sfx('miss'); return 0; }
 		case '-anim': {
+			comeBack(args[1]);   // 파워풀허브: 준비(-prepare)한 그 턴에 바로 공격함 — 숨긴 모습을 되돌림 (안 그러면 계속 안 보임)
 			// 쾌청 솔라빔·파워풀허브 2턴 기술·드래곤애로우 두 번째 등: 실제 기술 연출
 			if (settings.effects === false) return 300;
 			return Math.max(500, moveFx(p) + 300);
@@ -756,7 +757,15 @@ function typeTint(type: string) {
 		case '-item': { const m = activeMon(args[1]); if (m) { m.item = args[2]; m.itemSeen = true; } return 0; }
 		case '-enditem': { const m = activeMon(args[1]); if (m) { m.item = ''; m.itemSeen = true; } return 0; }
 		case '-ability': { const m = activeMon(args[1]); if (m) m.ability = args[2]; return 0; }
-		case 'turn': scene.turn = parseInt(args[1], 10); return 0;
+		case 'turn': {
+			scene.turn = parseInt(args[1], 10);
+			// 안전장치: 턴이 시작될 때 실제로는 숨어 있지 않은데(2턴 기술 준비 중도, 프리폴로 붙잡힌 것도 아님) 안 보이는 포켓몬은 다시 보이게
+			try {
+				const b: any = sessionRef.current?.battle;
+				if (b) for (const sd of ['p1', 'p2'] as const) scene[sd].active.forEach((m, i) => { const pk = b[sd]?.active?.[i]; if (m?.away && pk && !pk.volatiles?.twoturnmove && !pk.volatiles?.skydrop) { m.away = false; m.awayBy = undefined; } });
+			} catch { /* 표시용 */ }
+			return 0;
+		}
 		case 'teamsize': {
 			const side = scene[args[1] as 'p1' | 'p2'];
 			if (side) side.teamSize = parseInt(args[2], 10);
