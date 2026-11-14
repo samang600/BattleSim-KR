@@ -126,11 +126,13 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, te
 	const isDot = isAniDot(cur);   // 움직이는 도트: 발이 그림 맨 아래(여백 0), 크기 그대로
 	const pad = (cls === 'front' || cls === 'back') ? isDot ? 0 : us?.src === cur ? us.pad : (/\/gen5(-back)?(-shiny)?\/[^/]+\.png$/.test(cur) || cur.startsWith('data:image/png') || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? (PAD[id]?.[back ? 1 : 0] ?? 8) : 4) : undefined;
 	// 배틀 그림 크기 보정: 바뀐 모습 배율 × (3D 설정인데 3D 그림이 없어 도트 그림으로 나오면 3D 그림 크기에 맞춰 1.3배)
-	const isAni = /\.gif$/.test(cur);
-	const ks = isDot ? 1 : pad !== undefined ? (cur.includes(`/${id}.`) || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? SCALE[id]?.[isAni ? 1 : 0] ?? 1 : 1) * (useAnim && !isAni ? 1.3 : 1) : 1;
+	const isAni = /\.gif$/.test(cur) || cur.startsWith('data:image/gif');
+	// 앱에 넣은 큰 정지 그림(96칸보다 크고 여백 없이 잘린 그림): 다른 도트 그림과 키를 맞추고 발판에 그대로 세움
+	const fit = cur.startsWith('data:image/png') && cur === CUSTOM_SPRITES[`${id}${back ? '-back' : ''}${shiny ? '-shiny' : ''}`] ? CUSTOM_FIT[id] : undefined;
+	const ks = isDot ? 1 : fit && pad !== undefined ? fit : pad !== undefined ? (cur.includes(`/${id}.`) || cur.includes(`/${(ZA_MEGA as any)[id]}.png`) ? SCALE[id]?.[isAni ? 1 : 0] ?? 1 : 1) * (useAnim && !isAni ? 1.3 : 1) : 1;
 	// 움직이는 도트는 그림 안에서 이미 떠서 오르내림(프레임 아래 빈 줄의 중간값) → 띄우는 높이(16)에서 그만큼 빼서 정지 도트와 같은 높이로
 	const gap = isDot ? (ANI_FLOAT as any)[toID(species)]?.[back ? 1 : 0] : undefined;
-	const st = { maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': pad + 'px' } : {}), ...(ks !== 1 ? { '--ks': ks } : {}),
+	const st = { maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': (fit ? 0 : pad) + 'px' } : {}), ...(ks !== 1 ? { '--ks': ks } : {}),
 		...(gap ? { '--fy': `calc(var(--s) * ${Math.max(0, 16 - gap)}px)` } : {}) } as any;
 	// 테라스탈: 그림 모양대로 반투명 보석 결을 겹치는 SVG 필터 (TeraFilters) — 다른 사이트 그림에도 쓸 수 있음
 	return <img class={'sprite ' + (cls || '') + (isDot ? ' anidot' : '')} src={cur} alt={species} loading="lazy" style={tera ? { ...st, filter: `url(#tera-${tera})` } : st} onError={() => setIdx(idx + 1)} draggable={false} />;
@@ -140,6 +142,10 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, te
 declare const __CUSTOM_SPRITES__: Record<string, string>;
 /** 직접 만든 그림 (build.mjs 가 src/sprites-custom 에서 넣음): 앞모습만 있으면 뒷모습은 평소 그림 */
 export const CUSTOM_SPRITES: Record<string, string> = typeof __CUSTOM_SPRITES__ === 'object' ? __CUSTOM_SPRITES__ : {};
+declare const __CUSTOM_ANIM__: Record<string, string>;
+/** 앱에 넣은 움직이는 그림 (서버에 없는 모습 — 메가지가르데) */
+const CUSTOM_FIT: Record<string, number> = { 'zygarde-mega': 0.75 };
+const CUSTOM_ANIM: Record<string, string> = typeof __CUSTOM_ANIM__ === 'object' ? __CUSTOM_ANIM__ : {};
 function spriteCandidates(species: string, id: string, back: boolean, shiny: boolean, useAnim: boolean, gen: Gen): string[] {
 	const b = back ? '-back' : '', sh = shiny ? '-shiny' : '';
 	// 사용자가 넣은 그림: 정지 도트 그림이면 가장 먼저, 3D 그림 설정이면 다른 그림을 못 받을 때(이름 카드 대신)
@@ -147,7 +153,8 @@ function spriteCandidates(species: string, id: string, back: boolean, shiny: boo
 	const custom = CUSTOM_SPRITES[`${id}${b}${sh}`];
 	if (user && !useAnim) return [user];
 	// 앱에 넣은 도트 그림(9세대 진짜 뒷모습 등): 정지 그림 설정이면 그것, 3D 그림 설정이면 3D 그림이 먼저(못 받으면 도트)
-	if (custom) { const l = useAnim && online() ? [`${SPRITE_HOST}/ani${b}${sh}/${id}.gif`, custom] : [custom]; return user ? [...l, user] : l; }
+	const canim = useAnim ? CUSTOM_ANIM[`${id}${b}${sh}`] : undefined;
+	if (custom) { const l = canim ? [canim, custom] : useAnim && online() ? [`${SPRITE_HOST}/ani${b}${sh}/${id}.gif`, custom] : [custom]; return user ? [...l, user] : l; }
 	const withUser = (l: string[]) => user ? [...l, user] : l;
 	const sb = spriteBase();
 	if (id === 'substitute') return sb ? [`${sb}substitutes/gen5${b}/substitute.png`, `${SPRITE_HOST}/substitutes/gen5${b}/substitute.png`] : [`${SPRITE_HOST}/substitutes/gen5${b}/substitute.png`];

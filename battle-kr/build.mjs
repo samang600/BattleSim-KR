@@ -58,6 +58,8 @@ console.log('저장소', REPO, '·', branch);
 // 직접 만든 그림 (src/sprites-custom/<id>[-shiny].png) — 서버 그림 대신 항상 이것을 씀
 const customDir = path.join(HERE, 'src/sprites-custom');
 const CUSTOM_SPRITES = Object.fromEntries(fs.existsSync(customDir) ? fs.readdirSync(customDir).filter(f => f.endsWith('.png')).map(f => [f.slice(0, -4), 'data:image/png;base64,' + fs.readFileSync(path.join(customDir, f)).toString('base64')]) : []);
+// 움직이는 그림 (src/sprites-custom/<id>[-back][-shiny].gif) — '움직이는 그림' 설정일 때 서버 그림 대신 씀
+const CUSTOM_ANIM = Object.fromEntries(fs.existsSync(customDir) ? fs.readdirSync(customDir).filter(f => f.endsWith('.gif')).map(f => [f.slice(0, -4), 'data:image/gif;base64,' + fs.readFileSync(path.join(customDir, f)).toString('base64')]) : []);
 const result = await esbuild.build({
 	entryPoints: [path.join(HERE, args.has('--test') ? 'test/selfplay.ts' : 'src/main.tsx')],
 	bundle: true,
@@ -74,7 +76,7 @@ const result = await esbuild.build({
 		'__DEV_BUILD__': String(!!process.env.DEV_BUILD), '__BUILD_REV__': JSON.stringify(git('git log -1 --format=%h·%cd --date=format:%m-%d_%H:%M', '')),
 		'__APP_VERSION__': JSON.stringify(JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8')).version),
 		// 앱 안에 들어 있는 울음소리 목록 (public/cries, scripts/fetch-sprites.sh)
-		'__LITE__': String(lite), '__BUNDLED__': String(!lite), '__ANIM_BASE__': JSON.stringify(ANIM_BASE), '__PACK_URLS__': JSON.stringify(PACK_URLS), '__CUSTOM_SPRITES__': JSON.stringify(CUSTOM_SPRITES), '__BGM_LOOPS__': '{}',
+		'__LITE__': String(lite), '__BUNDLED__': String(!lite), '__ANIM_BASE__': JSON.stringify(ANIM_BASE), '__PACK_URLS__': JSON.stringify(PACK_URLS), '__CUSTOM_SPRITES__': JSON.stringify(CUSTOM_SPRITES), '__CUSTOM_ANIM__': JSON.stringify(CUSTOM_ANIM), '__BGM_LOOPS__': '{}',
 		'__LOCAL_CRIES__': JSON.stringify(fs.existsSync(path.join(HERE, 'public/cries')) ? fs.readdirSync(path.join(HERE, 'public/cries')).filter(f => f.endsWith('.mp3')).map(f => f.slice(0, -4)).join(',') : '') },
 	jsx: 'automatic',
 	jsxImportSource: 'preact',
