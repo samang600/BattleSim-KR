@@ -282,20 +282,21 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 		<div class="cp-mp set-mp">
 			<div class="cp-mp-head"><span class="cp-mp-spr big"><Sprite species={s.species} gen={gen} size={96} shiny={s.shiny} /></span>
 				<div><span>{sd.t.map(t => <TypeBadge type={t} />)}</span>
-					<label class="sel-row nick-row"><span>닉네임</span>
-						<input maxLength={12} placeholder={nickKo(toID(s.species))} value={s.name && s.name !== nickKo(toID(s.species)) ? s.name : ''}
-							onInput={e => { const v = (e.target as HTMLInputElement).value.replace(/[,|[\]]/g, ''); up({ name: v.trim() ? v : nickKo(toID(s.species)) }); }} /></label>
-					<div class="set-headbtns"><button class="btn small" onClick={() => openPicker({ kind: 'etc' })}>모습·성별·볼</button>
+					<div class="set-namerow"><input class="set-nick" aria-label="닉네임" maxLength={12} placeholder={nickKo(toID(s.species))} value={s.name && s.name !== nickKo(toID(s.species)) ? s.name : ''}
+							onInput={e => { const v = (e.target as HTMLInputElement).value.replace(/[,|[\]]/g, ''); up({ name: v.trim() ? v : nickKo(toID(s.species)) }); }} />
+						<button class={'set-tg shiny' + (s.shiny ? ' on' : '')} onClick={() => up({ shiny: !s.shiny })} aria-pressed={!!s.shiny} aria-label="색이 다른 포켓몬" title="색이 다른 포켓몬"><i /></button>
+						<button class={'set-tg gender ' + (sd.gr || s.gender || 'R')} disabled={!!sd.gr} onClick={() => up({ gender: s.gender === 'M' ? 'F' : s.gender === 'F' ? '' : 'M' })} aria-label="성별" title={sd.gr ? '성별 고정' : '성별: 누르면 수컷 → 암컷 → 무작위'}>{(sd.gr || s.gender) === 'M' ? '수컷' : (sd.gr || s.gender) === 'F' ? '암컷' : sd.gr === 'N' ? '없음' : '무작위'}</button></div>
+					<div class="set-headbtns"><button class="btn small" onClick={() => openPicker({ kind: 'etc' })}>모습·볼</button>
 						<button class="btn ghost small" onClick={() => { const n = randomSetFor(toID(s.species), gen, 50); n.shiny = s.shiny; setS(n); onChange(n); toast('추천 세트로 바꿨습니다'); }}>추천 세트</button></div>
 				</div></div>
 			<div class="cp-pn set-pn"><div class="cp-mrows">
 				{row('item', '도구', s.item ? <><ItemIcon item={s.item} size={24} />{itemKo(s.item)}</> : '없음')}
 				{row('ability', '특성', abilityKo(s.ability), !cheat && sd.ab.length < 2)}
+				<p class="cp-mdesc">{abilityDesc(s.ability)}</p>
 				{row('nature', '성격', <>{nat?.n || s.nature}{nat?.p ? <small> {STAT_SHORT[nat.p]}▲ {STAT_SHORT[nat.m]}▼</small> : null}</>)}
 				{row('tera', '테라 타입', <><TypeBadge type={tera} small />{fixedTera(s.species) ? <small> 고정</small> : null}</>, !!fixedTera(s.species))}
 				{row('sp', evDisplay() ? '노력치' : '능력 포인트', <small class={spTotal > SP_TOTAL ? 'bad' : ''}>{spText} ({cheat ? spTotal : `${spTotal}/${SP_TOTAL}`})</small>)}
 			</div></div>
-			<p class="muted small set-abdesc">{abilityDesc(s.ability)}</p>
 			<div class="cp-mmoves set-moves">{[0, 1, 2, 3].map(i => { const m = s.moves[i], md = m ? moveData(m, gen) : null;
 				return <button onClick={() => openPicker({ kind: 'move', idx: Math.min(i, s.moves.length) })}>
 					{md ? <><span class="pm-icons"><TypeBadge type={md.type} small /><CatIcon cat={md.category} /></span><b>{md.name}</b>
@@ -319,8 +320,7 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 				<div><b>{n.n}</b><small>{n.p ? `${STAT_SHORT[n.p]}▲ ${STAT_SHORT[n.m]}▼` : '변화 없음'}</small></div></button>)}</div></Modal>}
 		{picker?.kind === 'tera' && <Modal title="테라스탈 타입" onClose={close}>
 			<div class="cp-opts grid">{ALL_TYPES.map(t => <button class={'cp-opt' + (tera === t ? ' cur' : '')} disabled={tera === t} onClick={() => { up({ teraType: t }); close(); }}><TypeBadge type={t} small /><div><b>{typeKo(t)}</b></div></button>)}</div></Modal>}
-		{picker?.kind === 'etc' && <Modal title="모습 · 성별 · 볼" onClose={close}><div class="set-etc">
-			<label class="check"><input type="checkbox" checked={!!s.shiny} onChange={e => up({ shiny: (e.target as HTMLInputElement).checked })} /> 색이 다른 포켓몬</label>
+		{picker?.kind === 'etc' && <Modal title="모습 · 볼" onClose={close}><div class="set-etc">
 			{formes.length > 1 && <label class="sel-row"><span>모습</span>
 				<select value={toID(s.species)} onChange={e => {
 					const f = speciesData((e.target as HTMLSelectElement).value, gen)!;
@@ -331,10 +331,6 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 					up({ species: f.en, name: !s.name || s.name === nickKo(toID(s.species)) ? nickKo(toID(f.en)) : s.name, ability: f.ab.includes(s.ability) ? s.ability : f.ab[0], teraType: s.teraType && (sd.t.includes(s.teraType) ? f.t[0] : s.teraType), moves });
 					if (dropped.length) toast(`${f.n} 모습이 배울 수 없는 기술을 뺐어요: ${dropped.map(m => moveData(toID(m), gen)?.name || m).join(', ')}`);
 				}}>{formes.map(f => <option value={f.id}>{f.n}{cheat && (f.req || f.bo) ? ' (배틀 중 모습)' : ''}</option>)}</select></label>}
-			<label class="sel-row"><span>성별</span>
-				{sd.gr ? <b class="muted">{sd.gr === 'M' ? '♂ 수컷' : sd.gr === 'F' ? '♀ 암컷' : '성별 없음'}</b> :
-				<select value={s.gender || ''} onChange={e => up({ gender: (e.target as HTMLSelectElement).value })}>
-					<option value="">무작위</option><option value="M">♂ 수컷</option><option value="F">♀ 암컷</option></select>}</label>
 			{sd.gx && <label class="check"><input type="checkbox" checked={!!s.gigantamax} onChange={e => up({ gigantamax: (e.target as HTMLInputElement).checked })} /> 거다이맥스 <small class="muted">(다이맥스할 때 거다이맥스 모습·기술)</small></label>}
 			<h3 class="sec">볼 <small class="muted">나올 때 볼의 색과 빛이 달라집니다</small></h3>
 			<div class="ball-grid">{allBalls().map(b => <button class={'ball-cell' + ((s.pokeball || 'pokeball') === b.id ? ' on' : '')} onClick={() => up({ pokeball: b.id })}>

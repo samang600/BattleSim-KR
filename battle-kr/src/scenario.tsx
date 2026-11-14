@@ -612,15 +612,30 @@ function MonEdit({ run, m, done }: { run: Run; m: Mon; done: () => void }) {
 			<div class="cp-opts">{rest.map(mv => { const md = moveData(mv, 9); return <button class="cp-opt" onClick={() => put(mv)}>{md && <TypeBadge type={md.type} small />}<div><b>{moveKo(mv)}</b>
 				{md && <small>{md.category === 'Status' ? '변화' : `${md.category === 'Physical' ? '물리' : '특수'} · 위력 ${md.basePower || '-'}`} · 명중 {md.accuracy || '-'}</small>}</div></button>; })}
 				{!rest.length && <p class="muted small">더 배운 기술이 없어요. 레벨이 오르거나 기술머신을 쓰면 늘어납니다.</p>}</div></Modal>; }
+	const inParty = run.party.includes(m), pi = run.party.indexOf(m), bi = run.box.indexOf(m);
+	const act = (f: () => void) => { f(); sfx('select'); persist(run); done(); };
+	const release = async () => {
+		if (inParty && run.party.length <= 1) { toast('마지막 한 마리는 놓아줄 수 없어요'); return; }
+		if (!(await confirmBox('놓아주기', `${josa(speciesKo(m.sp), '을', '를')} (Lv${m.lv}) 야생으로 돌려보낼까요?\n되돌릴 수 없어요.`, '놓아준다', '그만두기'))) return;
+		if (m.item) give(run, m.item);
+		(inParty ? run.party : run.box).splice(inParty ? pi : bi, 1); persist(run); toast(`${josa(speciesKo(m.sp), '은', '는')} 풀숲으로 돌아갔다. 안녕!`); done();
+	};
 	return <Modal title={speciesKo(m.sp)} onClose={done}><div class="cp-mp">
 		<div class="cp-mp-head"><span class="cp-mp-spr"><Sprite species={m.sp} gen={9} size={64} anim={false} /></span>
 			<div><span>{(s?.t || []).map((t: string) => <TypeBadge type={t} small />)} <small>Lv{m.lv}</small></span>
+				<HpLine m={m} />
 				<i class="sc-xp wide"><b style={{ width: (m.lv >= lvCap(run) ? 100 : Math.round(100 * m.exp / expNeed(m.lv))) + '%' }} /></i>
 				<small>{m.lv >= lvCap(run) ? `레벨 상한 (Lv${lvCap(run)})` : `다음 레벨까지 ${expNeed(m.lv) - m.exp}`}{LU[m.sp]?.e ? ` · Lv${LU[m.sp].e![1]}에 ${josa(speciesKo(LU[m.sp].e![0]), '으로', '로')} 진화` : LU[m.sp]?.s ? ` · ${LU[m.sp].s!.map(([, st]) => ITEMS[st]?.name).filter(Boolean).join('·')}로 진화` : ''}</small></div></div>
 		<div class="cp-mrows"><button class="cp-mrow" onClick={() => setSub('item')}><small>도구</small><b>{m.item ? <><ItemIcon item={ITEMS[m.item].held!} size={24} />{ITEMS[m.item].name}</> : '없음'}</b><em>바꾸기</em></button></div>
 		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = cur[k] ? moveData(cur[k], 9) : null; return <button onClick={() => setSub({ move: Math.min(k, cur.length) })}>
 			{md && <TypeBadge type={md.type} small />}<b class={cur[k] ? '' : 'muted'}>{cur[k] ? moveKo(cur[k]) : '+ 기술'}</b><em>{md ? (md.category === 'Status' ? '변화' : `위력 ${md.basePower || '-'}`) : ''}</em></button>; })}</div>
 		<p class="muted small">기술은 4개까지 · 배운 기술 {all.length}개 가운데 고릅니다.</p>
+		<div class="cp-mfoot three">
+			{inParty ? <button class="btn small" disabled={pi === 0} onClick={() => act(() => { run.party.splice(pi, 1); run.party.unshift(m); })}>선두로</button>
+				: <button class="btn small primary" disabled={run.party.length >= 6} onClick={() => act(() => { run.box.splice(bi, 1); run.party.push(m); })}>파티로</button>}
+			{inParty ? <button class="btn small" disabled={run.party.length <= 1} onClick={() => act(() => { run.party.splice(pi, 1); run.box.push(m); })}>박스로</button>
+				: <button class="btn small" disabled>박스에 있음</button>}
+			<button class="btn small ghost" onClick={release}>놓아주기</button></div>
 	</div></Modal>;
 }
 function MonCard({ m, children, onClick }: { m: Mon; children?: any; onClick?: () => void }) {
@@ -634,21 +649,25 @@ function MonCard({ m, children, onClick }: { m: Mon; children?: any; onClick?: (
 		<div class="sc-mon-btns">{children}</div>
 	</div>;
 }
+const BOX_SIZE = 30;
+/** 포켓몬 · 박스 (한 화면): 위에 파티 6칸, 아래에 박스 격자 — 챔피언스 로스터와 같은 모양. 누르면 포켓몬 창 */
 function PartyScreen({ run, done }: { run: Run; done: () => void }) {
-	const [, tick] = useState(0), [edit, setEdit] = useState<Mon | null>(null);
+	const [, tick] = useState(0), [edit, setEdit] = useState<Mon | null>(null), [page, setPage] = useState(0);
 	const re = () => { persist(run); tick(x => x + 1); };
+	const pages = Math.max(1, Math.ceil((run.box.length + 1) / BOX_SIZE)), pg = Math.min(page, pages - 1);
+	const held = (m: Mon) => m.item ? <span class="cp-held"><ItemIcon item={ITEMS[m.item].held!} size={16} /></span> : null;
+	const sortBox = (by: 'lv' | 'no') => { run.box.sort((a, b) => by === 'lv' ? b.lv - a.lv : ((speciesData(a.sp, 9) as any)?.num || 0) - ((speciesData(b.sp, 9) as any)?.num || 0) || b.lv - a.lv); sfx('select'); re(); };
 	return <><Screen title="포켓몬" onBack={done} cls="sc-scr"><Back />
-		<h3 class="sec">파티 <small class="muted">{run.party.length}/6 · 맨 위가 선두{run.tag ? ' · 태그 배틀은 위 3마리가 나가요' : ''} · 넣고 빼기는 아래 메뉴의 「박스」</small></h3>
-		{run.party.map((m, i) => <MonCard m={m} onClick={() => setEdit(m)}>
-			<button class="btn small" onClick={() => setEdit(m)}>기술·도구</button>
-			{i > 0 && <button class="btn small" onClick={() => { run.party.splice(i, 1); run.party.splice(i - 1, 0, m); re(); }}>▲</button>}
-			{run.party.length > 1 && <button class="btn small ghost" onClick={() => { run.party.splice(i, 1); run.box.push(m); re(); }}>박스로</button>}
-		</MonCard>)}
-		{run.box.length > 0 && <h3 class="sec">박스 <small class="muted">{run.box.length} · 박스의 포켓몬은 경험치를 받지 않아요</small></h3>}
-		{run.box.map((m, i) => <MonCard m={m} onClick={() => setEdit(m)}>
-			<button class="btn small" disabled={run.party.length >= 6} onClick={() => { run.box.splice(i, 1); run.party.push(m); re(); }}>파티로</button>
-		</MonCard>)}
-		<button class="btn big" onClick={done}>돌아가기</button>
+		<div class="cp-pc sc-pc"><div class="cp-party"><b>파티<small>{run.party.length} / 6 · 맨 앞이 선두{run.tag ? ' · 태그 배틀은 앞 3마리' : ''}</small></b>
+			<div>{[0, 1, 2, 3, 4, 5].map(k => { const m = run.party[k]; return <button class={'cp-slot' + (m ? ((m.hpf ?? 1) <= 0 ? ' fnt' : '') : ' empty')} disabled={!m} onClick={() => m && setEdit(m)}>
+				{m ? <><PokeIcon species={m.sp} />{held(m)}<small>Lv{m.lv}</small><i class="sc-slothp"><b style={{ width: Math.round((m.hpf ?? 1) * 100) + '%' }} /></i></> : null}</button>; })}</div></div>
+		<div class="cp-box">
+			<div class="cp-box-head"><button disabled={pg <= 0} onClick={() => setPage(pg - 1)} aria-label="앞 박스" class="prev" /><b>박스 {pg + 1}{pages > 1 && <small>/ {pages}</small>}</b><button disabled={pg >= pages - 1} onClick={() => setPage(pg + 1)} aria-label="다음 박스" /></div>
+			<div class="cp-box-grid">{Array.from({ length: BOX_SIZE }, (_, k) => { const m = run.box[pg * BOX_SIZE + k]; return <button class={'cp-cell' + (m ? '' : ' empty')} disabled={!m} onClick={() => m && setEdit(m)}>
+				{m && <><PokeIcon species={m.sp} />{held(m)}<i>{m.lv}</i></>}</button>; })}</div>
+		</div></div>
+		<p class="muted small">포켓몬을 누르면 기술·도구를 바꾸고, 선두로 세우거나 파티와 박스 사이를 옮길 수 있어요. 박스의 포켓몬({run.box.length}마리)은 경험치를 받지 않아요.</p>
+		<div class="sc-box-btns foot"><button class="btn small" onClick={() => sortBox('no')}>도감 번호순</button><button class="btn small" onClick={() => sortBox('lv')}>레벨순</button><button class="btn" onClick={done}>닫기</button></div>
 	</Screen>{edit && <MonEdit run={run} m={edit} done={() => { setEdit(null); re(); }} />}</>;
 }
 const KIND_KO: { [k: string]: string } = { ball: '볼', held: '지닌 도구', gift: '선물', sell: '귀중품', med: '회복', tm: '기술머신', evo: '진화의 돌' };
@@ -730,59 +749,6 @@ function RouteScreen({ run, done }: { run: Run; done: () => void }) {
 	</Screen>;
 }
 /** 박스: 파티(6칸)와 박스(30칸씩)의 포켓몬을 옮기고 바꿈. 한 마리를 누른 뒤 다른 칸을 누르면 자리를 바꾸고, 빈 칸을 누르면 옮김 */
-const BOX_SIZE = 30;
-function BoxScreen({ run, done }: { run: Run; done: () => void }) {
-	const [, tick] = useState(0), [sel, setSel] = useState<{ w: 'p' | 'b'; i: number } | null>(null), [page, setPage] = useState(0), [edit, setEdit] = useState<Mon | null>(null);
-	const re = () => { persist(run); tick(x => x + 1); };
-	const pages = Math.max(1, Math.ceil((run.box.length + 1) / BOX_SIZE)), pg = Math.min(page, pages - 1);
-	const at = (w: 'p' | 'b', i: number): Mon | undefined => (w === 'p' ? run.party : run.box)[i];
-	const cur = sel ? at(sel.w, sel.i) : undefined;
-	const tap = (w: 'p' | 'b', i: number) => {
-		const m = at(w, i);
-		if (!sel || !cur) { if (m) { sfx('select'); setSel({ w, i }); } return; }
-		if (sel.w === w && sel.i === i) { setSel(null); return; }
-		const A = sel.w === 'p' ? run.party : run.box, B = w === 'p' ? run.party : run.box;
-		if (m) { A[sel.i] = m; B[i] = cur; }                                   // 자리 바꾸기
-		else {                                                                 // 빈 칸으로 옮기기
-			if (sel.w === 'p' && w === 'b' && run.party.length <= 1) { toast('파티에는 한 마리가 남아 있어야 해요'); return; }
-			if (w === 'p' && sel.w === 'b' && run.party.length >= 6) { toast('파티가 가득 찼어요'); return; }
-			if (sel.w !== w) { A.splice(sel.i, 1); B.push(cur); } else { A.splice(sel.i, 1); A.push(cur); }
-		}
-		sfx('select'); setSel(null); re();
-	};
-	const release = async () => {
-		if (!sel || !cur) return;
-		if (sel.w === 'p' && run.party.length <= 1) { toast('마지막 한 마리는 놓아줄 수 없어요'); return; }
-		if (!(await confirmBox('놓아주기', `${josa(speciesKo(cur.sp), '을', '를')} (Lv${cur.lv}) 야생으로 돌려보낼까요?\n되돌릴 수 없어요.`, '놓아준다', '그만두기'))) return;
-		if (cur.item) give(run, cur.item);
-		(sel.w === 'p' ? run.party : run.box).splice(sel.i, 1); setSel(null); re(); toast(`${josa(speciesKo(cur.sp), '은', '는')} 풀숲으로 돌아갔다. 안녕!`);
-	};
-	const sortBox = (by: 'lv' | 'no') => { run.box.sort((a, b) => by === 'lv' ? b.lv - a.lv : ((speciesData(a.sp, 9) as any)?.num || 0) - ((speciesData(b.sp, 9) as any)?.num || 0) || b.lv - a.lv); setSel(null); re(); };
-	const cell = (w: 'p' | 'b', i: number) => { const m = at(w, i), on = sel?.w === w && sel.i === i;
-		return <button class={'sc-box-cell' + (m ? '' : ' empty') + (on ? ' on' : '')} onClick={() => tap(w, i)}>{m && <><PokeIcon species={m.sp} /><small>Lv{m.lv}</small>{m.item && <i class="sc-box-item" />}</>}</button>; };
-	const s = cur ? speciesData(cur.sp, 9) as any : null;
-	return <Screen title="포켓몬 박스" onBack={done} cls="sc-scr sc-boxscr"><Back />
-		<h3 class="sec">파티 <small class="muted">{run.party.length}/6 · 맨 앞이 선두</small></h3>
-		<div class="sc-box-grid party">{[0, 1, 2, 3, 4, 5].map(i => cell('p', i))}</div>
-		<div class="sc-box-head">
-			<button class="btn small" disabled={pg <= 0} onClick={() => { setPage(pg - 1); setSel(null); }}>◀</button>
-			<b>박스 {pg + 1} <small>/ {pages} · 맡긴 포켓몬 {run.box.length}마리</small></b>
-			<button class="btn small" disabled={pg >= pages - 1} onClick={() => { setPage(pg + 1); setSel(null); }}>▶</button>
-		</div>
-		<div class="sc-box-grid">{Array.from({ length: BOX_SIZE }, (_, k) => cell('b', pg * BOX_SIZE + k))}</div>
-		<div class="sc-box-info">{cur && s ? <>
-			<div class="sc-box-who"><Sprite species={cur.sp} gen={9} size={64} anim={false} />
-				<div><b>{speciesKo(cur.sp)} <small>Lv{cur.lv}</small></b><span class="sc-types">{(s.t || []).map((t: string) => <TypeBadge type={t} />)}</span>
-					<small>{movesOf(cur).map(moveKo).join(' · ')}{cur.item ? ` · ${ITEMS[cur.item].name}` : ''}</small></div></div>
-			<div class="sc-box-btns">
-				{sel!.w === 'b' ? <button class="btn small" disabled={run.party.length >= 6} onClick={() => { run.box.splice(sel!.i, 1); run.party.push(cur); setSel(null); re(); }}>파티로</button>
-					: <button class="btn small" disabled={run.party.length <= 1} onClick={() => { run.party.splice(sel!.i, 1); run.box.push(cur); setSel(null); re(); }}>박스로</button>}
-				<button class="btn small" onClick={() => setEdit(cur)}>기술·도구</button>
-				<button class="btn small ghost" onClick={release}>놓아주기</button>
-			</div></> : <p class="muted small">포켓몬을 누르면 고르고, 이어서 다른 칸을 누르면 자리를 바꾸거나 옮겨요. 박스의 포켓몬은 경험치를 받지 않아요.</p>}</div>
-		<div class="sc-box-btns foot"><button class="btn small" onClick={() => sortBox('no')}>도감 번호순</button><button class="btn small" onClick={() => sortBox('lv')}>레벨순</button><button class="btn" onClick={done}>닫기</button></div>
-	</Screen>;
-}
 function StarterPick({ done }: { done: (i: number) => void }) {
 	const [sel, setSel] = useState(-1);
 	const sp = sel >= 0 ? STARTERS[sel][0] : '';
@@ -947,7 +913,7 @@ export async function runScenario(tools?: { settings: (onBack: () => void, onTit
 			if (await confirmBox('시간 보내기', `여기서 ${next}까지 기다릴까요?`, '기다린다', '그만두기')) { await E.fx('fade', 500); await E.tick(); }
 			continue;
 		}
-		if (a.k === 'box') { await ask<void>(r => <BoxScreen run={run} done={r} />); continue; }
+		if (a.k === 'box') { await ask<void>(r => <PartyScreen run={run} done={r} />); continue; }
 		if (a.k === 'party') { await ask<void>(r => <PartyScreen run={run} done={r} />); continue; }
 		if (a.k === 'bag') { await ask<void>(r => <BagScreen run={run} done={r} />); continue; }
 		if (a.k === 'route') { await ask<void>(r => <RouteScreen run={run} done={r} />); continue; }
