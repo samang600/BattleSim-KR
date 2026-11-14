@@ -14,7 +14,7 @@ import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { load, save, loadSettings } from './store';
 import { loadWallet, earnBP, spendBP, onWallet } from './rewards';
 import { ruleById, applyRuleData, teamRuleIssues, speciesAllowed } from './rules';
-import { speciesKo, speciesData, moveData, moveKo, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, toID, ALL_TYPES } from './data';
+import { speciesKo, speciesData, moveData, moveKo, abilityDesc, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, toID, ALL_TYPES } from './data';
 import { playMusic, sfx } from './sound';
 import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, START_ITEMS, SHOP, NATURES } from './champions-data';
 
@@ -308,7 +308,10 @@ const BOX = 30;
 const PLAIN_ITEMS = new Set([...START_ITEMS, ...SHOP.flatMap(c => c[2])]);
 type Sub = null | 'item' | 'nature' | 'ability' | 'sp' | 'tera' | 'detail' | { move: number };
 function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
-	const [page, setPage] = useState(0), [sel, setSel] = useState<CMon | null>(null), [sub, setSub] = useState<Sub>(null), [, tick] = useState(0);
+	const [page, setPage] = useState(0), [sel, setSel0] = useState<CMon | null>(null), [sub, setSub] = useState<Sub>(null), [, tick] = useState(0);
+	/** 고치는 중인 사본: 저장을 눌러야 값을 치르고 반영됨 */
+	const [draft, setDraft] = useState<PSet | null>(null);
+	const setSel = (m: CMon | null) => { setSel0(m); setDraft(m ? cloneSet(m.set) : null); setSub(null); };
 	const re = () => { persist(S); tick(x => x + 1); };
 	const pages = Math.max(1, Math.ceil(T(S).cap / BOX)), team = teamOf(S);
 	const box = S.roster.slice(page * BOX, page * BOX + BOX), cap = Math.min(BOX, T(S).cap - page * BOX);
@@ -324,30 +327,52 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 			<div class="cp-box-grid">{Array.from({ length: cap }, (_, k) => cell(box[k], k))}</div>
 		</div></div>
 		<p class="cp-note">포켓몬을 누르면 팀에 넣고 빼기·도구·트레이닝 창이 열립니다. 숫자가 붙은 포켓몬이 지금 팀입니다. 팀은 화살표로 넘겨 {TEAM_MAX}개까지 따로 짤 수 있고, 지금 보이는 팀으로 배틀에 나갑니다.</p>
-		{sel && !sub && <MonPop S={S} m={sel} open={setSub} close={() => setSel(null)} re={re} />}
-		{sel && sub && <SubPop S={S} m={sel} sub={sub} back={() => setSub(null)} re={re} />}
+		{sel && draft && !sub && <MonPop S={S} m={sel} d={draft} open={setSub} close={() => setSel(null)} re={re} />}
+		{sel && draft && sub && <SubPop S={S} m={sel} d={draft} sub={sub} back={() => { setSub(null); tick(x => x + 1); }} />}
 	</Screen>;
 }
-/** 포켓몬 창: 한눈에 보고, 줄을 누르면 그 항목을 바꾸는 창이 열림 */
-function MonPop({ S, m, open, close, re }: { S: CSave; m: CMon; open: (s: Sub) => void; close: () => void; re: () => void }) {
-	const s = m.set, inTeam = S.team.includes(m.id), sp = spOf(s), name = speciesKo(s.species), nat = NATURES.find(n => n[0] === toID(s.nature));
-	const row = (k: Sub, label: string, val: any, cost?: number) => <button class="cp-mrow" onClick={() => { sfx('select'); open(k); }}><small>{label}</small><b>{val}</b><em class={cost === undefined ? 'free' : ''}>{cost === undefined ? '무료' : cost + ' BP'}</em></button>;
+/** 트레이닝 값: 원래 세트와 고친 사본을 견주어 바뀐 항목만 (특성·성격·테라·능력 포인트 + 바뀐 기술 칸마다) */
+function trainCost(o: PSet, d: PSet) {
+	const tera = (x: PSet) => x.teraType || types(x.species)[0];
+	const parts: [string, number][] = [];
+	if (toID(o.ability) !== toID(d.ability)) parts.push(['특성', PRICE.ability]);
+	if (toID(o.nature) !== toID(d.nature)) parts.push(['성격', PRICE.nature]);
+	if (tera(o) !== tera(d)) parts.push(['테라 타입', PRICE.tera]);
+	if (STAT_KEYS.some(k => (o.evs[k] || 0) !== (d.evs[k] || 0))) parts.push(['능력 포인트', PRICE.sp]);
+	const mv = [0, 1, 2, 3].filter(k => (o.moves[k] || '') !== (d.moves[k] || '')).length;
+	if (mv) parts.push([`기술 ${mv}개`, mv * PRICE.move]);
+	return { parts, total: parts.reduce((a, x) => a + x[1], 0), dirty: parts.length > 0 || toID(o.item) !== toID(d.item) };
+}
+/** 포켓몬 창: 줄을 누르면 그 항목을 고르는 창이 열림. 고친 것은 「저장」을 눌러야 한 번에 값을 치르고 반영됨 */
+function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open: (s: Sub) => void; close: () => void; re: () => void }) {
+	const o = m.set, inTeam = S.team.includes(m.id), sp = spOf(d), name = speciesKo(o.species), nat = NATURES.find(n => n[0] === toID(d.nature));
+	const c = trainCost(o, d), ch = (label: string) => c.parts.some(x => x[0] === label);
+	const row = (k: Sub, label: string, val: any, cost?: number, changed = false) => <button class={'cp-mrow' + (changed ? ' ch' : '')} onClick={() => { sfx('select'); open(k); }}><small>{label}</small><b>{val}</b><em class={cost === undefined ? 'free' : ''}>{cost === undefined ? '무료' : (changed ? '+' : '') + cost + ' BP'}</em></button>;
 	const toggle = () => { if (inTeam) S.team = S.team.filter(i => i !== m.id); else if (S.team.length >= 6) { toast('팀은 6마리까지예요. 먼저 한 마리를 빼 주세요'); return; } else S.team.push(m.id); sfx('select'); re(); };
 	const release = async () => { if (await confirmBox('내보내기', `${josa(name, '을', '를')} 내보낼까요? 되돌릴 수 없어요.`, '내보낸다', '그만두기')) { S.roster = S.roster.filter(x => x !== m); S.team = S.team.filter(i => i !== m.id); syncTeams(S); S.teams = S.teams!.map(t => t.filter(i => i !== m.id)); S.team = S.teams[S.cur!]; re(); close(); } };
+	const saveAll = () => {
+		if (c.total && !pay(c.total, `챔피언스 · ${name} 트레이닝 (${c.parts.map(x => x[0]).join('·')})`)) return;
+		if (d.item) for (const x of S.roster) if (x !== m && toID(x.set.item) === toID(d.item)) x.set.item = '';   // 같은 도구는 한 마리만: 가져옴
+		m.set = cloneSet(d); sfx(c.total ? 'statUp' : 'select'); re(); toast(c.total ? `저장했습니다 (−${c.total} BP)` : '저장했습니다'); close();
+	};
+	const tryClose = async () => { if (!c.dirty || await confirmBox('저장하지 않음', '고친 내용을 저장하지 않고 닫을까요?', '닫는다', '계속 고치기')) close(); };
 	const spText = STAT_KEYS.map((k, i) => sp[k] ? `${STAT_NAME[i]} ${sp[k]}` : '').filter(Boolean).join(' · ') || '나누지 않음';
-	return <Modal title={name} onClose={close}><div class="cp-mp">
-		<div class="cp-mp-head"><span class="cp-mp-spr"><Sprite species={s.species} gen={9} size={64} anim={false} cls="front" shiny={s.shiny} /></span>
-			<div><span>{types(s.species).map(t => <TypeBadge type={t} small />)}{rarity(toID(s.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(s.species))]}</i>}</span><small>{inTeam ? `팀 ${S.team.indexOf(m.id) + 1}번째` : '박스에 있음'}</small></div>
+	return <Modal title={name} onClose={tryClose}><div class="cp-mp">
+		<div class="cp-mp-head"><span class="cp-mp-spr"><Sprite species={o.species} gen={9} size={64} anim={false} cls="front" shiny={o.shiny} /></span>
+			<div><span>{types(o.species).map(t => <TypeBadge type={t} small />)}{rarity(toID(o.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(o.species))]}</i>}</span><small>{inTeam ? `팀 ${S.team.indexOf(m.id) + 1}번째` : '박스에 있음'}</small></div>
 			<button class={'btn small' + (inTeam ? '' : ' primary')} onClick={toggle}>{inTeam ? '팀에서 빼기' : '팀에 넣기'}</button></div>
 		<div class="cp-mrows">
-			{row('item', '도구', s.item ? <><ItemIcon item={s.item} size={24} />{itemKo(s.item)}</> : '없음')}
-			{row('ability', '특성', abilityKo(s.ability), PRICE.ability)}
-			{row('nature', '성격', <>{natureKo(s.nature)}{nat?.[1] ? <small> {nat[1]}↑ {nat[2]}↓</small> : null}</>, PRICE.nature)}
-			{row('tera', '테라 타입', <TypeBadge type={s.teraType || types(s.species)[0]} small />, PRICE.tera)}
-			{row('sp', '능력 포인트', <small>{spText}</small>, PRICE.sp)}
+			{row('item', '도구', d.item ? <><ItemIcon item={d.item} size={24} />{itemKo(d.item)}</> : '없음', undefined, toID(o.item) !== toID(d.item))}
+			{row('ability', '특성', abilityKo(d.ability), PRICE.ability, ch('특성'))}
+			<p class="cp-mdesc">{abilityDesc(d.ability)}</p>
+			{row('nature', '성격', <>{natureKo(d.nature)}{nat?.[1] ? <small> {nat[1]}↑ {nat[2]}↓</small> : null}</>, PRICE.nature, ch('성격'))}
+			{row('tera', '테라 타입', <TypeBadge type={d.teraType || types(d.species)[0]} small />, PRICE.tera, ch('테라 타입'))}
+			{row('sp', '능력 포인트', <small>{spText}</small>, PRICE.sp, ch('능력 포인트'))}
 		</div>
-		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = s.moves[k] ? moveData(s.moves[k], 9) : null; return <button onClick={() => { sfx('select'); open({ move: k }); }}>
-			{md && <TypeBadge type={md.type} small />}<b>{s.moves[k] ? moveKo(s.moves[k]) : '(빈 칸)'}</b><em>{PRICE.move} BP</em></button>; })}</div>
+		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = (o.moves[k] || '') !== (d.moves[k] || ''); return <button class={changed ? 'ch' : ''} onClick={() => { sfx('select'); open({ move: k }); }}>
+			{md && <TypeBadge type={md.type} small />}<b>{d.moves[k] ? moveKo(d.moves[k]) : '(빈 칸)'}</b><em>{changed ? '+' : ''}{PRICE.move} BP</em></button>; })}</div>
+		<div class="cp-msave"><span>{c.parts.length ? c.parts.map(x => `${x[0]} ${x[1]}`).join(' · ') : c.dirty ? '도구만 바꿈 (무료)' : '고친 항목이 없습니다'}</span>
+			<button class="btn primary" disabled={!c.dirty} onClick={saveAll}>저장{c.total ? ` (총 ${c.total} BP)` : ''}</button></div>
 		<div class="cp-mfoot"><button class="btn small" onClick={() => open('detail')}>능력치 자세히</button><button class="btn small ghost" onClick={release}>내보내기</button></div>
 	</div></Modal>;
 }
@@ -359,26 +384,27 @@ function SpBody({ set, done }: { set: PSet; done: (sp: { [k: string]: number }) 
 	return <div class="cp-spb"><p class="cp-note">한 능력에 {SP_MAX}까지 · 남은 포인트 <b class="cp-y">{SP_TOTAL - sum}</b> / {SP_TOTAL}</p>
 		{STAT_KEYS.map((k, i) => <div class="cp-sp"><b>{STAT_NAME[i]}</b><button class="btn small" onClick={() => ch(k, -4)}>−4</button><button class="btn small" onClick={() => ch(k, -1)}>−</button>
 			<i><span style={{ width: sp[k] / SP_MAX * 100 + '%' }} /></i><em>{sp[k]}</em><button class="btn small" onClick={() => ch(k, 1)}>＋</button><button class="btn small" onClick={() => ch(k, 4)}>＋4</button></div>)}
-		<button class="btn big primary" onClick={() => done(sp)}>이대로 정하기 ({PRICE.sp} BP)</button></div>;
+		<button class="btn big primary" onClick={() => done(sp)}>이대로 정하기</button></div>;
 }
 interface Opt { icon?: any; label: string; desc?: string; note?: string; off?: boolean; run: () => void }
 type Grid = '' | 'grid' | 'grid two';
-/** 항목을 바꾸는 창: 목록에서 누르면 값을 치르고 바로 적용, 포켓몬 창으로 돌아감 */
-function SubPop({ S, m, sub, back, re }: { S: CSave; m: CMon; sub: Exclude<Sub, null>; back: () => void; re: () => void }) {
-	const s = m.set, name = speciesKo(s.species), [q, setQ] = useState('');
-	const apply = (cost: number, why: string, f: () => void) => { if (cost && !pay(cost, `챔피언스 · ${name} ${why}`)) return; f(); sfx(cost ? 'statUp' : 'select'); re(); back(); };
+/** 항목을 고르는 창: 고친 사본(d)에만 적고 포켓몬 창으로 돌아감 — 값은 포켓몬 창의 「저장」에서 한 번에 */
+function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclude<Sub, null>; back: () => void }) {
+	const s = d, name = speciesKo(s.species), [q, setQ] = useState('');
+	const apply = (_cost: number, _why: string, f: () => void) => { f(); sfx('select'); back(); };
 	if (sub === 'detail') return <Modal title={name} onClose={back}><MonDetail set={s} gen={9} /></Modal>;
+	void S; void m;
 	if (sub === 'sp') return <Modal title={`${name} · 능력 포인트`} onClose={back}><SpBody set={s} done={sp => apply(PRICE.sp, '능력 포인트', () => { for (const k of STAT_KEYS) s.evs[k] = spToEv(sp[k]); })} /></Modal>;
-	if (sub === 'nature') return <Modal title={`성격 · ${PRICE.nature} BP`} onClose={back}><NatureTable value={s.nature} onPick={id => { if (toID(s.nature) === id) { back(); return; } apply(PRICE.nature, '성격', () => { s.nature = id; }); }} /></Modal>;
+	if (sub === 'nature') return <Modal title={`성격 · ${PRICE.nature} BP`} onClose={back}><NatureTable value={s.nature} onPick={id => { apply(PRICE.nature, '성격', () => { s.nature = id; }); }} /></Modal>;
 	let title = '', cost = 0, why = '', search = false, opts: Opt[] = [], grid: Grid = '';
 	if (sub === 'item') {
 		title = '지닌 도구'; why = '도구'; search = true;
 		const stones = megaStonesFor(s.species), own = Object.keys(S.items).filter(id => PLAIN_ITEMS.has(id) || stones.includes(id));
 		opts = [{ label: '없음', off: !s.item, run: () => { s.item = ''; } }, ...own.map(id => { const holder = S.roster.find(x => x !== m && toID(x.set.item) === id), cur = toID(s.item) === id;
-			return { icon: <ItemIcon item={id} size={24} />, label: itemKo(id), desc: itemDesc(id), note: cur ? '지금' : holder ? `${speciesKo(holder.set.species)}에게서 가져옴` : '', off: cur, run: () => { if (holder) holder.set.item = ''; s.item = id; } }; })];
+			return { icon: <ItemIcon item={id} size={24} />, label: itemKo(id), desc: itemDesc(id), note: cur ? '지금' : holder ? `${speciesKo(holder.set.species)}에게서 가져옴 (저장할 때)` : '', off: cur, run: () => { s.item = id; } }; })];
 	} else if (sub === 'ability') {
-		title = '특성'; cost = PRICE.ability; why = '특성'; grid = 'grid two';
-		opts = (((speciesData(s.species, 9) as any)?.ab || []) as string[]).map(x => ({ label: abilityKo(x), off: toID(x) === toID(s.ability), run: () => { s.ability = x; } }));
+		title = '특성'; cost = PRICE.ability; why = '특성';
+		opts = (((speciesData(s.species, 9) as any)?.ab || []) as string[]).map(x => ({ label: abilityKo(x), desc: abilityDesc(x), note: toID(x) === toID(s.ability) ? '지금' : '', off: toID(x) === toID(s.ability), run: () => { s.ability = x; } }));
 	} else if (sub === 'tera') {
 		title = '테라스탈 타입'; cost = PRICE.tera; why = '테라스탈 타입'; grid = 'grid';
 		opts = ALL_TYPES.map(x => ({ icon: <TypeBadge type={x} small />, label: typeKo(x), off: s.teraType === x, run: () => { s.teraType = x; } }));
