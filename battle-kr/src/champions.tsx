@@ -5,6 +5,7 @@ import { h, Fragment } from 'preact';
 import { useState } from 'preact/hooks';
 import { ask, Screen, Sprite, PokeIcon, ItemIcon, TypeBadge, Modal, toast, confirmBox } from './ui/core';
 import { PickScreen, ChoiceScreen, MonDetail } from './ui/screens';
+import { NatureTable } from './ui/teambuilder';
 import { battle, playerName, playerSprite, towerOpponent, BACK } from './modes';
 import { randomTeam, randomSetFor, speciesPool, dedupeItems, cloneSet, rng, spOf, spToEv, SP_MAX, SP_TOTAL, STAT_KEYS, type PSet } from './sets';
 import { aiPickEntry } from './smogon';
@@ -368,15 +369,13 @@ function SubPop({ S, m, sub, back, re }: { S: CSave; m: CMon; sub: Exclude<Sub, 
 	const apply = (cost: number, why: string, f: () => void) => { if (cost && !pay(cost, `챔피언스 · ${name} ${why}`)) return; f(); sfx(cost ? 'statUp' : 'select'); re(); back(); };
 	if (sub === 'detail') return <Modal title={name} onClose={back}><MonDetail set={s} gen={9} /></Modal>;
 	if (sub === 'sp') return <Modal title={`${name} · 능력 포인트`} onClose={back}><SpBody set={s} done={sp => apply(PRICE.sp, '능력 포인트', () => { for (const k of STAT_KEYS) s.evs[k] = spToEv(sp[k]); })} /></Modal>;
+	if (sub === 'nature') return <Modal title={`성격 · ${PRICE.nature} BP`} onClose={back}><NatureTable value={s.nature} onPick={id => { if (toID(s.nature) === id) { back(); return; } apply(PRICE.nature, '성격', () => { s.nature = id; }); }} /></Modal>;
 	let title = '', cost = 0, why = '', search = false, opts: Opt[] = [], grid: Grid = '';
 	if (sub === 'item') {
 		title = '지닌 도구'; why = '도구'; search = true;
 		const stones = megaStonesFor(s.species), own = Object.keys(S.items).filter(id => PLAIN_ITEMS.has(id) || stones.includes(id));
 		opts = [{ label: '없음', off: !s.item, run: () => { s.item = ''; } }, ...own.map(id => { const holder = S.roster.find(x => x !== m && toID(x.set.item) === id), cur = toID(s.item) === id;
 			return { icon: <ItemIcon item={id} size={24} />, label: itemKo(id), desc: itemDesc(id), note: cur ? '지금' : holder ? `${speciesKo(holder.set.species)}에게서 가져옴` : '', off: cur, run: () => { if (holder) holder.set.item = ''; s.item = id; } }; })];
-	} else if (sub === 'nature') {
-		title = '성격'; cost = PRICE.nature; why = '성격'; grid = 'grid';
-		opts = NATURES.map(([id, up, dn]) => ({ label: natureKo(id), desc: up ? `${up} ↑ · ${dn} ↓` : '보정 없음', off: toID(s.nature) === id, run: () => { s.nature = id; } }));
 	} else if (sub === 'ability') {
 		title = '특성'; cost = PRICE.ability; why = '특성'; grid = 'grid two';
 		opts = (((speciesData(s.species, 9) as any)?.ab || []) as string[]).map(x => ({ label: abilityKo(x), off: toID(x) === toID(s.ability), run: () => { s.ability = x; } }));

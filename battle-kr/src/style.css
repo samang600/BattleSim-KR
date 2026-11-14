@@ -3952,3 +3952,15 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 .cp-mfoot.three { grid-template-columns: 1fr 1fr 1fr; } .cp-mfoot .btn { min-width: 0; text-align: center; }
 /* 팝업 창 안의 줄(검색·정렬·분류·단추)이 목록에 밀려 위아래로 눌리지 않게 */
 .modal-body > * { flex-shrink: 0; }
+/* 성격 표: 가로줄 = 오르는 능력(빨강), 세로줄 = 내리는 능력(파랑) */
+.nat-tb { display: grid; grid-template-columns: 44px repeat(5, minmax(0, 1fr)); gap: 2px; }
+.nat-h, .nat-corner { display: flex; align-items: center; justify-content: center; min-height: 32px; font-size: 13px; text-align: center; clip-path: var(--clip1); }
+.nat-h.up { background: #a83a30; color: #fff; } .nat-h.down { background: #2f5fb8; color: #fff; }
+.nat-corner { flex-direction: column; gap: 0; background: #0d1830; font-size: 10px; line-height: 12px; } .nat-corner i { font-style: normal; } .nat-corner .up, .nat-up { color: #ff9a8a; } .nat-corner .down, .nat-down { color: #8ac0ff; } .nat-up, .nat-down { font-weight: normal; }
+.nat-c { display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 1px; font: inherit; font-size: 13px; color: #fff; text-align: center; word-break: keep-all; cursor: pointer; border: 0; background: linear-gradient(180deg, #3a4f86 0 50%, #2f4276 50%); box-shadow: inset 0 0 0 2px #0d1830; clip-path: var(--clip1); }
+.nat-c.neutral { background: #1a2444; color: #8a98b8; } .nat-c:active { transform: translate(2px, 2px); }
+.nat-c.cur { background: linear-gradient(180deg, #ffe890 0 50%, #e0a830 50%); color: #2a1a04; box-shadow: inset 0 0 0 2px #0d1830, inset 0 0 0 4px #fff6c4; }
+@media (max-width: 380px) { .nat-c, .nat-h { font-size: 12px; } }
+.nat-c { word-break: break-all; line-height: 1.15; } .nat-tb { grid-template-columns: 36px repeat(5, minmax(0, 1fr)); }
+.nat-tb { grid-template-columns: 44px repeat(5, minmax(0, 1fr)); } .nat-c { font-size: 12px; word-break: keep-all; white-space: nowrap; letter-spacing: -0.5px; } .nat-h.up { font-size: 12px; }
+@media (max-width: 380px) { .nat-c { font-size: 11px; letter-spacing: -1px; } .nat-tb { grid-template-columns: 38px repeat(5, minmax(0, 1fr)); } .nat-h.up { font-size: 11px; } }

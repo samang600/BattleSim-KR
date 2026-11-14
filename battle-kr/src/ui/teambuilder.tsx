@@ -252,6 +252,23 @@ function statValue(base: number, ev: number, iv: number, level: number, nat: num
 	return Math.floor((Math.floor((2 * base + iv + Math.floor(ev / 4)) * level / 100) + 5) * nat);
 }
 
+/** 성격 표: 가로줄 = 올라가는 능력, 세로줄 = 내려가는 능력. 대각선은 보정 없는 성격 */
+const NAT_STATS: StatID[] = ['atk', 'def', 'spa', 'spd', 'spe'];
+const NAT_NEUTRAL = ['quirky', 'bashful', 'hardy', 'docile', 'serious'];
+export function NatureTable({ value, onPick }: { value: string; onPick: (id: string) => void }) {
+	const all = allNatures(), cur = toID(value);
+	const at = (u: number, d: number) => u === d ? all.find(n => n.id === NAT_NEUTRAL[u]) : all.find(n => n.p === NAT_STATS[u] && n.m === NAT_STATS[d]);
+	return <div class="nat-wrap">
+		<div class="nat-tb" role="grid" aria-label="성격 표">
+			<span class="nat-corner"><i class="up">오름</i><i class="down">내림</i></span>
+			{NAT_STATS.map(k => <span class="nat-h down">{STAT_SHORT[k]}</span>)}
+			{NAT_STATS.map((k, u) => [<span class="nat-h up">{STAT_SHORT[k]}</span>,
+				...NAT_STATS.map((_, d) => { const n = at(u, d); return n ? <button class={'nat-c' + (u === d ? ' neutral' : '') + (cur === n.id ? ' cur' : '')} onClick={() => onPick(n.id)} aria-label={u === d ? `${n.n} (보정 없음)` : `${n.n}: ${STAT_SHORT[NAT_STATS[u]]} 오름, ${STAT_SHORT[NAT_STATS[d]]} 내림`}>{n.n}</button> : <span class="nat-c" />; })])}
+		</div>
+		<p class="muted small">왼쪽 <b class="nat-up">빨간 칸</b>의 능력이 오르고(×1.1), 위쪽 <b class="nat-down">파란 칸</b>의 능력이 내려갑니다(×0.9). 대각선의 흐린 칸은 보정이 없는 성격이에요.</p>
+	</div>;
+}
+
 export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set: PSet; gen: Gen; onChange: (s: PSet) => void; onDelete: () => void; onBack: () => void; cheat?: boolean }) {
 	const [s, setS] = useState<PSet>(() => (cheat ? cheatSP : normalizeSP)(JSON.parse(JSON.stringify(set))));
 	// 고르기는 화면을 바꾸지 않고 팝업 창에서 (챔피언스 모드의 포켓몬 창과 같은 방식)
@@ -315,9 +332,7 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 		{picker?.kind === 'ability' && <Modal title="특성" onClose={close}>
 			<div class="cp-opts">{sd.ab.map(a => <button class="cp-opt" disabled={s.ability === a} onClick={() => { up({ ability: a }); close(); }}><div><b>{abilityKo(a)}</b><small>{abilityDesc(a)}</small></div>{s.ability === a && <em>지금</em>}</button>)}</div>
 			{cheat && <><h3 class="sec">🃏 다른 특성 (치트)</h3><AbilityPicker onPick={a => { up({ ability: a }); close(); }} /></>}</Modal>}
-		{picker?.kind === 'nature' && <Modal title="성격" onClose={close}>
-			<div class="cp-opts grid">{allNatures().map(n => <button class={'cp-opt' + (s.nature === n.id ? ' cur' : '')} disabled={s.nature === n.id} onClick={() => { up({ nature: n.id }); close(); }}>
-				<div><b>{n.n}</b><small>{n.p ? `${STAT_SHORT[n.p]}▲ ${STAT_SHORT[n.m]}▼` : '변화 없음'}</small></div></button>)}</div></Modal>}
+		{picker?.kind === 'nature' && <Modal title="성격" onClose={close}><NatureTable value={s.nature} onPick={id => { up({ nature: id }); close(); }} /></Modal>}
 		{picker?.kind === 'tera' && <Modal title="테라스탈 타입" onClose={close}>
 			<div class="cp-opts grid">{ALL_TYPES.map(t => <button class={'cp-opt' + (tera === t ? ' cur' : '')} disabled={tera === t} onClick={() => { up({ teraType: t }); close(); }}><TypeBadge type={t} small /><div><b>{typeKo(t)}</b></div></button>)}</div></Modal>}
 		{picker?.kind === 'etc' && <Modal title="모습 · 볼" onClose={close}><div class="set-etc">
