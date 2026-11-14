@@ -3718,7 +3718,7 @@ button.sc-usemon { display: flex; width: 100%; text-align: left; font: inherit; 
 .cp-top { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #1c1408; box-shadow: 0 2px 0 #ffd84a; }
 .cp-scr .cp-top { margin: -4px -12px 8px; }
 .cp-top b { flex: 1; min-width: 0; font-weight: normal; font-size: 18px; color: #ffe890; } .cp-top b small { display: block; font-size: 11px; color: #d8b860; }
-.cp-back { font: inherit; color: #ffe890; width: 32px; height: 32px; padding: 0; cursor: pointer; border: 4px solid transparent; border-image: var(--ring2-hi) 3 / 6px stretch; clip-path: var(--clip2); background: #2a1e08 border-box; image-rendering: pixelated; }
+.cp-back { display: flex; align-items: center; justify-content: center; flex: none; color: #ffe890; width: 32px; height: 32px; padding: 0; cursor: pointer; border: 4px solid transparent; border-image: var(--ring2-hi) 3 / 6px stretch; clip-path: var(--clip2); background: #2a1e08 border-box; image-rendering: pixelated; }
 .cp-back:active { transform: translate(2px, 2px); }
 .cp-chip { padding: 0 8px; line-height: 20px; border: 4px solid transparent; border-image: var(--ring2-hi) 3 / 6px stretch; clip-path: var(--clip2); background: #2a1e08 border-box; font-size: 13px; color: #ffd84a; white-space: nowrap; image-rendering: pixelated; }
 .cp-chip.t { color: #9fe4ff; border-image-source: var(--ring2-sky); background: #10203f border-box; }
@@ -3848,3 +3848,4 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 .h2-team-mons { align-items: center; gap: 0; } .h2-team-mons .poke-icon { flex: none; margin: 0 -4px; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.35)); }
 @media (min-width: 900px) { .h2-team-mons .poke-icon { margin: 0 2px; } }
 .cp-box-head button::before { content: ''; width: 16px; height: 10px; background: #fff; clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 4px 6px, 4px 8px, 2px 8px, 2px 10px, 0 10px, 0 0, 8px 0, 10px 0, 10px 2px, 12px 2px, 12px 4px, 14px 4px, 14px 6px, 12px 6px, 12px 8px, 10px 8px, 10px 10px, 8px 10px, 8px 0); } .cp-box-head button.prev::before { transform: scaleX(-1); }
+.cp-back::before { content: ''; width: 10px; height: 14px; background: #ffe890; clip-path: polygon(10px 0, 10px 14px, 8px 14px, 8px 12px, 6px 12px, 6px 10px, 4px 10px, 4px 8px, 2px 8px, 2px 6px, 4px 6px, 4px 4px, 6px 4px, 6px 2px, 8px 2px, 8px 0); margin-right: 2px; }

@@ -66,7 +66,7 @@ function Bp() {
 	return <span class="cp-chip">{bp} BP</span>;
 }
 function Top({ title, sub, S, onBack }: { title: string; sub?: string; S: CSave; onBack?: () => void }) {
-	return <div class="cp-top">{onBack && <button class="cp-back" onClick={onBack} aria-label="뒤로">◀</button>}
+	return <div class="cp-top">{onBack && <button class="cp-back" onClick={onBack} aria-label="뒤로" />}
 		<b>{title}{sub && <small>{sub}</small>}</b>
 		{S.tk.regular > 0 && <span class="cp-chip t">티켓 {S.tk.regular}</span>}{S.tk.pick > 0 && <span class="cp-chip t">지명 {S.tk.pick}</span>}<Bp /></div>;
 }
