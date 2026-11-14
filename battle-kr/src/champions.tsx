@@ -470,7 +470,8 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 				<span>{ready ? '승급전에 도전할 수 있어요!' : c.sub}</span><i class="cp-bar"><span style={{ width: (t.need ? S.pts / t.need * 100 : 100) + '%' }} /></i></div>{ready && <em>도전!</em>}</>
 				: <div><small>스토리</small><b>챔피언급 — 이야기를 모두 봤습니다</b><span>팀을 고쳐 짜며 정점을 지켜 보세요</span></div>}
 		</button>
-		<div class="cp-pn cp-arena"><h3>배틀<button class="cp-rule" onClick={() => done('settings')}>규칙 · {ruleById(CR()).name}</button></h3>
+		<div class="cp-pn cp-arena"><h3>배틀<button class="cp-rule" onClick={() => done('settings')}>규칙 바꾸기</button></h3>
+			<p class="cp-rulename">{ruleById(CR()).name}</p>
 			{brow('rank', '랭크 배틀', t.need ? `승점 ${S.pts} / ${t.need} · 1승 +${EARN.win} BP` : `챔피언급 · 1승 +${EARN.win} BP`)}
 			{brow('tower', '배틀타워', `${S.tower}연승 · 7연승마다 지명 티켓 (${S.tower % 7} / 7)`)}</div>
 		<button class="cp-pn cp-myteam" onClick={() => { sfx('select'); done('roster'); }}><h3>내 팀<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>

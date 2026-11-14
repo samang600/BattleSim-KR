@@ -32,6 +32,7 @@
 ## 디자인
 - UI 를 고칠 때는 `.claude/skills/pokemon-pixel-ui` 규칙(도트 계단 모서리 `scripts/pixring.py`, 흐림 없는 그림자, 2px 격자, 갈무리 글꼴)을 따른다.
 - 디자인을 크게 바꿀 때는 먼저 시안 스크린샷을 보여 주고 확인받는다.
+- **버튼 안의 글자·그림은 반드시 가운데 정렬**(가로·세로)인지 스크린샷으로 확인한다 — 사용자가 중요하게 보는 요소. 고정 폭 버튼은 `display: flex; align-items: center; justify-content: center` 로, 화살표 같은 기호는 글자 대신 도트 그림(clip-path)으로 그린다. 글자 중심과 버튼 중심의 차이를 Range 로 재서 2px 안인지 본다.
 - 실제 게임 그래픽·음악 파일은 쓰지 않는다. 트레이너·포켓몬 스프라이트는 Showdown 스프라이트 서버 것을 쓰며 `scripts/fetch-sprites.sh` 로 오프라인 묶음을 만든다.
 
 ## 음악

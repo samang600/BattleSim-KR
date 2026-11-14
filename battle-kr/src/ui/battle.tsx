@@ -16,7 +16,7 @@ import { estimateDamage, typeEffOf, moveEffOf, chooseAI } from '../ai';
 import { State } from '../../../sim/state';
 import * as FX from '../fx';
 if (typeof window !== 'undefined') (window as any).__fx = FX;   // 연출 확인용(개발자 도구에서 직접 재생)
-import { sfx, moveSound, playMusic, stopMusic, cry, preloadCries, pickBattleMusic, animSfxVolume, vibrate, setQuiet, setMusicVolume, setSfxVolume, resumeMusic } from '../sound';
+import { sfx, moveSound, playMusic, stopMusic, cry, preloadCries, pickBattleMusic, animSfxVolume, vibrate, setQuiet, setMusicVolume, setSfxVolume, setMoveSfxVolume, resumeMusic } from '../sound';
 import { saveSettings, loadSettings as loadSettings2 } from '../store';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
 import { preloadAnim, playAnim, animIdFor, cancelAnims } from '../anim-player';
@@ -144,20 +144,29 @@ function useWide(q = WIDE_Q) {
 	return w;
 }
 
-/** 배틀 메뉴의 음량 줄: 끔 + 3단 막대. 누른 칸까지 불이 들어오고 바로 적용·저장 */
-function VolRow({ label, kind }: { label: string; kind: 'music' | 'sfx' }) {
-	const read = () => { const st = loadSettings2(); return kind === 'music' ? (st.music === false ? 0 : st.musicVolume || 2) : (st.sound === false ? 0 : st.sfxVolume || 1); };
-	const [v, setV] = useState(read());
-	const set = (n: number) => {
-		const st = loadSettings2();
-		if (kind === 'music') { st.music = n > 0; if (n) { st.musicVolume = n as 1 | 2 | 3; } saveSettings(st); if (n) { setMusicVolume(n as 1 | 2 | 3); resumeMusic(); } else stopMusic(); }
-		else { st.sound = n > 0; if (n) st.sfxVolume = n as 1 | 2 | 3; saveSettings(st); if (n) { setSfxVolume(n as 1 | 2 | 3); sfx('select'); } }
-		setV(n);
-	};
-	return <div class="vol-row"><span>{label}</span>
-		<button class={'vol-off' + (v === 0 ? ' on' : '')} onClick={() => set(0)} aria-label={label + ' 끔'}>끔</button>
-		<div class="vol-bars" role="group" aria-label={label + ' 크기'}>{[1, 2, 3].map(n => <button class={v >= n ? 'on' : ''} style={{ height: 8 + n * 6 + 'px' }} onClick={() => set(n)} aria-label={['작게', '보통', '크게'][n - 1]} />)}</div>
-		<em>{['끔', '작게', '보통', '크게'][v]}</em></div>;
+/** 배틀 메뉴 설정 줄 — 눈금 막대: 이름은 가운데 위, 양 끝에 최소·최대, 눈금을 누르면 손잡이가 그리로 */
+function SetSlider({ label, lo, hi, stops, value, onChange, off }: { label: string; lo: string; hi: string; stops: number; value: number; onChange: (i: number) => void; off?: boolean }) {
+	return <div class={'bset-slider' + (off ? ' off' : '')} style={{ '--n': stops } as any}>
+		<div class="bset-cap"><small>{lo}</small><b>{label}</b><small>{hi}</small></div>
+		<div class="bset-track" role="group" aria-label={label}>{Array.from({ length: stops }, (_, i) => <button class={i === value ? 'on' : ''} onClick={() => onChange(i)} aria-label={`${label} ${i + 1} / ${stops}`} aria-pressed={i === value} />)}</div>
+	</div>;
+}
+/** 배틀 메뉴 설정 줄 — 체크 상자 */
+function SetCheck({ label, on, onChange }: { label: string; on: boolean; onChange: (v: boolean) => void }) {
+	return <button class={'bset-check' + (on ? ' on' : '')} onClick={() => onChange(!on)} role="switch" aria-checked={on}><span>{label}</span><i /></button>;
+}
+/** 배틀 메뉴의 「소리」 칸: 바로 적용하고 저장 */
+function SoundTab() {
+	const [, tick] = useState(0), st = loadSettings2();
+	const up = (f: (s: ReturnType<typeof loadSettings2>) => void) => { const n = loadSettings2(); f(n); saveSettings(n); tick(x => x + 1); };
+	const musicOn = st.music !== false, sfxOn = st.sound !== false;
+	return <div class="bset-list">
+		<SetSlider label="배경음악 크기" lo="작게" hi="크게" stops={3} value={(st.musicVolume || 2) - 1} off={!musicOn} onChange={i => { up(n => { n.musicVolume = (i + 1) as 1 | 2 | 3; n.music = true; }); setMusicVolume((i + 1) as 1 | 2 | 3); resumeMusic(); }} />
+		<SetCheck label="배경음악 음소거" on={!musicOn} onChange={v => { up(n => { n.music = !v; }); if (v) stopMusic(); else resumeMusic(); }} />
+		<SetSlider label="효과음 크기" lo="작게" hi="크게" stops={3} value={(st.sfxVolume || 1) - 1} off={!sfxOn} onChange={i => { up(n => { n.sfxVolume = (i + 1) as 1 | 2 | 3; n.sound = true; }); setSfxVolume((i + 1) as 1 | 2 | 3); sfx('select'); }} />
+		<SetCheck label="효과음 음소거" on={!sfxOn} onChange={v => { up(n => { n.sound = !v; }); if (!v) sfx('select'); }} />
+		<SetSlider label="기술 효과음" lo="끄기" hi="크게" stops={4} value={st.moveSfx ?? 1} off={!sfxOn} onChange={i => { up(n => { n.moveSfx = i as 0 | 1 | 2 | 3; }); setMoveSfxVolume(i); }} />
+	</div>;
 }
 
 export function BattleView({ setup, onEnd: onEnd0 }: { setup: BattleSetup; onEnd: (r: BattleResult) => void }) {
@@ -259,8 +268,8 @@ export function BattleView({ setup, onEnd: onEnd0 }: { setup: BattleSetup; onEnd
 	const gen = setup.gen;
 	/** 배틀 중 배속 버튼: ×1 → ×2 → ×4 → ×0.5 → … (설정의 메시지 속도와 같음) */
 	const syncFxSpeed = () => FX.setFxSpeed(ANIM_SPEED[settings.speed] || 1);
-	const cycleSpeed = () => {
-		const next = (settings.speed % 4 + 1) as 1 | 2 | 3 | 4;
+	const cycleSpeed = (to?: number) => {
+		const next = (to || settings.speed % 4 + 1) as 1 | 2 | 3 | 4;
 		settings.speed = next;
 		syncFxSpeed();
 		const st = loadSettings2(); st.speed = next; saveSettings(st);
@@ -350,6 +359,7 @@ export function BattleView({ setup, onEnd: onEnd0 }: { setup: BattleSetup; onEnd
 	const animBgRef = useRef<HTMLDivElement | null>(null);
 	const animUsedRef = useRef<ParsedLine | null>(null);
 	const [menuOpen, setMenuOpen] = useState(false);
+	const [menuTab, setMenuTab] = useState<'menu' | 'sound' | 'play'>('menu');
 	/** 대화창은 높이가 고정: 두 줄에 안 들어가는 긴 글은 글자를 한두 단계 줄여 맞춤 */
 	const msgRef = useRef<HTMLParagraphElement>(null);
 	useLayoutEffect(() => {
@@ -1907,20 +1917,22 @@ function typeTint(type: string) {
 		{emoteOpen && setup.online && <div class="emote-pick" onClick={e => e.stopPropagation()}>
 			{EMOTES.map((t, i) => <button class="btn small" disabled={Date.now() - emoteAt.current < 2000} onClick={() => { emoteAt.current = Date.now(); setup.online!.sendEmote(i); setEmoteOpen(false); }}>{t}</button>)}
 		</div>}
-		{menuOpen && <Modal title="메뉴" onClose={() => setMenuOpen(false)}>
-			<div class="battle-menu">
+		{menuOpen && <Modal title={{ menu: '메뉴', sound: '소리 설정', play: '진행 설정' }[menuTab]} onClose={() => setMenuOpen(false)}>
+			{menuTab === 'menu' && <div class="battle-menu">
 				<button class="btn big" onClick={() => setMenuOpen(false)}>배틀로 돌아가기</button>
 				<button class="btn big" onClick={() => { setMenuOpen(false); setShowLog(true); }}>배틀 기록</button>
 				<button class="btn big" onClick={() => { setMenuOpen(false); setFieldOpen(true); }}>필드 상황</button>
 				{!wide && <button class="btn big" onClick={() => { setMenuOpen(false); setFoeOpen(true); }}>상대 포켓몬 현황</button>}
-				<VolRow label="배경음악" kind="music" />
-				<VolRow label="효과음" kind="sfx" />
-				<button class="btn big" onClick={() => cycleSpeed()}>배속 {SPEED_LABEL[settings.speed]}</button>
-				<button class="btn big" onClick={() => toggleManual()}>메시지 진행: {settings.textManual ? '수동 (화면을 눌러 넘김)' : '자동'}</button>
-				{canFullscreen() && <button class="btn big" onClick={() => { setMenuOpen(false); toggleFullscreen(); }}>{fullscreen ? '전체화면 끄기' : '전체화면'}</button>}
 				{phase === 'input' && <button class="btn big" onClick={() => { setMenuOpen(false); forfeit(); }}>{setup.runAway ? '도망친다' : '기권'}</button>}
 				<button class="btn big danger" onClick={quitToMenu}>메인 메뉴로</button>
-			</div>
+			</div>}
+			{menuTab === 'sound' && <SoundTab />}
+			{menuTab === 'play' && <div class="bset-list">
+				<SetSlider label="배속" lo="×0.5" hi="×4" stops={4} value={settings.speed - 1} onChange={i => cycleSpeed(i + 1)} />
+				<SetCheck label="메시지를 눌러서 넘기기" on={!!settings.textManual} onChange={() => toggleManual()} />
+				{canFullscreen() && <SetCheck label="전체화면" on={!!fullscreen} onChange={() => toggleFullscreen()} />}
+			</div>}
+			<div class="bset-tabs" role="tablist">{([['menu', '메뉴'], ['sound', '소리'], ['play', '진행']] as const).map(([k, l]) => <button role="tab" aria-selected={menuTab === k} class={menuTab === k ? 'on' : ''} onClick={() => { sfx('select'); setMenuTab(k); }}>{l}</button>)}</div>
 		</Modal>}
 		{foeOpen && !detail && <Modal title={`${setup.p2.name}의 포켓몬`} onClose={() => setFoeOpen(false)}>
 			{(() => {
