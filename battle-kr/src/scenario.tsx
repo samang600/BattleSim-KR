@@ -364,7 +364,7 @@ type Eng = ReturnType<typeof engine>;
 /** 대본(scenario-script.ts)을 읽어 나감. 배틀에서 지면 거기서 멈추고 false */
 const fill = (run: Run, t: string) => t.replace(/\{me\}/g, playerName()).replace(/\{starter\}/g, run.starter ? speciesKo(run.starter) : '').replace(/\{leaf\}/g, speciesKo(thirdOf(run)));
 const toLine = (run: Run, t: string): Line => { const m = /^([a-z0-9]*)(?:\[(\w+)\])?: ([\s\S]*)$/.exec(t); return m ? [m[1] || null, fill(run, m[3]), m[2]] : [null, fill(run, t)]; };
-async function play(run: Run, E: Eng, id: string): Promise<boolean> {
+async function play(run: Run, E: Eng, id: string, /** 다시 보기: 대사·장면만 (승부·보상·호감도·진행 표시는 건너뜀) */ replay = false): Promise<boolean> {
 	let bg: string | null = null, buf: Line[] = [];
 	const cid = id.startsWith('leaf') ? 'leaf' : CHARS.find(c => id === c.id || id.startsWith(c.id + '_'))?.id || 'misty';   // 이 대본의 인물 (태그 파트너·호감도)
 	const at = () => bg || E.L().bg;
@@ -374,6 +374,7 @@ async function play(run: Run, E: Eng, id: string): Promise<boolean> {
 		await flush();
 		if ('bg' in c) bg = c.bg;
 		else if ('card' in c) await E.card(c.card[1], c.card[2], c.card[0], c.card[3] || 'black');
+		else if (replay && !('music' in c)) { if ('fight' in c) buf.push([null, `(${c.fight.name}${josa(c.fight.name, '과', '와')}의 승부에서 이겼다.)`]); continue; }
 		else if ('fight' in c) {
 			const team = mk(c.fight.team.map(([sp, lv]) => [sp === '{rival}' ? evoAt(RIVAL_OF[run.starter] || 'eevee', lv) : sp === '{leaf}' ? evoAt(thirdOf(run), lv) : sp, lv] as [string, number]));
 			if (!(await E.fight({ ...c.fight, team, tag: c.fight.tag ? cid : undefined }))) { await E.say([toLine(run, c.lose)], at()); healAll(run); persist(run); return false; }   // 이야기 속 승부에서 지면 회복시켜 주고 다시 도전
@@ -731,8 +732,8 @@ function ShopScreen({ run, done }: { run: Run; done: () => void }) {
 	</Screen>;
 }
 const UNMET: { [id: string]: string } = { misty: '블루시티에서 만날 수 있다', brock: '회색 체육관에서 이기면 가까워질 수 있다', leaf: '상록시티에서 만날 수 있다', erika: '무지개 체육관에서 이기면 가까워질 수 있다' };
-function RouteScreen({ run, done }: { run: Run; done: () => void }) {
-	return <Screen title="인물 루트 · 관동 편" onBack={done} cls="sc-scr"><Back />
+function RouteScreen({ run, done }: { run: Run; done: (replay?: string) => void }) {
+	return <Screen title="인물 루트 · 관동 편" onBack={() => done()} cls="sc-scr"><Back />
 		{CHARS.map(c => {
 			const met = has(run, c.met), x = relOf(run, c.id), stage = !has(run, c.gate) ? 0 : x.ev + 1, w = WHO[c.who], cap = heartCap(run, c);
 			return <><div class={'sc-route g-' + c.g + (met ? '' : ' unk')}>
@@ -741,11 +742,12 @@ function RouteScreen({ run, done }: { run: Run; done: () => void }) {
 					{met && <><Hearts v={x.heart} big n={maxEv(c)} /><small>호감도 {x.heart} / {cap}{x.heart >= cap && x.ev < maxEv(c) ? (has(run, c.evNeed?.[x.ev]) ? ' (말을 걸면 다음 이야기)' : ' (여행을 더 나아가면 다음 이야기)') : ''}</small>
 						<small>{run.tag === c.id ? '지금 태그 중 — 함께 다니고 있어요' : `지금(${TIMES[run.time]}): ${locOf(charLoc(run, c)).name} — ${c.doing[run.time]}`}</small></>}</div>
 			</div>
-			{met && <div class="sc-chapters">{c.chapters.map((t, i) => <div class={i < stage ? 'done' : i === stage ? 'now' : 'lock'}><i>{i < stage ? '✓' : i === stage ? '▶' : '🔒'}</i>{i <= stage ? t : '？？？'}</div>)}
+			{met && <div class="sc-chapters">{c.chapters.map((t, i) => { const rid = i >= 1 && i < stage && SCRIPTS[fk(c, 'ev', i)] ? fk(c, 'ev', i) : '';
+				return rid ? <button class="done re" onClick={() => done(rid)}><i>✓</i>{t}<em>다시 보기</em></button> : <div class={i < stage ? 'done' : i === stage ? 'now' : 'lock'}><i>{i < stage ? '✓' : i === stage ? '▶' : '🔒'}</i>{i <= stage ? t : '？？？'}</div>; })}
 				{x.ev >= 4 && <div class="done clear"><i>★</i>{c.name} 루트 {x.ev >= MAX_EV ? '2막' : '1막'} 클리어!</div>}</div>}</>;
 		})}
 		<p class="muted small">호감도: 함께 이긴 태그 배틀 +10 · 하루 한 번 이야기 · 선물(취향에 따라). 하트가 가득 차면 말을 걸어 다음 이야기를 열 수 있어요. 태그는 한 번에 한 사람과만 맺을 수 있어요.</p>
-		<button class="btn big" onClick={done}>돌아가기</button>
+		<button class="btn big" onClick={() => done()}>돌아가기</button>
 	</Screen>;
 }
 /** 박스: 파티(6칸)와 박스(30칸씩)의 포켓몬을 옮기고 바꿈. 한 마리를 누른 뒤 다른 칸을 누르면 자리를 바꾸고, 빈 칸을 누르면 옮김 */
@@ -916,7 +918,7 @@ export async function runScenario(tools?: { settings: (onBack: () => void, onTit
 		if (a.k === 'box') { await ask<void>(r => <PartyScreen run={run} done={r} />); continue; }
 		if (a.k === 'party') { await ask<void>(r => <PartyScreen run={run} done={r} />); continue; }
 		if (a.k === 'bag') { await ask<void>(r => <BagScreen run={run} done={r} />); continue; }
-		if (a.k === 'route') { await ask<void>(r => <RouteScreen run={run} done={r} />); continue; }
+		if (a.k === 'route') { while (true) { const id = await ask<string | void>(r => <RouteScreen run={run} done={r} />); if (!id) break; await E.fx('fade', 500); await play(run, E, id, true); } continue; }
 		if (a.k === 'map') {
 			const to = await ask<string | null>(r => <WorldMap run={run} done={r} />);
 			if (!to) continue;

@@ -3,7 +3,8 @@ import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import { Screen, MiniSprite } from './core';
 import { loadRecords, loadSettings } from '../store';
-import { loadStats, ACHIEVEMENTS, achLevel, achTier, achDesc, TIER_NAME, SYMBOL_INFO, BOSS_LEN, symBest, symOf, CHAMP_ON, type AchCat, type SymbolKind } from '../stats';
+import { CSYM } from '../champions-data';
+import { loadStats, ACHIEVEMENTS, achLevel, achTier, achDesc, TIER_NAME, SYMBOL_INFO, BOSS_LEN, symBest, symOf, CHAMP_ON, champSave, type AchCat, type SymbolKind } from '../stats';
 import { speciesKo, RAW } from '../data';
 import { REGIONS, regionLabel } from '../trainers';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
@@ -24,20 +25,20 @@ export function Medal({ tier, size = 20 }: { tier: number; size?: number }) {
 export { SymbolIcon } from './pixel-icons';
 import { SymbolIcon } from './pixel-icons';
 
-export function TrainerBook({ onBack, initial = 'card' }: { onBack: () => void; initial?: string }) {
+export function TrainerBook({ onBack, initial = 'card', mode }: { onBack: () => void; initial?: string; /** 'champions' = 챔피언스 모드에서 연 수첩 (그 모드의 심볼을 보여 줌) */ mode?: string }) {
 	const [tab, setTab] = useState(initial);
 	const st = loadStats(), rec = loadRecords(), set = loadSettings();
 	const TABS: [string, string][] = [['card', '카드'], ['ach', pendingAchTotal() > 0 ? '업적 •' : '업적'], ['mons', '포켓몬'], ['dex', '도감']];
 	return <Screen title="트레이너 수첩" onBack={onBack} top cls={'book-scr' + (bookCover(st) ? ' cover-' + bookCover(st) : '')}>
 		<div class="seg book-tabs">{TABS.map(([k, n]) => <button class={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{n}</button>)}</div>
-		{tab === 'card' && <Card st={st} rec={rec} set={set} />}
+		{tab === 'card' && <Card st={st} rec={rec} set={set} mode={mode} />}
 		{tab === 'ach' && <Achievements st={st} />}
 		{tab === 'mons' && <MonStats st={st} />}
 		{tab === 'dex' && <Dex st={st} />}
 	</Screen>;
 }
 
-function Card({ st, rec, set }: any) {
+function Card({ st, rec, set, mode }: any) {
 	const done = ACHIEVEMENTS.filter(a => (st.ach[a.id] || 0) > 0).length;
 	const season = seasonOf();
 	const w = loadWallet();
@@ -56,8 +57,9 @@ function Card({ st, rec, set }: any) {
 			<CardExtras />
 		</div>
 		<h3 class="sec">심볼</h3>
+		{mode === 'champions' ? <div class="sym-row">{CSYM.map(y => { const lv = champSave().sym?.[y.id] || 0; return <div class="sym-cell"><SymbolIcon kind={y.icon} lv={lv} size={48} /><b>{y.name}</b><small>챔피언스 모드 · {lv === 2 ? '금' : lv ? '은' : '미획득'}</small><small class="sym-how">은: {y.silver} · 금: {y.gold}</small></div>; })}</div> :
 		<div class="sym-row">{((CHAMP_ON ? ['tower', 'factory', 'palace'] : ['tower', 'factory', 'palace', 'rank']) as SymbolKind[]).map(k => <div class="sym-cell"><SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={48} /><b>{SYMBOL_INFO[k].name}</b><small>{SYMBOL_INFO[k].facility} · {symBest(st, k).lv === 2 ? '금' : symBest(st, k).lv ? '은' : '미획득'}</small>
-			{(k === 'tower' || k === 'factory') && <span class="sym-diffs">{([['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']] as const).map(([d, l]) => <span class={symOf(st, k, d) ? 'got' : ''}><SymbolIcon kind={k} lv={symOf(st, k, d)} diff={d} size={24} /><i>{l}</i></span>)}</span>}<small class="sym-how">{k === 'rank' ? '은: 챔피언급 도달 · 금: 시즌을 챔피언급으로 마감' : k === 'palace' ? '은: 21번째 · 금: 49번째 팰리스 메이븐 격파' : '은: 21번째 · 금: 49번째 브레인 격파'}</small></div>)}</div>
+			{(k === 'tower' || k === 'factory') && <span class="sym-diffs">{([['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']] as const).map(([d, l]) => <span class={symOf(st, k, d) ? 'got' : ''}><SymbolIcon kind={k} lv={symOf(st, k, d)} diff={d} size={24} /><i>{l}</i></span>)}</span>}<small class="sym-how">{k === 'rank' ? '은: 챔피언급 도달 · 금: 시즌을 챔피언급으로 마감' : k === 'palace' ? '은: 21번째 · 금: 49번째 팰리스 메이븐 격파' : '은: 21번째 · 금: 49번째 브레인 격파'}</small></div>)}</div>}
 		<h3 class="sec">랭크 시즌 <small class="muted">시즌 {season.no} · {seasonLeft()}</small></h3>
 		<div class="kv"><span>싱글</span><b>{rankLabel(rp('singles'))} · {rp('singles')} RP</b></div>
 		<div class="kv"><span>더블</span><b>{rankLabel(rp('doubles'))} · {rp('doubles')} RP</b></div>

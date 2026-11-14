@@ -77,10 +77,10 @@ function Bp() {
 	useState(() => onWallet(w => setBp(w.bp)));
 	return <span class="cp-chip">{bp} BP</span>;
 }
-function Top({ title, sub, S, onBack, extra }: { title: string; sub?: string; S: CSave; onBack?: () => void; /** BP 왼쪽에 붙는 작은 단추 (메인 화면의 스토리) */ extra?: any }) {
+function Top({ title, sub, S, onBack, extra }: { title: string; sub?: string; S: CSave; onBack?: () => void; /** 오른쪽 표시들 가운데 맨 왼쪽에 붙는 작은 단추 (메인 화면의 스토리) */ extra?: any }) {
 	return <div class="cp-top">{onBack && <button class="cp-back" onClick={onBack} aria-label="뒤로" />}
 		<b>{title}{sub && <small>{sub}</small>}</b>
-		{S.tk.regular > 0 && <span class="cp-chip t">티켓 {S.tk.regular}</span>}{S.tk.pick > 0 && <span class="cp-chip t">지명 {S.tk.pick}</span>}{extra}<Bp /></div>;
+		{extra}{S.tk.regular > 0 && <span class="cp-chip t">티켓 {S.tk.regular}</span>}{S.tk.pick > 0 && <span class="cp-chip t">지명 {S.tk.pick}</span>}<Bp /></div>;
 }
 const types = (sp: string) => ((speciesData(sp, 9) as any)?.t || []) as string[];
 /** 포켓몬 카드 (소개·로스터) */
@@ -516,13 +516,21 @@ async function chapterFlow(S: CSave) {
 	S.ch++; S.tier = Math.min(TIERS.length - 1, S.tier + 1); S.pts = 0; persist(S); earnBP(EARN.promo, '챔피언스 승급');
 	await result('승급!', `${T(S).name}으로 올라갔다!`, [`+${EARN.promo} BP`, `로스터 한도 ${T(S).cap}마리`, S.tier >= TIERS.length - 1 ? '챔피언스 아레나의 정점입니다. 축하합니다!' : '스카우트에 더 강한 포켓몬이 소개됩니다']);
 }
-function StoryScreen({ S, done }: { S: CSave; done: (go: boolean) => void }) {
+type Replay = { title: string; bg: string; lines: [string, string][] };
+/** 스토리: 장(승급전)과 이벤트(PWT·배틀타워). 이미 본 것은 누르면 다시 볼 수 있음 */
+function StoryScreen({ S, done }: { S: CSave; done: (a: boolean | Replay) => void }) {
 	const ready = S.ch === 0 || promoReady(S);
-	return <Screen title="스토리" onBack={() => done(false)} cls="cp-scr" top><Top title="스토리" sub="등급이 오를 때마다 다음 이야기가 열립니다" S={S} onBack={() => done(false)} />
-		{CHAPTERS.map((c, i) => { const st = i < S.ch ? 'done' : i === S.ch ? 'now' : 'lock'; return <div class={'cp-ch ' + st}><img src={SPRITE_URL(CWHO[c.who].sprite)} onError={trainerImgError} alt="" />
+	const evs = (list: typeof EVENTS, name: string) => <><h3 class="cp-h">{name}</h3>{list.map(e => { const seen = !!S.seen?.[e.id], who = e.lines.find(l => l[0])?.[0] || 'manager';
+		return <button class={'cp-ch ev ' + (seen ? 'done' : 'lock')} disabled={!seen} onClick={() => done({ title: e.title, bg: e.bg, lines: e.lines })}><img src={SPRITE_URL(CWHO[who].sprite)} onError={trainerImgError} alt="" />
+			<div><b>{seen ? e.title : '？？？'}</b><small>{seen ? '눌러서 다시 보기' : '아직 보지 못한 이야기'}</small></div><em>{seen ? '다시 보기' : ''}</em></button>; })}</>;
+	return <Screen title="스토리" onBack={() => done(false)} cls="cp-scr" top><Top title="스토리" sub="본 이야기는 누르면 다시 볼 수 있어요" S={S} onBack={() => done(false)} />
+		<h3 class="cp-h">승급전</h3>
+		{CHAPTERS.map((c, i) => { const st = i < S.ch ? 'done' : i === S.ch ? 'now' : 'lock'; return <button class={'cp-ch ' + st} disabled={st !== 'done'} onClick={() => done({ title: c.title, bg: c.bg, lines: [...c.before, ...c.after] })}><img src={SPRITE_URL(CWHO[c.who].sprite)} onError={trainerImgError} alt="" />
 			<div><b>{i + 1} · {st === 'lock' ? '？？？' : c.title}</b><small>{st === 'lock' ? `랭크 매치에서 ${RANK_CLS[Math.min(i, 5)]}에 오르면` : c.sub}</small></div>
-			<em>{st === 'done' ? '완료' : st === 'now' ? (i === 0 ? '시작' : ready ? '도전!' : `${RANK_CLS[Math.min(i, 5)]} 필요`) : ''}</em></div>; })}
+			<em>{st === 'done' ? '다시 보기' : st === 'now' ? (i === 0 ? '시작' : ready ? '도전!' : `${RANK_CLS[Math.min(i, 5)]} 필요`) : ''}</em></button>; })}
 		{S.ch < CHAPTERS.length && <button class="btn big primary" disabled={!ready} onClick={() => done(true)}>{ready ? `CHAPTER ${S.ch + 1} 시작` : `랭크 매치에서 ${RANK_CLS[Math.min(S.ch, 5)]}에 오르세요`}</button>}
+		{evs(TOWER_EVENTS, '배틀타워')}
+		{evs(EVENTS, 'PWT · 랭크 매치')}
 	</Screen>;
 }
 
@@ -556,7 +564,7 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 	</div>;
 }
 
-export interface Tools { settings: (onBack: () => void, onTitle?: () => void, extra?: { label: string; note?: string; run: () => void }) => any; calc: (onBack: () => void) => any; book: (onBack: () => void) => any; shop: (onBack: () => void) => any }
+export interface Tools { settings: (onBack: () => void, onTitle?: () => void, extra?: { label: string; note?: string; run: () => void }) => any; calc: (onBack: () => void) => any; book: (onBack: () => void, mode?: string) => any; shop: (onBack: () => void) => any }
 export async function runChampions(tools?: Tools) {
 	let S: CSave = { ...fresh(), ...load<Partial<CSave>>(KEY, {}) } as CSave;
 	if (S.teams) S.team = S.teams[Math.min(S.cur || 0, S.teams.length - 1)] || S.team;
@@ -571,7 +579,14 @@ export async function runChampions(tools?: Tools) {
 		const a = await ask<HubAct>(r => <Hub key={K()} S={S} done={r} />);
 		if (a === 'exit') { persist(S); if (await confirmBox('타이틀로', '타이틀로 돌아가나요?\n지금까지의 진행은 저장돼 있어요.', '돌아간다', '계속하기')) return; continue; }
 		if (S.ch === 0) { await chapterFlow(S); continue; }
-		if (a === 'story') { if (await ask<boolean>(r => <StoryScreen key={K()} S={S} done={r} />)) { if (S.ch > 0 && teamOf(S).length < 3) { toast('팀에 포켓몬이 3마리는 있어야 해요'); continue; } await chapterFlow(S); } }
+		if (a === 'story') {
+			while (true) {
+				const x = await ask<boolean | Replay>(r => <StoryScreen key={K()} S={S} done={r} />);
+				if (x === false) break;
+				if (x === true) { if (S.ch > 0 && teamOf(S).length < 3) { toast('팀에 포켓몬이 3마리는 있어야 해요'); break; } await chapterFlow(S); break; }
+				await fx('blinds'); await talk(x.lines, x.bg, ['다시 보기', x.title]); await fx('fade');   // 다시 보기: 대사만 (보상·진행은 그대로)
+			}
+		}
 		if (typeof a === 'object') {
 			if (!towerOpen()) { toast('배틀타워는 랭크 매치에서 하이퍼볼급에 오르면 도전할 수 있어요'); continue; }
 			if (teamOf(S).length < (a.doubles ? 4 : 3)) { toast(`팀에 포켓몬이 ${a.doubles ? 4 : 3}마리는 있어야 해요 — 스카우트에서 데려오세요`); continue; }
@@ -599,7 +614,7 @@ export async function runChampions(tools?: Tools) {
 			if (reset) { S = fresh(); persist(S); updateRecords(r => { for (const k of Object.keys(r.rp || {})) if (k.includes(CH_TAG)) { delete r.rp![k]; if (r.rankStreak) delete r.rankStreak[k]; } }); await chapterFlow(S); }
 		}
 		if (a === 'calc' && tools) await ask<void>(r => tools.calc(r));
-		if (a === 'book' && tools) await ask<void>(r => tools.book(r));
+		if (a === 'book' && tools) await ask<void>(r => tools.book(r, 'champions'));
 		if (a === 'mission') await ask<void>(r => <MissionScreen key={K()} S={S} done={r} />);
 	}
 }

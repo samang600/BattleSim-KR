@@ -57,10 +57,10 @@ const BIG_MODES: { id: string; name: string; sub: string; mon: string; cls: stri
 ];
 
 /** 독립 모드(챔피언스·시나리오)에서도 쓰는 공용 화면. settings 의 onTitle = 「타이틀로 돌아가기」 단추 */
-export interface ModeTools { settings: (onBack: () => void, onTitle?: () => void, extra?: SetExtra) => VNode; calc: (onBack: () => void) => VNode; book: (onBack: () => void) => VNode; shop: (onBack: () => void) => VNode }
+export interface ModeTools { settings: (onBack: () => void, onTitle?: () => void, extra?: SetExtra) => VNode; calc: (onBack: () => void) => VNode; book: (onBack: () => void, mode?: string) => VNode; shop: (onBack: () => void) => VNode }
 const TOOLS: ModeTools = {
 	settings: (onBack, onTitle, extra) => <SettingsScreen key={Math.random()} onBack={onBack} onTitle={onTitle} extra={extra} />, calc: onBack => <CalcScreen key={Math.random()} onBack={onBack} />,
-	book: onBack => <TrainerBook key={Math.random()} onBack={onBack} />, shop: onBack => <ShopScreen key={Math.random()} onBack={onBack} />,
+	book: (onBack, mode) => <TrainerBook key={Math.random()} onBack={onBack} mode={mode} />, shop: onBack => <ShopScreen key={Math.random()} onBack={onBack} />,
 };
 function TitleScreen({ onStart }: { onStart: (mode?: string) => void }) {
 	// 개발자 빌드: 한 번 누르면 모드 고르기가 올라옴. 공식 빌드는 모드가 하나라 누르면 바로 들어감
