@@ -578,7 +578,7 @@ export function namedTeam(t: NamedTrainer, size: number, gen: Gen = 9): PSet[] {
 export async function runPWT(ctx?: ArenaCtx) {
 	const wins = (id: string) => ctx ? ctx.cups?.[id] || 0 : loadRecords().cups[id] || 0;
 	const cup = await ask<typeof CUPS[number] | typeof BACK>(r => <ChoiceScreen top title="PWT 월드 토너먼트" onBack={() => r(BACK)}
-		intro={<p class="hint">레벨 50 · 8명 토너먼트 3연승으로 우승!{ctx ? ' 지방 리더스를 모두 우승하면 월드 리더스, 월드 리더스 5회 우승 뒤 사천왕 대회, 사천왕 대회 5회 우승 뒤 챔피언스가 열립니다.' : ''}</p>}
+		intro={<p class="hint">레벨 50 · 8명 토너먼트 3연승으로 우승!{ctx ? ' 오픈 대회를 우승하면 지방 리더스, 지방 리더스를 모두 우승하면 월드 리더스, 월드 리더스 5회 우승 뒤 사천왕 대회, 사천왕 대회 5회 우승 뒤 챔피언스가 열립니다.' : ''}</p>}
 		options={CUPS.filter(c => !ctx || !c.rental).map(c => { const why = ctx?.lock?.(c.id); return { value: c, label: c.name, desc: why ? `잠김 — ${why}` : c.desc, disabled: !!why, badge: wins(c.id) ? `🏆×${wins(c.id)}` : undefined, icon: why ? '🔒' : '🏟' }; })}
 		onPick={r} />);
 	if (cup === BACK) return;

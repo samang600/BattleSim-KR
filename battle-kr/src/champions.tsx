@@ -121,8 +121,11 @@ const champRp = () => { const r = loadRecords().rp || {}, t = recTag(CR()) + CH_
 const rankStep = () => Math.max(0, RANK_CLS.indexOf(rankTier(champRp(), new Date(), true).cls));
 /** 다음 승급전에 도전할 수 있는가: 랭크 매치 등급이 지금 이야기 등급보다 높을 때 */
 const promoReady = (S: CSave) => S.ch > 0 && S.ch < CHAPTERS.length && rankStep() > S.tier;
+/** PWT 는 랭크 매치 마스터볼급부터 */
+const pwtOpen = () => rankStep() >= 4;
 /** PWT 대회가 잠긴 이유 (없으면 열림) */
 const cupLock = (S: CSave, id: string) => { const c = S.cups || {}, left = REGION_CUPS.filter(x => !c[x]).length;
+	if (REGION_CUPS.includes(id)) return c.open ? undefined : '오픈 대회에서 먼저 우승';
 	return id === 'world' ? (left ? `지방 리더스를 모두 우승하면 열림 (남은 ${left}곳)` : undefined)
 		: id === 'elite' ? ((c.world || 0) < CUP_NEED ? `월드 리더스 ${CUP_NEED}회 우승 (${c.world || 0} / ${CUP_NEED})` : undefined)
 		: id === 'champions' ? ((c.elite || 0) < CUP_NEED ? `사천왕 대회 ${CUP_NEED}회 우승 (${c.elite || 0} / ${CUP_NEED})` : undefined) : undefined; };
@@ -520,11 +523,11 @@ type HubAct = 'exit' | 'story' | 'scout' | 'roster' | 'shop' | 'mission' | 'sett
 function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 	const t = T(S), c = CHAPTERS[S.ch], ready = promoReady(S), mr = missionReady(S), newLine = S.lineDay !== today(), team = teamOf(S);
 	const rp = champRp(), st = loadStats(), achDone = ACHIEVEMENTS.filter(a => (st.ach[a.id] || 0) > 0).length, cups = S.cups || {};
-	const pwtNext = cupLock(S, 'world') ? `지방 리더스 ${REGION_CUPS.filter(x => cups[x]).length} / ${REGION_CUPS.length}` : cupLock(S, 'elite') ? `월드 리더스 ${cups.world || 0} / ${CUP_NEED}` : cupLock(S, 'champions') ? `사천왕 대회 ${cups.elite || 0} / ${CUP_NEED}` : `챔피언스 우승 ${cups.champions || 0}회`;
+	const pwtNext = !pwtOpen() ? '랭크 매치 마스터볼급부터 참가' : !cups.open ? '먼저 오픈 대회 우승' : cupLock(S, 'world') ? `지방 리더스 ${REGION_CUPS.filter(x => cups[x]).length} / ${REGION_CUPS.length}` : cupLock(S, 'elite') ? `월드 리더스 ${cups.world || 0} / ${CUP_NEED}` : cupLock(S, 'champions') ? `사천왕 대회 ${cups.elite || 0} / ${CUP_NEED}` : `챔피언스 우승 ${cups.champions || 0}회`;
 	const tile = (a: HubAct, name: string, cls: string, mon: string, badge?: string) => <button class={'cp-tile ' + cls} onClick={() => { sfx('select'); done(a); }}>{badge && <i>{badge}</i>}<PokeIcon species={mon} /><span>{name}</span></button>;
 	const brow = (k: BattleKind, name: string, state: string) => <div class="cp-brow"><div><b>{name}</b><small>{state}</small></div>
 		<button class="btn primary" onClick={() => done({ k, doubles: false })}>싱글<small>3마리</small></button><button class="btn" onClick={() => done({ k, doubles: true })}>더블<small>4마리</small></button></div>;
-	const erow = (a: HubAct, name: string, state: string) => <div class="cp-brow one"><div><b>{name}</b><small>{state}</small></div><button class="btn primary" onClick={() => { sfx('select'); done(a); }}>입장</button></div>;
+	const erow = (a: HubAct, name: string, state: string, locked = false) => <div class={'cp-brow one' + (locked ? ' locked' : '')}><div><b>{name}</b><small>{state}</small></div><button class={'btn' + (locked ? '' : ' primary')} onClick={() => { sfx('select'); done(a); }}>{locked ? '잠김' : '입장'}</button></div>;
 	return <div class="cp-hub"><Top title="챔피언스 모드" sub={`${t.name} · 로스터 ${S.roster.length} / ${t.cap}`} S={S} onBack={() => done('exit')} />
 		<button class="cp-pn cp-me" onClick={() => { sfx('select'); done('book'); }}>
 			<img src={SPRITE_URL(playerSprite())} onError={trainerImgError} alt="" />
@@ -539,7 +542,7 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 		<div class="cp-pn cp-arena"><h3>배틀<button class="cp-rule" onClick={() => done('settings')}>규칙 바꾸기</button></h3>
 			<p class="cp-rulename">{ruleById(CR()).name}</p>
 			{erow('rank', '랭크 매치', `${rankLabel(rp, true)} · 6마리 등록 · 싱글/더블`)}
-			{erow('pwt', 'PWT', `8명 토너먼트 · ${pwtNext}`)}
+			{erow('pwt', 'PWT', pwtOpen() ? `8명 토너먼트 · ${pwtNext}` : pwtNext, !pwtOpen())}
 			{brow('tower', '배틀타워', `${S.tower}연승 · 7연승마다 지명 티켓 (${S.tower % 7} / 7)`)}</div>
 		<button class="cp-pn cp-myteam" onClick={() => { sfx('select'); done('roster'); }}><h3>내 팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
 			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => <span class={team[i] ? '' : 'empty'}>{team[i] && <PokeIcon species={team[i].set.species} />}{team[i]?.set.item && <span class="cp-held"><ItemIcon item={team[i].set.item} size={16} /></span>}</span>)}</div></button>
@@ -570,12 +573,13 @@ export async function runChampions(tools?: Tools) {
 			await towerBattle(S, a.doubles);
 		}
 		if (a === 'rank' || a === 'pwt') {
+			if (a === 'pwt' && !pwtOpen()) { toast('PWT 는 랭크 매치에서 마스터볼급에 오르면 참가할 수 있어요'); continue; }
 			if (!teamOk(S)) continue;
 			if (a === 'pwt') await events(S, 'pwt');
 			dayOf(S).modes[a] = 1; persist(S);
-			await fx('battle');
+			// 화면 전환 연출 없이 바로 넘어감 (기다리는 시간을 없앰)
 			await (a === 'rank' ? runRank : runPWT)(arena(S));
-			playMusic(HUB_BGM); await fx('fade');
+			playMusic(HUB_BGM);
 			await events(S);
 			if (promoReady(S)) toast('승급전에 도전할 수 있어요! (스토리)');
 		}

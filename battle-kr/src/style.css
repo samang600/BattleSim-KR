@@ -3973,3 +3973,4 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 .cp-me > div { flex: 1; min-width: 0; } .cp-me b { display: block; font-weight: normal; font-size: 17px; color: #ffe890; } .cp-me small { display: block; font-size: 12px; color: #b8c8e8; }
 .cp-me-syms { display: flex; align-items: center; gap: 4px; margin-top: 2px; } .cp-me-syms i { margin-left: 6px; font-style: normal; font-size: 12px; color: #9fe4ff; }
 .cp-brow.one { grid-template-columns: minmax(0, 1fr) 150px; } .cp-brow.one .btn { padding: 8px 0; text-align: center; }
+.cp-brow.locked b, .cp-brow.locked small { opacity: .6; }
