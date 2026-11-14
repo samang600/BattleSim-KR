@@ -58,6 +58,8 @@ const BIG_MODES: { id: string; name: string; sub: string; mon: string; cls: stri
 
 /** 독립 모드(챔피언스·시나리오)에서도 쓰는 공용 화면. settings 의 onTitle = 「타이틀로 돌아가기」 단추 */
 export interface ModeTools { settings: (onBack: () => void, onTitle?: () => void, extra?: SetExtra) => VNode; calc: (onBack: () => void) => VNode; book: (onBack: () => void, mode?: string) => VNode; shop: (onBack: () => void) => VNode }
+/** 타이틀에서 고른 독립 모드가 돌아가는 중 (뒤로 키 처리용) */
+let inBigMode = false;
 const TOOLS: ModeTools = {
 	settings: (onBack, onTitle, extra) => <SettingsScreen key={Math.random()} onBack={onBack} onTitle={onTitle} extra={extra} />, calc: onBack => <CalcScreen key={Math.random()} onBack={onBack} />,
 	book: (onBack, mode) => <TrainerBook key={Math.random()} onBack={onBack} mode={mode} />, shop: onBack => <ShopScreen key={Math.random()} onBack={onBack} />,
@@ -623,7 +625,9 @@ function App() {
 			const m = BIG_MODES.find(x => x.id === r.slice(4))!;
 			setRoute('mode');
 			resetAbort();
+			inBigMode = true;
 			try { await m.run!(); } catch (e: any) { if (!(e instanceof QuitToMenu)) { console.error(e); toast('오류: ' + (e?.message || e)); } }
+			inBigMode = false;
 			resetAbort();
 			setModeView(null);
 			setRoute('title');
@@ -671,6 +675,8 @@ function App() {
 			const menu = document.querySelector('.hud-top .menu-btn') as HTMLButtonElement | null;
 			if (menu) { menu.click(); return true; } // 배틀 메뉴 (메인 메뉴로·기권)
 			if (document.querySelector('.battle')) return true; // 연출 중엔 무시
+			// 독립 모드(챔피언스·시나리오): 그 모드의 뒤로·나가기 단추를 누른 것으로 (없으면 무시 — 진행 중인 모드를 두고 다른 메뉴로 넘어가지 않게)
+			if (inBigMode) { const b2 = document.querySelector('.cp-back, .st-exit, .cp-skip') as HTMLButtonElement | null; b2?.click(); return true; }
 			if (route !== 'home' && route !== 'title') { setRoute('home'); return true; }
 			if (route === 'home') { setRoute('title'); return true; }
 			return false;

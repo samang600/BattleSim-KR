@@ -4004,3 +4004,9 @@ button.cp-ch { width: 100%; font: inherit; color: inherit; text-align: left; cur
 /* 챔피언스 메인의 플레이어 카드: 수첩 카드와 같은 꾸미기(배경·테두리·칭호) */
 .cp-me.bk-tcard { width: calc(100% - 24px); margin: 12px; font: inherit; color: inherit; text-align: left; cursor: pointer; border: 0; flex-wrap: nowrap; } .cp-me.bk-tcard:active { transform: translate(2px, 2px); }
 .cp-me .bk-tcard-img { width: 64px; height: 64px; object-fit: contain; } .cp-me .bk-tcard-body b { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 18px; }
+/* 팀 편성 단추: 포켓몬 아이콘을 위아래 3마리씩 */
+.h2-team-mons { display: grid; grid-template-columns: repeat(3, 40px); grid-auto-rows: 30px; gap: 2px 4px; flex: none; align-items: center; justify-items: center; } .h2-team-mons .poke-icon { margin: 0; } .h2-team-mons > i { grid-column: 1 / -1; white-space: nowrap; }
+.h2-team { justify-content: space-between; } .h2-team-text { flex: 1; min-width: 0; }
+@media (min-width: 900px) { .h2-team-mons .poke-icon { margin: 0; } }
+.cp-top b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .cp-top b small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-storybtn.ready { animation: none; box-shadow: none; }

@@ -79,10 +79,10 @@ function Bp() {
 	useState(() => onWallet(w => setBp(w.bp)));
 	return <span class="cp-chip">{bp} BP</span>;
 }
-function Top({ title, sub, S, onBack, extra }: { title: string; sub?: string; S: CSave; onBack?: () => void; /** 오른쪽 표시들 가운데 맨 왼쪽에 붙는 작은 단추 (메인 화면의 스토리) */ extra?: any }) {
+function Top({ title, sub, S, onBack, extra, noTk }: { title: string; sub?: string; S: CSave; onBack?: () => void; /** 오른쪽 표시들 가운데 맨 왼쪽에 붙는 작은 단추 (메인 화면의 스토리) */ extra?: any; /** 티켓 표시를 뺌 (메인 화면: 자리가 좁아 스카우트 단추에 대신 표시) */ noTk?: boolean }) {
 	return <div class="cp-top">{onBack && <button class="cp-back" onClick={onBack} aria-label="뒤로" />}
 		<b>{title}{sub && <small>{sub}</small>}</b>
-		{extra}{S.tk.regular > 0 && <span class="cp-chip t">티켓 {S.tk.regular}</span>}{S.tk.pick > 0 && <span class="cp-chip t">지명 {S.tk.pick}</span>}<Bp /></div>;
+		{extra}{!noTk && S.tk.regular > 0 && <span class="cp-chip t">티켓 {S.tk.regular}</span>}{!noTk && S.tk.pick > 0 && <span class="cp-chip t">지명 {S.tk.pick}</span>}<Bp /></div>;
 }
 const types = (sp: string) => ((speciesData(sp, 9) as any)?.t || []) as string[];
 /** 포켓몬 카드 (소개·로스터) */
@@ -547,7 +547,7 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 	const brow = (k: BattleKind, name: string, state: string) => <div class="cp-brow"><div><b>{name}</b><small>{state}</small></div>
 		<button class="btn primary" onClick={() => done({ k, doubles: false })}>싱글<small>3마리</small></button><button class="btn blue" onClick={() => done({ k, doubles: true })}>더블<small>4마리</small></button></div>;
 	const erow = (a: HubAct, name: string, state: string, locked = false) => <div class={'cp-brow one' + (locked ? ' locked' : '')}><div><b>{name}</b><small>{state}</small></div><button class={'btn' + (locked ? '' : ' primary')} onClick={() => { sfx('select'); done(a); }}>{locked ? '잠김' : '입장'}</button></div>;
-	return <div class="cp-hub"><Top title="챔피언스 모드" sub={t.name} S={S} onBack={() => done('exit')}
+	return <div class="cp-hub"><Top title="챔피언스 모드" sub={`${t.name}${S.tk.regular + S.tk.pick > 0 ? ` · 티켓 ${S.tk.regular} · 지명 ${S.tk.pick}` : ''}`} S={S} noTk onBack={() => done('exit')}
 			extra={<button class={'cp-storybtn' + (ready ? ' ready' : '')} onClick={() => { sfx('select'); done('story'); }} aria-label={ready ? '스토리 — 승급전에 도전할 수 있어요' : '스토리'}>스토리</button>} />
 		<button class={'cp-me bk-tcard' + cardSkinClass(wal)} style={cardSkin(wal)} onClick={() => { sfx('select'); done('book'); }}>
 			<img class="bk-tcard-img" src={SPRITE_URL(playerSprite())} onError={trainerImgError} alt="" />
@@ -556,7 +556,7 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 		</button>
 		<div class="cp-pn cp-arena"><h3>배틀<button class="cp-rule" onClick={() => done('settings')}>규칙 바꾸기</button></h3>
 			<p class="cp-rulename">{ruleById(CR()).name}</p>
-			{erow('rank', '랭크 매치', `${rankLabel(rp, true)} · 6마리 등록 · 싱글/더블`)}
+			{erow('rank', '랭크 매치', `${rankLabel(rp, true)} · ${rp} RP`)}
 			{towerOpen() ? brow('tower', '배틀타워', `${S.tower}연승 · 7연승마다 지명 티켓 (${S.tower % 7} / 7)`) : erow({ k: 'tower', doubles: false }, '배틀타워', '랭크 매치 하이퍼볼급부터 도전', true)}
 			{erow('pwt', 'PWT', pwtOpen() ? `8명 토너먼트 · ${pwtNext}` : pwtNext, !pwtOpen())}</div>
 		<button class="cp-pn cp-myteam" onClick={() => { sfx('select'); done('roster'); }}><h3>내 팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
