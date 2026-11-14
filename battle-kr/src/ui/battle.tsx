@@ -763,10 +763,13 @@ function typeTint(type: string) {
 			if (cmd === 'detailschange' && m.fainted) { m.pendingSpecies = d.species; return 0; }
 			if (cmd === 'detailschange' && /-(Mega|Primal|Ultra)\b/.test(d.species) && !/-(Mega|Primal|Ultra)\b/.test(m.species)) {
 				// 메가진화·원시회귀·울트라버스트: 빛기둥 연출을 먼저, 그 뒤 그림 교체
-				sfx('mega'); const pt = slotPoint(args[1]); if (pt && fxRef.current) { FX.pillar(fxRef.current, pt, /Primal/.test(d.species) ? '#ffb040' : '#ff80ff', scale); if (/-Mega\b/.test(d.species)) FX.megaIcon(fxRef.current, pt, scale); }
+				const ultra = /-Ultra\b/.test(d.species);
+				sfx('mega'); const pt = slotPoint(args[1]);
+				if (pt && fxRef.current && ultra && arenaRef.current) FX.ultraBurst(fxRef.current, arenaRef.current, pt, scale);
+				else if (pt && fxRef.current) { FX.pillar(fxRef.current, pt, /Primal/.test(d.species) ? '#ffb040' : '#ff80ff', scale); if (/-Mega\b/.test(d.species)) FX.megaIcon(fxRef.current, pt, scale); }
 				m.anim = 'evolve'; rerender();
-				setTimeout(() => { m.species = d.species; m.anim = 'enter'; rerender(); cry(toID(d.species)); setTimeout(() => { if (m.anim === 'enter') { m.anim = ''; rerender(); } }, 600 / FX.fxSpeed()); }, 750 / FX.fxSpeed());
-				return 1300;
+				setTimeout(() => { m.species = d.species; m.anim = 'enter'; rerender(); cry(toID(d.species)); setTimeout(() => { if (m.anim === 'enter') { m.anim = ''; rerender(); } }, 600 / FX.fxSpeed()); }, (ultra ? 760 : 750) / FX.fxSpeed());
+				return ultra ? 1900 : 1300;
 			}
 			if (cmd === 'detailschange') m.species = d.species; else m.transformed = d.species;
 			return 300;

@@ -75,15 +75,20 @@ export const ANI_BASE = 'https://samang600.github.io/BattleSim-KR/ani/';
 const ANI_IDS = new Set((ANI_INDEX as any).ids as string[]);
 const ANI_NO = { back: new Set((ANI_INDEX as any).noBack as string[]), shiny: new Set(((ANI_INDEX as any).noShiny || []) as string[]), backShiny: new Set(((ANI_INDEX as any).noBackShiny || []) as string[]) };
 const NONE = new Set<string>();
+declare const __ANI_FIX__: Record<string, string>;
+/** 손질한 움직이는 도트 (묶음 원본이 통통 튀어 보이는 그림 — scripts/calm-ani.py) */
+const ANI_FIX: Record<string, string> = typeof __ANI_FIX__ === 'object' ? __ANI_FIX__ : {};
 /** 이 그림의 움직이는 도트 주소 (설정이 꺼져 있거나 없는 그림이면 '') */
 export function aniDotUrl(id: string, back: boolean, shiny: boolean, settings = loadSettings()): string {
 	if (!settings.aniDot || settings.animatedSprites) return '';
 	if (!ANI_IDS.has(id) || (shiny ? (back ? ANI_NO.backShiny : ANI_NO.shiny) : back ? ANI_NO.back : NONE).has(id)) return '';
+	const fix = ANI_FIX[`${id}${back ? '-back' : ''}${shiny ? '-shiny' : ''}`];
+	if (fix) return fix;
 	const local = aniLocalBase(back, shiny);
 	if (local) return `${local}${id}.webp`;
 	return online() ? `${ANI_BASE}${back ? 'back' : 'front'}${shiny ? '-shiny' : ''}/${id}.webp` : '';
 }
-const isAniDot = (url: string) => url.startsWith(ANI_BASE) || /\/ani(front|back)(shiny)?\/[^/]+\.webp$/.test(url);
+const isAniDot = (url: string) => url.startsWith('data:image/webp') || url.startsWith(ANI_BASE) || /\/ani(front|back)(shiny)?\/[^/]+\.webp$/.test(url);
 const preloaded: { [url: string]: HTMLImageElement } = {};
 /** 배틀 시작 전에 그림을 미리 받아 둔다 (교체 때 그림이 늦게 뜨는 것 방지) */
 export function preloadSprite(species: string, back: boolean, shiny?: boolean) {

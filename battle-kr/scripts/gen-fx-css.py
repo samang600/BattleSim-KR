@@ -297,11 +297,14 @@ u, w, h = CLOUD; layer('sunset', 'before', u, w, h, '36%', '52%', f'arDrift 60s 
 u, w, h = TWINK; layer('sunset', 'after', u, w, h, '0', '68%', 'arTwinkle 3.2s steps(1) infinite')
 u, w, h = TWINK; layer('starry', 'before', u, w, h, '0', '50%', 'arTwinkle 2.6s steps(1) infinite')
 u, w, h = GLINT; layer('starry', 'after', u, w, h, '57%', '35%', f'arDrift 6s steps(24) infinite; --dx: {w}px; --dy: 0px')
-u, w, h = FALL; layer('sakura', 'before', u, w, h, '0', '0', f'arDrift 9s steps(72) infinite; --dx: -{w}px; --dy: {h * 2}px')
-u, w, h = DUST; layer('desert', 'before', u, w, h, '52%', '0', f'arDrift 7s steps(64) infinite; --dx: -{w}px; --dy: 0px')
+u, w, h = FALL; layer('sakura', 'before', u, w, h, '0', '46%', f'arDrift 9s steps(72) infinite; --dx: -{w}px; --dy: {h * 2}px')
+# 날씨(모래바람)와 헷갈리지 않게: 흩날리는 모래 대신 모래 위의 햇빛 반짝임
+SANDGL = tile(scatter(72, 36, 7, [['.a.', 'aba', '.a.'], ['b'], ['aa'], ['b']], 61), {'a': ('#fff4c8', .75), 'b': ('#ffffff', .95)})
+u, w, h = SANDGL; layer('desert', 'before', u, w, h, '54%', '0', 'arTwinkle 3s steps(1) infinite')
 ar.append('.bg-desert .arena-bg::after { content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 48%; pointer-events: none; background: repeating-linear-gradient(180deg, rgba(255,240,200,.08) 0 2px, transparent 2px 8px); animation: arHeat 1.6s steps(4) infinite; }')
 u, w, h = AUR; layer('aurora', 'before', u, w, h, '27%', '58%', f'arDrift 24s steps(128) infinite; --dx: {w}px; --dy: 0px')
-u, w, h = SNOW; layer('aurora', 'after', u, w, h, '0', '0', f'arDrift 10s steps(80) infinite; --dx: 8px; --dy: {h * 2}px')
+# 날씨(눈)와 헷갈리지 않게: 내리는 눈 대신 밤하늘 별의 깜박임
+u, w, h = TWINK; layer('aurora', 'after', u, w, h, '0', '56%', 'arTwinkle 3s steps(1) infinite')
 BUBBLE = tile(scatter(48, 64, 4, [['.a.', 'a.a', '.a.'], ['a'], ['a']], 41), {'a': ('#c8f0ff', .8)})
 RAYS = tile(['a.......' * 2] * 1 + ['........' * 2] * 3, {'a': ('#8ad8ff', .25)})
 SKYCLOUD = tile(scatter(160, 12, 3, [['..aaaaaaaa..', 'aaaaaaaaaaaa', '.bbbbbbbbbb.']], 12), {'a': ('#ffffff', .75), 'b': ('#dce8fa', .75)})
@@ -312,7 +315,9 @@ ar.append('.bg-deepsea .arena-bg::after { content: ""; position: absolute; left:
 u, w, h = SKYCLOUD; layer('skypillar', 'before', u, w, h, '40%', '48%', f'arDrift 40s steps(160) infinite; --dx: -{w}px; --dy: 0px')
 u, w, h = SKYCLOUD; layer('skypillar', 'after', u, w, h, '8%', '76%', f'arDrift 70s steps(160) infinite; --dx: {w}px; --dy: 0px; opacity: .5')
 u, w, h = WIN; layer('neon', 'before', u, w, h, '10%', '62%', 'arTwinkle 2.4s steps(1) infinite')
-u, w, h = RAIN; layer('neon', 'after', u, w, h, '0', '0', f'arDrift 1.2s steps(16) infinite; --dx: -8px; --dy: {h}px')
+# 날씨(비)와 헷갈리지 않게: 빗줄기 대신 빌딩 창·간판 불빛이 번쩍임
+SIGN = tile(scatter(56, 34, 7, [['aaaa', 'aaaa'], ['bb', 'bb', 'bb'], ['cccccc'], ['a', 'a'], ['bbb']], 83), {'a': ('#ff5ac8', .95), 'b': ('#5af0ff', .95), 'c': ('#fff07a', .95)})
+u, w, h = SIGN; layer('neon', 'after', u, w, h, '8%', '58%', 'arBlink 1.8s steps(1) infinite')
 ar.append('@keyframes arRay { 0%, 100% { background-position: 0 0; } 50% { background-position: 24px 0; } }')
 HEARTS = tile(scatter(64, 64, 3, [['.a.a.', 'aaaaa', '.aaa.', '..a..'], ['.b.b.', 'bbbbb', '.bbb.', '..b..'], ['c']], 71), {'a': ('#ff9ac8', .85), 'b': ('#c8a8ff', .85), 'c': ('#ffffff', .9)})
 PUFF = tile(scatter(192, 14, 2, [['...aaaa......', '.aaaaaaaaaa..', 'aaaaaaaaaaaaa', '.bbbbbbbbbbb.']], 33), {'a': ('#ffffff', .8), 'b': ('#f0dcf4', .8)})
@@ -330,7 +335,7 @@ MFALL = tile(scatter(48, 48, 5, [['.a.', 'aba', '.a.'], ['ab'], ['a']], 91), {'a
 SHOOT = tile(scatter(96, 48, 2, [['aab.....', '...bbcc.', '.......c']], 37), {'a': ('#ffffff', .9), 'b': ('#c8d8ff', .6), 'c': ('#8aa0d8', .3)})
 FLY = tile(scatter(64, 48, 6, [['.a.', 'aba', '.a.'], ['b'], ['b']], 113), {'a': ('#c8f070', .55), 'b': ('#f0ffb0', 1)})
 FLY2 = tile(scatter(72, 40, 4, [['b'], ['.a.', 'aba', '.a.']], 127), {'a': ('#8ad8ff', .5), 'b': ('#e8ffff', .95)})
-u, w, h = MFALL; layer('momiji', 'before', u, w, h, '0', '0', f'arDrift 11s steps(88) infinite; --dx: -{w}px; --dy: {h * 2}px')
+u, w, h = MFALL; layer('momiji', 'before', u, w, h, '0', '46%', f'arDrift 11s steps(88) infinite; --dx: -{w}px; --dy: {h * 2}px')
 u, w, h = TWINK; layer('momiji', 'after', u, w, h, '0', '70%', 'arTwinkle 3.6s steps(1) infinite; opacity: .6')
 u, w, h = TWINK; layer('orbit', 'before', u, w, h, '5%', '50%', 'arTwinkle 2.4s steps(1) infinite')
 u, w, h = SHOOT; layer('orbit', 'after', u, w, h, '6%', '52%', f'arDrift 5s steps(48) infinite; --dx: {w}px; --dy: {h}px; opacity: .8')
@@ -340,6 +345,7 @@ ar += [
 	'.arena-bg { overflow: hidden; }',
 	'@keyframes arDrift { to { background-position: var(--dx) var(--dy); } }',
 	'@keyframes arTwinkle { 0% { background-position: 0 0; opacity: 1; } 25% { opacity: .3; } 50% { background-position: 22px 14px; opacity: 1; } 75% { opacity: .3; } }',
+	'@keyframes arBlink { 0% { background-position: 0 0; opacity: 1; } 12% { opacity: 0; } 18% { opacity: 1; } 30% { opacity: 0; } 40% { background-position: 18px 10px; opacity: 1; } 58% { opacity: .4; } 64% { opacity: 1; } 78% { opacity: 0; } 84% { background-position: 36px 4px; opacity: 1; } }',
 	'@keyframes arHeat { 0% { transform: translateY(0); } 50% { transform: translateY(2px); } }',
 	'@media (prefers-reduced-motion: reduce) { [class*="hpt-"] .info::before, .arena-bg::before, .arena-bg::after { animation: none !important; } }',
 	'/* ═════ FX:END ═════ */',

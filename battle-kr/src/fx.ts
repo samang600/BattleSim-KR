@@ -274,18 +274,23 @@ export function sparkle(layer: HTMLElement, at: Pt, type: string, s: number, dow
 	}
 }
 
-/** 이로치 등장: 도트 별(십자 4갈래)이 몸 둘레에 두 바퀴 반짝이며 퍼짐 (흐림 없이 steps) */
+/** 이로치 등장: 가운데에서 큰 십자 빛이 번쩍이고, 도트 별(십자 4갈래)이 몸 둘레에 세 바퀴 반짝이며 퍼짐 (흐림 없이 steps) */
 export function shinyStars(layer: HTMLElement, at: Pt, s: number) {
-	const star = (sz: number, c: string) => `background:linear-gradient(${c},${c}) ${sz * 2}px 0/${sz}px ${sz * 5}px no-repeat,linear-gradient(${c},${c}) 0 ${sz * 2}px/${sz * 5}px ${sz}px no-repeat,linear-gradient(#fff,#fff) ${sz * 2}px ${sz * 2}px/${sz}px ${sz}px no-repeat;`;
-	for (let wave = 0; wave < 2; wave++) {
+	const star = (sz: number, c: string) => `background:linear-gradient(${c},${c}) ${sz * 2}px 0/${sz}px ${sz * 5}px no-repeat,linear-gradient(${c},${c}) 0 ${sz * 2}px/${sz * 5}px ${sz}px no-repeat,linear-gradient(#fff,#fff) ${sz * 2}px ${sz * 2}px/${sz}px ${sz}px no-repeat;filter:drop-shadow(1px 1px 0 rgba(10,12,28,.6))`;
+	// 가운데 큰 십자 빛
+	const big = Math.max(2, Math.round(4 * s / 2) * 2);
+	const mid = px(layer, at.x, at.y, big * 5, big * 5, 'transparent', star(big, '#fff8a0'));
+	anim(mid, [{ transform: 'scale(.3) rotate(0deg)', opacity: 1 }, { transform: 'scale(1.5) rotate(45deg)', opacity: 1, offset: 0.4 }, { transform: 'scale(.6) rotate(90deg)', opacity: 0 }], { duration: 520, easing: 'steps(8)' });
+	const COLS = ['#fff8a0', '#a8e8ff', '#ffffff', '#ffc0f0'];
+	for (let wave = 0; wave < 3; wave++) {
 		const n = 8;
 		for (let i = 0; i < n; i++) {
 			const a = (i / n) * Math.PI * 2 + wave * 0.4;
-			const r0 = (8 + wave * 4) * s, r1 = (30 + wave * 10) * s;
-			const sz = Math.max(2, Math.round((wave ? 2 : 3) * s / 2) * 2) / 2;
-			const el = px(layer, at.x - sz * 2.5, at.y - sz * 2.5, sz * 5, sz * 5, 'transparent', star(sz, i % 2 ? '#fff8a0' : '#a8e8ff'));
-			anim(el, [{ transform: `translate(${Math.cos(a) * r0}px,${Math.sin(a) * r0}px)`, opacity: 0 }, { opacity: 1, offset: 0.25 },
-				{ transform: `translate(${Math.cos(a) * r1}px,${Math.sin(a) * r1}px)`, opacity: 0 }], { duration: 700, delay: wave * 260 + i * 20, easing: 'steps(7)' });
+			const r0 = (8 + wave * 4) * s, r1 = (38 + wave * 12) * s;
+			const sz = Math.max(2, Math.round((wave === 1 ? 3 : 4) * s / 2) * 2) / 2;
+			const el = px(layer, at.x, at.y, sz * 5, sz * 5, 'transparent', star(sz, COLS[(i + wave) % COLS.length]));
+			anim(el, [{ transform: `translate(${Math.cos(a) * r0}px,${Math.sin(a) * r0}px)`, opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 1, offset: 0.7 },
+				{ transform: `translate(${Math.cos(a) * r1}px,${Math.sin(a) * r1}px)`, opacity: 0 }], { duration: 900, delay: 120 + wave * 240 + i * 20, easing: 'steps(9)' });
 		}
 	}
 }
@@ -310,6 +315,42 @@ export function pillar(layer: HTMLElement, at: Pt, color: string, s: number) {
 	layer.appendChild(el);
 	anim(el, [{ opacity: 0, transform: 'scaleX(.2)' }, { opacity: 0.9, transform: 'scaleX(1)', offset: 0.3 }, { opacity: 0, transform: 'scaleX(1.6)' }], { duration: 800, easing: 'steps(8)' });
 	sparkle(layer, at, 'Normal', s);
+}
+
+/** 울트라버스트: 사방의 빛이 몸으로 빨려 들어 빛덩이가 커지고 → 화면이 하얗게 터지며 빛줄기·무지개 고리·빛 조각이 퍼짐 (약 1.5초, 흐림 없이 steps) */
+export function ultraBurst(layer: HTMLElement, arena: HTMLElement, at: Pt, s: number) {
+	const c = { x: at.x, y: at.y - 16 * s };
+	const GOLD = ['#ffffff', '#fff8c0', '#ffd040', '#a8e8ff'];
+	// ① 빛 모으기: 먼 곳의 빛 조각이 몸으로
+	for (let i = 0; i < 26; i++) {
+		const a = (i / 26) * Math.PI * 2 + rnd(-0.2, 0.2), d = rnd(60, 120) * s, sz = Math.max(2, Math.round(rnd(3, 5) * s / 2) * 2);
+		const el = px(layer, c.x, c.y, sz, sz, GOLD[i % GOLD.length]);
+		anim(el, [{ transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d}px)`, opacity: 0 }, { opacity: 1, offset: 0.25 }, { transform: 'translate(0,0)', opacity: 1 }], { duration: 420, delay: i * 20, easing: 'steps(7)' });
+	}
+	// 가운데 빛덩이: 점점 커지다가 터지며 사라짐
+	const core = px(layer, c.x, c.y, 16 * s, 16 * s, '#ffffff', 'border-radius:50%;box-shadow:0 0 0 ' + Math.round(3 * s) + 'px #ffe060');
+	anim(core, [{ transform: 'scale(.2)', opacity: 0 }, { transform: 'scale(.8)', opacity: 1, offset: 0.2 }, { transform: 'scale(2.2)', opacity: 1, offset: 0.62 }, { transform: 'scale(7)', opacity: 0 }], { duration: 1100, easing: 'steps(14)' });
+	// ② 폭발: 번쩍 + 흔들림 + 빛줄기 + 무지개 고리 + 빛 조각
+	later(() => {
+		if (!layer.isConnected) return;
+		flash(layer, '#fff8d0', 320); shake(arena, true, 300);
+		for (let i = 0; i < 14; i++) {
+			const deg = (i / 14) * 360 + (i % 2 ? 8 : 0), L = (i % 2 ? 80 : 120) * s, w = Math.max(2, Math.round((i % 2 ? 3 : 5) * s / 2) * 2);
+			const el = px(layer, c.x, c.y - L / 2, w, L, 'transparent', `background:linear-gradient(0deg,#ffffff 0 30%,${i % 2 ? '#ffe060' : '#fff8c0'} 30% 70%,transparent);transform-origin:50% 100%`);
+			anim(el, [{ transform: `rotate(${deg}deg) scaleY(.1)`, opacity: 1 }, { transform: `rotate(${deg + 10}deg) scaleY(1)`, opacity: 1, offset: 0.4 }, { transform: `rotate(${deg + 22}deg) scaleY(1.25)`, opacity: 0 }], { duration: 620, delay: (i % 3) * 30, easing: 'steps(8)' });
+		}
+		['#ffe060', '#ff90d0', '#80e0ff', '#ffffff'].forEach((col, i) => {
+			const r = px(layer, c.x, c.y, 20 * s, 20 * s, 'transparent', `border:${Math.max(2, Math.round(3 * s))}px solid ${col};border-radius:50%`);
+			anim(r, [{ transform: 'scale(.3)', opacity: 1 }, { transform: `scale(${5 + i})`, opacity: 0 }], { duration: 560, delay: i * 90, easing: 'steps(8)' });
+		});
+		for (let i = 0; i < 20; i++) {
+			const a = (i / 20) * Math.PI * 2 + rnd(0, 0.3), d = rnd(50, 100) * s, sz = Math.max(2, Math.round(rnd(3, 6) * s / 2) * 2);
+			const el = px(layer, c.x, c.y, sz, sz, GOLD[i % GOLD.length]);
+			anim(el, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d}px)`, opacity: 0 }], { duration: rnd(520, 760), easing: 'steps(8)' });
+		}
+	}, 700);
+	// ③ 여운: 몸 둘레에 별빛
+	later(() => { if (layer.isConnected) shinyStars(layer, c, s); }, 1050);
 }
 
 /** 메가진화 심볼 도트 그림 (10×15, 사용자가 준 그림 · 흰 틈은 투명 · 원본 src/assets/mega-symbol.png) */
@@ -679,14 +720,14 @@ export function ballBurst(layer: HTMLElement, at: Pt, s: number, ballId = 'pokeb
 	if (c.heart) pixelFx(layer, at, s, { fx: 'heartPickup', len: .5, dy: 20 });
 }
 function ballPop(layer: HTMLElement, at: Pt, s: number, base: string, light: string, part: string, c: BallConcept) {
-	const W = 128, C = W / 2, k = s * 0.85, FR = 18, move = c.move || 'burst';
+	const W = 128, C = W / 2, k = s * 1.2, FR = 22, move = c.move || 'burst';
 	const cv = document.createElement('canvas');
 	cv.width = W; cv.height = W; cv.className = 'fxp pxfx';
 	cv.style.cssText = `left:${Math.round(at.x - C * k)}px;top:${Math.round(at.y - C * k)}px;width:${Math.round(W * k)}px;height:${Math.round(W * k)}px;`;
 	const g = cv.getContext('2d'); if (!g) return;
 	const dot = (x: number, y: number, w: number, col: string) => { g.fillStyle = col; g.fillRect(Math.round(x - w / 2), Math.round(y - w / 2), w, w); };
 	/** 모양 찍기 (z = 한 칸의 크기). 바깥 한 칸은 어두운 테두리로 (밝은 배경에서도 모양이 보이게) */
-	const stamp = (x: number, y: number, col: string, name: string, z = 2) => {
+	const stamp = (x: number, y: number, col: string, name: string, z = 3) => {
 		const shape = SHAPES[name] || SHAPES.sq;
 		const h = shape.length, w = shape[0].length, x0 = Math.round(x - (w * z) / 2), y0 = Math.round(y - (h * z) / 2);
 		g.fillStyle = 'rgba(10,12,28,.55)';
@@ -727,31 +768,31 @@ function ballPop(layer: HTMLElement, at: Pt, s: number, base: string, light: str
 		g.clearRect(0, 0, W, W);
 		// 가운데 번쩍: 큰 빛 → 십자·대각 빛줄기가 돌며 줄어듦, 가운데에 그 볼의 상징 모양
 		if (f === 0) { dot(C, C, 12, '#fff'); dot(C, C, 6, light); g.fillStyle = '#fff'; g.fillRect(C - 20, C - 1, 40, 2); g.fillRect(C - 1, C - 20, 2, 40); }
-		else if (f <= 6) { glint(C, C, 15 - f * 2, light, f % 2 === 1); if (f >= 2) stamp(C, C, f % 2 ? base : light, c.shapes[0], f <= 4 ? 4 : 3); }
+		else if (f <= 8) { glint(C, C, Math.max(3, 19 - f * 2), light, f % 2 === 1); if (f >= 2) stamp(C, C, f % 2 ? base : light, c.shapes[0], f <= 5 ? 5 : 4); }
 		// 고리 1: 빛 색 / 고리 2: 그 볼의 둘째 색으로 더 크게
 		const ringAt = (f0: number, len: number, r0: number, r1: number, col: string, n: number) => {
 			const u = (f - f0) / len; if (u < 0 || u > 1) return;
 			const r = r0 + (r1 - r0) * out(u);
-			for (let i = 0; i < n; i++) { if (u > 0.55 && (i + f) % 2) continue; const a = (i / n) * Math.PI * 2; dot(C + Math.cos(a) * r, C + Math.sin(a) * r * 0.9, u < 0.4 ? 2 : 1, col); }
+			for (let i = 0; i < n; i++) { if (u > 0.7 && (i + f) % 2) continue; const a = (i / n) * Math.PI * 2; dot(C + Math.cos(a) * r, C + Math.sin(a) * r * 0.9, u < 0.5 ? 3 : 2, col); }
 		};
-		ringAt(1, 8, 6, 34, light, 32);
-		ringAt(3, 9, 8, move === 'streak' ? 40 : 50, c.ring2 || base, 40);
+		ringAt(1, 10, 6, 34, light, 32);
+		ringAt(3, 12, 8, move === 'streak' ? 40 : 50, c.ring2 || base, 40);
 		// 입자: 큰 것은 볼 상징 모양(두 가지 번갈아), 작은 것은 점 — 지난 위치에 흐린 꼬리
-		for (const [list, life, big] of [[fast, 13, true], [slow, 15, false]] as const) {
+		for (const [list, life, big] of [[fast, 17, true], [slow, 19, false]] as const) {
 			const u = (f - 1) / life; if (u < 0 || u > 1) continue;
 			list.forEach((pp, i) => {
 				const [x, y] = pos(pp.a, pp.v, u), [px0, py0] = pos(pp.a, pp.v, Math.max(0, u - 1.5 / life));
 				const col = i % 2 ? part : base;
 				if (u > 0.78 && (i + f) % 2) return;
-				g.globalAlpha = 0.45; dot(px0, py0, 1, light); if (move === 'streak') dot((px0 + x) / 2, (py0 + y) / 2, 1, light); g.globalAlpha = 1;
-				if (big && u < 0.65) stamp(x, y, col, c.shapes[i % c.shapes.length]); else dot(x, y, big ? 2 : 1, col);
+				g.globalAlpha = 0.6; dot(px0, py0, 2, light); if (move === 'streak') dot((px0 + x) / 2, (py0 + y) / 2, 2, light); g.globalAlpha = 1;
+				if (big && u < 0.75) stamp(x, y, col, c.shapes[i % c.shapes.length]); else dot(x, y, big ? 3 : 2, col);
 			});
 		}
 		// 주변 반짝임: 하나씩 켜졌다 꺼짐 (보석·별 볼은 그 모양으로)
 		for (const t of tw) {
-			const d = f - t.f0; if (d < 0 || d >= 5) continue;
-			if (c.twShape && d >= 1 && d <= 3) stamp(t.x, t.y, d === 2 ? '#fff' : light, c.twShape, d === 2 ? 2 : 1);
-			else glint(t.x, t.y, d < 2 ? 3 + d : 5 - d, light, d % 2 === 1);
+			const d = f - t.f0; if (d < 0 || d >= 7) continue;
+			if (c.twShape && d >= 1 && d <= 5) stamp(t.x, t.y, d === 3 ? '#fff' : light, c.twShape, d >= 2 && d <= 4 ? 3 : 2);
+			else glint(t.x, t.y, d < 3 ? 4 + d : 9 - d, light, d % 2 === 1);
 		}
 		f++;
 	};
