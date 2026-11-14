@@ -2,7 +2,7 @@ import './ps/registry';
 import { recTag, ruleById as ruleByIdR } from './rules';
 import { h, render, type VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton, Modal } from './ui/core';
+import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton, Modal, PokeIcon } from './ui/core';
 import { BattleView } from './ui/battle';
 import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
@@ -133,7 +133,7 @@ function Home({ go }: { go: (v: string) => void }) {
 			</div>
 			{suspended && <div class="notice hm-notice">쉬는 중인 도전이 있어요. 해당 모드에 들어가면 이어서 할 수 있습니다.</div>}
 			<button class="h2-team" onClick={() => go('teams')}>
-				<span class="h2-team-mons">{lead ? lead.sets.slice(0, 6).map(x => <Sprite species={x.species} gen={9} size={48} anim={false} shiny={x.shiny} />) : <i>아직 팀이 없어요</i>}</span>
+				<span class="h2-team-mons">{lead ? lead.sets.slice(0, 6).map(x => <PokeIcon species={x.species} />) : <i>아직 팀이 없어요</i>}</span>
 				<span class="h2-team-text"><b>팀 편성</b><small>{teams.length ? `${lead.name} 외 ${teams.length - 1}팀 · 눌러서 편집` : '눌러서 첫 팀을 만들어 보세요'}</small></span><em>▶</em></button>
 			<div class="h2-body">
 				<section><h3>배틀 시설</h3>{FEATURED.map(id => row(id, true))}</section>

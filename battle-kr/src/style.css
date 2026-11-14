@@ -3839,3 +3839,5 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 @media (min-width: 900px) { .cp-scr:has(.cp-box) .cp-box-grid { grid-template-columns: repeat(10, 1fr); } }
 @media (min-width: 900px) { body:has(.home.h2) #app { max-width: 1000px; } .home.h2 { padding-top: 24px; } .h2-team-text small { max-width: none; } .h2-grid .h2-text small { display: block; } }
 @media (orientation: landscape) and (max-height: 540px) { body:has(.home.h2) #app { max-width: none; } }
+.h2-team-mons { align-items: center; gap: 0; } .h2-team-mons .poke-icon { flex: none; margin: 0 -4px; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.35)); }
+@media (min-width: 900px) { .h2-team-mons .poke-icon { margin: 0 2px; } }
