@@ -9,7 +9,8 @@
 - 화면 변경은 Playwright 로 **Pixel 7(deviceScaleFactor 2)** 크기에서 직접 눌러 보고 스크린샷으로 확인한 뒤 사용자에게 보낸다. 콘솔 `pageerror` 가 없어야 한다.
 - 저장 데이터는 localStorage `pkbkr:*` (settings, teams, tower-*, factory-*, records …).
 
-## 릴리스 루틴 (작업 묶음 하나 끝날 때마다)
+## 릴리스 루틴 (공식 버전에 들어가는 작업 묶음이 끝날 때만)
+- **개발자 빌드에서만 보이는 작업(챔피언스·시나리오·새 메뉴 디자인 등)은 버전을 올리지 않고 APK 도 만들지 않는다** — 커밋·푸시와 스크린샷 확인까지만. APK 는 공식(정식) 버전에 한해서만 빌드한다(정식 APK 버전이 꼬임).
 1. `battle-kr/android/app/build.gradle` 의 `versionCode` +1, `versionName` 올림(`package.json`·`package-lock.json` 버전도), `battle-kr/README.md` 의 APK 파일명·버전 문구 갱신, 바뀐 기능을 README 에 적기, `battle-kr/src/changelog.ts` 맨 위에 짧은 업데이트 소식 추가(웹에서 새 버전 첫 실행 때 보여 줌 — 사용자가 알아야 할 새 기능·큰 변화만 한두 줄로. 칸 크기·간격·위치 조정, 문구 삭제 같은 작은 손질이나 같은 기능을 여러 번 다듬은 과정은 적지 않고, 이미 적은 항목이 있으면 그 항목을 고쳐 하나로 유지. 항목이 없으면 창이 뜨지 않음).
 2. `node battle-kr/build.mjs --android`
 3. 서명 빌드 (`battle-kr/android` 에서):
@@ -49,7 +50,7 @@
 | `src/trainers.ts` `src/trainer-lore.ts` `src/trainer-lines.ts` | 네임드/일반 트레이너, 대사(나무위키 기준, 없으면 인물에 맞춰 보충) |
 | `src/sound.ts` | 효과음·배경음악, `BGM_CHOICES`, `pickBattleMusic` |
 | `src/rewards.ts` `src/ui/shop.tsx` | 보상: BP 지갑·얻는 규칙·교환소 상품·주간 과제 / 교환소 화면·카드 꾸미기·승리 연출 (꾸미기 전용, 배틀 능력 영향 없음) |
-| `src/champions.tsx` `src/champions-data.ts` | 챔피언스 모드(개발자 빌드): 스카우트·로스터·트레이닝·상점·미션·랭크/타워/팩토리(주마다 규칙 순환)·승급전 스토리. 값(BP)·등급·대사는 data 쪽. 저장 `champions`, 재화는 `rewards.ts` 의 BP(`spendBP`) |
+| `src/champions.tsx` `src/champions-data.ts` | 챔피언스 모드(개발자 빌드): 스카우트(일반·지명 두 가지, 12시간마다 무료 1회)·로스터(박스형 아이콘 격자)·트레이닝·상점·미션·랭크/타워/팩토리(싱글·더블 선택, 규칙은 하루마다 순환·등급이 오르면 준전설/전설 룰)·승급전 스토리. 값(BP)·등급·대사는 data 쪽. 저장 `champions`, 재화는 `rewards.ts` 의 BP(`spendBP`) |
 | `src/scenario.tsx` `src/scenario-data.ts` `src/scenario-script.ts` | 시나리오 모드(개발자 빌드): 관동 편 |
 | `src/style.css` | 전체 스타일(도트 테두리 변수 포함) |
 | `scripts/gen-arenas.py` | 배틀 배경 그림 생성 |

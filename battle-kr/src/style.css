@@ -3819,3 +3819,23 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 @media (min-width: 900px) { .home.h2 { max-width: 980px; margin: 0 auto; } .h2-body { display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px 16px; } .h2-body section:first-child { grid-row: span 2; } .h2-nav { position: static; background: none; box-shadow: none; padding: 0; } }
 @media (orientation: landscape) and (max-height: 540px) { .h2-body { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; } .h2-grid { grid-template-columns: 1fr; } .h2-row.big .h2-ico { width: 52px; height: 48px; } }
 .cp-nav button, .h2-nav button { text-align: center; }
+/* 챔피언스: 박스 모양 로스터 · 배틀 형식 고르기 */
+.cp-btns.one { grid-template-columns: 1fr; }
+.cp-party { margin: 8px 0; padding: 6px 8px; border: 4px solid transparent; border-image: var(--ring4-gold) 5 / 10px stretch; clip-path: var(--clip3); background: linear-gradient(180deg, #6a5420 0 2px, #4a3a14 2px 60%, #3a2c0e 60%) border-box; image-rendering: pixelated; }
+.cp-party > b { display: block; font-weight: normal; font-size: 13px; color: #ffe890; margin-bottom: 4px; } .cp-party > div { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.cp-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; height: 60px; padding: 0; font: inherit; color: #fff; cursor: pointer; border: 0; background: #f4f6fa; box-shadow: inset 0 0 0 2px #0a0f18, inset 0 0 0 4px #c8d0e0; clip-path: var(--clip1); }
+.cp-slot small { max-width: 100%; font-size: 10px; color: #1a2438; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .cp-slot.empty { background: #2a2010; box-shadow: inset 0 0 0 2px #0a0f18; cursor: default; } .cp-slot.empty small { color: #7a6a40; }
+.cp-slot:active:not(:disabled), .cp-cell:active:not(:disabled) { transform: translate(2px, 2px); }
+.cp-box { border: 4px solid transparent; border-image: var(--ring4-p-stone) 5 / 10px stretch; clip-path: var(--clip3); background: #0d1830 border-box; image-rendering: pixelated; }
+.cp-box-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: linear-gradient(180deg, #8ad078 0 2px, #5aa850 2px 50%, #488a40 50%); }
+.cp-box-head b { flex: 1; text-align: center; font-weight: normal; font-size: 16px; color: #fff; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
+.cp-box-head button { font: inherit; font-size: 12px; color: #fff; width: 44px; line-height: 24px; padding: 0; cursor: pointer; border: 0; background: #14182a; box-shadow: inset 0 0 0 2px #f4f6fa; clip-path: var(--clip1); } .cp-box-head button:disabled { opacity: .35; }
+.cp-box-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; padding: 6px; background: repeating-linear-gradient(0deg, #4a9a48 0 4px, #469444 4px 8px); }
+.cp-cell { position: relative; aspect-ratio: 1; min-width: 0; padding: 0; display: flex; align-items: center; justify-content: center; border: 0; background: none; cursor: pointer; }
+.cp-cell .pkicon, .cp-cell .poke-icon, .cp-slot .pkicon, .cp-slot .poke-icon { transform: scale(1.25); image-rendering: pixelated; }
+.cp-cell.empty { cursor: default; } .cp-cell.empty::after { content: ''; width: 6px; height: 6px; background: rgba(10,40,16,.35); }
+.cp-cell.in { background: rgba(255,232,144,.35); box-shadow: inset 0 0 0 2px #ffd84a; } .cp-cell i { position: absolute; right: 0; top: 0; font-style: normal; font-size: 10px; line-height: 12px; padding: 0 3px; color: #2a1a04; background: #ffd84a; }
+.cp-battle { cursor: default; } .cp-fmt { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; } .cp-fmt .btn { min-width: 0; padding: 6px 4px; font-size: 15px; } .cp-fmt .btn small { display: inline; font-size: 11px; opacity: .85; }
+@media (min-width: 900px) { .cp-scr:has(.cp-box) .cp-box-grid { grid-template-columns: repeat(10, 1fr); } }
+@media (min-width: 900px) { body:has(.home.h2) #app { max-width: 1000px; } .home.h2 { padding-top: 24px; } .h2-team-text small { max-width: none; } .h2-grid .h2-text small { display: block; } }
+@media (orientation: landscape) and (max-height: 540px) { body:has(.home.h2) #app { max-width: none; } }

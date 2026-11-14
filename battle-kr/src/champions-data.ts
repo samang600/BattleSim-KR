@@ -38,12 +38,12 @@ export const dayNo = (now = new Date()) => Math.round((new Date(now.getFullYear(
 /** 다음 규칙 변경(자정)까지 남은 시간 */
 export const hoursLeft = (now = new Date()) => Math.max(1, Math.ceil((new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime()) / 36e5));
 export type BattleKind = 'rank' | 'tower' | 'factory';
-/** 오늘 그 배틀의 규칙 (등급에 따라 전설 허용 단계가 달라짐). 랭크는 날마다 싱글(3마리)·더블(4마리)이 번갈아 */
+/** 오늘 그 배틀의 규칙 (등급에 따라 전설 허용 단계가 달라짐). 싱글·더블은 플레이어가 고름 (champions.tsx rotOf) */
 export function rotationOf(kind: BattleKind, tier: number, d = dayNo()) {
 	const off = { rank: 0, tower: 2, factory: 4 }[kind], mod = (a: number, n: number) => ((a % n) + n) % n;
 	const [g, name, gdesc] = GIMMICKS[mod(d + off, GIMMICKS.length)];
 	const lv = LEGEND_BY_TIER[Math.min(tier, LEGEND_BY_TIER.length - 1)], legend = kind === 'factory' ? 0 : lv[mod(d + off, lv.length)];
-	const doubles = kind === 'rank' && mod(d, 2) === 1;
+	const doubles = false;
 	// 전국도감은 준전설이 기본 허용이라, 일반 룰에서는 따로 막음 (끝의 .no)
 	const rule = `${g}.natdex.${legend >= 2 ? 'yes.yes' : 'no.no'}${legend === 0 ? '.no' : ''}`;
 	return { rule, name: legend ? `${name} · ${LEGEND_NAME[legend]}` : name, desc: `${gdesc}${legend === 2 ? ' · 초전설·환상의 포켓몬도 참가' : legend === 1 ? ' · 준전설까지 참가' : ''}`, doubles, pick: doubles ? 4 : 3, legend };
