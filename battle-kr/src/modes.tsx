@@ -852,7 +852,7 @@ export function settleSeason(): string | null {
 		for (const [k, v] of Object.entries(rec.rp || {})) {
 			if (!v) continue;
 			const tt = rankTier(v, lastEnd, k.includes(CH_TAG)), t = tt.name;
-			if (tt.cls === '챔피언급' && !k.includes(CH_TAG)) awardSymbol('rank', true);   // 시즌을 챔피언급으로 마감 → 챔피언 심볼(금)
+			if (tt.cls === '챔피언급') awardSymbol('rank', true);   // 시즌을 챔피언급으로 마감 → 챔피언 심볼(금)
 			ended.push({ id: last, fmt: k, rp: v, tier: t });
 			const sbp = SEASON_BP[tt.cls] || 2;
 			earnBP(sbp, '랭크 시즌 마감', true);
@@ -944,7 +944,7 @@ export async function runRank(ctx?: ArenaCtx) {
 		if (!noRec(opts)) {
 			newRp = applyRank(res.win);
 			const nt = tierOf(newRp);
-			if (!ctx && nt.cls === '챔피언급' && awardSymbol('rank', false)) await symbolScreen('rank', false);   // 챔피언급 도달 → 챔피언 심볼(은)
+			if (nt.cls === '챔피언급' && awardSymbol('rank', false) && !ctx) await symbolScreen('rank', false);   // 챔피언스에서 얻어도 프런티어의 챔피언 심볼(칭호 조건)은 채워 줌 — 화면은 챔피언스 쪽 심볼로   // 챔피언급 도달 → 챔피언 심볼(은)
 			if (tierOrder(nt) > tierOrder(tier)) msg = `🎉 ${nt.name}(으)로 승급!`;
 			else if (tierOrder(nt) < tierOrder(tier)) msg = `${nt.name}(으)로 강등…`;
 		}

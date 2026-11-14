@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.84.0', date: '2026-11-14', title: '챔피언스 모드', items: [
+		['new', '챔피언스 모드가 열렸어요 — 타이틀을 누르면 모드를 고릅니다. 6마리 파티로 시작해 스카우트하고 키워서 랭크 매치·배틀타워·PWT 의 정점까지!'],
+		['up', '지금까지의 시설들은 「아케이드 모드」가 되고 메뉴가 새로워졌어요. 랭크 매치와 PWT 는 챔피언스 모드로 옮겼습니다 (챔피언스의 랭크는 새로 시작)'],
+	] },
 	{ ver: '2.83.0', date: '2026-11-14', title: '새 테마 3벌', items: [
 		['new', '교환소에 단풍 신사·우주 정거장·반딧불 숲 테마가 생겼어요 — 테마마다 배틀 배경, HP 창, 새 음악이 한 벌입니다'],
 	] },

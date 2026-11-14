@@ -151,9 +151,8 @@ onBattleEnd((setup, battle, win) => {
 
 // ───────── 업적 ─────────
 export type AchCat = '배틀' | '기믹' | '타입' | '시설' | '네임드' | '랭크' | '도전' | '수집' | '챔피언스';
-declare const __DEV_BUILD__: boolean;
-/** 챔피언스 모드가 있는 빌드(지금은 개발자 빌드)에서만 그 모드의 업적·칭호·꾸미기를 보여 줌 */
-export const CHAMP_ON = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
+/** 챔피언스 모드의 업적·칭호·꾸미기를 보여 줌 */
+export const CHAMP_ON = true;   // v2.84 부터 정식 공개
 /** 챔피언스 모드의 저장 (업적·칭호 조건용, 읽기만) */
 export const champSave = (): any => load<any>('champions', {});
 const cupSum = () => Object.values(champSave().cups || {}).reduce((a: number, b: any) => a + (b || 0), 0) as number;

@@ -43,18 +43,19 @@ const MODES = [
 	{ id: 'daily', name: '오늘의 도전', sub: '', run: runDaily, color: '#d8a018', mon: 'pikachu' },
 	{ id: 'online', name: '온라인 대전', sub: '로비 · 친구 · 랜덤', run: runOnline, color: '#2a8fb0', mon: 'rotom' },
 ];
-// 시나리오 모드 (시안): 개발자 빌드에서만
+// 시나리오 모드 (시안): 개발자 빌드에서만. 챔피언스 모드·모드 고르기·새 메뉴(아케이드)는 v2.84 부터 정식 공개
 declare const __DEV_BUILD__: boolean;
 const SCENARIO_ON = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
+const NEW_UI = true;
 const FEATURED = ['tower', 'factory', 'rank'];
 const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'online'];
-/** 타이틀에서 고르는 큰 모드 (개발자 빌드에서만 — 공식 빌드는 시뮬레이터 모드 하나라 고르기 화면 없이 바로 들어감).
- *  시뮬레이터 = 지금까지의 메뉴 전체 · 챔피언스·시나리오 = 저장이 따로인 독립 모드 */
-const BIG_MODES: { id: string; name: string; sub: string; mon: string; cls: string; tag?: string; run?: () => Promise<void> }[] = [
+/** 타이틀에서 고르는 큰 모드. 아케이드 = 팀을 자유롭게 짜는 시설들 · 챔피언스 = 저장이 따로인 독립 모드 · 시나리오는 개발자 빌드에서만 */
+const ALL_BIG_MODES: { id: string; name: string; sub: string; mon: string; cls: string; tag?: string; run?: () => Promise<void> }[] = [
 	{ id: 'sim', name: '아케이드 모드', sub: '팀을 자유롭게 짜서 타워·팩토리·팰리스·보스 러시·온라인 대전', mon: 'metagross', cls: 'sim' },
-	{ id: 'champions', name: '챔피언스 모드', sub: '스카우트하고 키워서 랭크 매치·PWT 의 정점까지', mon: 'dragonite', cls: 'champ', tag: '개발 중', run: () => runChampions(TOOLS) },
+	{ id: 'champions', name: '챔피언스 모드', sub: '스카우트하고 키워서 랭크 매치·PWT 의 정점까지', mon: 'dragonite', cls: 'champ', tag: 'NEW', run: () => runChampions(TOOLS) },
 	{ id: 'scenario', name: '시나리오 모드', sub: '관동 편 — 지방을 여행하며 인물의 이야기를 따라감', mon: 'bulbasaur', cls: 'scn', tag: '개발 중', run: () => runScenario(TOOLS) },
 ];
+const BIG_MODES = ALL_BIG_MODES.filter(m => m.id !== 'scenario' || SCENARIO_ON);
 
 /** 독립 모드(챔피언스·시나리오)에서도 쓰는 공용 화면. settings 의 onTitle = 「타이틀로 돌아가기」 단추 */
 export interface ModeTools { settings: (onBack: () => void, onTitle?: () => void, extra?: SetExtra) => VNode; calc: (onBack: () => void) => VNode; book: (onBack: () => void, mode?: string) => VNode; shop: (onBack: () => void) => VNode }
@@ -67,7 +68,7 @@ const TOOLS: ModeTools = {
 function TitleScreen({ onStart }: { onStart: (mode?: string) => void }) {
 	// 개발자 빌드: 한 번 누르면 모드 고르기가 올라옴. 공식 빌드는 모드가 하나라 누르면 바로 들어감
 	const [pick, setPick] = useState(false);
-	return <div class={'title-screen' + (pick ? ' title-pick' : '')} onClick={() => { if (pick) return; if (SCENARIO_ON) { unlockAudio(); sfx('select'); setPick(true); } else onStart(); }}>
+	return <div class={'title-screen' + (pick ? ' title-pick' : '')} onClick={() => { if (pick) return; if (NEW_UI) { unlockAudio(); sfx('select'); setPick(true); } else onStart(); }}>
 		<div class="title-glow" />
 		<div class="title-fs"><FullscreenButton /></div>
 		<div class="title-mons">
@@ -111,7 +112,7 @@ function Home({ go }: { go: (v: string) => void }) {
 			<span class="hm-text"><b>{m.name}</b>{(big || id !== 'daily') && m.sub && <small>{m.sub}</small>}{badge[m.id] && <em>{badge[m.id]}</em>}</span>
 		</button>; };
 	// 새 메뉴 디자인 (개발자 빌드에서 먼저 — 확인받은 뒤 공식에도): 큰 「팀 편성」 띠 · 묶음별 줄 목록 · 타이틀로 돌아가기
-	if (SCENARIO_ON) {
+	if (NEW_UI) {
 		const teams = loadTeamsHome(), lead = teams[0];
 		const row = (id: string, big = false) => { const m = MODES.find(x => x.id === id)!;
 			return <button class={'h2-row' + (big ? ' big' : '')} style={{ '--mc': m.color } as any} onClick={() => go('mode:' + m.id)}>
@@ -125,7 +126,7 @@ function Home({ go }: { go: (v: string) => void }) {
 					<span class="hm-who">
 						<b>{settings.playerName}<TitleChip it={titleItem(wallet)} /></b>
 						<small>{rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · ${Math.round(rec.wins / rec.battles * 100)}%` : ''} · 업적 {achDone}/{ACHIEVEMENTS.length}</small>
-						<span class="hm-syms">{((SCENARIO_ON ? ['tower', 'factory', 'palace'] : ['tower', 'factory', 'rank']) as SymbolKind[]).map(k => <SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
+						<span class="hm-syms">{((NEW_UI ? ['tower', 'factory', 'palace'] : ['tower', 'factory', 'rank']) as SymbolKind[]).map(k => <SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
 					</span>
 				</button>
 				<div class="head-btns">
@@ -160,7 +161,7 @@ function Home({ go }: { go: (v: string) => void }) {
 				<span class="hm-who">
 					<b>{settings.playerName}<TitleChip it={titleItem(wallet)} /></b>
 					<small>{rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · ${Math.round(rec.wins / rec.battles * 100)}%` : ''} · 업적 {achDone}/{ACHIEVEMENTS.length}</small>
-					<span class="hm-syms">{((SCENARIO_ON ? ['tower', 'factory', 'palace'] : ['tower', 'factory', 'rank']) as SymbolKind[]).map(k => <SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
+					<span class="hm-syms">{((NEW_UI ? ['tower', 'factory', 'palace'] : ['tower', 'factory', 'rank']) as SymbolKind[]).map(k => <SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
 				</span>
 			</button>
 			<div class="head-btns">
