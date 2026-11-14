@@ -20,6 +20,7 @@
 ## 버전·공식 웹 (갈래를 나누지 않는다)
 - 버전은 `main` 한 줄만 쓴다. 공식 웹(`web` 브랜치)은 **`main` 을 그대로 옮겨서만** 올린다: `git push origin origin/main:refs/heads/web` → pages.yml. `web` 에 따로 커밋하거나 일부만 골라 넣지 않는다(버전이 두 갈래가 됨).
 - 버전 숫자를 낮추지 않는다 — 앱은 공식 웹의 버전이 자기보다 높을 때만 자동 갱신하므로, 이미 나간 APK 보다 낮아지면 갱신이 끊긴다.
+- 챔피언스 모드도 개발 중이라 같은 조건으로 숨긴다 (타이틀의 모드 고르기 화면 자체가 개발자 빌드에서만 나옴 — `main.tsx` 의 `BIG_MODES`).
 - 시나리오 모드는 개발 중이라 공개하지 않는다. 개발자 빌드(`DEV_BUILD=1`)에서만 켜지므로(`main.tsx` 의 `SCENARIO_ON`) `main` 을 공식 웹에 올려도 나오지 않는다. 이 조건을 풀지 말 것.
 - 공식 웹에 올리는 것은 사용자가 요청할 때만.
 
@@ -47,5 +48,7 @@
 | `src/trainers.ts` `src/trainer-lore.ts` `src/trainer-lines.ts` | 네임드/일반 트레이너, 대사(나무위키 기준, 없으면 인물에 맞춰 보충) |
 | `src/sound.ts` | 효과음·배경음악, `BGM_CHOICES`, `pickBattleMusic` |
 | `src/rewards.ts` `src/ui/shop.tsx` | 보상: BP 지갑·얻는 규칙·교환소 상품·주간 과제 / 교환소 화면·카드 꾸미기·승리 연출 (꾸미기 전용, 배틀 능력 영향 없음) |
+| `src/champions.tsx` `src/champions-data.ts` | 챔피언스 모드(개발자 빌드): 스카우트·로스터·트레이닝·상점·미션·랭크/타워/팩토리(주마다 규칙 순환)·승급전 스토리. 값(BP)·등급·대사는 data 쪽. 저장 `champions`, 재화는 `rewards.ts` 의 BP(`spendBP`) |
+| `src/scenario.tsx` `src/scenario-data.ts` `src/scenario-script.ts` | 시나리오 모드(개발자 빌드): 관동 편 |
 | `src/style.css` | 전체 스타일(도트 테두리 변수 포함) |
 | `scripts/gen-arenas.py` | 배틀 배경 그림 생성 |

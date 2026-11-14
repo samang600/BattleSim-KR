@@ -8,6 +8,7 @@ import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
 import { runOnline } from './online-ui';
 import { runScenario } from './scenario';
+import { runChampions } from './champions';
 import { replaySession } from './online';
 import { cloudInfo, cloudUpload, cloudFetch, cloudApply, fmtCode, cleanCode, DEVICE_ONLY } from './cloud';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
@@ -44,12 +45,30 @@ const MODES = [
 // 시나리오 모드 (시안): 개발자 빌드에서만
 declare const __DEV_BUILD__: boolean;
 const SCENARIO_ON = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
-if (SCENARIO_ON) MODES.push({ id: 'scenario', name: '시나리오', sub: '관동 편', run: runScenario, color: '#3a9a5a', mon: 'bulbasaur' });
 const FEATURED = ['tower', 'factory', 'rank'];
-const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'online', ...(SCENARIO_ON ? ['scenario'] : [])];
+const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'online'];
+/** 타이틀에서 고르는 큰 모드 (개발자 빌드에서만 — 공식 빌드는 시뮬레이터 모드 하나라 고르기 화면 없이 바로 들어감).
+ *  시뮬레이터 = 지금까지의 메뉴 전체 · 챔피언스·시나리오 = 저장이 따로인 독립 모드 */
+const BIG_MODES: { id: string; name: string; sub: string; mon: string; cls: string; tag?: string; run?: () => Promise<void> }[] = [
+	{ id: 'sim', name: '시뮬레이터 모드', sub: '팀을 자유롭게 짜서 타워·팩토리·랭크·PWT·온라인 대전', mon: 'metagross', cls: 'sim' },
+	{ id: 'champions', name: '챔피언스 모드', sub: '빈손으로 시작 — 스카우트하고 키워서 챔피언급까지', mon: 'dragonite', cls: 'champ', tag: '개발 중', run: runChampions },
+	{ id: 'scenario', name: '시나리오 모드', sub: '관동 편 — 지방을 여행하며 인물의 이야기를 따라감', mon: 'bulbasaur', cls: 'scn', tag: '개발 중', run: runScenario },
+];
 
-function TitleScreen({ onStart }: { onStart: () => void }) {
-	return <div class="title-screen" onClick={onStart}>
+function TitleScreen({ onStart }: { onStart: (mode?: string) => void }) {
+	if (SCENARIO_ON) return <div class="title-screen title-pick">
+		<div class="title-glow" />
+		<div class="title-fs"><FullscreenButton /></div>
+		<div class="title-mons">
+			<Sprite species="garchomp" gen={9} size={110} anim={false} cls="front" />
+			<Sprite species="lucario" gen={9} size={90} anim={false} cls="front" />
+		</div>
+		<div class="title-logo-img" role="img" aria-label="배틀 시뮬레이터" />
+		<div class="title-modes">{BIG_MODES.map(m => <button class={'title-mode ' + m.cls} onClick={() => onStart(m.id)}>
+			{m.tag && <em>{m.tag}</em>}<Sprite species={m.mon} gen={9} size={64} anim={false} cls="front" /><span><b>{m.name}</b><small>{m.sub}</small></span></button>)}</div>
+		<div class="title-foot">모드마다 저장이 따로입니다 · Pokémon Showdown 엔진 기반 · 팬 메이드</div>
+	</div>;
+	return <div class="title-screen" onClick={() => onStart()}>
 		<div class="title-glow" />
 		<div class="title-fs"><FullscreenButton /></div>
 		<div class="title-mons">
@@ -560,6 +579,17 @@ function App() {
 	useEffect(() => onUserSpritesChange(() => setSprRev(x => x + 1)) as any, []);
 
 	const go = async (r: string) => {
+		if (r.startsWith('big:')) {   // 타이틀에서 고른 독립 모드 (챔피언스·시나리오): 끝나면 타이틀로
+			const m = BIG_MODES.find(x => x.id === r.slice(4))!;
+			setRoute('mode');
+			resetAbort();
+			try { await m.run!(); } catch (e: any) { if (!(e instanceof QuitToMenu)) { console.error(e); toast('오류: ' + (e?.message || e)); } }
+			resetAbort();
+			setModeView(null);
+			setRoute('title');
+			playMusic('lobby');
+			return;
+		}
 		if (r.startsWith('mode:')) {
 			const m = MODES.find(x => x.id === r.slice(5))!;
 			setRoute('mode');
@@ -607,7 +637,7 @@ function App() {
 		};
 	});
 
-	if (route === 'title') return <TitleScreen onStart={() => { unlockAudio(); playMusic('lobby'); sfx('select'); setRoute('home'); }} />;
+	if (route === 'title') return <TitleScreen onStart={mode => { unlockAudio(); playMusic('lobby'); sfx('select'); if (mode && mode !== 'sim') void go('big:' + mode); else setRoute('home'); }} />;
 	if (route === 'mode') return modeView || <div class="loading">불러오는 중…</div>;
 	if (route === 'teams') {
 		if (editTeam) return <TeamEditor team={editTeam} onBack={() => setEditTeam(null)} />;

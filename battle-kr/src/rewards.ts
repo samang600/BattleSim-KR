@@ -48,6 +48,17 @@ export function earnBP(n: number, why: string, quiet = false) {
 	checkAchievements();
 }
 
+/** BP 쓰기 (챔피언스 모드의 스카우트·도구·트레이닝). 모자라면 false */
+export function spendBP(n: number, why: string): boolean {
+	n = Math.floor(n);
+	if (n <= 0) return true;
+	const w = loadWallet();
+	if (w.bp < n) return false;
+	w.bp -= n; w.log = [{ t: Date.now(), n: -n, why }, ...w.log].slice(0, 30);
+	saveWallet(w);
+	return true;
+}
+
 // 얻은 BP 알림: 짧은 시간에 여러 번 얻으면 하나로 합쳐 보여 줌
 let pend = { n: 0, why: [] as string[] }, pendT: any = 0;
 function bpToast(n: number, why: string) {
