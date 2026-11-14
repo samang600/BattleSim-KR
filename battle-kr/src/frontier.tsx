@@ -387,7 +387,7 @@ export async function runBossRush() {
 			badge: savedTag({ kind: 'region', id: reg }) || (st.conquest[reg] === 2 ? '★★ 어려움 클리어' : st.conquest[reg] ? '★ 클리어' : undefined) })),
 		...COURSES.map(c => ({ value: { kind: 'course', id: c.id } as RushKind, group: '시나리오 러시', color: c.color, label: c.name, desc: `${c.desc} · ${BOSS_LEN[c.id]}연전`,
 			icon: <img class="trainer-icon" src={SPRITE_URL(namedSprite(c.list()[0]))} onError={trainerImgError} />,
-			badge: savedTag({ kind: 'course', id: c.id }) || (st.boss[c.id] ? `최고 ${st.boss[c.id]}/${BOSS_LEN[c.id]}` : undefined) })),
+			badge: savedTag({ kind: 'course', id: c.id }) || (st.bossClear?.[c.id] === 2 ? '★★ 어려움 클리어' : st.bossClear?.[c.id] || (st.boss[c.id] || 0) >= BOSS_LEN[c.id] ? '★ 클리어' : st.boss[c.id] ? `최고 ${st.boss[c.id]}/${BOSS_LEN[c.id]}` : undefined) })),
 	];
 	const pick = await ask<RushKind | typeof BACK>(r => <ChoiceScreen title="보스 러시" onBack={() => r(BACK)}
 		intro={<p class="hint">강적들과 <b>같은 6마리</b>로 연전합니다. 배틀마다 상대 엔트리를 보고 3마리를 고르며, 한 번이라도 지면 처음부터예요. 쉬었다가 이어서 할 수 있어요 (진행은 한 코스만 저장).</p>}
@@ -409,9 +409,10 @@ export async function runBossRush() {
 	const end = await gauntlet(rushName(r0), list, r0);
 	updateStats(s => {
 		if (r0.kind === 'course') s.boss[r0.id] = Math.max(s.boss[r0.id] || 0, r0.idx);
+		if (end === 'clear' && r0.kind === 'course') s.bossClear = { ...(s.bossClear || {}), [r0.id]: Math.max(s.bossClear?.[r0.id] || 0, r0.hard ? 2 : 1) as 1 | 2 };
 		if (end === 'clear' && r0.kind === 'region') s.conquest[r0.id] = Math.max(s.conquest[r0.id] || 0, r0.hard ? 2 : 1) as 1 | 2;
 	});
-	if (end === 'clear') earnBP(r0.kind === 'region' ? (r0.hard ? 25 : 15) : 15, r0.kind === 'region' ? '지방 클리어' : '보스 러시 완주');
+	if (end === 'clear') earnBP(r0.hard ? 25 : 15, r0.kind === 'region' ? '지방 클리어' : '보스 러시 완주');
 	if (end === 'clear') await ask<void>(r => <InfoScreen title="보스 러시" banner="🏆 완주!" heading={r0.kind === 'region' ? `${regionLabel(r0.id as any)}의 정점에 섰다!` : `${rushName(r0)}를 돌파했다!`}
 		sprites={r0.team.map(s => s.species)} sets={r0.team} gen={9} lines={[`${list.length}연전 완주${r0.hard ? ' (어려움)' : ''}`]} actions={[{ label: '확인', onClick: () => r() }]} />);
 }

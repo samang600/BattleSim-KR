@@ -2328,6 +2328,7 @@ html { image-rendering: pixelated; }
 }
 @media (min-width: 1680px) and (min-aspect-ratio: 5/4) and (min-height: 1000px) {
 	body:not(:has(.battle)) #app { zoom: 1.5; }
+	body:not(:has(.battle)) #app .modal { max-height: calc(86vh / 1.5); }
 }
 
 /* ═════ v2.55.4: 날씨·필드 효과도 도트로 — 부드러운 그라데이션·흐린 그림자·사선 줄 대신 2px 픽셀 타일과 끊긴 색 띠, 움직임은 2px 단위 ═════ */
@@ -3903,3 +3904,37 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 .cp-tabs button small { font-size: 10px; opacity: .8; } .cp-shoplist { padding-top: 2px; padding-bottom: 2px; }
 .cp-line .cp-bar { margin-top: 4px; max-width: 220px; }
 .cp-rule { display: flex; align-items: center; justify-content: center; text-align: center; max-width: none; } .cp-rulename { margin: 0 0 6px; font-size: 12px; color: #ffe890; }
+/* 심볼 난이도 표시: 어려움 = 빨간 별, 쉬움 = 초록 점 */
+.sym-wrap { position: relative; display: inline-block; vertical-align: middle; line-height: 0; } .sym-wrap > i { position: absolute; right: 0; bottom: 0; width: calc(var(--u) * 3); height: calc(var(--u) * 3); image-rendering: pixelated; }
+.sym-hard > i { background: #ff4a3a; box-shadow: 0 0 0 var(--u) #3a0804; clip-path: polygon(33% 0, 66% 0, 66% 33%, 100% 33%, 100% 66%, 66% 66%, 66% 100%, 33% 100%, 33% 66%, 0 66%, 0 33%, 33% 33%); }
+.sym-easy > i { width: calc(var(--u) * 2); height: calc(var(--u) * 2); background: #6ad070; box-shadow: 0 0 0 var(--u) #0a2a12; }
+.sym-diffs { display: flex; justify-content: center; gap: 8px; margin-top: 4px; } .sym-diffs > span { display: flex; flex-direction: column; align-items: center; gap: 2px; opacity: .45; } .sym-diffs > span.got { opacity: 1; } .sym-diffs i { font-style: normal; font-size: 10px; color: #b8c8e8; line-height: 1.2; }
+/* 팝업 창의 고르는 목록: 짧은 항목(성격·타입·특성)은 여러 칸 격자로 — 위아래로 길어지지 않게 */
+.cp-opts.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; } .cp-opts.grid.two { grid-template-columns: 1fr 1fr; }
+.cp-opts.grid .cp-opt { flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 44px; padding: 4px 2px; text-align: center; border: 4px solid transparent; border-image: var(--ring2-grey) 3 / 6px stretch; clip-path: var(--clip2); background: linear-gradient(180deg, #3a4f86 0 50%, #2f4276 50%) border-box; image-rendering: pixelated; }
+.cp-opts.grid .cp-opt > div { flex: none; } .cp-opts.grid .cp-opt b { justify-content: center; font-size: 14px; } .cp-opts.grid .cp-opt small { text-align: center; font-size: 10px; }
+.cp-opts.grid .cp-opt.cur { border-image-source: var(--ring2-hi); background: linear-gradient(180deg, #ffe890 0 50%, #e0a830 50%) border-box; color: #2a1a04; opacity: 1; } .cp-opts.grid .cp-opt.cur small { color: #4a3a14; }
+.cp-party > b.cp-teamsel { align-items: center; gap: 8px; } .cp-teamsel > span { flex: 1; display: flex; justify-content: space-between; align-items: baseline; }
+.cp-arw, .cp-box-head button { position: relative; display: flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 24px; padding: 0; cursor: pointer; border: 4px solid transparent; border-image: var(--ring2-grey) 3 / 6px stretch; clip-path: var(--clip2); background: linear-gradient(180deg, #3a4f86 0 50%, #2a3a68 50%) border-box; image-rendering: pixelated; }
+.cp-arw::before { content: ''; width: 8px; height: 10px; background: #fff; clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 4px 6px, 4px 8px, 2px 8px, 2px 10px, 0 10px); } .cp-arw.prev::before { transform: scaleX(-1); }
+.cp-arw:disabled { opacity: .4; cursor: default; } .cp-arw:active:not(:disabled) { transform: translate(2px, 2px); }
+/* 팀 편집의 포켓몬 화면: 챔피언스의 포켓몬 창과 같은 줄·기술 단추 */
+.set-mp { padding: 2px 0 8px; } .cp-mp-spr.big { width: 96px; height: 96px; } .cp-mp-spr.big .sprite { max-width: 92px; max-height: 92px; }
+.set-mp .cp-mp-head > div { gap: 6px; } .set-headbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } .set-headbtns .btn { min-width: 0; padding-left: 2px; padding-right: 2px; text-align: center; }
+.cp-pn.set-pn { margin: 0; padding: 2px 6px; } .set-abdesc { margin: 0 2px; }
+.cp-mrow:disabled { opacity: 1; cursor: default; } .cp-mrow small.bad { color: #ff8a7a; }
+.set-moves button { min-height: 52px; } .set-moves .pm-icons { display: flex; align-items: center; gap: 2px; } .set-moves em { color: #b8c8e8; text-align: left; }
+.set-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; } .set-stats span { display: flex; flex-direction: column; align-items: center; padding: 2px 0; background: #16284c; clip-path: var(--clip1); }
+.set-stats small { font-size: 10px; color: #b8c8e8; } .set-stats b { font-weight: normal; font-size: 15px; } .set-stats .up b { color: #ff9a8a; } .set-stats .down b { color: #8ac0ff; }
+.set-mvacts { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; margin-bottom: 4px; } .set-mvacts .btn { min-width: 0; text-align: center; }
+.set-etc { display: flex; flex-direction: column; gap: 8px; }
+/* 지닌 도구: 칸 오른쪽 아래의 작은 아이콘 */
+.cp-held { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; line-height: 0; pointer-events: none; } .cp-held .item-icon { display: block; image-rendering: pixelated; filter: drop-shadow(1px 1px 0 rgba(10,15,24,.7)); }
+.cp-slot .cp-held { bottom: 14px; } .cp-myteam .cp-team > span { position: relative; } .cp-myteam .cp-team > span > .cp-held { right: 2px; bottom: 2px; background: none; box-shadow: none; aspect-ratio: auto; display: block; }
+/* 기술 단추: 안의 글자·표는 가운데 정렬 (타입 표 + 이름 한 줄, 아래 줄에 값) */
+.cp-mmoves button { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 6px; text-align: center; }
+.cp-mmoves button b { min-width: 0; max-width: 100%; } .cp-mmoves button em, .set-moves em { flex-basis: 100%; text-align: center; }
+.set-moves .pm-icons { flex: none; flex-wrap: nowrap; } .set-headbtns .btn { width: 100%; margin: 0; box-sizing: border-box; } .set-mp .cp-mp-head { align-items: flex-start; } .set-mp .nick-row input { min-width: 0; width: 100%; }
+.set-mp .cp-mp-head > div { overflow: hidden; }
+.set-mp .cp-mp-head > div { overflow: visible; padding-right: 6px; } .set-moves .pm-icons { flex-direction: row; }
+.cp-start-mons > span { position: relative; } .cp-start-mons .cp-held { bottom: 14px; right: 2px; }

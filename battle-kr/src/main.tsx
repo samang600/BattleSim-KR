@@ -14,7 +14,7 @@ import { replaySession } from './online';
 import { cloudInfo, cloudUpload, cloudFetch, cloudApply, fmtCode, cleanCode, DEVICE_ONLY } from './cloud';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
 import { runPalace, runIppitsu, runDaily, runBossRush, todayDaily } from './frontier';
-import { loadStats, ACHIEVEMENTS, checkAchievements } from './stats';
+import { loadStats, ACHIEVEMENTS, checkAchievements, symBest } from './stats';
 import { TrainerBook, SymbolIcon } from './ui/book';
 import { WhatsNew, pendingChanges } from './ui/whats-new';
 import { APP_VERSION } from './changelog';
@@ -123,7 +123,7 @@ function Home({ go }: { go: (v: string) => void }) {
 					<span class="hm-who">
 						<b>{settings.playerName}<TitleChip it={titleItem(wallet)} /></b>
 						<small>{rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · ${Math.round(rec.wins / rec.battles * 100)}%` : ''} · 업적 {achDone}/{ACHIEVEMENTS.length}</small>
-						<span class="hm-syms">{(['tower', 'factory', 'rank'] as const).map(k => <SymbolIcon kind={k} lv={st.sym[k] || 0} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
+						<span class="hm-syms">{(['tower', 'factory', 'rank'] as const).map(k => <SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
 					</span>
 				</button>
 				<div class="head-btns">
@@ -146,7 +146,7 @@ function Home({ go }: { go: (v: string) => void }) {
 				<button onClick={() => go('book')}>수첩{pendingAchTotal() > 0 && <i class="claim-dot" aria-label="받을 업적 보상" />}</button>
 				<button onClick={() => go('records')}>기록</button>
 				<button onClick={() => go('calc')}>계산기</button>
-				<button class="title" onClick={() => go('title')}>◀ 타이틀</button>
+				<button class="title" onClick={async () => { if (await confirmBox('타이틀로', '타이틀로 돌아가나요?', '돌아간다', '계속하기')) go('title'); }}>타이틀</button>
 			</div>
 		</div>;
 	}
@@ -158,7 +158,7 @@ function Home({ go }: { go: (v: string) => void }) {
 				<span class="hm-who">
 					<b>{settings.playerName}<TitleChip it={titleItem(wallet)} /></b>
 					<small>{rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · ${Math.round(rec.wins / rec.battles * 100)}%` : ''} · 업적 {achDone}/{ACHIEVEMENTS.length}</small>
-					<span class="hm-syms">{(['tower', 'factory', 'rank'] as const).map(k => <SymbolIcon kind={k} lv={st.sym[k] || 0} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
+					<span class="hm-syms">{(['tower', 'factory', 'rank'] as const).map(k => <SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
 				</span>
 			</button>
 			<div class="head-btns">
@@ -534,7 +534,7 @@ function SettingsScreen({ onBack, onTitle, extra }: { onBack: () => void; /** �
 	const [userSpr, setUserSpr] = useState(false);
 	const up = (p: Partial<Settings>) => { const n = { ...s, ...p }; setS(n); saveSettings(n); };
 	return <Screen title="설정" onBack={onBack} cls="set-scr">
-		{onTitle && <button class="btn big set-title" onClick={onTitle}>◀ 타이틀로 돌아가기</button>}
+		{onTitle && <button class="btn big set-title" onClick={async () => { if (await confirmBox('타이틀로', '타이틀로 돌아가나요?\n지금까지의 진행은 저장돼 있어요.', '돌아간다', '계속하기')) onTitle(); }}>타이틀로 돌아가기</button>}
 		{(window as any).BattleSimNative?.otaStatus && <AppUpdate />}
 		<label class="field-label">트레이너 이름
 			<input value={s.playerName} maxLength={10} onInput={e => up({ playerName: (e.target as HTMLInputElement).value || '플레이어' })} />

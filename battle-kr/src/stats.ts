@@ -15,6 +15,8 @@ export interface Stats {
 	c: { [k: string]: number };
 	flags: { [k: string]: 1 };
 	sym: { [k in SymbolKind]?: 1 | 2 };
+	/** 난이도별 심볼 (쉬움·보통·어려움). sym 은 보통 이상에서 얻은 가장 높은 것 */ symD?: { [k in SymbolKind]?: { [d: string]: 1 | 2 } };
+	/** 시나리오 러시 완주: 1 보통 · 2 어려움 */ bossClear?: { [id: string]: 1 | 2 };
 	ach: { [id: string]: number };
 	/** 랭크 시즌 기록 */
 	seasons: { id: string; fmt: string; rp: number; tier: string }[];
@@ -31,11 +33,17 @@ export const bump = (s: Stats, k: string, n = 1) => { s.c[k] = (s.c[k] || 0) + n
 export const setMax = (s: Stats, k: string, v: number) => { s.c[k] = Math.max(s.c[k] || 0, v); };
 
 /** 프런티어 심볼: 은(1) → 금(2) */
-export function awardSymbol(kind: SymbolKind, gold: boolean) {
+export function awardSymbol(kind: SymbolKind, gold: boolean, diff = 'normal') {
 	let got = false;
-	updateStats(s => { const v = gold ? 2 : 1; if ((s.sym[kind] || 0) < v) { s.sym[kind] = v; got = true; } });
+	updateStats(s => { const v = gold ? 2 : 1, d = (s.symD ||= {})[kind] ||= {};
+		if ((d[diff] || 0) < v) { d[diff] = v; got = true; }
+		if (diff !== 'easy' && (s.sym[kind] || 0) < v) s.sym[kind] = v; });
 	return got;
 }
+/** 난이도별 심볼 단계 (예전 기록의 심볼은 보통으로 침) */
+export const symOf = (s: Stats, kind: SymbolKind, diff: string): number => s.symD?.[kind]?.[diff] || (diff === 'normal' && !s.symD?.[kind]?.hard ? s.sym[kind] || 0 : 0);
+/** 보여 줄 대표 심볼: 가장 높은 난이도의 것 */
+export const symBest = (s: Stats, kind: SymbolKind): { lv: number; diff: string } => { for (const d of ['hard', 'normal', 'easy']) { const lv = symOf(s, kind, d); if (lv) return { lv, diff: d }; } return { lv: 0, diff: 'normal' }; };
 export const SYMBOL_INFO: { [k in SymbolKind]: { name: string; facility: string; color: string } } = {
 	tower: { name: '택틱스 심볼', facility: '배틀타워', color: '#3a6df0' },
 	factory: { name: '날리지 심볼', facility: '배틀팩토리', color: '#e0812b' },

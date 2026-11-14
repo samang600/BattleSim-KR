@@ -54,7 +54,8 @@ function OptsBox({ opts, show, diff }: { opts: BattleOpts; show: OptKey[]; diff?
 		{diff && <div class="set-row"><span>난이도</span><div class="seg">{(['easy', 'normal', 'hard'] as Diff[]).map(d =>
 			<button class={(opts.diff || 'normal') === d ? 'on' : ''} onClick={() => { opts.diff = d; force(x => x + 1); }}>{DIFF_LABEL[d]}</button>)}</div></div>}
 		{diff && <p class="muted small">{(opts.diff || 'normal') === 'easy' ? '쉬움: 일반 포켓몬 게임의 배틀시설 정도 난이도입니다.'
-			: opts.diff === 'hard' ? '어려움: 처음부터 강한 상대가 나옵니다.' : '보통: 쉬움보다 강하고, 연승할수록 빠르게 강해집니다.'} 난이도마다 기록과 도전이 따로 저장됩니다.</p>}
+			: opts.diff === 'hard' ? '어려움: 처음부터 강한 상대가 나옵니다.' : '보통: 쉬움보다 강하고, 연승할수록 빠르게 강해집니다.'} 난이도마다 기록·도전·심볼이 따로 저장됩니다.</p>}
+		{diff && <p class="muted small">BP — 쉬움: 2승마다 1 · 세트 보상 절반 / 보통: 1승마다 1 / 어려움: 1승마다 2 · 세트 보상 +3</p>}
 		{show.map(k => <label class="check opt">
 			<input type="checkbox" checked={!!opts[k]} onChange={() => { opts[k] = !opts[k]; force(x => x + 1); }} />
 			<span><b>{OPT_INFO[k].label}</b><small>{OPT_INFO[k].desc}</small></span>
@@ -95,9 +96,9 @@ export function battle(setup: BattleSetup): Promise<BattleResult> {
 	return ask<BattleResult>(resolve => <BattleView key={Math.random()} setup={setup} onEnd={r => { if (r.quit) abortMode(); resolve(r); }} />);
 }
 /** 프런티어 심볼 획득 화면 */
-export function symbolScreen(kind: SymbolKind, gold: boolean) {
-	const info = SYMBOL_INFO[kind];
-	return ask<void>(r => <InfoScreen title={info.facility} banner={gold ? '🥇 금 심볼 획득!' : '🥈 은 심볼 획득!'} heading={`${info.name}${gold ? '(금)' : '(은)'}을 손에 넣었다!`}
+export function symbolScreen(kind: SymbolKind, gold: boolean, diff: string = 'normal') {
+	const info = SYMBOL_INFO[kind], dl = diff === 'hard' ? ' · 어려움' : diff === 'easy' ? ' · 쉬움' : '';
+	return ask<void>(r => <InfoScreen title={info.facility} banner={gold ? '🥇 금 심볼 획득!' : '🥈 은 심볼 획득!'} heading={`${info.name}(${gold ? '금' : '은'}${dl})을 손에 넣었다!`}
 		lines={[kind === 'rank' ? (gold ? '시즌을 챔피언급으로 마쳤습니다!' : '랭크 매치 챔피언급에 도달했습니다!') : `${info.facility}의 프런티어 브레인을 이겼습니다.`, '트레이너 수첩 › 카드에서 볼 수 있어요.']} actions={[{ label: '확인', onClick: () => r() }]} />);
 }
 export function playerName() { return loadSettings().playerName || '플레이어'; }
@@ -346,7 +347,7 @@ export async function runTower() {
 			save(TOWER_KEY(fmt, opts), state);
 			if (opp.boss && !noRec(opts)) earnBP(opp.boss === '금' ? BRAIN_BP.gold : BRAIN_BP.silver, '타워 타이쿤 격파');
 			if (s % 7 === 0 && !noRec(opts)) earnBP(setClearBP(s), '세트 클리어');
-			if (opp.boss && !noRec(opts) && awardSymbol('tower', opp.boss === '금')) await symbolScreen('tower', opp.boss === '금');
+			if (opp.boss && !noRec(opts) && awardSymbol('tower', opp.boss === '금', opts.diff || 'normal')) await symbolScreen('tower', opp.boss === '금', opts.diff || 'normal');
 			if (s % 7 === 0) {
 				// 7연승(세트 클리어)마다 팀을 바꿀 수 있음 — 연승은 그대로 이어짐
 				const next = await ask<'keep' | 'change' | 'rest'>(r => <InfoScreen title="배틀타워" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`}
@@ -527,7 +528,7 @@ export async function runFactory() {
 		if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 		if (isHead && !noRec(opts)) earnBP(no === 49 ? BRAIN_BP.gold : BRAIN_BP.silver, '팩토리 헤드 격파');
 		if (s % 7 === 0 && !noRec(opts)) earnBP(setClearBP(s), '세트 클리어');
-		if (isHead && !noRec(opts) && awardSymbol('factory', no === 49)) await symbolScreen('factory', no === 49);
+		if (isHead && !noRec(opts) && awardSymbol('factory', no === 49, opts.diff || 'normal')) await symbolScreen('factory', no === 49, opts.diff || 'normal');
 		if (s % 7 === 0) {
 			await ask<void>(r => <InfoScreen title="배틀팩토리" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`}
 				lines={['빌린 포켓몬을 모두 반납하고, 새 렌탈 포켓몬을 처음부터 다시 고릅니다.', `다음 세트 렌탈 등급: ${GRADE_LABEL[gradeAt(s)]}${gradeAt(s) !== gradeAt(s - 1) ? ' (등급 상승!)' : ''}`]} actions={[{ label: '새로 빌리기', onClick: () => r() }]} />);

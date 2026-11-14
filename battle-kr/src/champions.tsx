@@ -21,7 +21,8 @@ import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, START_ITEMS, SHOP, NATURES 
 interface CMon { id: number; set: PSet }
 interface CSave {
 	v: 1; /** 다음에 볼 장 (0 = 등록 전) */ ch: number; tier: number; pts: number;
-	roster: CMon[]; /** 팀에 넣은 포켓몬 id (6마리까지) */ team: number[]; seq: number;
+	roster: CMon[]; /** 지금 고른 팀에 넣은 포켓몬 id (6마리까지) — teams[cur] 과 같은 것 */ team: number[]; seq: number;
+	/** 편성해 둔 팀들 (10개까지) · 지금 고른 팀 번호 */ teams?: number[][]; cur?: number;
 	items: { [id: string]: 1 }; tk: { regular: number; pick: number };
 	/** 오늘의 소개 · 받은 날 · 다음 무료 스카우트 시각(ms) · 찜(3마리) · 찜이 안 나온 횟수 · 다음 소개에 많이 나올 타입 */
 	lineup: PSet[]; lineDay: string; freeAt: number; wish: string[]; wishMiss: number; typeNext?: string;
@@ -32,7 +33,12 @@ const KEY = 'champions';
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const fresh = (): CSave => ({ v: 1, ch: 0, tier: 0, pts: 0, roster: [], team: [], seq: 1, items: Object.fromEntries(START_ITEMS.map(i => [i, 1])), tk: { regular: 0, pick: 0 },
 	lineup: [], lineDay: '', freeAt: 0, wish: [], wishMiss: 0, tower: 0, factory: 0, day: { id: '', win: 0, scout: 0, modes: {}, got: {} } });
-const persist = (S: CSave) => save(KEY, S);
+const TEAM_MAX = 10;
+/** 팀 목록을 맞춤: 지금 팀(S.team)을 teams[cur] 에 되적음 */
+const syncTeams = (S: CSave) => { S.teams ||= [S.team]; S.cur = Math.min(S.cur || 0, S.teams.length - 1); S.teams[S.cur] = S.team; };
+const persist = (S: CSave) => { syncTeams(S); save(KEY, S); };
+/** 다른 팀으로 바꿈 (없는 번호면 빈 팀을 새로) */
+const useTeam = (S: CSave, i: number) => { syncTeams(S); while (S.teams!.length <= i && S.teams!.length < TEAM_MAX) S.teams!.push([]); S.cur = Math.max(0, Math.min(i, S.teams!.length - 1)); S.team = S.teams![S.cur]; persist(S); };
 const T = (S: CSave) => TIERS[Math.min(S.tier, TIERS.length - 1)];
 const teamOf = (S: CSave) => S.team.map(id => S.roster.find(m => m.id === id)).filter(Boolean) as CMon[];
 const dayOf = (S: CSave) => { if (S.day.id !== today()) S.day = { id: today(), win: 0, scout: 0, modes: {}, got: {} }; return S.day; };
@@ -168,21 +174,21 @@ async function towerBattle(S: CSave, doubles: boolean) {
 }
 
 // ───────── 첫 파티 ─────────
-/** 처음 받는 파티 후보 세 팀 (6마리씩, 서로 겹치지 않게, 도구 없이) */
+/** 처음 받는 파티 후보 세 팀 (6마리씩, 서로 겹치지 않게, 저마다 어울리는 도구를 하나씩 — 팀 안에서 겹치지 않음) */
 function makeStarts(): PSet[][] {
 	const used = new Set<string>();
-	return [0, 1, 2].map(() => { const t = noItems(randomTeam({ gen: 9, size: 6, minBst: 420, maxBst: 540, allowSubLegend: false, quality: 0.5, exclude: used })); t.forEach(s => used.add(toID(s.species))); return t; });
+	return [0, 1, 2].map(() => { const t = dedupeItems(randomTeam({ gen: 9, size: 6, minBst: 420, maxBst: 540, allowSubLegend: false, quality: 0.5, exclude: used, itemClause: true })); t.forEach(s => used.add(toID(s.species))); return t; });
 }
 function StartPick({ S, done }: { S: CSave; done: (i: number) => void }) {
 	const [view, setView] = useState<number | null>(null), ps = S.starts || [];
 	return <Screen title="첫 파티" cls="cp-scr" top><Top title="첫 파티 고르기" sub="여섯 마리가 한 팀으로 들어옵니다" S={S} />
 		{ps.map((p, i) => <div class="cp-pn cp-start"><h3>파티 {'ABC'[i]}<small>{[...new Set(p.flatMap(s => types(s.species)))].slice(0, 6).map(typeKo).join(' · ')}</small></h3>
-			<div class="cp-start-mons">{p.map(s => <span><PokeIcon species={s.species} /><small>{speciesKo(s.species)}</small></span>)}</div>
+			<div class="cp-start-mons">{p.map(s => <span><PokeIcon species={s.species} />{s.item && <span class="cp-held"><ItemIcon item={s.item} size={16} /></span>}<small>{speciesKo(s.species)}</small></span>)}</div>
 			<div class="cp-fmt"><button class="btn" onClick={() => setView(i)}>살펴보기</button><button class="btn primary" onClick={() => done(i)}>이 파티로 시작</button></div></div>)}
-		<p class="cp-note">도구는 상점에서 사서 지니게 하고, 기술·성격·능력 포인트는 로스터에서 다듬을 수 있어요. 다른 포켓몬은 스카우트로 데려옵니다.</p>
+		<p class="cp-note">여섯 마리 모두 어울리는 도구를 지니고 옵니다. 기술·성격·능력 포인트는 로스터에서 다듬을 수 있어요. 다른 포켓몬은 스카우트로 데려옵니다.</p>
 		{view !== null && <Modal title={`파티 ${'ABC'[view]}`} onClose={() => setView(null)}>
 			<div class="cp-opts">{ps[view].map(s => <div class="cp-opt"><PokeIcon species={s.species} /><div><b>{speciesKo(s.species)} {types(s.species).map(t => <TypeBadge type={t} small />)}</b>
-				<small>{abilityKo(s.ability)} · {natureKo(s.nature)}</small><small>{s.moves.map(moveKo).join(' · ')}</small></div></div>)}</div>
+				<small>{abilityKo(s.ability)} · {natureKo(s.nature)}{s.item ? ` · ${itemKo(s.item)}` : ''}</small><small>{s.moves.map(moveKo).join(' · ')}</small></div>{s.item && <ItemIcon item={s.item} size={24} />}</div>)}</div>
 			<button class="btn big primary" onClick={() => done(view)}>이 파티로 시작</button></Modal>}
 	</Screen>;
 }
@@ -191,7 +197,7 @@ async function startFlow(S: CSave) {
 	while (true) {
 		const i = await ask<number>(r => <StartPick key={K()} S={S} done={r} />), p = S.starts![i];
 		if (!(await confirmBox(`파티 ${'ABC'[i]}`, `이 여섯 마리와 시작할까요?\n${p.map(s => speciesKo(s.species)).join(' · ')}`, '시작한다', '다시 고르기'))) continue;
-		for (const s of p) addMon(S, s);
+		for (const s of p) { addMon(S, s); if (s.item) S.items[toID(s.item)] = 1; }   // 들고 온 도구도 내 것이 됨
 		dayOf(S).scout = 0; S.starts = undefined; persist(S); sfx('heal');
 		toast('여섯 마리가 팀에 들어왔습니다!');
 		return;
@@ -306,15 +312,17 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 	const pages = Math.max(1, Math.ceil(T(S).cap / BOX)), team = teamOf(S);
 	const box = S.roster.slice(page * BOX, page * BOX + BOX), cap = Math.min(BOX, T(S).cap - page * BOX);
 	const cell = (m: CMon | undefined, k: number) => <button class={'cp-cell' + (m ? '' : ' empty') + (m && S.team.includes(m.id) ? ' in' : '')} disabled={!m} onClick={() => m && setSel(m)} key={k}>
-		{m && <PokeIcon species={m.set.species} />}{m && S.team.includes(m.id) && <i>{S.team.indexOf(m.id) + 1}</i>}</button>;
+		{m && <PokeIcon species={m.set.species} />}{m && m.set.item && <span class="cp-held"><ItemIcon item={m.set.item} size={16} /></span>}{m && S.team.includes(m.id) && <i>{S.team.indexOf(m.id) + 1}</i>}</button>;
 	return <Screen title="로스터" onBack={done} cls="cp-scr" top><Top title="로스터" sub={`${S.roster.length} / ${T(S).cap}마리 · 팀 ${S.team.length} / 6`} S={S} onBack={done} />
-		<div class="cp-pc"><div class="cp-party"><b>팀<small>{S.team.length} / 6</small></b><div>{[0, 1, 2, 3, 4, 5].map(k => <button class={'cp-slot' + (team[k] ? '' : ' empty')} disabled={!team[k]} onClick={() => team[k] && setSel(team[k])}>
-			{team[k] ? <><PokeIcon species={team[k].set.species} /><small>{speciesKo(team[k].set.species)}</small></> : null}</button>)}</div></div>
+		<div class="cp-pc"><div class="cp-party"><b class="cp-teamsel"><button class="cp-arw prev" disabled={(S.cur || 0) <= 0} onClick={() => { sfx('select'); useTeam(S, (S.cur || 0) - 1); tick(x => x + 1); }} aria-label="앞 팀" />
+			<span>팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 팀 {S.teams?.length || 1} / {TEAM_MAX}</small></span>
+			<button class="cp-arw" disabled={(S.cur || 0) >= TEAM_MAX - 1} onClick={() => { sfx('select'); useTeam(S, (S.cur || 0) + 1); tick(x => x + 1); }} aria-label="다음 팀" /></b><div>{[0, 1, 2, 3, 4, 5].map(k => <button class={'cp-slot' + (team[k] ? '' : ' empty')} disabled={!team[k]} onClick={() => team[k] && setSel(team[k])}>
+			{team[k] ? <><PokeIcon species={team[k].set.species} />{team[k].set.item && <span class="cp-held"><ItemIcon item={team[k].set.item} size={16} /></span>}<small>{speciesKo(team[k].set.species)}</small></> : null}</button>)}</div></div>
 		<div class="cp-box">
 			<div class="cp-box-head"><button disabled={page <= 0} onClick={() => setPage(page - 1)} aria-label="앞 박스" class="prev" /><b>박스 {page + 1}{pages > 1 && <small>/ {pages}</small>}</b><button disabled={page >= pages - 1} onClick={() => setPage(page + 1)} aria-label="다음 박스" /></div>
 			<div class="cp-box-grid">{Array.from({ length: cap }, (_, k) => cell(box[k], k))}</div>
 		</div></div>
-		<p class="cp-note">포켓몬을 누르면 팀에 넣고 빼기·도구·트레이닝 창이 열립니다. 숫자가 붙은 포켓몬이 지금 팀입니다.</p>
+		<p class="cp-note">포켓몬을 누르면 팀에 넣고 빼기·도구·트레이닝 창이 열립니다. 숫자가 붙은 포켓몬이 지금 팀입니다. 팀은 화살표로 넘겨 {TEAM_MAX}개까지 따로 짤 수 있고, 지금 보이는 팀으로 배틀에 나갑니다.</p>
 		{sel && !sub && <MonPop S={S} m={sel} open={setSub} close={() => setSel(null)} re={re} />}
 		{sel && sub && <SubPop S={S} m={sel} sub={sub} back={() => setSub(null)} re={re} />}
 	</Screen>;
@@ -324,7 +332,7 @@ function MonPop({ S, m, open, close, re }: { S: CSave; m: CMon; open: (s: Sub) =
 	const s = m.set, inTeam = S.team.includes(m.id), sp = spOf(s), name = speciesKo(s.species), nat = NATURES.find(n => n[0] === toID(s.nature));
 	const row = (k: Sub, label: string, val: any, cost?: number) => <button class="cp-mrow" onClick={() => { sfx('select'); open(k); }}><small>{label}</small><b>{val}</b><em class={cost === undefined ? 'free' : ''}>{cost === undefined ? '무료' : cost + ' BP'}</em></button>;
 	const toggle = () => { if (inTeam) S.team = S.team.filter(i => i !== m.id); else if (S.team.length >= 6) { toast('팀은 6마리까지예요. 먼저 한 마리를 빼 주세요'); return; } else S.team.push(m.id); sfx('select'); re(); };
-	const release = async () => { if (await confirmBox('내보내기', `${josa(name, '을', '를')} 내보낼까요? 되돌릴 수 없어요.`, '내보낸다', '그만두기')) { S.roster = S.roster.filter(x => x !== m); S.team = S.team.filter(i => i !== m.id); re(); close(); } };
+	const release = async () => { if (await confirmBox('내보내기', `${josa(name, '을', '를')} 내보낼까요? 되돌릴 수 없어요.`, '내보낸다', '그만두기')) { S.roster = S.roster.filter(x => x !== m); S.team = S.team.filter(i => i !== m.id); syncTeams(S); S.teams = S.teams!.map(t => t.filter(i => i !== m.id)); S.team = S.teams[S.cur!]; re(); close(); } };
 	const spText = STAT_KEYS.map((k, i) => sp[k] ? `${STAT_NAME[i]} ${sp[k]}` : '').filter(Boolean).join(' · ') || '나누지 않음';
 	return <Modal title={name} onClose={close}><div class="cp-mp">
 		<div class="cp-mp-head"><span class="cp-mp-spr"><Sprite species={s.species} gen={9} size={64} anim={false} cls="front" shiny={s.shiny} /></span>
@@ -353,26 +361,27 @@ function SpBody({ set, done }: { set: PSet; done: (sp: { [k: string]: number }) 
 		<button class="btn big primary" onClick={() => done(sp)}>이대로 정하기 ({PRICE.sp} BP)</button></div>;
 }
 interface Opt { icon?: any; label: string; desc?: string; note?: string; off?: boolean; run: () => void }
+type Grid = '' | 'grid' | 'grid two';
 /** 항목을 바꾸는 창: 목록에서 누르면 값을 치르고 바로 적용, 포켓몬 창으로 돌아감 */
 function SubPop({ S, m, sub, back, re }: { S: CSave; m: CMon; sub: Exclude<Sub, null>; back: () => void; re: () => void }) {
 	const s = m.set, name = speciesKo(s.species), [q, setQ] = useState('');
 	const apply = (cost: number, why: string, f: () => void) => { if (cost && !pay(cost, `챔피언스 · ${name} ${why}`)) return; f(); sfx(cost ? 'statUp' : 'select'); re(); back(); };
 	if (sub === 'detail') return <Modal title={name} onClose={back}><MonDetail set={s} gen={9} /></Modal>;
 	if (sub === 'sp') return <Modal title={`${name} · 능력 포인트`} onClose={back}><SpBody set={s} done={sp => apply(PRICE.sp, '능력 포인트', () => { for (const k of STAT_KEYS) s.evs[k] = spToEv(sp[k]); })} /></Modal>;
-	let title = '', cost = 0, why = '', search = false, opts: Opt[] = [];
+	let title = '', cost = 0, why = '', search = false, opts: Opt[] = [], grid: Grid = '';
 	if (sub === 'item') {
 		title = '지닌 도구'; why = '도구'; search = true;
 		const stones = megaStonesFor(s.species), own = Object.keys(S.items).filter(id => PLAIN_ITEMS.has(id) || stones.includes(id));
 		opts = [{ label: '없음', off: !s.item, run: () => { s.item = ''; } }, ...own.map(id => { const holder = S.roster.find(x => x !== m && toID(x.set.item) === id), cur = toID(s.item) === id;
 			return { icon: <ItemIcon item={id} size={24} />, label: itemKo(id), desc: itemDesc(id), note: cur ? '지금' : holder ? `${speciesKo(holder.set.species)}에게서 가져옴` : '', off: cur, run: () => { if (holder) holder.set.item = ''; s.item = id; } }; })];
 	} else if (sub === 'nature') {
-		title = '성격'; cost = PRICE.nature; why = '성격';
+		title = '성격'; cost = PRICE.nature; why = '성격'; grid = 'grid';
 		opts = NATURES.map(([id, up, dn]) => ({ label: natureKo(id), desc: up ? `${up} ↑ · ${dn} ↓` : '보정 없음', off: toID(s.nature) === id, run: () => { s.nature = id; } }));
 	} else if (sub === 'ability') {
-		title = '특성'; cost = PRICE.ability; why = '특성';
+		title = '특성'; cost = PRICE.ability; why = '특성'; grid = 'grid two';
 		opts = (((speciesData(s.species, 9) as any)?.ab || []) as string[]).map(x => ({ label: abilityKo(x), off: toID(x) === toID(s.ability), run: () => { s.ability = x; } }));
 	} else if (sub === 'tera') {
-		title = '테라스탈 타입'; cost = PRICE.tera; why = '테라스탈 타입';
+		title = '테라스탈 타입'; cost = PRICE.tera; why = '테라스탈 타입'; grid = 'grid';
 		opts = ALL_TYPES.map(x => ({ icon: <TypeBadge type={x} small />, label: typeKo(x), off: s.teraType === x, run: () => { s.teraType = x; } }));
 	} else {
 		const i = sub.move; title = `${s.moves[i] ? moveKo(s.moves[i]) : '빈 칸'} 바꾸기`; cost = PRICE.move; why = '기술'; search = true;
@@ -382,7 +391,7 @@ function SubPop({ S, m, sub, back, re }: { S: CSave; m: CMon; sub: Exclude<Sub, 
 	const list = opts.filter(o => !q || o.label.includes(q));
 	return <Modal title={`${title}${cost ? ` · ${cost} BP` : ''}`} onClose={back}>
 		{search && <input class="cp-search" placeholder="이름으로 찾기" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />}
-		<div class="cp-opts">{list.slice(0, 120).map(o => <button class="cp-opt" disabled={o.off} onClick={() => apply(cost, why, o.run)}>{o.icon}<div><b>{o.label}</b>{o.desc && <small>{o.desc}</small>}</div>{o.note && <em>{o.note}</em>}</button>)}
+		<div class={'cp-opts ' + grid}>{list.slice(0, 120).map(o => <button class={'cp-opt' + (grid && o.off ? ' cur' : '')} disabled={o.off} onClick={() => apply(cost, why, o.run)}>{o.icon}<div><b>{o.label}</b>{o.desc && <small>{o.desc}</small>}</div>{o.note && <em>{o.note}</em>}</button>)}
 			{!list.length && <p class="cp-note">맞는 항목이 없어요.</p>}</div>
 		{sub === 'item' && <p class="cp-note">같은 도구는 한 마리만 지닐 수 있어요. 새 도구는 상점에서 삽니다.</p>}
 	</Modal>;
@@ -474,8 +483,8 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 			<p class="cp-rulename">{ruleById(CR()).name}</p>
 			{brow('rank', '랭크 배틀', t.need ? `승점 ${S.pts} / ${t.need} · 1승 +${EARN.win} BP` : `챔피언급 · 1승 +${EARN.win} BP`)}
 			{brow('tower', '배틀타워', `${S.tower}연승 · 7연승마다 지명 티켓 (${S.tower % 7} / 7)`)}</div>
-		<button class="cp-pn cp-myteam" onClick={() => { sfx('select'); done('roster'); }}><h3>내 팀<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
-			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => <span class={team[i] ? '' : 'empty'}>{team[i] && <PokeIcon species={team[i].set.species} />}</span>)}</div></button>
+		<button class="cp-pn cp-myteam" onClick={() => { sfx('select'); done('roster'); }}><h3>내 팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
+			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => <span class={team[i] ? '' : 'empty'}>{team[i] && <PokeIcon species={team[i].set.species} />}{team[i]?.set.item && <span class="cp-held"><ItemIcon item={team[i].set.item} size={16} /></span>}</span>)}</div></button>
 		<div class="cp-tiles four">{tile('scout', '스카우트', 'c2', 'pikachu', !freeLeft(S) ? '무료' : newLine ? '새 소개' : undefined)}{tile('roster', '로스터', 'c3', 'gardevoir')}
 			{tile('shop', '상점', 'c5', 'rotomwash')}{tile('mission', '미션', 'c6', 'togekiss', mr ? String(mr) : undefined)}</div>
 		<div class="cp-nav"><button onClick={() => done('book')}>수첩</button><button onClick={() => done('calc')}>계산기</button><button onClick={() => done('settings')}>설정</button><button onClick={() => done('exit')}>타이틀</button></div>
@@ -485,6 +494,8 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 export interface Tools { settings: (onBack: () => void, onTitle?: () => void, extra?: { label: string; note?: string; run: () => void }) => any; calc: (onBack: () => void) => any; book: (onBack: () => void) => any; shop: (onBack: () => void) => any }
 export async function runChampions(tools?: Tools) {
 	let S: CSave = { ...fresh(), ...load<Partial<CSave>>(KEY, {}) } as CSave;
+	if (S.teams) S.team = S.teams[Math.min(S.cur || 0, S.teams.length - 1)] || S.team;
+	syncTeams(S);
 	for (const m of S.roster) delete (m as any).trial;   // 예전 저장의 트라이얼 포켓몬은 그대로 남김 (기한 없음)
 	playMusic(HUB_BGM);
 	await fx('fade');
@@ -493,7 +504,7 @@ export async function runChampions(tools?: Tools) {
 		// 등록은 했는데 첫 파티를 아직 안 받았으면 (고르다 나간 경우) 이어서
 		if (S.ch >= 1 && !S.roster.length && S.seq === 1) { await startFlow(S); if (!S.lineup.length) newLineup(S); }
 		const a = await ask<HubAct>(r => <Hub key={K()} S={S} done={r} />);
-		if (a === 'exit') { persist(S); return; }
+		if (a === 'exit') { persist(S); if (await confirmBox('타이틀로', '타이틀로 돌아가나요?\n지금까지의 진행은 저장돼 있어요.', '돌아간다', '계속하기')) return; continue; }
 		if (S.ch === 0) { await chapterFlow(S); continue; }
 		if (a === 'story') { if (await ask<boolean>(r => <StoryScreen key={K()} S={S} done={r} />)) { if (S.ch > 0 && teamOf(S).length < 3) { toast('팀에 포켓몬이 3마리는 있어야 해요'); continue; } await chapterFlow(S); } }
 		if (typeof a === 'object') {

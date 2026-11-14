@@ -16,7 +16,10 @@ const SYM_PAL = [
 	{ o: '#7a8498', f: '#d8dee8', h: '#ffffff', d: '#aab2c2' },   // 은
 	{ o: '#a07010', f: '#f0c020', h: '#fff4b0', d: '#c89818' },   // 금
 ];
-export function SymbolIcon({ kind, lv, size = 24 }: { kind: string; lv: number; size?: number }) {
+/** diff: 얻은 난이도 표시 — 어려움은 빨간 별, 쉬움은 초록 잎 점 (보통은 표시 없음) */
+export function SymbolIcon({ kind, lv, size = 24, diff }: { kind: string; lv: number; size?: number; diff?: string }) {
 	const rows = SYMBOLS[kind]; if (!rows) return null;
-	return bitmap(rows, SYM_PAL[Math.max(0, Math.min(2, lv))] as any, size, 'pix-symbol');
+	const pic = bitmap(rows, SYM_PAL[Math.max(0, Math.min(2, lv))] as any, size, 'pix-symbol');
+	if (!lv || !diff || diff === 'normal') return pic;
+	return <span class={'sym-wrap sym-' + diff} style={{ width: size, height: size }} title={diff === 'hard' ? '어려움' : '쉬움'}>{pic}<i style={{ '--u': Math.max(2, Math.round(size / 12)) + 'px' } as any} /></span>;
 }

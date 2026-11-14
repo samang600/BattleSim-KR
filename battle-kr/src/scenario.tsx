@@ -7,10 +7,10 @@
  *  저장: localStorage <접두사>scenario-kanto2 */
 import { h, Fragment } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { ask, Screen, Sprite, PokeIcon, TypeBadge, ItemIcon, toast, confirmBox } from './ui/core';
+import { ask, Screen, Sprite, PokeIcon, TypeBadge, ItemIcon, Modal, toast, confirmBox } from './ui/core';
 import { battle, playerName, playerSprite, BACK } from './modes';
 import { load, save, remove } from './store';
-import { speciesData, speciesKo, moveKo } from './data';
+import { speciesData, speciesKo, moveKo, moveData, itemDesc } from './data';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { playMusic, sfx, cry } from './sound';
 import type { PSet } from './sets';
@@ -594,27 +594,34 @@ function WorldMap({ run, done }: { run: Run; done: (id: string | null) => void }
 }
 
 // ───────── 파티·가방·가게·루트 ─────────
+/** 포켓몬 창 (팝업): 줄·기술을 누르면 그 자리에서 고르는 창이 열림 — 챔피언스·팀 편집과 같은 방식 */
 function MonEdit({ run, m, done }: { run: Run; m: Mon; done: () => void }) {
 	const [, tick] = useState(0), re = () => { persist(run); tick(x => x + 1); };
+	const [sub, setSub] = useState<null | 'item' | { move: number }>(null);
 	const all = known(m), cur = movesOf(m), s = speciesData(m.sp, 9) as any;
 	const held = Object.keys(run.bag).filter(id => ITEMS[id]?.kind === 'held');
-	const toggle = (mv: string) => { const c = [...cur]; const i = c.indexOf(mv); if (i >= 0) { if (c.length > 1) c.splice(i, 1); } else if (c.length < 4) c.push(mv); else { toast('기술은 4개까지예요. 먼저 하나를 빼 주세요'); return; } m.moves = c; re(); };
-	return <Screen title={speciesKo(m.sp)} onBack={done} cls="sc-scr"><Back />
-		<div class="sc-mon big"><Sprite species={m.sp} gen={9} size={96} anim={false} />
-			<div class="sc-mon-body"><b>{speciesKo(m.sp)} <small>Lv{m.lv}</small></b><span class="sc-types">{(s?.t || []).map((t: string) => <TypeBadge type={t} />)}</span>
+	const setItem = (id?: string) => { if (m.item) give(run, m.item); m.item = id; if (id) give(run, id, -1); re(); setSub(null); };
+	if (sub === 'item') return <Modal title="지닌 도구" onClose={() => setSub(null)}>
+		<div class="cp-opts"><button class="cp-opt" disabled={!m.item} onClick={() => setItem(undefined)}><div><b>없음</b></div></button>
+			{held.map(id => <button class="cp-opt" onClick={() => setItem(id)}><ItemIcon item={ITEMS[id].held!} size={24} /><div><b>{ITEMS[id].name}</b><small>{itemDesc(ITEMS[id].held!)}</small></div><em>×{run.bag[id]}</em></button>)}</div>
+		{!held.length && <p class="muted small">지닐 수 있는 도구는 프렌들리숍에서 살 수 있어요.</p>}</Modal>;
+	if (sub) { const i = sub.move, rest = all.filter(mv => !cur.includes(mv));
+		const put = (mv: string) => { const c = [...cur]; if (i < c.length) c[i] = mv; else c.push(mv); m.moves = c; re(); setSub(null); };
+		return <Modal title={cur[i] ? `${moveKo(cur[i])} 바꾸기` : '기술 고르기'} onClose={() => setSub(null)}>
+			{cur[i] && <div class="set-mvacts"><button class="btn small ghost" disabled={cur.length <= 1} onClick={() => { m.moves = cur.filter((_, k) => k !== i); re(); setSub(null); }}>빼기</button></div>}
+			<div class="cp-opts">{rest.map(mv => { const md = moveData(mv, 9); return <button class="cp-opt" onClick={() => put(mv)}>{md && <TypeBadge type={md.type} small />}<div><b>{moveKo(mv)}</b>
+				{md && <small>{md.category === 'Status' ? '변화' : `${md.category === 'Physical' ? '물리' : '특수'} · 위력 ${md.basePower || '-'}`} · 명중 {md.accuracy || '-'}</small>}</div></button>; })}
+				{!rest.length && <p class="muted small">더 배운 기술이 없어요. 레벨이 오르거나 기술머신을 쓰면 늘어납니다.</p>}</div></Modal>; }
+	return <Modal title={speciesKo(m.sp)} onClose={done}><div class="cp-mp">
+		<div class="cp-mp-head"><span class="cp-mp-spr"><Sprite species={m.sp} gen={9} size={64} anim={false} /></span>
+			<div><span>{(s?.t || []).map((t: string) => <TypeBadge type={t} small />)} <small>Lv{m.lv}</small></span>
 				<i class="sc-xp wide"><b style={{ width: (m.lv >= lvCap(run) ? 100 : Math.round(100 * m.exp / expNeed(m.lv))) + '%' }} /></i>
 				<small>{m.lv >= lvCap(run) ? `레벨 상한 (Lv${lvCap(run)})` : `다음 레벨까지 ${expNeed(m.lv) - m.exp}`}{LU[m.sp]?.e ? ` · Lv${LU[m.sp].e![1]}에 ${josa(speciesKo(LU[m.sp].e![0]), '으로', '로')} 진화` : LU[m.sp]?.s ? ` · ${LU[m.sp].s!.map(([, st]) => ITEMS[st]?.name).filter(Boolean).join('·')}로 진화` : ''}</small></div></div>
-		<h3 class="sec">기술 <small class="muted">{cur.length}/4 · 눌러서 넣고 빼기</small></h3>
-		<div class="sc-moves">{all.map(mv => <button class={cur.includes(mv) ? 'on' : ''} onClick={() => toggle(mv)}>{moveKo(mv)}</button>)}</div>
-		<h3 class="sec">지닌 도구</h3>
-		<div class="sc-moves">
-			<button class={!m.item ? 'on' : ''} onClick={() => { if (m.item) { give(run, m.item); m.item = undefined; re(); } }}>없음</button>
-			{m.item && <button class="on"><ItemIcon item={ITEMS[m.item].held!} size={20} /> {ITEMS[m.item].name}</button>}
-			{held.map(id => <button onClick={() => { if (m.item) give(run, m.item); m.item = id; give(run, id, -1); re(); }}><ItemIcon item={ITEMS[id].held!} size={20} /> {ITEMS[id].name} ×{run.bag[id]}</button>)}
-		</div>
-		{!held.length && !m.item && <p class="muted small">지닐 수 있는 도구는 프렌들리숍에서 살 수 있어요.</p>}
-		<button class="btn big" onClick={done}>돌아가기</button>
-	</Screen>;
+		<div class="cp-mrows"><button class="cp-mrow" onClick={() => setSub('item')}><small>도구</small><b>{m.item ? <><ItemIcon item={ITEMS[m.item].held!} size={24} />{ITEMS[m.item].name}</> : '없음'}</b><em>바꾸기</em></button></div>
+		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = cur[k] ? moveData(cur[k], 9) : null; return <button onClick={() => setSub({ move: Math.min(k, cur.length) })}>
+			{md && <TypeBadge type={md.type} small />}<b class={cur[k] ? '' : 'muted'}>{cur[k] ? moveKo(cur[k]) : '+ 기술'}</b><em>{md ? (md.category === 'Status' ? '변화' : `위력 ${md.basePower || '-'}`) : ''}</em></button>; })}</div>
+		<p class="muted small">기술은 4개까지 · 배운 기술 {all.length}개 가운데 고릅니다.</p>
+	</div></Modal>;
 }
 function MonCard({ m, children, onClick }: { m: Mon; children?: any; onClick?: () => void }) {
 	const s = speciesData(m.sp, 9) as any;
@@ -630,8 +637,7 @@ function MonCard({ m, children, onClick }: { m: Mon; children?: any; onClick?: (
 function PartyScreen({ run, done }: { run: Run; done: () => void }) {
 	const [, tick] = useState(0), [edit, setEdit] = useState<Mon | null>(null);
 	const re = () => { persist(run); tick(x => x + 1); };
-	if (edit) return <MonEdit run={run} m={edit} done={() => setEdit(null)} />;
-	return <Screen title="포켓몬" onBack={done} cls="sc-scr"><Back />
+	return <><Screen title="포켓몬" onBack={done} cls="sc-scr"><Back />
 		<h3 class="sec">파티 <small class="muted">{run.party.length}/6 · 맨 위가 선두{run.tag ? ' · 태그 배틀은 위 3마리가 나가요' : ''} · 넣고 빼기는 아래 메뉴의 「박스」</small></h3>
 		{run.party.map((m, i) => <MonCard m={m} onClick={() => setEdit(m)}>
 			<button class="btn small" onClick={() => setEdit(m)}>기술·도구</button>
@@ -643,7 +649,7 @@ function PartyScreen({ run, done }: { run: Run; done: () => void }) {
 			<button class="btn small" disabled={run.party.length >= 6} onClick={() => { run.box.splice(i, 1); run.party.push(m); re(); }}>파티로</button>
 		</MonCard>)}
 		<button class="btn big" onClick={done}>돌아가기</button>
-	</Screen>;
+	</Screen>{edit && <MonEdit run={run} m={edit} done={() => { setEdit(null); re(); }} />}</>;
 }
 const KIND_KO: { [k: string]: string } = { ball: '볼', held: '지닌 도구', gift: '선물', sell: '귀중품', med: '회복', tm: '기술머신', evo: '진화의 돌' };
 function ItemRow({ id, right, sub }: { id: string; right: any; sub?: string }) {
@@ -728,7 +734,6 @@ const BOX_SIZE = 30;
 function BoxScreen({ run, done }: { run: Run; done: () => void }) {
 	const [, tick] = useState(0), [sel, setSel] = useState<{ w: 'p' | 'b'; i: number } | null>(null), [page, setPage] = useState(0), [edit, setEdit] = useState<Mon | null>(null);
 	const re = () => { persist(run); tick(x => x + 1); };
-	if (edit) return <MonEdit run={run} m={edit} done={() => setEdit(null)} />;
 	const pages = Math.max(1, Math.ceil((run.box.length + 1) / BOX_SIZE)), pg = Math.min(page, pages - 1);
 	const at = (w: 'p' | 'b', i: number): Mon | undefined => (w === 'p' ? run.party : run.box)[i];
 	const cur = sel ? at(sel.w, sel.i) : undefined;

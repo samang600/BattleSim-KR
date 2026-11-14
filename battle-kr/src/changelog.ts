@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.81.0', date: '2026-11-14', title: '포켓몬 편집 창 · 난이도별 보상', items: [
+		['up', '팀 편집의 포켓몬 화면이 간결해졌어요 — 도구·특성·성격·테라·능력 포인트·기술을 누르면 화면이 바뀌지 않고 창에서 고릅니다'],
+		['new', '배틀타워·팩토리의 BP 보상이 난이도마다 달라지고(어려움은 1승마다 2 BP), 심볼도 쉬움·보통·어려움이 따로 남아요'],
+	] },
 	{ ver: '2.80.0', date: '2026-11-14', title: '배틀 중 음량 조절', items: [
 		['new', '배틀 중 「메뉴」에 소리·진행 설정 칸이 생겼어요 — 배경음악·효과음 크기와 음소거, 배속을 눈금 막대로 바로 바꿉니다'],
 	] },

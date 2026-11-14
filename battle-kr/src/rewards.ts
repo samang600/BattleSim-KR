@@ -77,7 +77,8 @@ function bpToast(n: number, why: string) {
 
 // ───────── 얻는 규칙 ─────────
 /** 7연승 세트 클리어: 3 + 세트가 오를수록 +1 (최대 7) */
-export const setClearBP = (streak: number) => Math.min(7, 3 + Math.floor(streak / 7) - 1);
+/** 난이도 차등: 쉬움은 절반(올림), 어려움은 +3 */
+export const setClearBP = (streak: number, diff = 'normal') => { const b = Math.min(7, 3 + Math.floor(streak / 7) - 1); return diff === 'easy' ? Math.ceil(b / 2) : diff === 'hard' ? b + 3 : b; };
 export const BRAIN_BP = { silver: 10, gold: 25 };
 export const ACH_BP = [0, 2, 5, 10, 20];   // 업적 단계(브론즈·실버·골드·플래티넘)
 export const SEASON_BP: { [cls: string]: number } = { '비기너': 2, '몬스터볼급': 4, '슈퍼볼급': 6, '하이퍼볼급': 10, '마스터볼급': 18, '챔피언급': 30 };
@@ -130,7 +131,7 @@ onBattleEnd((setup, battle, win) => {
 		if (n) earnBP(n, '승리');
 		return;
 	}
-	earnBP(1, FACILITY.test(label) ? '승리' : '승리');
+	earnBP(setup.diff === 'hard' ? 2 : 1, setup.diff === 'hard' ? '승리 (어려움)' : '승리');   // 어려움: 1승마다 2
 });
 
 // ───────── 교환소 상품 ─────────

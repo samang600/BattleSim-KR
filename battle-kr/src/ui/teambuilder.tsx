@@ -254,11 +254,9 @@ function statValue(base: number, ev: number, iv: number, level: number, nat: num
 
 export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set: PSet; gen: Gen; onChange: (s: PSet) => void; onDelete: () => void; onBack: () => void; cheat?: boolean }) {
 	const [s, setS] = useState<PSet>(() => (cheat ? cheatSP : normalizeSP)(JSON.parse(JSON.stringify(set))));
-	const [picker, setPicker] = useState<null | { kind: 'move'; idx: number } | { kind: 'item' } | { kind: 'nature' } | { kind: 'ability' } | { kind: 'ball' }>(null);
-	// 고르기 화면은 맨 위부터, 돌아오면 편집 화면의 원래 스크롤 위치로
-	const editY = useRef(0), hadPicker = useRef(false);
-	const openPicker = (p: NonNullable<typeof picker>) => { editY.current = window.scrollY; setPicker(p); };
-	useLayoutEffect(() => { if (!picker && hadPicker.current) window.scrollTo(0, editY.current); hadPicker.current = !!picker; }, [picker]);
+	// 고르기는 화면을 바꾸지 않고 팝업 창에서 (챔피언스 모드의 포켓몬 창과 같은 방식)
+	const [picker, setPicker] = useState<null | { kind: 'move'; idx: number } | { kind: 'item' } | { kind: 'nature' } | { kind: 'ability' } | { kind: 'tera' } | { kind: 'sp' } | { kind: 'etc' }>(null);
+	const openPicker = (p: NonNullable<typeof picker>) => setPicker(p), close = () => setPicker(null);
 	const up = (patch: Partial<PSet>) => { const n = { ...s, ...patch }; setS(n); onChange(n); };
 	const sd = speciesData(toID(s.species), gen)!;
 	// 같은 포켓몬의 다른 모습 (메가·원시·거다이맥스처럼 배틀 중 바뀌는 모습과 배틀 전용 모습 제외)
@@ -273,121 +271,101 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 		for (const k of STATS) evs[k] = spToEv(n[k]);
 		up({ evs, ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 } });
 	};
+	const natMulOf = (k: StatID) => nat?.p === k ? 1.1 : nat?.m === k ? 0.9 : 1;
+	const statOf = (k: StatID, i: number) => statValue(sd.bs[i], s.evs[k], 31, s.level, natMulOf(k), k === 'hp');
+	const row = (kind: NonNullable<typeof picker>['kind'], label: string, val: any, dis = false) => <button class="cp-mrow" disabled={dis} onClick={() => openPicker({ kind } as any)}><small>{label}</small><b>{val}</b><em>{dis ? '' : '바꾸기'}</em></button>;
+	const tera = fixedTera(s.species) || s.teraType || sd.t[0];
+	const spText = STATS.map(k => sp[k] ? `${STAT_SHORT[k]} ${fmtSP(sp[k])}` : '').filter(Boolean).join(' · ') || '나누지 않음';
+	const mvIdx = picker?.kind === 'move' ? picker.idx : -1, swap = (a: number, b: number) => { const mv = s.moves.slice(); [mv[a], mv[b]] = [mv[b], mv[a]]; up({ moves: mv }); setPicker({ kind: 'move', idx: b }); };
 
-	if (picker?.kind === 'move') {
-		return <MovePicker gen={gen} species={toID(s.species)} current={s.moves} all={cheat} onBack={() => setPicker(null)}
-			onPick={mid => { const moves = s.moves.slice(); if (picker.idx < moves.length) moves[picker.idx] = mid; else moves.push(mid); up({ moves: moves.filter(Boolean) }); setPicker(null); }} />;
-	}
-	if (picker?.kind === 'ball') {
-		return <Screen top title="볼 고르기" onBack={() => setPicker(null)}>
-			<p class="hint">포켓몬이 나올 때 볼의 색과 빛이 달라집니다.</p>
-			<div class="ball-grid">{allBalls().map(b => <button class={'ball-cell' + ((s.pokeball || 'pokeball') === b.id ? ' on' : '')} onClick={() => { up({ pokeball: b.id }); setPicker(null); }}>
-				<ItemIcon item={b.id} size={30} /><span>{b.n}</span></button>)}</div>
-		</Screen>;
-	}
-	if (picker?.kind === 'ability') {
-		return <AbilityPicker onBack={() => setPicker(null)} onPick={a => { up({ ability: a }); setPicker(null); }} />;
-	}
-	if (picker?.kind === 'item') {
-		return <ItemPicker gen={gen} onBack={() => setPicker(null)} onPick={id => { up({ item: id }); setPicker(null); }} />;
-	}
-	if (picker?.kind === 'nature') {
-		return <Screen top title="성격" onBack={() => setPicker(null)}>
-			<div class="pick-list">{allNatures().map(n => <button class="pick-row" onClick={() => { up({ nature: n.id }); setPicker(null); }}>
-				<span class="pick-name">{n.n}</span>
-				<small>{n.p ? <><span class="up">▲{STAT_SHORT[n.p]}</span> <span class="down">▼{STAT_SHORT[n.m]}</span></> : <span class="muted">변화 없음</span>}</small>
-			</button>)}</div>
-		</Screen>;
-	}
 	return <Screen title={sd.n} onBack={onBack} right={<button class="icon-btn" onClick={onDelete} aria-label="삭제">🗑</button>}>
-		<div class="detail-head">
-			<Sprite species={s.species} gen={gen} size={96} shiny={s.shiny} />
-			<div>
-				<div class="types">{sd.t.map(t => <TypeBadge type={t} />)}</div>
-				<label class="sel-row nick-row"><span>닉네임</span>
-					<input maxLength={12} placeholder={nickKo(toID(s.species))} value={s.name && s.name !== nickKo(toID(s.species)) ? s.name : ''}
-						onInput={e => { const v = (e.target as HTMLInputElement).value.replace(/[,|[\]]/g, ''); up({ name: v.trim() ? v : nickKo(toID(s.species)) }); }} /></label>
-				<label class="check"><input type="checkbox" checked={!!s.shiny} onChange={e => up({ shiny: (e.target as HTMLInputElement).checked })} /> 색이 다른 포켓몬</label>
-				{formes.length > 1 && <label class="sel-row"><span>모습</span>
-					<select value={toID(s.species)} onChange={e => {
-						const f = speciesData((e.target as HTMLSelectElement).value, gen)!;
-						// 바꾼 모습이 배울 수 없는 기술은 뺌 (치트 팀은 그대로)
-						const legal = new Set(learnset(f.id, gen));
-						const moves = cheat ? s.moves : s.moves.filter(m => !m || legal.has(toID(m)));
-						const dropped = s.moves.filter(m => m && !moves.includes(m));
-						up({ species: f.en, name: !s.name || s.name === nickKo(toID(s.species)) ? nickKo(toID(f.en)) : s.name, ability: f.ab.includes(s.ability) ? s.ability : f.ab[0], teraType: s.teraType && (sd.t.includes(s.teraType) ? f.t[0] : s.teraType), moves });
-						if (dropped.length) toast(`${f.n} 모습이 배울 수 없는 기술을 뺐어요: ${dropped.map(m => moveData(toID(m), gen)?.name || m).join(', ')}`);
-					}}>{formes.map(f => <option value={f.id}>{f.n}{cheat && (f.req || f.bo) ? ' (배틀 중 모습)' : ''}</option>)}</select></label>}
-				<label class="sel-row"><span>성별</span>
-					{sd.gr ? <b class="muted">{sd.gr === 'M' ? '♂ 수컷' : sd.gr === 'F' ? '♀ 암컷' : '성별 없음'}</b> :
-					<select value={s.gender || ''} onChange={e => up({ gender: (e.target as HTMLSelectElement).value })}>
-						<option value="">무작위</option><option value="M">♂ 수컷</option><option value="F">♀ 암컷</option></select>}</label>
-				<label class="sel-row"><span>볼</span><ItemIcon item={s.pokeball || 'pokeball'} size={20} />
-					<select value={s.pokeball || 'pokeball'} onChange={e => up({ pokeball: (e.target as HTMLSelectElement).value })}>
-						{allBalls().map(b => <option value={b.id}>{b.n}</option>)}</select></label>
-				{sd.gx && <label class="check"><input type="checkbox" checked={!!s.gigantamax} onChange={e => up({ gigantamax: (e.target as HTMLInputElement).checked })} /> 거다이맥스 <small class="muted">(다이맥스할 때 거다이맥스 모습·기술)</small></label>}
-				<button class="btn ghost small" onClick={() => { const n = randomSetFor(toID(s.species), gen, 50); n.shiny = s.shiny; setS(n); onChange(n); toast('추천 세트로 바꿨습니다'); }}>🎲 추천 세트</button>
+		<div class="cp-mp set-mp">
+			<div class="cp-mp-head"><span class="cp-mp-spr big"><Sprite species={s.species} gen={gen} size={96} shiny={s.shiny} /></span>
+				<div><span>{sd.t.map(t => <TypeBadge type={t} />)}</span>
+					<label class="sel-row nick-row"><span>닉네임</span>
+						<input maxLength={12} placeholder={nickKo(toID(s.species))} value={s.name && s.name !== nickKo(toID(s.species)) ? s.name : ''}
+							onInput={e => { const v = (e.target as HTMLInputElement).value.replace(/[,|[\]]/g, ''); up({ name: v.trim() ? v : nickKo(toID(s.species)) }); }} /></label>
+					<div class="set-headbtns"><button class="btn small" onClick={() => openPicker({ kind: 'etc' })}>모습·성별·볼</button>
+						<button class="btn ghost small" onClick={() => { const n = randomSetFor(toID(s.species), gen, 50); n.shiny = s.shiny; setS(n); onChange(n); toast('추천 세트로 바꿨습니다'); }}>추천 세트</button></div>
+				</div></div>
+			<div class="cp-pn set-pn"><div class="cp-mrows">
+				{row('item', '도구', s.item ? <><ItemIcon item={s.item} size={24} />{itemKo(s.item)}</> : '없음')}
+				{row('ability', '특성', abilityKo(s.ability), !cheat && sd.ab.length < 2)}
+				{row('nature', '성격', <>{nat?.n || s.nature}{nat?.p ? <small> {STAT_SHORT[nat.p]}▲ {STAT_SHORT[nat.m]}▼</small> : null}</>)}
+				{row('tera', '테라 타입', <><TypeBadge type={tera} small />{fixedTera(s.species) ? <small> 고정</small> : null}</>, !!fixedTera(s.species))}
+				{row('sp', evDisplay() ? '노력치' : '능력 포인트', <small class={spTotal > SP_TOTAL ? 'bad' : ''}>{spText} ({cheat ? spTotal : `${spTotal}/${SP_TOTAL}`})</small>)}
+			</div></div>
+			<p class="muted small set-abdesc">{abilityDesc(s.ability)}</p>
+			<div class="cp-mmoves set-moves">{[0, 1, 2, 3].map(i => { const m = s.moves[i], md = m ? moveData(m, gen) : null;
+				return <button onClick={() => openPicker({ kind: 'move', idx: Math.min(i, s.moves.length) })}>
+					{md ? <><span class="pm-icons"><TypeBadge type={md.type} small /><CatIcon cat={md.category} /></span><b>{md.name}</b>
+						<em>{md.category === 'Status' ? '변화' : `위력 ${md.basePower || '-'}`} · 명중 {md.accuracy || '-'} · PP {md.pp}</em></> : <b class="muted">+ 기술 선택</b>}</button>; })}</div>
+			<div class="set-stats">{STATS.map((k, i) => <span class={natMulOf(k) > 1 ? 'up' : natMulOf(k) < 1 ? 'down' : ''}><small>{STAT_SHORT[k]}</small><b>{statOf(k, i)}</b></span>)}</div>
+			{cheat ? <div class="set-row"><span>레벨 {s.level}</span><input type="range" min={1} max={100} value={s.level} onInput={e => up({ level: parseInt((e.target as HTMLInputElement).value, 10) })} /></div>
+				: <p class="muted small">레벨 {s.level} (모드에 따라 50/100으로 맞춰짐) · 줄이나 기술을 누르면 바꾸는 창이 열립니다</p>}
+		</div>
+		{picker?.kind === 'move' && <Modal title={s.moves[mvIdx] ? `${moveData(s.moves[mvIdx], gen)?.name || ''} 바꾸기` : '기술 고르기'} onClose={close}>
+			{s.moves[mvIdx] && <div class="set-mvacts"><button class="btn small" disabled={mvIdx === 0} onClick={() => swap(mvIdx, mvIdx - 1)}>앞으로</button>
+				<button class="btn small" disabled={mvIdx >= s.moves.length - 1} onClick={() => swap(mvIdx, mvIdx + 1)}>뒤로</button>
+				<button class="btn small ghost" disabled={s.moves.length <= 1} onClick={() => { up({ moves: s.moves.filter((_, k) => k !== mvIdx) }); close(); }}>빼기</button></div>}
+			<MovePicker gen={gen} species={toID(s.species)} current={s.moves} all={cheat}
+				onPick={mid => { const moves = s.moves.slice(); if (mvIdx < moves.length) moves[mvIdx] = mid; else moves.push(mid); up({ moves: moves.filter(Boolean) }); close(); }} /></Modal>}
+		{picker?.kind === 'item' && <Modal title="도구 고르기" onClose={close}><ItemPicker gen={gen} onPick={id => { up({ item: id }); close(); }} /></Modal>}
+		{picker?.kind === 'ability' && <Modal title="특성" onClose={close}>
+			<div class="cp-opts">{sd.ab.map(a => <button class="cp-opt" disabled={s.ability === a} onClick={() => { up({ ability: a }); close(); }}><div><b>{abilityKo(a)}</b><small>{abilityDesc(a)}</small></div>{s.ability === a && <em>지금</em>}</button>)}</div>
+			{cheat && <><h3 class="sec">🃏 다른 특성 (치트)</h3><AbilityPicker onPick={a => { up({ ability: a }); close(); }} /></>}</Modal>}
+		{picker?.kind === 'nature' && <Modal title="성격" onClose={close}>
+			<div class="cp-opts grid">{allNatures().map(n => <button class={'cp-opt' + (s.nature === n.id ? ' cur' : '')} disabled={s.nature === n.id} onClick={() => { up({ nature: n.id }); close(); }}>
+				<div><b>{n.n}</b><small>{n.p ? `${STAT_SHORT[n.p]}▲ ${STAT_SHORT[n.m]}▼` : '변화 없음'}</small></div></button>)}</div></Modal>}
+		{picker?.kind === 'tera' && <Modal title="테라스탈 타입" onClose={close}>
+			<div class="cp-opts grid">{ALL_TYPES.map(t => <button class={'cp-opt' + (tera === t ? ' cur' : '')} disabled={tera === t} onClick={() => { up({ teraType: t }); close(); }}><TypeBadge type={t} small /><div><b>{typeKo(t)}</b></div></button>)}</div></Modal>}
+		{picker?.kind === 'etc' && <Modal title="모습 · 성별 · 볼" onClose={close}><div class="set-etc">
+			<label class="check"><input type="checkbox" checked={!!s.shiny} onChange={e => up({ shiny: (e.target as HTMLInputElement).checked })} /> 색이 다른 포켓몬</label>
+			{formes.length > 1 && <label class="sel-row"><span>모습</span>
+				<select value={toID(s.species)} onChange={e => {
+					const f = speciesData((e.target as HTMLSelectElement).value, gen)!;
+					// 바꾼 모습이 배울 수 없는 기술은 뺌 (치트 팀은 그대로)
+					const legal = new Set(learnset(f.id, gen));
+					const moves = cheat ? s.moves : s.moves.filter(m => !m || legal.has(toID(m)));
+					const dropped = s.moves.filter(m => m && !moves.includes(m));
+					up({ species: f.en, name: !s.name || s.name === nickKo(toID(s.species)) ? nickKo(toID(f.en)) : s.name, ability: f.ab.includes(s.ability) ? s.ability : f.ab[0], teraType: s.teraType && (sd.t.includes(s.teraType) ? f.t[0] : s.teraType), moves });
+					if (dropped.length) toast(`${f.n} 모습이 배울 수 없는 기술을 뺐어요: ${dropped.map(m => moveData(toID(m), gen)?.name || m).join(', ')}`);
+				}}>{formes.map(f => <option value={f.id}>{f.n}{cheat && (f.req || f.bo) ? ' (배틀 중 모습)' : ''}</option>)}</select></label>}
+			<label class="sel-row"><span>성별</span>
+				{sd.gr ? <b class="muted">{sd.gr === 'M' ? '♂ 수컷' : sd.gr === 'F' ? '♀ 암컷' : '성별 없음'}</b> :
+				<select value={s.gender || ''} onChange={e => up({ gender: (e.target as HTMLSelectElement).value })}>
+					<option value="">무작위</option><option value="M">♂ 수컷</option><option value="F">♀ 암컷</option></select>}</label>
+			{sd.gx && <label class="check"><input type="checkbox" checked={!!s.gigantamax} onChange={e => up({ gigantamax: (e.target as HTMLInputElement).checked })} /> 거다이맥스 <small class="muted">(다이맥스할 때 거다이맥스 모습·기술)</small></label>}
+			<h3 class="sec">볼 <small class="muted">나올 때 볼의 색과 빛이 달라집니다</small></h3>
+			<div class="ball-grid">{allBalls().map(b => <button class={'ball-cell' + ((s.pokeball || 'pokeball') === b.id ? ' on' : '')} onClick={() => up({ pokeball: b.id })}>
+				<ItemIcon item={b.id} size={30} /><span>{b.n}</span></button>)}</div>
+		</div></Modal>}
+		{picker?.kind === 'sp' && <Modal title={`${evDisplay() ? '노력치' : '능력 포인트'} · ${cheat ? `${spTotal} (제한 없음)` : `${spTotal} / ${SP_TOTAL}`}`} onClose={close}>
+			<div class="chips-row">{SP_PRESETS.map(([label, sp]) => <button class="chipbtn" onClick={() => setSp({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0, ...sp })}>{label}</button>)}
+				<button class="chipbtn" onClick={() => { const n = applySpread({ ...s, evs: { ...s.evs } }, gen); up({ evs: fillSP({ ...s, evs: n.evs, ivs: { ...s.ivs } }).evs, nature: n.nature }); }}>자동 배분</button>
+				<button class="chipbtn" onClick={() => setSp({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 })}>초기화</button></div>
+			<div class="ev-table">
+				{STATS.map((k, i) => {
+					const natMul = natMulOf(k);
+					const change = (v: number) => {
+						v = Math.max(0, Math.min(SP_MAX, v, cheat ? SP_MAX : SP_TOTAL - (spTotal - sp[k])));
+						setSp({ ...sp, [k]: v });
+					};
+					return <div class="ev-row">
+						<span class={'ev-label' + (natMul > 1 ? ' up' : natMul < 1 ? ' down' : '')}>{STAT_SHORT[k]}{natMul > 1 ? '▲' : natMul < 1 ? '▼' : ''}</span>
+						<span class="ev-base">{sd.bs[i]}</span>
+						<button class="sp-step" onClick={() => change(sp[k] - 1)} aria-label="빼기">−</button>
+						<input type="range" min={0} max={SP_MAX} step={1} value={sp[k]} onInput={e => change(parseInt((e.target as HTMLInputElement).value, 10))} />
+						<button class="sp-step" onClick={() => change(sp[k] + 1)} aria-label="더하기">+</button>
+						<span class="ev-val">{fmtSP(sp[k])}</span>
+						<b class="ev-stat">{statOf(k, i)}</b>
+					</div>;
+				})}
 			</div>
-		</div>
-		<h3 class="sec">특성</h3>
-		<div class="seg wrap">{sd.ab.map(a => <button class={s.ability === a ? 'on' : ''} onClick={() => up({ ability: a })}>{abilityKo(a)}</button>)}</div>
-		{cheat && <button class="option" onClick={() => openPicker({ kind: 'ability' })}><span class="opt-body"><b>🃏 다른 특성 고르기</b><small>지금: {abilityKo(s.ability)}</small></span></button>}
-		<p class="muted small">{abilityDesc(s.ability)}</p>
-		<h3 class="sec">도구</h3>
-		<button class="option" onClick={() => openPicker({ kind: 'item' })}><ItemIcon item={s.item} /><span class="opt-body"><b>{s.item ? itemKo(s.item) : '없음'}</b><small>{itemDesc(s.item)}</small></span></button>
-		<h3 class="sec">기술</h3>
-		<div class="move-edit">
-			{[0, 1, 2, 3].map(i => {
-				const m = s.moves[i];
-				const md = m ? moveData(m, gen) : null;
-				const swap = (a: number, b: number) => { const mv = s.moves.slice(); [mv[a], mv[b]] = [mv[b], mv[a]]; up({ moves: mv }); };
-				return <button class="option move-row" onClick={() => openPicker({ kind: 'move', idx: Math.min(i, s.moves.length) })}>
-					{md ? <><span class="pm-icons"><TypeBadge type={md.type} small /><CatIcon cat={md.category} /></span><span class="opt-body"><b>{md.name}</b><small>{md.category === 'Status' ? '변화' : `${md.category === 'Physical' ? '물리' : '특수'} ${md.basePower || '-'}`} · 명중 {md.accuracy || '-'} · PP {md.pp}</small></span>
-						<span class="reorder" onClick={e => e.stopPropagation()}>
-							<button class="icon-btn" disabled={i === 0} onClick={() => swap(i, i - 1)} aria-label="위로">▲</button>
-							<button class="icon-btn" disabled={i >= s.moves.length - 1} onClick={() => swap(i, i + 1)} aria-label="아래로">▼</button>
-							<button class="icon-btn" onClick={() => up({ moves: s.moves.filter((_, k) => k !== i) })} aria-label="빼기">✕</button>
-						</span></>
-						: <span class="opt-body muted">+ 기술 선택</span>}
-				</button>;
-			})}
-		</div>
-		<h3 class="sec">성격</h3>
-		<label class="sel-row big"><select value={s.nature} onChange={e => up({ nature: (e.target as HTMLSelectElement).value })}>
-			{allNatures().map(n => <option value={n.id}>{n.n}{n.p ? ` (${STAT_SHORT[n.p]}▲ ${STAT_SHORT[n.m]}▼)` : ' (변화 없음)'}</option>)}</select>
-			<b class="muted small">{nat?.p ? `${STAT_KO[nat.p]} ▲ / ${STAT_KO[nat.m]} ▼` : '능력 변화 없음'}</b></label>
-		<h3 class="sec">테라스탈 타입</h3>
-		{fixedTera(s.species) ? <label class="sel-row big"><TypeBadge type={fixedTera(s.species)!} /><em class="tera-fixed">{typeKo(fixedTera(s.species)!)} 고정 — 이 포켓몬은 테라 타입을 바꿀 수 없어요</em></label> :
-		<label class="sel-row big"><TypeBadge type={s.teraType || sd.t[0]} /><select value={s.teraType || sd.t[0]} onChange={e => up({ teraType: (e.target as HTMLSelectElement).value })}>
-			{ALL_TYPES.map(t => <option value={t}>{typeKo(t)}</option>)}</select></label>}
-		<h3 class="sec">{evDisplay() ? '노력치' : '능력 포인트'} <small class={'muted' + (spTotal > SP_TOTAL ? ' bad' : '')}>{evDisplay() ? `${STATS.reduce((a, k) => a + spToEv(sp[k]), 0)} · ` : ''}{cheat ? `${spTotal}${evDisplay() ? '포인트' : ''} (제한 없음)` : `${spTotal}/${SP_TOTAL}${evDisplay() ? '포인트' : ''}`}</small>
-			<button class="btn ghost small" onClick={() => { const n = applySpread({ ...s, evs: { ...s.evs } }, gen); up({ evs: fillSP({ ...s, evs: n.evs, ivs: { ...s.ivs } }).evs, nature: n.nature }); }}>자동 배분</button></h3>
-		<p class="muted small">{evDisplay()
-			? '노력치로 표시(설정에서 바꿈): 4 다음부터 8씩, 능력마다 최대 252 · 레벨 50에서 능력치 +1. 규칙은 챔피언스 방식 합계 66포인트라 본가 510보다 1포인트(노력치 8) 더 쓸 수 있습니다(예: 252/252/12). 개체값은 모두 최대.'
-			: '포켓몬 챔피언스 방식: 능력마다 0~32포인트, 합계 66포인트. 개체값은 없고(모두 최대), 레벨 50에서 1포인트 = 능력치 +1.'}</p>
-		<div class="chips-row">{SP_PRESETS.map(([label, sp]) => <button class="chipbtn" onClick={() => setSp({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0, ...sp })}>{label}</button>)}
-			<button class="chipbtn" onClick={() => setSp({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 })}>초기화</button></div>
-		<div class="ev-table">
-			{STATS.map((k, i) => {
-				const natMul = nat?.p === k ? 1.1 : nat?.m === k ? 0.9 : 1;
-				const val = statValue(sd.bs[i], s.evs[k], 31, s.level, natMul, k === 'hp');
-				const change = (v: number) => {
-					v = Math.max(0, Math.min(SP_MAX, v, cheat ? SP_MAX : SP_TOTAL - (spTotal - sp[k])));
-					setSp({ ...sp, [k]: v });
-				};
-				return <div class="ev-row">
-					<span class={'ev-label' + (natMul > 1 ? ' up' : natMul < 1 ? ' down' : '')}>{STAT_SHORT[k]}{natMul > 1 ? '▲' : natMul < 1 ? '▼' : ''}</span>
-					<span class="ev-base">{sd.bs[i]}</span>
-					<button class="sp-step" onClick={() => change(sp[k] - 1)} aria-label="빼기">−</button>
-					<input type="range" min={0} max={SP_MAX} step={1} value={sp[k]} onInput={e => change(parseInt((e.target as HTMLInputElement).value, 10))} />
-					<button class="sp-step" onClick={() => change(sp[k] + 1)} aria-label="더하기">+</button>
-					<span class="ev-val">{fmtSP(sp[k])}</span>
-					<b class="ev-stat">{val}</b>
-				</div>;
-			})}
-		</div>
-		{cheat ? <div class="set-row"><span>레벨 {s.level}</span><input type="range" min={1} max={100} value={s.level} onInput={e => up({ level: parseInt((e.target as HTMLInputElement).value, 10) })} /></div>
-			: <p class="muted small">레벨 {s.level} (모드에 따라 50/100으로 맞춰짐)</p>}
+			<p class="muted small">{evDisplay()
+				? '노력치로 표시(설정에서 바꿈): 4 다음부터 8씩, 능력마다 최대 252 · 레벨 50에서 능력치 +1. 규칙은 챔피언스 방식 합계 66포인트라 본가 510보다 1포인트(노력치 8) 더 쓸 수 있습니다(예: 252/252/12). 개체값은 모두 최대.'
+				: '포켓몬 챔피언스 방식: 능력마다 0~32포인트, 합계 66포인트. 개체값은 없고(모두 최대), 레벨 50에서 1포인트 = 능력치 +1.'}</p>
+			<button class="btn big primary" onClick={close}>확인</button></Modal>}
 	</Screen>;
 }
 
@@ -395,7 +373,7 @@ type MoveSort = 'name' | 'power' | 'type' | 'acc' | 'pp';
 const ko = (a: string, b: string) => a.localeCompare(b, 'ko');
 /** 검색어와 가까운 이름을 먼저 (완전히 같음 → 앞부분이 같음 → 포함 → 나머지) */
 const qRank = (q: string, n: string) => { q = q.trim().replace(/\s/g, ''); n = n.replace(/\s/g, ''); return !q ? 0 : n === q ? 0 : n.startsWith(q) ? 1 : n.includes(q) ? 2 : 3; };
-function MovePicker({ gen, species, current, onPick, onBack, all }: { gen: Gen; species: string; current: string[]; onPick: (id: string) => void; onBack: () => void; all?: boolean }) {
+function MovePicker({ gen, species, current, onPick, all }: { gen: Gen; species: string; current: string[]; onPick: (id: string) => void; all?: boolean }) {
 	const [q, setQ] = useState('');
 	const [sort, setSort] = useState<MoveSort>(() => (load<MoveSort>('moveSort', 'name')));
 	const [cat, setCat] = useState<'' | 'Physical' | 'Special' | 'Status'>('');
@@ -409,7 +387,7 @@ function MovePicker({ gen, species, current, onPick, onBack, all }: { gen: Gen; 
 		sort === 'pp' ? b.pp - a.pp || ko(a.name, b.name) : ko(a.name, b.name));
 	const types = ALL_TYPES.filter(t => moves.some(m => m.type === t));
 	const setS = (v: MoveSort) => { setSort(v); save('moveSort', v); };
-	return <Screen top title="기술 고르기" onBack={onBack}>
+	return <>
 		<input class="search" placeholder="기술 검색" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} />
 		<div class="sort-bar"><span>정렬</span>{([['name', '가나다'], ['power', '위력'], ['type', '타입'], ['acc', '명중'], ['pp', 'PP']] as const).map(([k, l]) =>
 			<button class={sort === k ? 'on' : ''} onClick={() => setS(k)}>{l}</button>)}</div>
@@ -425,21 +403,21 @@ function MovePicker({ gen, species, current, onPick, onBack, all }: { gen: Gen; 
 				<span class="mv-stats"><span><i>위력</i>{m.category === 'Status' ? '—' : m.basePower || '—'}</span><span><i>명중</i>{m.accuracy || '—'}</span><span><i>PP</i>{m.pp}</span></span>
 			</button>)}
 		</div>
-	</Screen>;
+	</>;
 }
 
-function AbilityPicker({ onPick, onBack }: { onPick: (id: string) => void; onBack: () => void }) {
+function AbilityPicker({ onPick }: { onPick: (id: string) => void }) {
 	const [q, setQ] = useState('');
 	const list = useMemo(() => Object.entries(RAW.abilities).map(([id, a]: [string, any]) => ({ id, n: a.n as string })).sort((a, b) => ko(a.n, b.n)), []);
-	return <Screen top title="특성 고르기 (치트)" onBack={onBack}>
+	return <>
 		<input class="search" placeholder="특성 검색" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} />
 		<div class="pick-list">{list.filter(a => matches(q, a.n, a.id)).sort((a, b) => qRank(q, a.n) - qRank(q, b.n)).map(a => <button class="pick-row" onClick={() => onPick(a.id)}>
 			<span class="pick-name">{a.n}<small class="muted block">{abilityDesc(a.id)}</small></span></button>)}</div>
-	</Screen>;
+	</>;
 }
 
 type ItemSort = 'name' | 'popular';
-function ItemPicker({ gen, onPick, onBack }: { gen: Gen; onPick: (id: string) => void; onBack: () => void }) {
+function ItemPicker({ gen, onPick }: { gen: Gen; onPick: (id: string) => void }) {
 	const [q, setQ] = useState('');
 	const [filter, setFilter] = useState<'all' | 'battle' | 'berry' | 'mega' | 'z'>('all');
 	const [sort, setSort] = useState<ItemSort>(() => load<ItemSort>('itemSort', 'popular'));
@@ -458,7 +436,7 @@ function ItemPicker({ gen, onPick, onBack }: { gen: Gen; onPick: (id: string) =>
 		return ko(a.n, b.n);
 	});
 	const setS = (v: ItemSort) => { setSort(v); save('itemSort', v); };
-	return <Screen top title="도구 고르기" onBack={onBack}>
+	return <>
 		<input class="search" placeholder="도구 검색" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} />
 		<div class="sort-bar"><span>정렬</span>{([['popular', '자주 쓰는 순'], ['name', '가나다']] as const).map(([k, l]) =>
 			<button class={sort === k ? 'on' : ''} onClick={() => setS(k)}>{l}</button>)}</div>
@@ -471,7 +449,7 @@ function ItemPicker({ gen, onPick, onBack }: { gen: Gen; onPick: (id: string) =>
 				<span class="pick-name">{i.n}<small class="muted block">{itemDesc(i.id)}</small></span>
 			</button>)}
 		</div>
-	</Screen>;
+	</>;
 }
 
 const SP_PRESETS: [string, Partial<{ [k in StatID]: number }>][] = [
