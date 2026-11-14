@@ -2,7 +2,7 @@
 import { h } from 'preact';
 import { useMemo, useState, useRef, useLayoutEffect } from 'preact/hooks';
 import { allSpecies, allItems, allNatures, learnset, moveData, speciesData, toID, abilityKo, abilityDesc, itemKo, itemDesc,
-	natureKo, STAT_KO, STAT_SHORT, STATS, RAW, speciesKo, nickKo, ALL_TYPES, typeKo, fixedTera, megaStonesFor, allBalls, type Gen, type StatID } from '../data';
+	natureKo, STAT_KO, STAT_SHORT, STATS, RAW, speciesKo, nickKo, isNick, ALL_TYPES, typeKo, fixedTera, megaStonesFor, allBalls, type Gen, type StatID } from '../data';
 import { typeEff } from './calc';
 import { randomSetFor, applySpread, randomTeam, normalizeSP, fillSP, cheatSP, spOf, spToEv, evToSp, SP_MAX, SP_TOTAL, evDisplay, fmtSP, evsFor510, type PSet } from '../sets';
 import { ruleById, teamRuleWarnings } from '../rules';
@@ -127,7 +127,7 @@ export function importText(text: string, gen: Gen): PSet[] {
 }
 export function exportText(sets: PSet[]) {
 	return sets.map(s => {
-		const nick = s.name && s.name !== nickKo(toID(s.species)) ? `${s.name} (${speciesKo(s.species)})` : speciesKo(s.species);
+		const nick = isNick(s.name, s.species) ? `${s.name} (${speciesKo(s.species)})` : speciesKo(s.species);
 		const lines = [`${nick}${s.gender ? ` (${s.gender})` : ''}${s.item ? ' @ ' + itemKo(s.item) : ''}`, `특성: ${abilityKo(s.ability)}`,
 			evDisplay() ? `노력치: ${(() => { const e = evsFor510(spOf(s)); return STATS.filter(k => e[k]).map(k => `${e[k]} ${STAT_SHORT[k]}`).join(' / '); })()}`
 				: `능력 포인트: ${(() => { const p = spOf(s); return STATS.filter(k => p[k]).map(k => `${p[k]} ${STAT_SHORT[k]}`).join(' / '); })()}`,
@@ -299,7 +299,7 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 		<div class="cp-mp set-mp">
 			<div class="cp-mp-head"><span class="cp-mp-spr big"><Sprite species={s.species} gen={gen} size={96} shiny={s.shiny} /></span>
 				<div><span>{sd.t.map(t => <TypeBadge type={t} />)}</span>
-					<div class="set-namerow"><input class="set-nick" aria-label="닉네임" maxLength={12} placeholder={nickKo(toID(s.species))} value={s.name && s.name !== nickKo(toID(s.species)) ? s.name : ''}
+					<div class="set-namerow"><input class="set-nick" aria-label="닉네임" maxLength={12} placeholder={nickKo(toID(s.species))} value={isNick(s.name, s.species) ? s.name : ''}
 							onInput={e => { const v = (e.target as HTMLInputElement).value.replace(/[,|[\]]/g, ''); up({ name: v.trim() ? v : nickKo(toID(s.species)) }); }} />
 						<button class={'set-tg shiny' + (s.shiny ? ' on' : '')} onClick={() => up({ shiny: !s.shiny })} aria-pressed={!!s.shiny} aria-label="색이 다른 포켓몬" title="색이 다른 포켓몬"><i /></button>
 						<button class={'set-tg gender ' + (sd.gr || s.gender || 'R')} disabled={!!sd.gr} onClick={() => up({ gender: s.gender === 'M' ? 'F' : s.gender === 'F' ? '' : 'M' })} aria-label="성별" title={sd.gr ? '성별 고정' : '성별: 누르면 수컷 → 암컷 → 무작위'}>{(sd.gr || s.gender) === 'M' ? '수컷' : (sd.gr || s.gender) === 'F' ? '암컷' : sd.gr === 'N' ? '없음' : '무작위'}</button></div>
@@ -343,7 +343,7 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 					const legal = new Set(learnset(f.id, gen));
 					const moves = cheat ? s.moves : s.moves.filter(m => !m || legal.has(toID(m)));
 					const dropped = s.moves.filter(m => m && !moves.includes(m));
-					up({ species: f.en, name: !s.name || s.name === nickKo(toID(s.species)) ? nickKo(toID(f.en)) : s.name, ability: f.ab.includes(s.ability) ? s.ability : f.ab[0], teraType: s.teraType && (sd.t.includes(s.teraType) ? f.t[0] : s.teraType), moves });
+					up({ species: f.en, name: !isNick(s.name, s.species) ? nickKo(toID(f.en)) : s.name, ability: f.ab.includes(s.ability) ? s.ability : f.ab[0], teraType: s.teraType && (sd.t.includes(s.teraType) ? f.t[0] : s.teraType), moves });
 					if (dropped.length) toast(`${f.n} 모습이 배울 수 없는 기술을 뺐어요: ${dropped.map(m => moveData(toID(m), gen)?.name || m).join(', ')}`);
 				}}>{formes.map(f => <option value={f.id}>{f.n}{cheat && (f.req || f.bo) ? ' (배틀 중 모습)' : ''}</option>)}</select></label>}
 			{sd.gx && <label class="check"><input type="checkbox" checked={!!s.gigantamax} onChange={e => up({ gigantamax: (e.target as HTMLInputElement).checked })} /> 거다이맥스 <small class="muted">(다이맥스할 때 거다이맥스 모습·기술)</small></label>}

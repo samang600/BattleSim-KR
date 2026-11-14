@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.3', date: '2026-11-14', title: '챔피언스 모드 손질', items: [
+		['new', '챔피언스 모드에서 포켓몬에게 닉네임을 지어 줄 수 있고, 담긴 볼이 보여요 (스카우트한 포켓몬은 볼이 무작위).'],
+		['up', '검색에 초성을 쓸 수 있고(ㄹㅌㅁ → 로토무), 이름은 모습이 달라도 종 이름으로 나와요 (워시로토무 → 로토무).'],
+		['fix', '챔피언스 모드에서 배틀 뒤 음악이 꺼지던 것, 단추 소리가 두 번 나던 것, 화면이 좌우로 밀리던 것을 고쳤어요.'],
+	] },
 	{ ver: '2.85.2', date: '2026-11-14', title: '연출 손질', items: [
 		['new', '메가지가르데의 그림이 생겼어요 (정지·움직이는 그림, 색이 다른 모습 포함).'],
 		['new', '울트라네크로즈마의 울트라버스트에 전용 연출이 생겼어요.'],

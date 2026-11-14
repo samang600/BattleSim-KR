@@ -17,7 +17,7 @@ const rt = () => recTag(loadSettings().battleRule);
 import { rosterForRule } from './legends';
 import { aiPickEntry } from './smogon';
 import { rankerTeam, rankerCount, rankerSources } from './pokedb';
-import { speciesKo, spriteId, megaStonesFor, moveKo, typeKo, speciesData, toID, ALL_TYPES, bst, RAW, type Gen } from './data';
+import { speciesKo, spriteId, megaStonesFor, moveKo, typeKo, speciesData, toID, ALL_TYPES, bst, RAW, shownName, type Gen } from './data';
 
 export type Fmt = 'singles' | 'doubles' | 'singles6' | 'doubles64' | 'doubles6' | 'multi';
 export const isDoubles = (f: Fmt) => f === 'doubles' || f === 'doubles64' || f === 'doubles6' || f === 'multi';
@@ -93,6 +93,8 @@ export function BgmRow() {
 }
 
 export function battle(setup: BattleSetup): Promise<BattleResult> {
+	// 이름 정리: 닉네임이 없으면 종 이름 (예전 저장의 '워시로토무' 같은 기본 이름도 '로토무'로)
+	for (const sd of [setup.p1, setup.p2, (setup as any).partner]) for (const st of (sd?.team || []) as PSet[]) st.name = shownName(st);
 	return ask<BattleResult>(resolve => <BattleView key={Math.random()} setup={setup} onEnd={r => { if (r.quit) abortMode(); resolve(r); }} />);
 }
 /** 프런티어 심볼 획득 화면 */

@@ -2,10 +2,10 @@
  *  값·이야기·규칙 순환은 champions-data.ts. 재화는 시뮬레이터 모드와 같은 BP (rewards.ts).
  *  화면은 '무엇을 눌렀는지'만 돌려주고, 진행은 아래의 흐름 함수(…Flow)가 맡는다. */
 import { h, Fragment } from 'preact';
-import { useState } from 'preact/hooks';
+import { useState, useEffect } from 'preact/hooks';
 import { ask, Screen, Sprite, PokeIcon, ItemIcon, TypeBadge, Modal, toast, confirmBox } from './ui/core';
 import { PickScreen, ChoiceScreen, MonDetail } from './ui/screens';
-import { NatureTable } from './ui/teambuilder';
+import { NatureTable, matches } from './ui/teambuilder';
 import { battle, playerName, playerSprite, towerOpponent, BACK, runRank, runPWT, rankTier, rankLabel, CH_TAG, type ArenaCtx } from './modes';
 import { loadRecords, updateRecords } from './store';
 import { loadStats, ACHIEVEMENTS } from './stats';
@@ -20,7 +20,7 @@ import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { load, save, loadSettings } from './store';
 import { loadWallet, earnBP, spendBP, onWallet } from './rewards';
 import { ruleById, applyRuleData, teamRuleIssues, speciesAllowed } from './rules';
-import { speciesKo, speciesData, moveData, moveKo, abilityDesc, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, toID, ALL_TYPES } from './data';
+import { speciesKo, speciesData, moveData, moveKo, abilityDesc, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, toID, ALL_TYPES, shownName, isNick, nickKo, allBalls } from './data';
 import { playMusic, sfx } from './sound';
 import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, START_ITEMS, SHOP, NATURES, EVENTS, TOWER_EVENTS, CSYM, REGION_CUPS, CUP_NEED } from './champions-data';
 
@@ -84,12 +84,17 @@ function Top({ title, sub, S, onBack, extra, noTk }: { title: string; sub?: stri
 		<b>{title}{sub && <small>{sub}</small>}</b>
 		{extra}{!noTk && S.tk.regular > 0 && <span class="cp-chip t">티켓 {S.tk.regular}</span>}{!noTk && S.tk.pick > 0 && <span class="cp-chip t">지명 {S.tk.pick}</span>}<Bp /></div>;
 }
+/** 보여 줄 이름: 닉네임이 있으면 그것, 없으면 종 이름 (모습 이름은 붙이지 않음: 워시로토무 → 로토무) */
+const monKo = (set: PSet) => shownName(set);
+/** 담긴 볼 (없으면 몬스터볼) */
+const ballOf = (set: PSet) => set.pokeball || 'pokeball';
+const randomBall = () => rng.pick(allBalls()).id;
 const types = (sp: string) => ((speciesData(sp, 9) as any)?.t || []) as string[];
 /** 포켓몬 카드 (소개·로스터) */
 function MonCard({ set, cls = '', mark, sub, onClick }: { set: PSet; cls?: string; mark?: any; sub?: string; onClick?: () => void }) {
 	return <button class={'cp-card ' + cls} onClick={onClick}>{mark}
 		<span class="cp-card-spr"><Sprite species={set.species} gen={9} size={56} anim={false} cls="front" shiny={set.shiny} /></span>
-		<span class="cp-card-body"><b>{speciesKo(set.species)}{rarity(toID(set.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(set.species))]}</i>}</b><span>{types(set.species).map(t => <TypeBadge type={t} small />)}</span>
+		<span class="cp-card-body"><b>{monKo(set)}{rarity(toID(set.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(set.species))]}</i>}</b><span>{types(set.species).map(t => <TypeBadge type={t} small />)}</span>
 			<small>{sub ?? `${natureKo(set.nature)} · ${abilityKo(set.ability)}`}</small></span></button>;
 }
 /** 대화 장면: 배틀 배경 그림 위에 트레이너 도트와 대화창. 누르면 다음 줄 */
@@ -178,8 +183,9 @@ async function fight(S: CSave, mine: PSet[], opp: Opp, rot: { rule: string; doub
 	await fx('battle');
 	const res = await battle({ gen: 9, doubles: rot.doubles, aiSkill: opp.skill, bg: bg as any, music: (opp.music || 'battle') as any, label, noRecord: true, ruleId: rot.rule,
 		p1: { name: playerName(), team: entry.map(cloneSet), sprite: playerSprite() }, p2: { name: opp.name, title: opp.title || '', team: foe, preview: opp.team.length > foe.length ? opp.team : undefined, sprite: opp.sprite, line: opp.line } } as any);
-	playMusic(HUB_BGM);
+	// 배틀 화면이 닫히면서 음악을 멈추므로, 화면이 바뀐 뒤에 메인 음악을 다시 켬
 	await fx('fade');
+	playMusic(HUB_BGM);
 	return res.win;
 }
 /** 이긴 뒤의 공통 처리: BP · 오늘의 미션 진행 */
@@ -221,7 +227,7 @@ function StartPick({ S, done }: { S: CSave; done: (i: number) => void }) {
 	const [view, setView] = useState<number | null>(null), ps = S.starts || [];
 	return <Screen title="첫 파티" cls="cp-scr" top><Top title="첫 파티 고르기" sub="여섯 마리가 한 팀으로 들어옵니다" S={S} />
 		{ps.map((p, i) => <div class="cp-pn cp-start"><h3>파티 {'ABC'[i]}<small>{[...new Set(p.flatMap(s => types(s.species)))].slice(0, 6).map(typeKo).join(' · ')}</small></h3>
-			<div class="cp-start-mons">{p.map(s => <span><PokeIcon species={s.species} />{s.item && <span class="cp-held"><ItemIcon item={s.item} size={16} /></span>}<small>{speciesKo(s.species)}</small></span>)}</div>
+			<div class="cp-start-mons">{p.map(s => <span><PokeIcon species={s.species} />{s.item && <span class="cp-held"><ItemIcon item={s.item} size={16} /></span>}<small class={slotCls(monKo(s))}>{monKo(s)}</small></span>)}</div>
 			<div class="cp-fmt"><button class="btn" onClick={() => setView(i)}>살펴보기</button><button class="btn primary" onClick={() => done(i)}>이 파티로 시작</button></div></div>)}
 		<p class="cp-note">여섯 마리 모두 어울리는 도구를 지니고 옵니다. 기술·성격·능력 포인트는 로스터에서 다듬을 수 있어요. 다른 포켓몬은 스카우트로 데려옵니다.</p>
 		{view !== null && <Modal title={`파티 ${'ABC'[view]}`} onClose={() => setView(null)}>
@@ -257,9 +263,10 @@ function newLineup(S: CSave) {
 	if (lg.allowLegend) { const x = special(2); if (x) pickN.push(x); }
 	for (const id of pool) { if (pickN.length >= 10) break; if (!pickN.includes(id)) pickN.push(id); }
 	S.lineup = noItems(pickN.map(id => randomSetFor(id, 9, 50, false, 0.65)));
+	for (const x of S.lineup) x.pokeball = randomBall();   // 담긴 볼은 무작위
 	S.lineDay = today(); persist(S);
 }
-const addMon = (S: CSave, set: PSet) => { const m: CMon = { id: S.seq++, set: cloneSet(set) }; dayOf(S).scout++; S.roster.push(m); if (S.team.length < 6) S.team.push(m.id); persist(S); return m; };
+const addMon = (S: CSave, set: PSet) => { const m: CMon = { id: S.seq++, set: cloneSet(set) }; if (!m.set.pokeball) m.set.pokeball = randomBall(); dayOf(S).scout++; S.roster.push(m); if (S.team.length < 6) S.team.push(m.id); persist(S); return m; };
 type ScoutAct = { k: 'back' } | { k: 'mon'; i: number } | { k: 'refresh' } | { k: 'type' } | { k: 'pick' } | { k: 'wish' };
 function ScoutScreen({ S, top, done }: { S: CSave; top?: boolean; done: (a: ScoutAct) => void }) {
 	const fl = freeLeft(S), [view, setView] = useState<number | null>(null), v = view !== null ? S.lineup[view] : null;
@@ -273,17 +280,17 @@ function ScoutScreen({ S, top, done }: { S: CSave; top?: boolean; done: (a: Scou
 			<button class="cp-line" onClick={() => done({ k: 'type' })}><div><b>타입 지정{S.typeNext ? ` — 다음 소개: ${typeKo(S.typeNext)}` : ''}</b><small>다음 소개의 절반이 그 타입</small></div><span class="cp-cost">{PRICE.typeTicket} BP</span></button>
 			<button class="cp-line" onClick={() => done({ k: 'refresh' })}><div><b>지금 새 소개 받기</b><small>내일을 기다리지 않고 10마리를 새로</small></div><span class="cp-cost">{PRICE.refresh} BP</span></button></div>
 		<p class="cp-note">스카우트한 포켓몬은 도구 없이 옵니다 (도구는 상점). 값은 {PRICE.scout} BP, 준전설 ×2 · 전설 ×4. 일반 포켓몬은 12시간마다 한 마리 무료.</p>
-		{v && <Modal title={speciesKo(v.species)} onClose={() => setView(null)}><MonDetail set={v} gen={9} />
+		{v && <Modal title={speciesKo(v.species)} onClose={() => setView(null)}><p class="cp-ballline"><ItemIcon item={ballOf(v)} size={16} />{itemKo(ballOf(v))}에 담겨 있음</p><MonDetail set={v} gen={9} />
 			<button class="btn big primary" onClick={() => done({ k: 'mon', i: view! })}>스카우트 ({scoutLabel(S, toID(v.species))})</button></Modal>}
 	</Screen>;
 }
 /** 도감에서 포켓몬 고르기 (지명·찜) */
 function SpeciesPick({ title, pool, hint, done }: { title: string; pool: string[]; hint: string; done: (id: string | null) => void }) {
 	const [q, setQ] = useState('');
-	const list = pool.filter(id => !q || speciesKo(id).includes(q) || id.includes(q.toLowerCase())).slice(0, 60);
+	const list = pool.filter(id => matches(q, speciesKo(id), id)).slice(0, 60);
 	return <Screen title={title} onBack={() => done(null)} cls="cp-scr" top>
 		<p class="cp-note">{hint}</p>
-		<input class="cp-search" placeholder="이름으로 찾기" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />
+		<input class="cp-search" placeholder="이름으로 찾기 (초성 가능: ㄹㅌㅁ)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />
 		<div class="cp-list">{list.map(id => <button class="cp-row" onClick={() => done(id)}><PokeIcon species={id} /><b>{speciesKo(id)}</b><span>{types(id).map(t => <TypeBadge type={t} small />)}</span></button>)}</div>
 		{list.length >= 60 && <p class="cp-note">이름을 입력하면 더 좁혀집니다.</p>}
 	</Screen>;
@@ -313,7 +320,7 @@ async function scoutFlow(S: CSave) {
 			addMon(S, s); S.lineup.splice(a.i, 1); persist(S); sfx('heal');
 			toast(`${josa(name, '을', '를')} 영입했습니다!`);
 		}
-		if (a.k === 'refresh') { if (pay(PRICE.refresh, '챔피언스 · 새 소개')) { newLineup(S); sfx('select'); } }
+		if (a.k === 'refresh') { if (pay(PRICE.refresh, '챔피언스 · 새 소개')) { newLineup(S); } }
 		if (a.k === 'type') {
 			const t = await ask<string | null>(r => <ChoiceScreen key={K()} top title="타입 지정" intro={<p class="cp-note">다음에 받는 소개의 절반이 고른 타입으로 나옵니다 ({PRICE.typeTicket} BP).</p>} onBack={() => r(null)}
 				options={ALL_TYPES.map(x => ({ value: x, label: typeKo(x) }))} onPick={r} />);
@@ -341,9 +348,11 @@ async function scoutFlow(S: CSave) {
 const STAT_NAME = ['HP', '공격', '방어', '특공', '특방', '스피드'];
 const CAT_KO: { [k: string]: string } = { Physical: '물리', Special: '특수', Status: '변화' };
 const BOX = 30;
+/** 팀 칸의 이름: 길면 글자를 줄여서 잘리지 않게 */
+const slotCls = (n: string) => n.length >= 6 ? 'n6' : n.length === 5 ? 'n5' : n.length === 4 ? 'n4' : '';
 /** 상점에서 파는 보통 도구 (이 밖의 가진 도구는 메가스톤 — 그 포켓몬 것만 보여 줌) */
 const PLAIN_ITEMS = new Set([...START_ITEMS, ...SHOP.flatMap(c => c[2])]);
-type Sub = null | 'item' | 'nature' | 'ability' | 'sp' | 'tera' | 'detail' | { move: number };
+type Sub = null | 'nick' | 'item' | 'nature' | 'ability' | 'sp' | 'tera' | 'detail' | { move: number };
 function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 	const [page, setPage] = useState(0), [sel, setSel0] = useState<CMon | null>(null), [sub, setSub] = useState<Sub>(null), [, tick] = useState(0);
 	/** 고치는 중인 사본: 저장을 눌러야 값을 치르고 반영됨 */
@@ -355,10 +364,10 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 	const cell = (m: CMon | undefined, k: number) => <button class={'cp-cell' + (m ? '' : ' empty') + (m && S.team.includes(m.id) ? ' in' : '')} disabled={!m} onClick={() => m && setSel(m)} key={k}>
 		{m && <PokeIcon species={m.set.species} />}{m && m.set.item && <span class="cp-held"><ItemIcon item={m.set.item} size={16} /></span>}{m && S.team.includes(m.id) && <i>{S.team.indexOf(m.id) + 1}</i>}</button>;
 	return <Screen title="로스터" onBack={done} cls="cp-scr" top><Top title="로스터" sub={`${S.roster.length} / ${T(S).cap}마리 · 팀 ${S.team.length} / 6`} S={S} onBack={done} />
-		<div class="cp-pc"><div class="cp-party"><b class="cp-teamsel"><button class="cp-arw prev" disabled={(S.cur || 0) <= 0} onClick={() => { sfx('select'); useTeam(S, (S.cur || 0) - 1); tick(x => x + 1); }} aria-label="앞 팀" />
+		<div class="cp-pc"><div class="cp-party"><b class="cp-teamsel"><button class="cp-arw prev" disabled={(S.cur || 0) <= 0} onClick={() => { useTeam(S, (S.cur || 0) - 1); tick(x => x + 1); }} aria-label="앞 팀" />
 			<span>팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 팀 {S.teams?.length || 1} / {TEAM_MAX}</small></span>
-			<button class="cp-arw" disabled={(S.cur || 0) >= TEAM_MAX - 1} onClick={() => { sfx('select'); useTeam(S, (S.cur || 0) + 1); tick(x => x + 1); }} aria-label="다음 팀" /></b><div>{[0, 1, 2, 3, 4, 5].map(k => <button class={'cp-slot' + (team[k] ? '' : ' empty')} disabled={!team[k]} onClick={() => team[k] && setSel(team[k])}>
-			{team[k] ? <><PokeIcon species={team[k].set.species} />{team[k].set.item && <span class="cp-held"><ItemIcon item={team[k].set.item} size={16} /></span>}<small>{speciesKo(team[k].set.species)}</small></> : null}</button>)}</div></div>
+			<button class="cp-arw" disabled={(S.cur || 0) >= TEAM_MAX - 1} onClick={() => { useTeam(S, (S.cur || 0) + 1); tick(x => x + 1); }} aria-label="다음 팀" /></b><div>{[0, 1, 2, 3, 4, 5].map(k => <button class={'cp-slot' + (team[k] ? '' : ' empty')} disabled={!team[k]} onClick={() => team[k] && setSel(team[k])}>
+			{team[k] ? <><PokeIcon species={team[k].set.species} />{team[k].set.item && <span class="cp-held"><ItemIcon item={team[k].set.item} size={16} /></span>}<small class={slotCls(monKo(team[k].set))}>{monKo(team[k].set)}</small></> : null}</button>)}</div></div>
 		<div class="cp-box">
 			<div class="cp-box-head"><button disabled={page <= 0} onClick={() => setPage(page - 1)} aria-label="앞 박스" class="prev" /><b>박스 {page + 1}{pages > 1 && <small>/ {pages}</small>}</b><button disabled={page >= pages - 1} onClick={() => setPage(page + 1)} aria-label="다음 박스" /></div>
 			<div class="cp-box-grid">{Array.from({ length: cap }, (_, k) => cell(box[k], k))}</div>
@@ -378,27 +387,28 @@ function trainCost(o: PSet, d: PSet) {
 	if (STAT_KEYS.some(k => (o.evs[k] || 0) !== (d.evs[k] || 0))) parts.push(['능력 포인트', PRICE.sp]);
 	const mv = [0, 1, 2, 3].filter(k => (o.moves[k] || '') !== (d.moves[k] || '')).length;
 	if (mv) parts.push([`기술 ${mv}개`, mv * PRICE.move]);
-	return { parts, total: parts.reduce((a, x) => a + x[1], 0), dirty: parts.length > 0 || toID(o.item) !== toID(d.item) };
+	return { parts, total: parts.reduce((a, x) => a + x[1], 0), dirty: parts.length > 0 || toID(o.item) !== toID(d.item) || shownName(o) !== shownName(d) };
 }
 /** 포켓몬 창: 줄을 누르면 그 항목을 고르는 창이 열림. 고친 것은 「저장」을 눌러야 한 번에 값을 치르고 반영됨 */
 function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open: (s: Sub) => void; close: () => void; re: () => void }) {
-	const o = m.set, inTeam = S.team.includes(m.id), sp = spOf(d), name = speciesKo(o.species), nat = NATURES.find(n => n[0] === toID(d.nature));
+	const o = m.set, inTeam = S.team.includes(m.id), sp = spOf(d), name = monKo(d), nat = NATURES.find(n => n[0] === toID(d.nature));
 	const c = trainCost(o, d), ch = (label: string) => c.parts.some(x => x[0] === label);
-	const row = (k: Sub, label: string, val: any, cost?: number, changed = false) => <button class={'cp-mrow' + (changed ? ' ch' : '')} onClick={() => { sfx('select'); open(k); }}><small>{label}</small><b>{val}</b><em class={cost === undefined ? 'free' : ''}>{cost === undefined ? '무료' : (changed ? '+' : '') + cost + ' BP'}</em></button>;
-	const toggle = () => { if (inTeam) S.team = S.team.filter(i => i !== m.id); else if (S.team.length >= 6) { toast('팀은 6마리까지예요. 먼저 한 마리를 빼 주세요'); return; } else S.team.push(m.id); sfx('select'); re(); };
+	const row = (k: Sub, label: string, val: any, cost?: number, changed = false) => <button class={'cp-mrow' + (changed ? ' ch' : '')} onClick={() => open(k)}><small>{label}</small><b>{val}</b><em class={cost === undefined ? 'free' : ''}>{cost === undefined ? '무료' : (changed ? '+' : '') + cost + ' BP'}</em></button>;
+	const toggle = () => { if (inTeam) S.team = S.team.filter(i => i !== m.id); else if (S.team.length >= 6) { toast('팀은 6마리까지예요. 먼저 한 마리를 빼 주세요'); return; } else S.team.push(m.id); re(); };
 	const release = async () => { if (await confirmBox('내보내기', `${josa(name, '을', '를')} 내보낼까요? 되돌릴 수 없어요.`, '내보낸다', '그만두기')) { S.roster = S.roster.filter(x => x !== m); S.team = S.team.filter(i => i !== m.id); syncTeams(S); S.teams = S.teams!.map(t => t.filter(i => i !== m.id)); S.team = S.teams[S.cur!]; re(); close(); } };
 	const saveAll = () => {
 		if (c.total && !pay(c.total, `챔피언스 · ${name} 트레이닝 (${c.parts.map(x => x[0]).join('·')})`)) return;
 		if (d.item) for (const x of S.roster) if (x !== m && toID(x.set.item) === toID(d.item)) x.set.item = '';   // 같은 도구는 한 마리만: 가져옴
-		m.set = cloneSet(d); sfx(c.total ? 'statUp' : 'select'); re(); toast(c.total ? `저장했습니다 (−${c.total} BP)` : '저장했습니다'); close();
+		m.set = cloneSet(d); if (c.total) sfx('statUp'); re(); toast(c.total ? `저장했습니다 (−${c.total} BP)` : '저장했습니다'); close();
 	};
 	const tryClose = async () => { if (!c.dirty || await confirmBox('저장하지 않음', '고친 내용을 저장하지 않고 닫을까요?', '닫는다', '계속 고치기')) close(); };
 	const spText = STAT_KEYS.map((k, i) => sp[k] ? `${STAT_NAME[i]} ${sp[k]}` : '').filter(Boolean).join(' · ') || '나누지 않음';
 	return <Modal title={name} onClose={tryClose}><div class="cp-mp">
 		<div class="cp-mp-head"><span class="cp-mp-spr"><Sprite species={o.species} gen={9} size={64} anim={false} cls="front" shiny={o.shiny} /></span>
-			<div><span>{types(o.species).map(t => <TypeBadge type={t} small />)}{rarity(toID(o.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(o.species))]}</i>}</span><small>{inTeam ? `팀 ${S.team.indexOf(m.id) + 1}번째` : '박스에 있음'}</small></div>
+			<div><span>{types(o.species).map(t => <TypeBadge type={t} small />)}{rarity(toID(o.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(o.species))]}</i>}</span><small class="cp-ball"><ItemIcon item={ballOf(o)} size={16} />{itemKo(ballOf(o))}</small><small>{speciesKo(o.species)} · {inTeam ? `팀 ${S.team.indexOf(m.id) + 1}번째` : '박스에 있음'}</small></div>
 			<button class={'btn small' + (inTeam ? '' : ' primary')} onClick={toggle}>{inTeam ? '팀에서 빼기' : '팀에 넣기'}</button></div>
 		<div class="cp-mrows">
+			{row('nick', '닉네임', isNick(d.name, d.species) ? d.name : <small>없음 ({nickKo(d.species)})</small>, undefined, (isNick(o.name, o.species) ? o.name : '') !== (isNick(d.name, d.species) ? d.name : ''))}
 			{row('item', '도구', d.item ? <><ItemIcon item={d.item} size={24} />{itemKo(d.item)}</> : '없음', undefined, toID(o.item) !== toID(d.item))}
 			{row('ability', '특성', abilityKo(d.ability), PRICE.ability, ch('특성'))}
 			<p class="cp-mdesc">{abilityDesc(d.ability)}</p>
@@ -406,9 +416,9 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 			{row('tera', '테라 타입', <TypeBadge type={d.teraType || types(d.species)[0]} small />, PRICE.tera, ch('테라 타입'))}
 			{row('sp', '능력 포인트', <small>{spText}</small>, PRICE.sp, ch('능력 포인트'))}
 		</div>
-		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = (o.moves[k] || '') !== (d.moves[k] || ''); return <button class={changed ? 'ch' : ''} onClick={() => { sfx('select'); open({ move: k }); }}>
+		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = (o.moves[k] || '') !== (d.moves[k] || ''); return <button class={changed ? 'ch' : ''} onClick={() => open({ move: k })}>
 			{md && <TypeBadge type={md.type} small />}<b>{d.moves[k] ? moveKo(d.moves[k]) : '(빈 칸)'}</b><em>{changed ? '+' : ''}{PRICE.move} BP</em></button>; })}</div>
-		<div class="cp-msave"><span>{c.parts.length ? c.parts.map(x => `${x[0]} ${x[1]}`).join(' · ') : c.dirty ? '도구만 바꿈 (무료)' : '고친 항목이 없습니다'}</span>
+		<div class="cp-msave"><span>{c.parts.length ? c.parts.map(x => `${x[0]} ${x[1]}`).join(' · ') : c.dirty ? '도구·닉네임만 바꿈 (무료)' : '고친 항목이 없습니다'}</span>
 			<button class="btn primary" disabled={!c.dirty} onClick={saveAll}>저장{c.total ? ` (총 ${c.total} BP)` : ''}</button></div>
 		<div class="cp-mfoot"><button class="btn small" onClick={() => open('detail')}>능력치 자세히</button><button class="btn small ghost" onClick={release}>내보내기</button></div>
 	</div></Modal>;
@@ -427,8 +437,12 @@ interface Opt { icon?: any; label: string; desc?: string; note?: string; off?: b
 type Grid = '' | 'grid' | 'grid two';
 /** 항목을 고르는 창: 고친 사본(d)에만 적고 포켓몬 창으로 돌아감 — 값은 포켓몬 창의 「저장」에서 한 번에 */
 function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclude<Sub, null>; back: () => void }) {
-	const s = d, name = speciesKo(s.species), [q, setQ] = useState('');
-	const apply = (_cost: number, _why: string, f: () => void) => { f(); sfx('select'); back(); };
+	const s = d, name = monKo(s), [q, setQ] = useState(''), [nick, setNick] = useState(isNick(d.name, d.species) ? d.name : '');
+	const apply = (_cost: number, _why: string, f: () => void) => { f(); back(); };
+	if (sub === 'nick') return <Modal title="닉네임" onClose={back}><div class="cp-nick">
+		<input class="cp-search" maxLength={12} placeholder={nickKo(s.species)} value={nick} onInput={e => setNick((e.target as HTMLInputElement).value.replace(/[,|[\]]/g, ''))} />
+		<p class="cp-note">12자까지. 비워 두면 종 이름({nickKo(s.species)})으로 나옵니다. 닉네임은 무료예요.</p>
+		<div class="cp-fmt"><button class="btn" onClick={() => { s.name = nickKo(s.species); back(); }}>지우기</button><button class="btn primary" onClick={() => { s.name = nick.trim() || nickKo(s.species); back(); }}>확인</button></div></div></Modal>;
 	if (sub === 'detail') return <Modal title={name} onClose={back}><MonDetail set={s} gen={9} /></Modal>;
 	void S; void m;
 	if (sub === 'sp') return <Modal title={`${name} · 능력 포인트`} onClose={back}><SpBody set={s} done={sp => apply(PRICE.sp, '능력 포인트', () => { for (const k of STAT_KEYS) s.evs[k] = spToEv(sp[k]); })} /></Modal>;
@@ -438,7 +452,7 @@ function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclu
 		title = '지닌 도구'; why = '도구'; search = true;
 		const stones = megaStonesFor(s.species), own = Object.keys(S.items).filter(id => PLAIN_ITEMS.has(id) || stones.includes(id));
 		opts = [{ label: '없음', off: !s.item, run: () => { s.item = ''; } }, ...own.map(id => { const holder = S.roster.find(x => x !== m && toID(x.set.item) === id), cur = toID(s.item) === id;
-			return { icon: <ItemIcon item={id} size={24} />, label: itemKo(id), desc: itemDesc(id), note: cur ? '지금' : holder ? `${speciesKo(holder.set.species)}에게서 가져옴 (저장할 때)` : '', off: cur, run: () => { s.item = id; } }; })];
+			return { icon: <ItemIcon item={id} size={24} />, label: itemKo(id), desc: itemDesc(id), note: cur ? '지금' : holder ? `${monKo(holder.set)}에게서 가져옴 (저장할 때)` : '', off: cur, run: () => { s.item = id; } }; })];
 	} else if (sub === 'ability') {
 		title = '특성'; cost = PRICE.ability; why = '특성';
 		opts = (((speciesData(s.species, 9) as any)?.ab || []) as string[]).map(x => ({ label: abilityKo(x), desc: abilityDesc(x), note: toID(x) === toID(s.ability) ? '지금' : '', off: toID(x) === toID(s.ability), run: () => { s.ability = x; } }));
@@ -450,10 +464,10 @@ function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclu
 		opts = learnset(s.species, 9).filter(x => !s.moves.includes(x)).sort((x, y) => moveKo(x).localeCompare(moveKo(y), 'ko')).map(x => { const md = moveData(x, 9);
 			return { icon: md ? <TypeBadge type={md.type} small /> : null, label: moveKo(x), desc: md ? `${CAT_KO[md.category] || ''}${md.basePower ? ` · 위력 ${md.basePower}` : ''}${typeof md.accuracy === 'number' && md.accuracy > 0 && md.accuracy <= 100 ? ` · 명중 ${md.accuracy}` : ''}` : '', run: () => { s.moves[i] = x; } }; });
 	}
-	const list = opts.filter(o => !q || o.label.includes(q));
+	const list = opts.filter(o => matches(q, o.label));
 	return <Modal title={`${title}${cost ? ` · ${cost} BP` : ''}`} onClose={back}>
-		{search && <input class="cp-search" placeholder="이름으로 찾기" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />}
-		<div class={'cp-opts ' + grid}>{list.slice(0, 120).map(o => <button class={'cp-opt' + (grid && o.off ? ' cur' : '')} disabled={o.off} onClick={() => apply(cost, why, o.run)}>{o.icon}<div><b>{o.label}</b>{o.desc && <small>{o.desc}</small>}</div>{o.note && <em>{o.note}</em>}</button>)}
+		{search && <input class="cp-search" placeholder="이름으로 찾기 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />}
+		<div class={'cp-opts ' + grid}>{list.slice(0, 120).map(o => <button class={'cp-opt' + (grid && o.off ? ' cur' : '')} disabled={o.off} onClick={() => apply(cost, why, o.run)}>{o.icon}<div><b>{o.label}{o.note === '지금' && <em>지금</em>}</b>{o.note && o.note !== '지금' && <em class="ln">{o.note}</em>}{o.desc && <small>{o.desc}</small>}</div></button>)}
 			{!list.length && <p class="cp-note">맞는 항목이 없어요.</p>}</div>
 		{sub === 'item' && <p class="cp-note">같은 도구는 한 마리만 지닐 수 있어요. 새 도구는 상점에서 삽니다.</p>}
 	</Modal>;
@@ -464,11 +478,11 @@ function ShopScreen({ S, done }: { S: CSave; done: (cosmetic?: boolean) => void 
 	const stones = [...new Set(S.roster.flatMap(m => megaStonesFor(m.set.species)))];
 	const cats: [string, number, string[]][] = [...SHOP.map(([name, kind, ids]) => [name, PRICE[kind], ids] as [string, number, string[]]), ['메가스톤', PRICE.mega, stones]];
 	const [tab, setTab] = useState(0), [q, setQ] = useState(''), [, tick] = useState(0);
-	const buy = (id: string, cost: number) => { if (S.items[id]) return; if (!pay(cost, `챔피언스 · ${itemKo(id)}`)) return; S.items[id] = 1; persist(S); sfx('select'); tick(x => x + 1); };
-	const rows: [string, number][] = q ? cats.flatMap(([, c, ids]) => ids.filter(id => itemKo(id).includes(q)).map(id => [id, c] as [string, number])) : cats[tab][2].map(id => [id, cats[tab][1]] as [string, number]);
+	const buy = (id: string, cost: number) => { if (S.items[id]) return; if (!pay(cost, `챔피언스 · ${itemKo(id)}`)) return; S.items[id] = 1; persist(S); tick(x => x + 1); };
+	const rows: [string, number][] = q ? cats.flatMap(([, c, ids]) => ids.filter(id => matches(q, itemKo(id))).map(id => [id, c] as [string, number])) : cats[tab][2].map(id => [id, cats[tab][1]] as [string, number]);
 	return <Screen title="상점" onBack={() => done()} cls="cp-scr" top><Top title="상점" sub="도구는 한 번 사면 계속 씁니다" S={S} onBack={() => done()} />
-		<input class="cp-search" placeholder="도구 이름으로 찾기" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />
-		<div class="cp-tabs">{cats.map(([n, , ids], i) => <button class={!q && i === tab ? 'on' : ''} onClick={() => { sfx('select'); setQ(''); setTab(i); }}>{n} <small>{ids.filter(id => S.items[id]).length}/{ids.length}</small></button>)}
+		<input class="cp-search" placeholder="도구 이름으로 찾기 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />
+		<div class="cp-tabs">{cats.map(([n, , ids], i) => <button class={!q && i === tab ? 'on' : ''} onClick={() => { setQ(''); setTab(i); }}>{n} <small>{ids.filter(id => S.items[id]).length}/{ids.length}</small></button>)}
 			<button class="cos" onClick={() => done(true)}>꾸미기</button></div>
 		<div class="cp-pn cp-shoplist">
 			{!rows.length && <p class="cp-note">{q ? '맞는 도구가 없어요.' : '내 로스터의 포켓몬이 쓸 수 있는 메가스톤이 여기에 진열됩니다.'}</p>}
@@ -539,17 +553,18 @@ function StoryScreen({ S, done }: { S: CSave; done: (a: boolean | Replay) => voi
 // ───────── 전용 메뉴 ─────────
 type HubAct = 'exit' | 'story' | 'scout' | 'roster' | 'shop' | 'mission' | 'settings' | 'calc' | 'book' | 'rank' | 'pwt' | { k: BattleKind; doubles: boolean };
 function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
+	useEffect(() => { playMusic(HUB_BGM); }, []);
 	const t = T(S), c = CHAPTERS[S.ch], ready = promoReady(S), mr = missionReady(S), newLine = S.lineDay !== today(), team = teamOf(S);
 	const wal = loadWallet();   // 카드 배경·테두리·칭호 꾸미기 (수첩의 카드와 같은 것)
 	const rp = champRp(), st = loadStats(), achDone = ACHIEVEMENTS.filter(a => (st.ach[a.id] || 0) > 0).length, cups = S.cups || {};
 	const pwtNext = !pwtOpen() ? '랭크 매치 마스터볼급부터 참가' : !cups.open ? '먼저 오픈 대회 우승' : cupLock(S, 'world') ? `지방 리더스 ${REGION_CUPS.filter(x => cups[x]).length} / ${REGION_CUPS.length}` : cupLock(S, 'elite') ? `월드 리더스 ${cups.world || 0} / ${CUP_NEED}` : cupLock(S, 'champions') ? `사천왕 대회 ${cups.elite || 0} / ${CUP_NEED}` : `챔피언스 우승 ${cups.champions || 0}회`;
-	const tile = (a: HubAct, name: string, cls: string, mon: string, badge?: string) => <button class={'cp-tile ' + cls} onClick={() => { sfx('select'); done(a); }}>{badge && <i>{badge}</i>}<PokeIcon species={mon} /><span>{name}</span></button>;
+	const tile = (a: HubAct, name: string, cls: string, mon: string, badge?: string) => <button class={'cp-tile ' + cls} onClick={() => done(a)}>{badge && <i>{badge}</i>}<PokeIcon species={mon} /><span>{name}</span></button>;
 	const brow = (k: BattleKind, name: string, state: string) => <div class="cp-brow"><div><b>{name}</b><small>{state}</small></div>
 		<button class="btn primary" onClick={() => done({ k, doubles: false })}>싱글<small>3마리</small></button><button class="btn blue" onClick={() => done({ k, doubles: true })}>더블<small>4마리</small></button></div>;
-	const erow = (a: HubAct, name: string, state: string, locked = false) => <div class={'cp-brow one' + (locked ? ' locked' : '')}><div><b>{name}</b><small>{state}</small></div><button class={'btn' + (locked ? '' : ' primary')} onClick={() => { sfx('select'); done(a); }}>{locked ? '잠김' : '입장'}</button></div>;
+	const erow = (a: HubAct, name: string, state: string, locked = false) => <div class={'cp-brow one' + (locked ? ' locked' : '')}><div><b>{name}</b><small>{state}</small></div><button class={'btn' + (locked ? '' : ' primary')} onClick={() => done(a)}>{locked ? '잠김' : '입장'}</button></div>;
 	return <div class="cp-hub"><Top title="챔피언스 모드" sub={`${t.name}${S.tk.regular + S.tk.pick > 0 ? ` · 티켓 ${S.tk.regular} · 지명 ${S.tk.pick}` : ''}`} S={S} noTk onBack={() => done('exit')}
-			extra={<button class={'cp-storybtn' + (ready ? ' ready' : '')} onClick={() => { sfx('select'); done('story'); }} aria-label={ready ? '스토리 — 승급전에 도전할 수 있어요' : '스토리'}>스토리</button>} />
-		<button class={'cp-me bk-tcard' + cardSkinClass(wal)} style={cardSkin(wal)} onClick={() => { sfx('select'); done('book'); }}>
+			extra={<button class={'cp-storybtn' + (ready ? ' ready' : '')} onClick={() => done('story')} aria-label={ready ? '스토리 — 승급전에 도전할 수 있어요' : '스토리'}>스토리</button>} />
+		<button class={'cp-me bk-tcard' + cardSkinClass(wal)} style={cardSkin(wal)} onClick={() => done('book')}>
 			<img class="bk-tcard-img" src={SPRITE_URL(playerSprite())} onError={trainerImgError} alt="" />
 			<div class="bk-tcard-body"><b>{playerName()}<TitleChip it={titleItem(wal)} /></b><small>{rankLabel(rp, true)} · {rp} RP</small>
 				<span class="cp-me-syms">{CSYM.map(y => <span title={y.name}><SymbolIcon kind={y.icon} lv={S.sym?.[y.id] || 0} size={24} /></span>)}<i>도전과제 {achDone} / {ACHIEVEMENTS.length}</i></span></div>
@@ -559,7 +574,7 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 			{erow('rank', '랭크 매치', `${rankLabel(rp, true)} · ${rp} RP`)}
 			{towerOpen() ? brow('tower', '배틀타워', `${S.tower}연승 · 7연승마다 지명 티켓 (${S.tower % 7} / 7)`) : erow({ k: 'tower', doubles: false }, '배틀타워', '랭크 매치 하이퍼볼급부터 도전', true)}
 			{erow('pwt', 'PWT', pwtOpen() ? `8명 토너먼트 · ${pwtNext}` : pwtNext, !pwtOpen())}</div>
-		<button class="cp-pn cp-myteam" onClick={() => { sfx('select'); done('roster'); }}><h3>내 팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
+		<button class="cp-pn cp-myteam" onClick={() => done('roster')}><h3>내 팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
 			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => <span class={team[i] ? '' : 'empty'}>{team[i] && <PokeIcon species={team[i].set.species} />}{team[i]?.set.item && <span class="cp-held"><ItemIcon item={team[i].set.item} size={16} /></span>}</span>)}</div></button>
 		<div class="cp-tiles four">{tile('scout', '스카우트', 'c2', 'pikachu', !freeLeft(S) ? '무료' : newLine ? '새 소개' : undefined)}{tile('roster', '로스터', 'c3', 'gardevoir')}
 			{tile('shop', '상점', 'c5', 'rotomwash')}{tile('mission', '미션', 'c6', 'togekiss', mr ? String(mr) : undefined)}</div>

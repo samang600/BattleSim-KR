@@ -383,7 +383,14 @@ export const ALL_TYPES = ['Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice',
 	'Bug', 'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel', 'Fairy', 'Stellar'];
 
 /** 배틀 중 부르는 이름 (폼 표기 없이) */
-export function nickKo(id: string) { return speciesKo(id).replace(/\s*\(.*\)$/, ''); }
+/** 예전 기본 이름 (폼 이름이 붙던 때: 워시로토무) — 저장된 세트의 이름이 기본 이름인지 알아보는 데만 씀 */
+export function oldNickKo(id: string) { return speciesKo(id).replace(/\s*\(.*\)$/, ''); }
+/** 기본 이름: 모습이 달라도 종 이름 그대로 (워시로토무 → 로토무, 굴레를 벗어난 후파 → 후파) */
+export function nickKo(id: string) { const sd = speciesData(toID(id), 9 as Gen); return oldNickKo(sd?.base || id); }
+/** 직접 지은 닉네임인가 (기본 이름과 다를 때만) */
+export function isNick(name: string | undefined, species: string) { return !!name && name !== nickKo(species) && name !== oldNickKo(toID(species)); }
+/** 화면·배틀에 보여 줄 이름: 닉네임이 있으면 그것, 없으면 종 이름 */
+export function shownName(set: { name?: string; species: string }) { return isNick(set.name, set.species) ? set.name! : nickKo(set.species); }
 
 /** 실제 능력치 계산 */
 export function calcStat(base: number, ev: number, iv: number, level: number, natMul: number, hp: boolean) {
