@@ -296,7 +296,7 @@ function RosterScreen({ S, done }: { S: CSave; done: (m: CMon | null) => void })
 		<div class="cp-pc"><div class="cp-party"><b>팀<small>{S.team.length} / 6</small></b><div>{[0, 1, 2, 3, 4, 5].map(k => <button class={'cp-slot' + (team[k] ? '' : ' empty')} disabled={!team[k]} onClick={() => team[k] && done(team[k])}>
 			{team[k] ? <><PokeIcon species={team[k].set.species} /><small>{speciesKo(team[k].set.species)}</small></> : null}</button>)}</div></div>
 		<div class="cp-box">
-			<div class="cp-box-head"><button disabled={page <= 0} onClick={() => setPage(page - 1)} aria-label="앞 박스">◀◀</button><b>박스 {page + 1}{pages > 1 && <small>/ {pages}</small>}</b><button disabled={page >= pages - 1} onClick={() => setPage(page + 1)} aria-label="다음 박스">▶▶</button></div>
+			<div class="cp-box-head"><button disabled={page <= 0} onClick={() => setPage(page - 1)} aria-label="앞 박스" class="prev" /><b>박스 {page + 1}{pages > 1 && <small>/ {pages}</small>}</b><button disabled={page >= pages - 1} onClick={() => setPage(page + 1)} aria-label="다음 박스" /></div>
 			<div class="cp-box-grid">{Array.from({ length: cap }, (_, k) => cell(box[k], k))}</div>
 		</div></div>
 		<p class="cp-note">포켓몬을 누르면 능력을 보고, 팀에 넣고 빼기·트레이닝·도구 바꾸기를 할 수 있어요. 숫자가 붙은 포켓몬이 지금 팀입니다.</p>
