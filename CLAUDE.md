@@ -52,7 +52,7 @@
 | `src/trainers.ts` `src/trainer-lore.ts` `src/trainer-lines.ts` | 네임드/일반 트레이너, 대사(나무위키 기준, 없으면 인물에 맞춰 보충) |
 | `src/sound.ts` | 효과음·배경음악, `BGM_CHOICES`, `pickBattleMusic` |
 | `src/rewards.ts` `src/ui/shop.tsx` | 보상: BP 지갑·얻는 규칙·교환소 상품·주간 과제 / 교환소 화면·카드 꾸미기·승리 연출 (꾸미기 전용, 배틀 능력 영향 없음) |
-| `src/champions.tsx` `src/champions-data.ts` | 챔피언스 모드(개발자 빌드): 6마리 파티로 시작·스카우트(일반·지명, 12시간마다 무료 1회, 도구 없이 옴)·로스터(박스형, 포켓몬·트레이닝은 팝업 창)·상점(검색)·미션·랭크 매치와 PWT(`modes.tsx` 의 `runRank`/`runPWT` 에 `ArenaCtx` 로 내 팀을 넘김 — 랭크는 더 어려운 척도·RP 는 `-ch` 로 따로, PWT 는 지방 리더스 전부 → 월드 리더스 5회 → 사천왕 대회 5회 → 챔피언스 순으로 열림)·타워(싱글·더블, 상대도 6마리)·도구 중복 불가·규칙은 설정의 배틀 규칙·승급전 스토리(랭크 매치 등급이 오르면 열림)와 컷씬(`EVENTS`). 초기화는 설정 화면 맨 아래. 값(BP)·등급·대사는 data 쪽. 저장 `champions`, 재화는 `rewards.ts` 의 BP(`spendBP`) |
+| `src/champions.tsx` `src/champions-data.ts` | 챔피언스 모드(개발자 빌드): 6마리 파티로 시작·스카우트(일반·지명, 12시간마다 무료 1회, 도구 없이 옴)·로스터(박스형, 포켓몬·트레이닝은 팝업 창)·상점(검색)·미션·랭크 매치와 PWT(`modes.tsx` 의 `runRank`/`runPWT` 에 `ArenaCtx` 로 내 팀을 넘김 — 랭크는 더 어려운 척도·RP 는 `-ch` 로 따로, PWT 는 지방 리더스 전부 → 월드 리더스 5회 → 사천왕 대회 5회 → 챔피언스 순으로 열림)·타워(싱글·더블, 상대도 6마리)·도구 중복 불가·규칙은 설정의 배틀 규칙·승급전 스토리(랭크 매치 등급이 오르면 열림)와 컷씬(`EVENTS`). PWT 는 마스터볼급부터·오픈 대회 우승 뒤 리더스. 전용 심볼 3종(`CSYM`, 저장 `sym`)·타워 이야기(`TOWER_EVENTS`)·전용 업적/칭호/꾸미기(`stats.ts`·`rewards.ts` 의 `CHAMP_ON` 갈래). 초기화는 설정 화면 맨 아래. 값(BP)·등급·대사는 data 쪽. 저장 `champions`, 재화는 `rewards.ts` 의 BP(`spendBP`) |
 | `src/scenario.tsx` `src/scenario-data.ts` `src/scenario-script.ts` | 시나리오 모드(개발자 빌드): 관동 편 |
 | `src/style.css` | 전체 스타일(도트 테두리 변수 포함) |
 | `scripts/gen-arenas.py` | 배틀 배경 그림 생성 |

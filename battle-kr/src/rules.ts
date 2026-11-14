@@ -82,7 +82,9 @@ const LEGACY: { [id: string]: string } = {
 };
 export const DEFAULT_RULE = 'mzdt_one.natdex.no.no';
 /** 기록·연승 도전 저장 키에 붙이는 규칙 표시: 기본 규칙은 '' (예전 기록 그대로), 그 밖은 '@규칙id' */
-export function recTag(ruleIdIn: string) { const id = ruleById(ruleIdIn).id; return id === DEFAULT_RULE ? '' : '@' + id; }
+/** 기록 이름표: 예전에는 규칙마다 연승·RP 를 따로 셌지만, 지금은 규칙을 바꿔도 하나로 이어짐 (늘 빈 값). 예전 이름표는 oldRecTag */
+export function recTag(_ruleIdIn: string) { return ''; }
+export function oldRecTag(ruleIdIn: string) { const id = ruleById(ruleIdIn).id; return id === DEFAULT_RULE ? '' : '@' + id; }
 /** 풀의 준전설(패러독스·울트라비스트 포함) 기본값 (챔피언스는 게임에 없어 불가) */
 export function poolSub(pool: string): LegendMode { return POOLS.find(x => x.id === pool)?.subPar?.[0] ?? 'yes'; }
 /** 준전설 스위치에 묶이는 포켓몬: 준전설 · 패러독스 · 울트라비스트 */

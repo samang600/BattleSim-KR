@@ -99,7 +99,7 @@ export function battle(setup: BattleSetup): Promise<BattleResult> {
 export function symbolScreen(kind: SymbolKind, gold: boolean, diff: string = 'normal') {
 	const info = SYMBOL_INFO[kind], dl = diff === 'hard' ? ' · 어려움' : diff === 'easy' ? ' · 쉬움' : '';
 	return ask<void>(r => <InfoScreen title={info.facility} banner={gold ? '🥇 금 심볼 획득!' : '🥈 은 심볼 획득!'} heading={`${info.name}(${gold ? '금' : '은'}${dl})을 손에 넣었다!`}
-		lines={[kind === 'rank' ? (gold ? '시즌을 챔피언급으로 마쳤습니다!' : '랭크 매치 챔피언급에 도달했습니다!') : `${info.facility}의 프런티어 브레인을 이겼습니다.`, '트레이너 수첩 › 카드에서 볼 수 있어요.']} actions={[{ label: '확인', onClick: () => r() }]} />);
+		lines={[kind === 'rank' ? (gold ? '시즌을 챔피언급으로 마쳤습니다!' : '랭크 매치 챔피언급에 도달했습니다!') : kind === 'palace' ? '배틀팰리스의 팰리스 메이븐을 이겼습니다.' : `${info.facility}의 프런티어 브레인을 이겼습니다.`, '트레이너 수첩 › 카드에서 볼 수 있어요.']} actions={[{ label: '확인', onClick: () => r() }]} />);
 }
 export function playerName() { return loadSettings().playerName || '플레이어'; }
 export function playerSprite() { return loadSettings().playerSprite || 'lucas'; }
@@ -852,7 +852,7 @@ export function settleSeason(): string | null {
 		for (const [k, v] of Object.entries(rec.rp || {})) {
 			if (!v) continue;
 			const tt = rankTier(v, lastEnd, k.includes(CH_TAG)), t = tt.name;
-			if (tt.cls === '챔피언급') awardSymbol('rank', true);   // 시즌을 챔피언급으로 마감 → 챔피언 심볼(금)
+			if (tt.cls === '챔피언급' && !k.includes(CH_TAG)) awardSymbol('rank', true);   // 시즌을 챔피언급으로 마감 → 챔피언 심볼(금)
 			ended.push({ id: last, fmt: k, rp: v, tier: t });
 			const sbp = SEASON_BP[tt.cls] || 2;
 			earnBP(sbp, '랭크 시즌 마감', true);
@@ -891,16 +891,20 @@ export async function runRank(ctx?: ArenaCtx) {
 	const n = fmt === 'doubles' ? 4 : 3;
 	if (team.length < n) { toast(`팀에 포켓몬이 ${n}마리는 있어야 해요`); return; }
 	const key = kOf(fmt);
+	let held: { upper: boolean; opp: ReturnType<typeof rankOpponent> } | null = null;
 	while (true) {
 		const rec = loadRecords();
 		const rp = rec.rp?.[key] || 0;
 		const tier = tierOf(rp);
 		const streak = rec.rankStreak?.[key] || 0;
 		// 상위 매칭: 10연승부터 가끔(20%) 지금보다 480 RP 높은 실력의 상대와 붙음. 이기면 보너스, 지면 일반 매치처럼 연승이 끊김
-		const upper = (globalThis as any).__rankUpper ?? (streak >= (hard ? 5 : UPPER_STREAK) && Math.random() < (hard ? 0.3 : UPPER_RATE)); // __rankUpper: 테스트용 강제
+		const upper0: boolean = held ? held.upper : (globalThis as any).__rankUpper ?? (streak >= (hard ? 5 : UPPER_STREAK) && Math.random() < (hard ? 0.3 : UPPER_RATE));
+		const upper: boolean = upper0; // __rankUpper: 테스트용 강제
 		// 챔피언스(hard): 하이퍼볼급부터 늘 한 수 위의 상대, 마스터볼급부터는 더 위
-		const oppRp = (upper ? rp + UPPER_GAP : rp) + (hard ? (rp >= MASTER_MIN ? 240 : rp >= 720 ? 120 : 0) : 0);
-		const opp = rankOpponent(oppRp, fmt, lvl(opts));
+		const oppRp: number = (upper ? rp + UPPER_GAP : rp) + (hard ? (rp >= MASTER_MIN ? 240 : rp >= 720 ? 120 : 0) : 0);
+		// 한 번 매칭된 상대는 승부가 날 때까지 그대로 (엔트리 고르기에서 뒤로 가도 다시 뽑지 않음)
+		held ||= { upper: upper0, opp: rankOpponent(oppRp, fmt, lvl(opts)) };
+		const opp = held.opp;
 		// 연승할수록 더 많이 오름: 25 → 29 → 33 → 37 → 41 (+마스터볼급부터 5). 연승 수는 기록에 남아 나갔다 와도 이어짐
 		const gain = RANK_BASE + STREAK_STEP * Math.min(streak, STREAK_MAX) + (rp >= MASTER_MIN && !hard ? 5 : 0) + (upper ? UPPER_BONUS : 0), loss = rp < 120 ? 0 : hard ? (rp >= 2400 ? 30 : rp >= MASTER_MIN ? 22 : rp >= 720 ? 16 : 12) : 12;
 		const go = await ask<'go' | 'quit'>(r => <InfoScreen title={`랭크 매치 · ${fmt === 'doubles' ? '더블 6→4' : '싱글 6→3'}`} banner={`${tier.name} · ${rp} RP${rankText(tier)}`}
@@ -925,6 +929,7 @@ export async function runRank(ctx?: ArenaCtx) {
 				r.rankStreak = { ...(r.rankStreak || {}), [key]: win ? streak + 1 : 0 }; r.rankPending = undefined; });
 			return v;
 		};
+		held = null;
 		const res = await battle({
 			gen: 9, doubles: fmt === 'doubles', aiSkill: opp.skill, bg: 'rank' as any, label: `랭크 매치 · ${tier.name}${upper ? ' · 상위 매칭' : ''}`, music: (opp as any).music ?? 'rank' as any,
 			noRecord: noRec(opts), cheat: opts.cheat, inverse: opts.inverse,
@@ -939,7 +944,7 @@ export async function runRank(ctx?: ArenaCtx) {
 		if (!noRec(opts)) {
 			newRp = applyRank(res.win);
 			const nt = tierOf(newRp);
-			if (nt.cls === '챔피언급' && awardSymbol('rank', false)) await symbolScreen('rank', false);   // 챔피언급 도달 → 챔피언 심볼(은)
+			if (!ctx && nt.cls === '챔피언급' && awardSymbol('rank', false)) await symbolScreen('rank', false);   // 챔피언급 도달 → 챔피언 심볼(은)
 			if (tierOrder(nt) > tierOrder(tier)) msg = `🎉 ${nt.name}(으)로 승급!`;
 			else if (tierOrder(nt) < tierOrder(tier)) msg = `${nt.name}(으)로 강등…`;
 		}

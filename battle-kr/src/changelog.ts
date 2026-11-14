@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.82.0', date: '2026-11-14', title: '규칙을 바꿔도 이어지는 기록', items: [
+		['up', '배틀 규칙을 바꿔도 연승·최고 기록·랭크 RP 가 그대로 이어져요 (규칙마다 따로 세지 않음)'],
+		['new', '배틀팰리스에 스피리츠 심볼, 교환소에 컨셉 꾸미기 4벌(레트로 게임기·네온 아케이드·한여름 바다·단풍 가을)이 생겼어요'],
+	] },
 	{ ver: '2.81.0', date: '2026-11-14', title: '포켓몬 편집 창 · 난이도별 보상', items: [
 		['up', '팀 편집의 포켓몬 화면이 간결해졌어요 — 도구·특성·성격·테라·능력 포인트·기술을 누르면 화면이 바뀌지 않고 창에서 고릅니다'],
 		['new', '배틀타워·팩토리의 BP 보상이 난이도마다 달라지고(어려움은 1승마다 2 BP), 심볼도 쉬움·보통·어려움이 따로 남아요'],

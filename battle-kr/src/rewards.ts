@@ -3,7 +3,7 @@
  *  저장: localStorage pkbkr:wallet */
 import { load, save, loadRecords, loadSettings, saveSettings } from './store';
 import { onBattleEnd } from './battle-hooks';
-import { loadStats, analyze, ACHIEVEMENTS, achTier, checkAchievements, type Ach, type Stats } from './stats';
+import { loadStats, analyze, ACHIEVEMENTS, achTier, checkAchievements, type Ach, type Stats, CHAMP_ON, champSave } from './stats';
 import { speciesData, toID, RAW, typeKo } from './data';
 import TRAINER_CLASSES from './gen/trainer-classes.json';
 import { REGIONS, NAMED, namedSprite } from './trainers';
@@ -222,6 +222,17 @@ export const ITEMS: Item[] = [
 	...REGIONS.filter(r => r !== '애니메이션').map(r => TX('reg:' + r, `${r} 챔피언`, `${r} 지방 클리어`, s => !!s.conquest[r], 'reg:' + r, '지방 챔피언')),
 	TX('conqueror', '올클리어 트레이너', '모든 지방 클리어', regionsAll, '#ffd84a', '지방 챔피언'),
 	...TYPE_TITLES,
+	// 챔피언스 모드 전용 칭호 (그 모드가 있는 빌드에서만)
+	...(CHAMP_ON ? [
+		TX('chNew', '아레나 신입', '챔피언스 모드에서 첫 파티 받기', () => (champSave().roster || []).length > 0, '#9fe4ff', '챔피언스'),
+		TX('chScout', '명 스카우터', '챔피언스 로스터 20마리', () => (champSave().roster || []).length >= 20, '#ffd84a', '챔피언스'),
+		TX('chMaster', '마스터볼급', '챔피언스 마스터볼급 승급', () => (champSave().tier || 0) >= 4, '#b070f0', '챔피언스'),
+		TX('chChamp', '아레나 챔피언', '챔피언스 챔피언급 승급', () => (champSave().tier || 0) >= 5, '#ffd84a', '챔피언스'),
+		TX('chTop', '순위표의 정점', '챔피언스 랭크 매치 1위', () => (champSave().sym?.rank || 0) >= 2, '#ff5a7a', '챔피언스'),
+		TX('chWorld', '월드 클래스', '월드 리더스 우승', () => !!champSave().cups?.world, '#6aa8ff', '챔피언스'),
+		TX('chWorldChamp', '세계의 정점', 'PWT 「챔피언스」 우승', () => !!champSave().cups?.champions, '#ffd84a', '챔피언스'),
+		TX('chSummit', '탑의 정복자', '챔피언스 배틀타워 49연승', () => (champSave().towerBest || 0) >= 49, '#8af0a0', '챔피언스'),
+	] : []),
 	// 카드 배경 (3~4단 색 띠)
 	{ id: 'cb:sunset', slot: 'cardBg', name: '노을', price: 20, v: '#e86a3a,#c84a4a,#7a3a6a,#3a2a5a' },
 	{ id: 'cb:forest', slot: 'cardBg', name: '숲', price: 20, v: '#5aa84a,#3a8a3a,#2a6a3a,#1a4a2a' },
@@ -234,6 +245,15 @@ export const ITEMS: Item[] = [
 	{ id: 'cb:menhera', slot: 'cardBg', name: '분홍 처방전', price: 50, v: '#ffe4ee,#ffcce2,#f8b4d6,#fff8fc' },
 	{ id: 'cb:eternamax', slot: 'cardBg', name: '무한다이맥스', cond: () => ippitsu49(), condText: '일필도 49연승', v: '#c82a4a,#8a1a3a,#4a0e2a,#1a0614' },
 	{ id: 'cb:gold', slot: 'cardBg', name: '황금', cond: s => s.sym.tower === 2 && s.sym.factory === 2 && s.sym.rank === 2, condText: '금 심볼 3개', v: '#f8d84a,#e0b030,#b8862a,#7a5418' },
+	// 컨셉 묶음 (배경 + 테두리가 한 벌): 레트로 게임기 · 네온 아케이드 · 한여름 바다 · 단풍 가을
+	{ id: 'cb:retro', slot: 'cardBg', name: '레트로 게임기', price: 45, v: '#c4cf8a,#8bac0f,#306230,#0f380f' },
+	{ id: 'cb:neon', slot: 'cardBg', name: '네온 아케이드', price: 45, v: '#ff3ea5,#7a2cff,#1b1464,#0a0a2a' },
+	{ id: 'cb:summer', slot: 'cardBg', name: '한여름 바다', price: 45, v: '#ffe08a,#5ad0e8,#2a9ad0,#1a5a9a' },
+	{ id: 'cb:autumn', slot: 'cardBg', name: '단풍 가을', price: 45, v: '#f0b040,#d86a2a,#9a3a1a,#4a2010' },
+	...(CHAMP_ON ? [
+		{ id: 'cb:arena', slot: 'cardBg' as Slot, name: '챔피언스 아레나', cond: () => (champSave().tier || 0) >= 3, condText: '챔피언스 하이퍼볼급 승급', v: '#ffd84a,#c89420,#1b2f56,#0d1830' },
+		{ id: 'cb:summit', slot: 'cardBg' as Slot, name: '탑의 꼭대기', cond: () => (champSave().towerBest || 0) >= 21, condText: '챔피언스 배틀타워 21연승', v: '#d8ecff,#8ab8ff,#3a5a9a,#14203c' },
+	] : []),
 	// 카드 테두리 (진한 외곽선 · 밝은 안쪽 선)
 	{ id: 'fr:ruby', slot: 'frame', name: '루비', price: 30, v: '#5a0a1a,#ff6a7a' },
 	{ id: 'fr:sapphire', slot: 'frame', name: '사파이어', price: 30, v: '#0a1a5a,#6aa8ff' },
@@ -243,11 +263,20 @@ export const ITEMS: Item[] = [
 	{ id: 'fr:menhera', slot: 'frame', name: '분홍 처방전', price: 40, v: '#e070a8,#ffffff' },
 	{ id: 'fr:silver', slot: 'frame', name: '은 심볼', cond: s => !!(s.sym.tower || s.sym.factory || s.sym.rank), condText: '아무 심볼(은) 하나', v: '#2a3040,#e8eef8' },
 	{ id: 'fr:gold', slot: 'frame', name: '금 심볼', cond: symGold, condText: '아무 심볼(금) 하나', v: '#4a3008,#ffd84a' },
+	{ id: 'fr:retro', slot: 'frame', name: '레트로 게임기', price: 35, v: '#0f380f,#c4cf8a' },
+	{ id: 'fr:neon', slot: 'frame', name: '네온 아케이드', price: 35, v: '#0a0a2a,#3ef0ff' },
+	{ id: 'fr:summer', slot: 'frame', name: '한여름 바다', price: 35, v: '#1a5a9a,#fff6c4' },
+	{ id: 'fr:autumn', slot: 'frame', name: '단풍 가을', price: 35, v: '#4a2010,#ffd08a' },
+	...(CHAMP_ON ? [
+		{ id: 'fr:arena', slot: 'frame' as Slot, name: '챔피언스 아레나', cond: () => !!champSave().cups?.open, condText: '챔피언스 PWT 오픈 대회 우승', v: '#3a2804,#ffd84a' },
+		{ id: 'fr:world', slot: 'frame' as Slot, name: '월드 클래스', cond: () => !!champSave().cups?.world, condText: '월드 리더스 우승', v: '#061240,#6aa8ff' },
+	] : []),
 	// 별 모양
 	{ id: 'st:diamond', slot: 'star', name: '다이아', price: 20, v: '◆' },
 	{ id: 'st:heart', slot: 'star', name: '하트', price: 20, v: '♥' },
 	{ id: 'st:club', slot: 'star', name: '클로버', price: 20, v: '♣' },
 	{ id: 'st:spade', slot: 'star', name: '스페이드', price: 20, v: '♠' },
+	{ id: 'st:note', slot: 'star', name: '음표', price: 25, v: '♪' },
 	// HP 창 테마
 	{ id: 'hp:ruby', slot: 'hp', name: '루비', price: 40, v: 'ruby', desc: '보석 결 무늬' },
 	{ id: 'hp:sapphire', slot: 'hp', name: '사파이어', price: 40, v: 'sapphire', desc: '물결 무늬' },

@@ -3974,3 +3974,6 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 .cp-me-syms { display: flex; align-items: center; gap: 4px; margin-top: 2px; } .cp-me-syms i { margin-left: 6px; font-style: normal; font-size: 12px; color: #9fe4ff; }
 .cp-brow.one { grid-template-columns: minmax(0, 1fr) 150px; } .cp-brow.one .btn { padding: 8px 0; text-align: center; }
 .cp-brow.locked b, .cp-brow.locked small { opacity: .6; }
+/* 파란 단추 (더블배틀) · 챔피언스 심볼 획득 */
+:root[data-frame] .btn.blue, .btn.blue { border-image-source: var(--ring4-p-stone); background: linear-gradient(180deg, #8ab8ff 0 4px, #3a78e8 4px 55%, #2f64cc 55% 80%, #2450a8 80%) border-box; color: #fff; }
+.cp-symget { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 10px; }

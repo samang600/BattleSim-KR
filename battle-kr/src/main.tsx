@@ -1,5 +1,5 @@
 import './ps/registry';
-import { recTag, ruleById as ruleByIdR } from './rules';
+import { recTag, oldRecTag, ruleById as ruleByIdR } from './rules';
 import { h, render, type VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { bindView, Screen, Sprite, toast, confirmBox, QuitToMenu, resetAbort, ask, MiniSprite, FullscreenButton, Modal, PokeIcon } from './ui/core';
@@ -8,13 +8,13 @@ import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
 import { runOnline } from './online-ui';
 import { runScenario } from './scenario';
-import { loadTeams as loadTeamsHome } from './store';
+import { loadTeams as loadTeamsHome, updateRecords } from './store';
 import { runChampions } from './champions';
 import { replaySession } from './online';
 import { cloudInfo, cloudUpload, cloudFetch, cloudApply, fmtCode, cleanCode, DEVICE_ONLY } from './cloud';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
 import { runPalace, runIppitsu, runDaily, runBossRush, todayDaily } from './frontier';
-import { loadStats, ACHIEVEMENTS, checkAchievements, symBest } from './stats';
+import { loadStats, ACHIEVEMENTS, checkAchievements, symBest, type SymbolKind } from './stats';
 import { TrainerBook, SymbolIcon } from './ui/book';
 import { WhatsNew, pendingChanges } from './ui/whats-new';
 import { APP_VERSION } from './changelog';
@@ -123,7 +123,7 @@ function Home({ go }: { go: (v: string) => void }) {
 					<span class="hm-who">
 						<b>{settings.playerName}<TitleChip it={titleItem(wallet)} /></b>
 						<small>{rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · ${Math.round(rec.wins / rec.battles * 100)}%` : ''} · 업적 {achDone}/{ACHIEVEMENTS.length}</small>
-						<span class="hm-syms">{(['tower', 'factory', 'rank'] as const).map(k => <SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
+						<span class="hm-syms">{((SCENARIO_ON ? ['tower', 'factory', 'palace'] : ['tower', 'factory', 'rank']) as SymbolKind[]).map(k => <SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
 					</span>
 				</button>
 				<div class="head-btns">
@@ -158,7 +158,7 @@ function Home({ go }: { go: (v: string) => void }) {
 				<span class="hm-who">
 					<b>{settings.playerName}<TitleChip it={titleItem(wallet)} /></b>
 					<small>{rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · ${Math.round(rec.wins / rec.battles * 100)}%` : ''} · 업적 {achDone}/{ACHIEVEMENTS.length}</small>
-					<span class="hm-syms">{(['tower', 'factory', 'rank'] as const).map(k => <SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
+					<span class="hm-syms">{((SCENARIO_ON ? ['tower', 'factory', 'palace'] : ['tower', 'factory', 'rank']) as SymbolKind[]).map(k => <SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
 				</span>
 			</button>
 			<div class="head-btns">
@@ -503,11 +503,6 @@ function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }
 		if (id === cur.id) return;
 		applyRuleData(ruleById(id));
 		up({ battleRule: id });
-		// 규칙을 바꾸면 기록이 규칙마다 따로라는 안내 (설정 화면에 들어올 때마다 처음 한 번)
-		if (!ruleNoticeShown) {
-			ruleNoticeShown = true;
-			confirmBox('규칙별 기록 안내', '배틀 규칙을 바꾸면 연승·최고 기록·랭크 RP·쉬는 중인 도전이 규칙마다 따로 집계돼요.\n원래 규칙으로 돌아오면 그 규칙의 기록이 그대로 이어집니다.', '확인', '');
-		}
 	};
 	const toggle = (k: typeof gim.kinds[number]) => set({ gimmick: gimmickId(gim.kinds.includes(k) ? gim.kinds.filter(x => x !== k) : [...gim.kinds, k], gim.mode) });
 	const legRow = (label: string, v: LegendMode, key: 'restricted' | 'mythical' | 'sub') => <div class="set-row rule-row"><span>{label}</span><div class="seg">
@@ -739,6 +734,19 @@ else {
 }
 // 규칙의 포켓몬 풀 사양으로 데이터(종족값·특성·기술·도구) 맞추기
 applyRuleData(ruleById(loadSettings().battleRule));
+// 예전에 규칙마다 따로 세던 기록을 하나로: 지금 쓰는 규칙의 연승·RP·쉬는 중인 도전을 이름표 없는 자리로 옮김 (한 번만)
+(() => {
+	const st = loadSettings() as any; if (st.recMerged) return;
+	const tag = oldRecTag(st.battleRule);
+	if (tag) {
+		try {
+			updateRecords(r => { for (const [name, max] of [['best', true], ['rpBest', true], ['current', false], ['rp', false], ['rankStreak', false]] as [string, boolean][]) { const o = (r as any)[name]; if (!o) continue;
+				for (const k of Object.keys(o)) if (k.includes(tag)) { const nk = k.replace(tag, ''); o[nk] = max ? Math.max(o[nk] || 0, o[k] || 0) : o[k]; } } });
+			for (const k of Object.keys(localStorage)) if (k.startsWith(STORE_PREFIX) && k.includes(tag)) localStorage.setItem(k.replace(tag, ''), localStorage.getItem(k)!);
+		} catch (e) { console.warn("recMerge", e); }
+	}
+	st.recMerged = 1; saveSettings(st);
+})();
 settleRankPending();   // 랭크 매치 도중 앱이 꺼졌으면 패배로
 settleSeason();        // 1주 시즌이 바뀌었으면 마감
 checkAchievements(true);

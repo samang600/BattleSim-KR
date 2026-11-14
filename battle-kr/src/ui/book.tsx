@@ -3,7 +3,7 @@ import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import { Screen, MiniSprite } from './core';
 import { loadRecords, loadSettings } from '../store';
-import { loadStats, ACHIEVEMENTS, achLevel, achTier, achDesc, TIER_NAME, SYMBOL_INFO, BOSS_LEN, symBest, symOf, type AchCat, type SymbolKind } from '../stats';
+import { loadStats, ACHIEVEMENTS, achLevel, achTier, achDesc, TIER_NAME, SYMBOL_INFO, BOSS_LEN, symBest, symOf, CHAMP_ON, type AchCat, type SymbolKind } from '../stats';
 import { speciesKo, RAW } from '../data';
 import { REGIONS, regionLabel } from '../trainers';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
@@ -56,8 +56,8 @@ function Card({ st, rec, set }: any) {
 			<CardExtras />
 		</div>
 		<h3 class="sec">심볼</h3>
-		<div class="sym-row">{(['tower', 'factory', 'rank'] as SymbolKind[]).map(k => <div class="sym-cell"><SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={48} /><b>{SYMBOL_INFO[k].name}</b><small>{SYMBOL_INFO[k].facility} · {symBest(st, k).lv === 2 ? '금' : symBest(st, k).lv ? '은' : '미획득'}</small>
-			{k !== 'rank' && <span class="sym-diffs">{([['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']] as const).map(([d, l]) => <span class={symOf(st, k, d) ? 'got' : ''}><SymbolIcon kind={k} lv={symOf(st, k, d)} diff={d} size={24} /><i>{l}</i></span>)}</span>}<small class="sym-how">{k === 'rank' ? '은: 챔피언급 도달 · 금: 시즌을 챔피언급으로 마감' : '은: 21번째 · 금: 49번째 브레인 격파'}</small></div>)}</div>
+		<div class="sym-row">{((CHAMP_ON ? ['tower', 'factory', 'palace'] : ['tower', 'factory', 'palace', 'rank']) as SymbolKind[]).map(k => <div class="sym-cell"><SymbolIcon kind={k} lv={symBest(st, k).lv} diff={symBest(st, k).diff} size={48} /><b>{SYMBOL_INFO[k].name}</b><small>{SYMBOL_INFO[k].facility} · {symBest(st, k).lv === 2 ? '금' : symBest(st, k).lv ? '은' : '미획득'}</small>
+			{(k === 'tower' || k === 'factory') && <span class="sym-diffs">{([['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']] as const).map(([d, l]) => <span class={symOf(st, k, d) ? 'got' : ''}><SymbolIcon kind={k} lv={symOf(st, k, d)} diff={d} size={24} /><i>{l}</i></span>)}</span>}<small class="sym-how">{k === 'rank' ? '은: 챔피언급 도달 · 금: 시즌을 챔피언급으로 마감' : k === 'palace' ? '은: 21번째 · 금: 49번째 팰리스 메이븐 격파' : '은: 21번째 · 금: 49번째 브레인 격파'}</small></div>)}</div>
 		<h3 class="sec">랭크 시즌 <small class="muted">시즌 {season.no} · {seasonLeft()}</small></h3>
 		<div class="kv"><span>싱글</span><b>{rankLabel(rp('singles'))} · {rp('singles')} RP</b></div>
 		<div class="kv"><span>더블</span><b>{rankLabel(rp('doubles'))} · {rp('doubles')} RP</b></div>
@@ -72,7 +72,7 @@ function Card({ st, rec, set }: any) {
 }
 
 function Achievements({ st: st0 }: any) {
-	const cats: AchCat[] = ['배틀', '기믹', '타입', '시설', '네임드', '랭크', '도전', '수집'];
+	const cats: AchCat[] = ['배틀', '기믹', '타입', '시설', '네임드', '랭크', '도전', '수집', ...(CHAMP_ON ? ['챔피언스' as AchCat] : [])];
 	const [cat, setCat] = useState<AchCat>('배틀');
 	const w = useWallet();   // 보상을 받으면 다시 그림
 	const st = loadStats();

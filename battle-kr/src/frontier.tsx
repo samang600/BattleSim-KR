@@ -11,8 +11,8 @@ import { aiPickEntry } from './smogon';
 import { chooseAI } from './ai';
 import { Dex } from '../../sim/dex';
 import { speciesKo, toID, ALL_TYPES, typeKo } from './data';
-import { BACK, battle, chooseTeam, withLevel, namedTeam, playerName, playerSprite, BgmRow, josa, confirmQuit, towerOpponent, ROLE_ORDER, namedMusic, isDoubles, type Fmt } from './modes';
-import { updateStats, loadStats, setMax, BOSS_LEN } from './stats';
+import { BACK, battle, chooseTeam, withLevel, namedTeam, playerName, playerSprite, BgmRow, josa, confirmQuit, towerOpponent, ROLE_ORDER, namedMusic, isDoubles, symbolScreen, type Fmt } from './modes';
+import { updateStats, loadStats, setMax, BOSS_LEN, awardSymbol } from './stats';
 import { earnBP, setClearBP, BRAIN_BP } from './rewards';
 
 const rt = () => recTag(loadSettings().battleRule);
@@ -133,6 +133,7 @@ export async function runPalace() {
 		updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 		save(key, state);
 		if (maven) earnBP(no === 49 ? BRAIN_BP.gold : BRAIN_BP.silver, '팰리스 메이븐 격파');
+		if (maven && awardSymbol('palace', no === 49)) await symbolScreen('palace', no === 49);
 		if (s % 7 === 0) earnBP(setClearBP(s), '세트 클리어');
 		if (s % 7 === 0) {
 			const v = await ask<'go' | 'rest'>(r => <InfoScreen title="배틀팰리스" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`} lines={['포켓몬들의 체력이 회복되었다.']}

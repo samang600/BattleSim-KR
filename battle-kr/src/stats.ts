@@ -8,7 +8,7 @@ import { NAMED, CUPS } from './trainers';
 import { toast } from './ui/core';
 
 export interface MonStat { u: number; w: number; ko: number; f: number; mvp: number }
-export type SymbolKind = 'tower' | 'factory' | 'rank';
+export type SymbolKind = 'tower' | 'factory' | 'rank' | 'palace';
 export interface Stats {
 	mons: { [sid: string]: MonStat };
 	used: { [sid: string]: 1 }; faced: { [sid: string]: 1 }; beaten: { [sid: string]: 1 };
@@ -48,6 +48,7 @@ export const SYMBOL_INFO: { [k in SymbolKind]: { name: string; facility: string;
 	tower: { name: '택틱스 심볼', facility: '배틀타워', color: '#3a6df0' },
 	factory: { name: '날리지 심볼', facility: '배틀팩토리', color: '#e0812b' },
 	rank: { name: '챔피언 심볼', facility: '랭크 매치', color: '#b8283a' },
+	palace: { name: '스피리츠 심볼', facility: '배틀팰리스', color: '#23a05a' },
 };
 
 // ───────── 배틀 기록 읽기 ─────────
@@ -149,7 +150,13 @@ onBattleEnd((setup, battle, win) => {
 });
 
 // ───────── 업적 ─────────
-export type AchCat = '배틀' | '기믹' | '타입' | '시설' | '네임드' | '랭크' | '도전' | '수집';
+export type AchCat = '배틀' | '기믹' | '타입' | '시설' | '네임드' | '랭크' | '도전' | '수집' | '챔피언스';
+declare const __DEV_BUILD__: boolean;
+/** 챔피언스 모드가 있는 빌드(지금은 개발자 빌드)에서만 그 모드의 업적·칭호·꾸미기를 보여 줌 */
+export const CHAMP_ON = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
+/** 챔피언스 모드의 저장 (업적·칭호 조건용, 읽기만) */
+export const champSave = (): any => load<any>('champions', {});
+const cupSum = () => Object.values(champSave().cups || {}).reduce((a: number, b: any) => a + (b || 0), 0) as number;
 export interface Ach { id: string; name: string; desc: string; cat: AchCat; steps: number[]; value: (s: Stats) => number }
 const rec = () => loadRecords();
 const bestOf = (prefix: string) => Math.max(0, ...Object.entries(rec().best).filter(([k]) => k.startsWith(prefix)).map(([, v]) => v));
@@ -214,6 +221,14 @@ export const ACHIEVEMENTS: Ach[] = [
 	{ id: 'used', name: '백 가지 동료', desc: '서로 다른 포켓몬 {n}종으로 배틀', cat: '수집', steps: [30, 100, 300], value: s => Object.keys(s.used).length },
 	{ id: 'beaten', name: '도감 사냥꾼', desc: '서로 다른 상대 포켓몬 {n}종을 쓰러뜨림', cat: '수집', steps: [50, 300, 700], value: s => Object.keys(s.beaten).length },
 	{ id: 'partner', name: '단짝', desc: '한 포켓몬으로 {n}승 (포켓몬별 업적)', cat: '수집', steps: [10, 50, 100], value: s => Math.max(0, ...Object.values(s.mons).map(m => m.w)) },
+	// 챔피언스 모드 전용 (그 모드가 있는 빌드에서만)
+	...(CHAMP_ON ? [
+		{ id: 'chRoster', name: '스카우트의 눈', desc: '챔피언스 로스터에 포켓몬 {n}마리', cat: '챔피언스', steps: [10, 20, 40], value: () => (champSave().roster || []).length },
+		{ id: 'chTier', name: '아레나의 계단', desc: '챔피언스 승급전 {n}번 통과', cat: '챔피언스', steps: [1, 3, 5], value: () => champSave().tier || 0 },
+		{ id: 'chTower', name: '탑을 오르는 자', desc: '챔피언스 배틀타워 {n}연승', cat: '챔피언스', steps: [7, 21, 49], value: () => champSave().towerBest || 0 },
+		{ id: 'chPwt', name: '토너먼트의 단골', desc: '챔피언스 PWT 우승 {n}회', cat: '챔피언스', steps: [1, 10, 30], value: () => cupSum() },
+		{ id: 'chSym', name: '아레나의 문장', desc: '챔피언스 심볼 {n}개 (은·금 각각 셈)', cat: '챔피언스', steps: [1, 3, 6], value: () => Object.values(champSave().sym || {}).reduce((a: number, b: any) => a + (b || 0), 0) as number },
+	] as Ach[] : []),
 ];
 /** 보스 러시 코스 길이 (frontier.tsx 가 채움) */
 export const BOSS_LEN: { [course: string]: number } = {};

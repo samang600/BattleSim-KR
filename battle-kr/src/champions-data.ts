@@ -44,6 +44,8 @@ export const CWHO: { [id: string]: CWho } = {
 	senior: { name: '강철', title: '하이퍼볼급의 문지기', sprite: 'blackbelt' },
 	champ: { name: '백야', title: '전 챔피언', sprite: 'veteran' },
 	mc: { name: '소라', title: 'PWT 진행자', sprite: 'reporter' },
+	keeper: { name: '미래', title: '타워 안내원', sprite: 'lass-gen4' },
+	tycoon: { name: '타워 타이쿤', title: '배틀타워의 주인', sprite: 'palmer' },
 };
 /** 장: 등급 t 의 승점을 다 채우면 열리는 승급전 (0장은 등록·연습 승부). lines: [말하는 사람 id('' = 해설), 대사] */
 export interface Chapter { title: string; sub: string; who: string; bg: string; before: [string, string][]; after: [string, string][]; lose: string; /** 상대 팀의 에이스(있으면 꼭 넣음) */ ace?: string }
@@ -85,6 +87,20 @@ export const EVENTS: CEvent[] = [
 	{ id: 'champs', title: '챔피언들의 초대', bg: 'champion', lines: [['mc', '사천왕 대회 다섯 번 우승… 솔직히 저도 믿기지 않아요.'], ['champ', '믿어도 되네. 내 눈으로 다 지켜봤으니.'], ['champ', '역대 챔피언들이 한자리에 모이는 대회가 있네. 이름은 그냥 「챔피언스」. 우리 아레나의 이름도 거기서 따온 거지.'], ['champ', '초대장에 자네 이름을 적어 뒀네. 정점이 어떤 곳인지, 가서 보고 오게.']] },
 	{ id: 'pwtchamp', title: '세계의 정점', bg: 'champion', lines: [['mc', '우승! 「챔피언스」 우승입니다! 역대 챔피언들을 모두 꺾었습니다!'], ['champ', '허허… 내가 현역일 때도 못 해 본 일을.'], ['manager', '해냈구나! 등록 첫날 내 포켓몬을 빌려 쓰던 애가 세계 대회 우승이라니… 나 지금 울어도 돼?'], ['rival', '쳇, 또 먼저 갔어. …축하해. 진심으로. 다음엔 결승에서 보자!']] },
 	{ id: 'rank1', title: '1위', bg: 'champion', lines: [['', '랭크 매치 순위표의 맨 윗줄에 낯익은 이름이 올라갔다.'], ['manager', '1위야, 1위! 순위표 봤어? 맨 위에 네 이름이 있어!'], ['champ', '오르는 것보다 지키는 게 어렵다네. 아래에서는 날마다 누군가 올라오고 있으니.'], ['champ', '그래도 오늘만큼은 마음껏 기뻐하게. 자네가 가장 강하네.']] },
+];
+/** 배틀타워 이야기: 연승 기록(최고)에 따라 한 번씩 */
+export const TOWER_EVENTS: (CEvent & { at: number })[] = [
+	{ id: 'tower0', at: 0, title: '끝이 보이지 않는 탑', bg: 'tower', lines: [['keeper', '배틀타워에 어서 오세요! 안내를 맡은 미래예요.'], ['keeper', '여긴 규칙이 하나뿐이에요. 질 때까지 올라간다. 일곱 번 이길 때마다 한 층을 올라갑니다.'], ['keeper', '맨 위에는 타워 타이쿤님이 계세요. 21번째 승부에서 처음 얼굴을 보실 수 있을 거예요. …거기까지 가신다면요.']] },
+	{ id: 'tower7', at: 7, title: '첫 번째 층', bg: 'tower', lines: [['keeper', '7연승! 첫 층을 넘으셨네요. 기념으로 지명 티켓을 드려요.'], ['keeper', '위로 갈수록 상대가 눈에 띄게 강해져요. 같은 팀만 고집하면 금방 읽힙니다.'], ['rival', '어, 너도 타워 왔어? 난 5연승에서 떨어졌는데… 잠깐, 7연승이라고?! 다음엔 내가 더 올라갈 거야!']] },
+	{ id: 'tower20', at: 20, title: '타이쿤의 방 앞', bg: 'tower', lines: [['keeper', '20연승… 여기까지 오신 분은 올해 들어 처음이에요.'], ['keeper', '다음 승부의 상대는 타워 타이쿤님입니다. 진심을 다하시는 건 49번째부터라고들 하지만, 그래도 만만한 분이 아니에요.'], ['tycoon', '올라왔군. 문은 열어 두었네. 준비가 되면 들어오게.']] },
+	{ id: 'tower21', at: 21, title: '은빛 문장', bg: 'champion', lines: [['tycoon', '허허! 좋은 승부였네. 오랜만에 피가 끓었어.'], ['tycoon', '하지만 지금 본 건 내 절반일세. 탑은 여기서 끝나지 않아. 49번째 방에서, 전부를 걸고 기다리겠네.'], ['keeper', '타이쿤님이 저렇게 웃으시는 건 처음 봐요…! 서밋 심볼(은)을 받으세요.']] },
+	{ id: 'tower49', at: 49, title: '탑의 꼭대기', bg: 'champion', lines: [['tycoon', '…졌네. 전력을 다하고도 졌어.'], ['tycoon', '이 탑을 세운 뒤로 꼭대기에서 내려다보기만 했지. 올려다볼 상대가 생기다니, 오래 살고 볼 일이야.'], ['keeper', '49연승, 타워 타이쿤 격파! 탑의 기록판 맨 위에 이름을 새겨 둘게요. 서밋 심볼(금)입니다!'], ['tycoon', '탑은 끝이 없네. 계속 올라가게. 자네가 어디까지 가는지 보고 싶군.']] },
+];
+/** 챔피언스 전용 심볼 (아케이드의 프런티어 심볼과 따로): 은 → 금 */
+export const CSYM: { id: 'rank' | 'pwt' | 'tower'; icon: string; name: string; silver: string; gold: string }[] = [
+	{ id: 'rank', icon: 'c_rank', name: '아레나 심볼', silver: '랭크 매치 챔피언급 도달', gold: '랭크 매치 1위' },
+	{ id: 'pwt', icon: 'c_pwt', name: '월드 심볼', silver: '월드 리더스 우승', gold: '「챔피언스」 우승' },
+	{ id: 'tower', icon: 'c_tower', name: '서밋 심볼', silver: '배틀타워 21연승', gold: '배틀타워 49연승' },
 ];
 /** 지방 리더스 대회 (모두 우승하면 월드 리더스) */
 export const REGION_CUPS = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos', 'alola', 'galar', 'paldea'];
