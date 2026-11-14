@@ -162,6 +162,38 @@ HPHEART = tile(scatter(32, 24, 2, [['.a.a.', 'aaaaa', '.aaa.', '..a..']], 3), {'
 HPPILL = tile(scatter(32, 24, 2, [['aabb'], ['.c.', 'ccc', '.c.']], 8), {'a': ('#ff9ac8', .9), 'b': ('#ffffff', .95), 'c': ('#ffffff', .8)})
 PSTAR = tile(scatter(40, 20, 3, [['.a.', 'aba', '.a.']], 15), {'a': ('#ff8ac8', .8), 'b': ('#ffffff', 1)})
 
+# 새 테마 3벌: 단풍 신사 · 우주 정거장 · 반딧불 숲
+pat['momiji'] = tile([
+	'....a.......',
+	'..a.a.a.....',
+	'...aaa......',
+	'.aaaaaaa....',
+	'...aaa......',
+	'..a.b.a.....',
+	'....b.......',
+	'............'], {'a': ('#ffd060', .22), 'b': ('#3a1008', .25)})
+pat['orbit'] = tile([
+	'a.......',
+	'a.......',
+	'a.......',
+	'bbbbbbbb',
+	'a.......',
+	'a.......',
+	'a.......',
+	'a.......'], {'a': ('#5af0c8', .14), 'b': ('#5af0c8', .2)})
+pat['firefly'] = tile([
+	'..a.....b...',
+	'.aaa........',
+	'aaaaa.......',
+	'.aaa....a...',
+	'..a....aaa..',
+	'......aaaaa.',
+	'.......aaa..',
+	'........a...'], {'a': ('#0a2a12', .22), 'b': ('#c8f070', .5)})
+LEAF = tile(scatter(32, 32, 3, [['.a.', 'aba', '.a.'], ['ab']], 61), {'a': ('#ffb040', .95), 'b': ('#e0562a', .95)})
+SCAN = tile(['aaaaaaaa'] + ['........'] * 11, {'a': ('#8affe0', .35)})
+GLOW = tile(scatter(40, 24, 4, [['.a.', 'aba', '.a.'], ['b']], 77), {'a': ('#c8f070', .6), 'b': ('#f0ffb0', 1)})
+
 HP = [
 	# 키, 이름, 띠, 움직임
 	('ruby', ['#e8506a', '#b8203e', '#8a1430', '#5a0a1e'], None),
@@ -178,6 +210,9 @@ HP = [
 	('yume', ['#f0d8ff', '#b88ae0', '#9a6ad0', '#6a48a8'], 'hearts'),
 	('yami', ['#ff6ab0', '#4a1450', '#341048', '#1a0a24'], 'pstars'),
 	('menhera', ['#ffe0ee', '#e870a8', '#d05890', '#9a3a6a'], 'pills'),
+	('momiji', ['#ffb050', '#d0481e', '#a02a14', '#5a140a'], 'leaf'),
+	('orbit', ['#8ab8e8', '#28406e', '#1a2c52', '#0c1630'], 'scan'),
+	('firefly', ['#8ad890', '#226a3a', '#184e2c', '#0c2e1a'], 'glow'),
 ]
 
 
@@ -217,6 +252,15 @@ for key, cs, fx in HP:
 	elif fx == 'pstars':
 		u2, w2, h2 = PSTAR
 		out.append(f'{sel} {{ background: {u2} 0 0 / {w2}px {h2}px repeat; animation: hpSpark 2.4s steps(1) infinite; }}')
+	elif fx == 'leaf':
+		u2, w2, h2 = LEAF
+		out.append(f'{sel} {{ background: {u2} 0 0 / {w2}px {h2}px repeat; animation: hpDrift 5s steps(32) infinite; --dx: -{w2}px; --dy: {h2}px; }}')
+	elif fx == 'scan':
+		u2, w2, h2 = SCAN
+		out.append(f'{sel} {{ background: {u2} 0 0 / {w2}px {h2}px repeat; animation: hpRise 1.8s steps(12) infinite; --rise: {h2}px; }}')
+	elif fx == 'glow':
+		u2, w2, h2 = GLOW
+		out.append(f'{sel} {{ background: {u2} 0 0 / {w2}px {h2}px repeat; animation: hpSpark 3.2s steps(1) infinite; }}')
 	elif fx == 'bolt':
 		u2, w2, h2 = BOLT
 		out.append(f'{sel} {{ background: {u2} 70% 50% / {w2}px {h2}px no-repeat, {u2} 20% 30% / {w2}px {h2}px no-repeat; animation: hpFlash 2.6s steps(1) infinite; }}')
@@ -281,6 +325,17 @@ u, w, h = PINKSTAR; layer('yami', 'before', u, w, h, '0', '50%', 'arTwinkle 2.8s
 u, w, h = DARKH; layer('yami', 'after', u, w, h, '20%', '0', f'arDrift 12s steps(56) infinite; --dx: 0px; --dy: -{h}px; opacity: .6')
 u, w, h = PILLS; layer('menhera', 'before', u, w, h, '0', '40%', f'arDrift 14s steps(64) infinite; --dx: -16px; --dy: {h}px')
 u, w, h = PINKSTAR; layer('menhera', 'after', u, w, h, '0', '0', 'arTwinkle 3.4s steps(1) infinite; opacity: .7')
+# 새 테마 3벌의 배경 움직임
+MFALL = tile(scatter(48, 48, 5, [['.a.', 'aba', '.a.'], ['ab'], ['a']], 91), {'a': ('#f08a30', .95), 'b': ('#c83a22', .95)})
+SHOOT = tile(scatter(96, 48, 2, [['aab.....', '...bbcc.', '.......c']], 37), {'a': ('#ffffff', .9), 'b': ('#c8d8ff', .6), 'c': ('#8aa0d8', .3)})
+FLY = tile(scatter(64, 48, 6, [['.a.', 'aba', '.a.'], ['b'], ['b']], 113), {'a': ('#c8f070', .55), 'b': ('#f0ffb0', 1)})
+FLY2 = tile(scatter(72, 40, 4, [['b'], ['.a.', 'aba', '.a.']], 127), {'a': ('#8ad8ff', .5), 'b': ('#e8ffff', .95)})
+u, w, h = MFALL; layer('momiji', 'before', u, w, h, '0', '0', f'arDrift 11s steps(88) infinite; --dx: -{w}px; --dy: {h * 2}px')
+u, w, h = TWINK; layer('momiji', 'after', u, w, h, '0', '70%', 'arTwinkle 3.6s steps(1) infinite; opacity: .6')
+u, w, h = TWINK; layer('orbit', 'before', u, w, h, '5%', '50%', 'arTwinkle 2.4s steps(1) infinite')
+u, w, h = SHOOT; layer('orbit', 'after', u, w, h, '6%', '52%', f'arDrift 5s steps(48) infinite; --dx: {w}px; --dy: {h}px; opacity: .8')
+u, w, h = FLY; layer('firefly', 'before', u, w, h, '25%', '0', 'arTwinkle 2.8s steps(1) infinite')
+u, w, h = FLY2; layer('firefly', 'after', u, w, h, '30%', '8%', f'arDrift 16s steps(72) infinite; --dx: {w}px; --dy: -{h}px')
 ar += [
 	'.arena-bg { overflow: hidden; }',
 	'@keyframes arDrift { to { background-position: var(--dx) var(--dy); } }',

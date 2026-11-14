@@ -484,6 +484,39 @@ NEW = {
          {'harm': 'pad', 'bass': 'octfunk', 'arp': 'up', 'drum': 'b'}),
     ], {'main': 'k.o.c.o.k.o.c.ok', 'b': 'k.okc.o.k.okc.oo', 'intro': 'k...k...k...k.k.'}, 'k.c.k.c.cccccccc',
      {'lead': 'p12', 'vib': 0, 'slide': 1, 'swing': 0.35, 'echo': [0.17, 0.25, 0.2], 'harm': 'p25', 'bassv': 'p50'}),
+    # 단풍 신사 (E단조 100): 다섯 음 위주의 선율을 코토처럼 튕기고, 펼친 화음과 2분 베이스, 드럼은 드문드문, 긴 메아리
+    'g3momiji': (100, [
+        ('intro', ['Em', 'D'], 'e6.2 b6.2 e7.4 b6.8|d6.2 a6.2 d7.4 a6.8', {'harm': 'none', 'bass': 'sustain', 'drum': 'intro'}),
+        ('A', ['Em', 'C', 'D', 'Em', 'Am', 'Em', 'C', 'B'],
+         'e6.4 g6.2 a6.2 b6.8|c7.4 b6.2 g6.2 e6.8|d6.4 f#6.2 a6.2 d7.8|b6.6 a6.2 g6.8|a6.4 c7.2 e7.2 c7.8|b6.4 g6.4 e6.8|e6.2 g6.2 c7.4 b6.4 g6.4|f#6.8 b6.4 d#7.4',
+         {'harm': 'chordarp', 'bass': 'half'}),
+        ('B', ['C', 'D', 'Em', 'Em', 'C', 'D', 'B', 'B'],
+         'e7.8 c7.4 g6.4|f#7.8 d7.4 a6.4|g7.4 e7.4 b6.8|e7.12 r.4|c7.2 e7.2 g7.4 e7.4 c7.4|d7.2 f#7.2 a7.4 f#7.4 d7.4|b6.4 d#7.4 f#7.8|b6.12 r.4',
+         {'harm': 'chordarp', 'bass': 'half', 'arp': 'bell', 'drum': 'b'}),
+    ], {'main': 'k.....h.k...h...', 'b': 'k...h...k.h.h...', 'intro': '................'}, 'k...h...h.h.hhhh',
+     {'lead': 'p25', 'env': 'pluck', 'vib': 0, 'echo': [0.2, 0.4, 0.35], 'harm': 'tri', 'arp': 0.125, 'bassv': 'tri'}),
+    # 우주 정거장 (C리디안 126): 천천히 부푸는 긴 리드, 오르내리는 16분 아르페지오, 엇박 옥타브 베이스, 넓은 메아리
+    'g3orbit': (126, [
+        ('intro', ['C', 'D'], 'g6.16|a6.8 f#6.8', {'harm': 'pad', 'bass': 'sustain', 'arp': 'updown', 'drum': 'intro'}),
+        ('A', ['C', 'D', 'Em', 'D', 'C', 'D', 'G', 'G'],
+         'e6.4 g6.4 b6.8|a6.6 f#6.2 d6.8|g6.4 b6.4 e7.8|d7.6 a6.2 f#6.8|e7.4 c7.4 g6.4 e6.4|f#6.4 a6.4 d7.8|b6.8 d7.4 g7.4|g7.12 r.4',
+         {'harm': 'pad', 'bass': 'synco', 'arp': 'updown'}),
+        ('B', ['Am', 'Em', 'C', 'D', 'Am', 'Em', 'D', 'D'],
+         'a6.2 c7.2 e7.4 c7.8|g6.2 b6.2 e7.4 b6.8|c7.4 e7.4 g7.8|f#7.6 d7.2 a6.8|e7.4 c7.4 a6.4 c7.4|e7.4 b6.4 g6.4 b6.4|d7.4 f#7.4 a7.8|a7.8 f#7.4 d7.4',
+         {'harm': 'third', 'bass': 'oct8', 'arp': 'updown', 'drum': 'b'}),
+    ], {'main': 'k.h.h.h.s.h.h.hk', 'b': 'k.h.k.h.s.h.k.h.', 'intro': 'k...............'}, 'k.s.k.s.ssssssss',
+     {'lead': 'p25', 'env': 'swell', 'vib': 0.6, 'echo': [0.25, 0.45, 0.35], 'harm': 'p25', 'arp': 0.125, 'arpVol': 1.4, 'bassv': 'p50'}),
+    # 반딧불 숲 (A도리안 132, 3/4): 삼각파 피리가 떨며 부르는 민요풍 왈츠, 첫 박 베이스 + 둘째·셋째 박 화음, B 구간에 종소리
+    'g3firefly': (132, [
+        ('intro', ['Am', 'D'], 'e6.4 a6.4 c7.4|f#6.4 a6.4 d7.4', {'harm': 'none', 'bass': 'waltz', 'drum': 'intro'}),
+        ('A', ['Am', 'D', 'Am', 'D', 'G', 'Em', 'Am', 'Am'],
+         'a6.4 c7.4 e7.4|d7.4 f#7.2 e7.2 d7.4|c7.4 a6.4 e6.4|f#6.8 a6.4|g6.4 b6.4 d7.4|e7.8 b6.4|a6.4 c7.2 b6.2 a6.4|a6.12',
+         {'harm': 'waltz', 'bass': 'waltz'}),
+        ('B', ['C', 'G', 'D', 'Am', 'C', 'G', 'Em', 'Am'],
+         'e7.4 g7.4 e7.4|d7.8 b6.4|f#7.4 a7.4 f#7.4|e7.8 c7.4|g7.2 e7.2 c7.4 e7.4|d7.2 b6.2 g6.4 b6.4|b6.4 e7.4 g7.4|a7.8 r.4',
+         {'harm': 'waltz', 'bass': 'waltz', 'arp': 'bell', 'drum': 'b'}),
+    ], {'main': 'k...h...h...', 'b': 'k...h.h.h...', 'intro': 'k...........'}, 'k...h.h.hhhh',
+     {'lead': 'tri', 'vib': 1, 'vibRate': 5, 'echo': [0.24, 0.45, 0.4], 'harm': 'p25', 'arp': 0.125, 'bassv': 'tri'}, 12),
     # 솜사탕 꿈나라 (G리디안 168, 3/4 왈츠): 오르골처럼 튕기는 높은 리드, 첫 박 베이스 + 둘째·셋째 박 화음, 긴 메아리
     'g3yume': (168, [
         ('intro', ['Gmaj7', 'A'], 'd7.2 b6.2 g6.2 b6.2 d7.4|c#7.2 a6.2 e6.2 a6.2 c#7.4', {'harm': 'none', 'bass': 'waltz', 'drum': 'intro'}),
@@ -619,6 +652,6 @@ if __name__ == '__main__':
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), '../src/gen/chip-gen3.json')
     for k, v in SONGS.items():
         n = len(v['lead']); assert all(len(v[c]) == n for c in ('harm', 'bass', 'arp', 'drums')), k
-        print(k, f"{v['bpm']}bpm", f"{n // (12 if k == 'g3yume' else 16)}마디", f"{n * 60 / v['bpm'] / 4:.0f}초", 'intro', v['intro'])
+        print(k, f"{v['bpm']}bpm", f"{n // (12 if k in ('g3yume', 'g3firefly') else 16)}마디", f"{n * 60 / v['bpm'] / 4:.0f}초", 'intro', v['intro'])
     json.dump(SONGS, open(out, 'w'), ensure_ascii=False)
     print('→', out)

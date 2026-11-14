@@ -10,6 +10,8 @@ import { battle, playerName, playerSprite, towerOpponent, BACK, runRank, runPWT,
 import { loadRecords, updateRecords } from './store';
 import { loadStats, ACHIEVEMENTS } from './stats';
 import { SymbolIcon } from './ui/pixel-icons';
+import { cardSkin, cardSkinClass, TitleChip } from './ui/shop';
+import { titleItem } from './rewards';
 import { recTag } from './rules';
 import { randomTeam, randomSetFor, speciesPool, dedupeItems, cloneSet, rng, spOf, spToEv, SP_MAX, SP_TOTAL, STAT_KEYS, type PSet } from './sets';
 import { aiPickEntry } from './smogon';
@@ -538,6 +540,7 @@ function StoryScreen({ S, done }: { S: CSave; done: (a: boolean | Replay) => voi
 type HubAct = 'exit' | 'story' | 'scout' | 'roster' | 'shop' | 'mission' | 'settings' | 'calc' | 'book' | 'rank' | 'pwt' | { k: BattleKind; doubles: boolean };
 function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 	const t = T(S), c = CHAPTERS[S.ch], ready = promoReady(S), mr = missionReady(S), newLine = S.lineDay !== today(), team = teamOf(S);
+	const wal = loadWallet();   // 카드 배경·테두리·칭호 꾸미기 (수첩의 카드와 같은 것)
 	const rp = champRp(), st = loadStats(), achDone = ACHIEVEMENTS.filter(a => (st.ach[a.id] || 0) > 0).length, cups = S.cups || {};
 	const pwtNext = !pwtOpen() ? '랭크 매치 마스터볼급부터 참가' : !cups.open ? '먼저 오픈 대회 우승' : cupLock(S, 'world') ? `지방 리더스 ${REGION_CUPS.filter(x => cups[x]).length} / ${REGION_CUPS.length}` : cupLock(S, 'elite') ? `월드 리더스 ${cups.world || 0} / ${CUP_NEED}` : cupLock(S, 'champions') ? `사천왕 대회 ${cups.elite || 0} / ${CUP_NEED}` : `챔피언스 우승 ${cups.champions || 0}회`;
 	const tile = (a: HubAct, name: string, cls: string, mon: string, badge?: string) => <button class={'cp-tile ' + cls} onClick={() => { sfx('select'); done(a); }}>{badge && <i>{badge}</i>}<PokeIcon species={mon} /><span>{name}</span></button>;
@@ -546,9 +549,9 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 	const erow = (a: HubAct, name: string, state: string, locked = false) => <div class={'cp-brow one' + (locked ? ' locked' : '')}><div><b>{name}</b><small>{state}</small></div><button class={'btn' + (locked ? '' : ' primary')} onClick={() => { sfx('select'); done(a); }}>{locked ? '잠김' : '입장'}</button></div>;
 	return <div class="cp-hub"><Top title="챔피언스 모드" sub={t.name} S={S} onBack={() => done('exit')}
 			extra={<button class={'cp-storybtn' + (ready ? ' ready' : '')} onClick={() => { sfx('select'); done('story'); }} aria-label={ready ? '스토리 — 승급전에 도전할 수 있어요' : '스토리'}>스토리</button>} />
-		<button class="cp-pn cp-me" onClick={() => { sfx('select'); done('book'); }}>
-			<img src={SPRITE_URL(playerSprite())} onError={trainerImgError} alt="" />
-			<div><b>{playerName()}</b><small>{rankLabel(rp, true)} · {rp} RP</small>
+		<button class={'cp-me bk-tcard' + cardSkinClass(wal)} style={cardSkin(wal)} onClick={() => { sfx('select'); done('book'); }}>
+			<img class="bk-tcard-img" src={SPRITE_URL(playerSprite())} onError={trainerImgError} alt="" />
+			<div class="bk-tcard-body"><b>{playerName()}<TitleChip it={titleItem(wal)} /></b><small>{rankLabel(rp, true)} · {rp} RP</small>
 				<span class="cp-me-syms">{CSYM.map(y => <span title={y.name}><SymbolIcon kind={y.icon} lv={S.sym?.[y.id] || 0} size={24} /></span>)}<i>도전과제 {achDone} / {ACHIEVEMENTS.length}</i></span></div>
 		</button>
 		<div class="cp-pn cp-arena"><h3>배틀<button class="cp-rule" onClick={() => done('settings')}>규칙 바꾸기</button></h3>

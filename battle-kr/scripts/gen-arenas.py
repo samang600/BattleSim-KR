@@ -952,6 +952,116 @@ HEART = ['.11.11.', '1111111', '1111111', '.11111.', '..111..', '...1...']
 STAR5 = ['..1..', '.111.', '11111', '.111.', '.1.1.']
 
 
+def momiji():
+    """단풍 신사 (교환소): 늦가을 저녁 하늘, 붉은 도리이와 돌계단, 단풍나무, 낙엽이 깔린 마당"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 70, ['#4a3a6a', '#6a4a72', '#9a5a6a', '#c8705a', '#e0904e', '#f0b060', '#f8d088'])
+    for i, (col, base, amp, per) in enumerate([('#7a3a3a', 58, 10, 37), ('#5a2a30', 66, 7, 21)]):   # 먼 산
+        pts = [(0, H)]
+        for x in range(0, W + 8, 8):
+            pts.append((x, base - amp * abs(math.sin(x / per + i * 2))))
+        pts.append((W, H)); d.polygon(pts, fill=col)
+    rnd = random.Random(88)
+    for cx in [10, 44, 232, 250]:   # 단풍나무: 줄기 + 계단식 잎 덩어리
+        d.rectangle([cx - 2, 40, cx + 1, 76], fill='#4a2a1a')
+        for k, (dx, dy, w, h, col) in enumerate([(-16, 24, 32, 12, '#c83a22'), (-12, 14, 26, 12, '#e0562a'), (-8, 6, 18, 10, '#f08a30'), (-18, 32, 12, 8, '#a82a1c'), (8, 30, 12, 8, '#e0562a')]):
+            d.rectangle([cx + dx, dy, cx + dx + w, dy + h], fill=col)
+            d.rectangle([cx + dx + 2, dy - 2, cx + dx + w - 2, dy], fill=col)
+        for _ in range(8):
+            x, y = cx + rnd.randint(-16, 14), rnd.randint(8, 38); d.point((x, y), fill='#ffd060')
+    # 도리이: 기둥 둘 + 지붕보(위가 살짝 넓음) + 가로대
+    d.rectangle([150, 34, 155, 76], fill='#c8281e'); d.rectangle([188, 34, 193, 76], fill='#c8281e')
+    d.rectangle([153, 34, 155, 76], fill='#8a1810'); d.rectangle([191, 34, 193, 76], fill='#8a1810')
+    d.rectangle([140, 26, 203, 30], fill='#3a2018'); d.rectangle([136, 24, 207, 26], fill='#3a2018')
+    d.rectangle([142, 30, 201, 33], fill='#c8281e'); d.rectangle([146, 42, 197, 45], fill='#c8281e')
+    d.rectangle([168, 33, 175, 42], fill='#3a2018')
+    for k in range(4):   # 돌계단
+        d.rectangle([140 - k * 4, 68 + k * 2, 203 + k * 4, 70 + k * 2], fill=['#b8a890', '#a89880', '#988870', '#887860'][k])
+    for x in (132, 208):   # 석등
+        d.rectangle([x, 58, x + 5, 76], fill='#8a8070'); d.rectangle([x - 2, 54, x + 7, 58], fill='#a89c88'); d.rectangle([x + 1, 60, x + 4, 64], fill='#ffd878')
+    bands(d, 76, H, ['#b89868', '#b09060', '#a88858', '#a08050', '#987848', '#907040'])
+    for y in range(80, H, 4):
+        for x in range((y * 5) % 13, W, 13):
+            d.line([(x, y), (x + 2, y)], fill='#a48654')
+    for _ in range(70):   # 낙엽
+        x, y = rnd.randint(0, W - 3), rnd.randint(80, H - 2)
+        d.rectangle([x, y, x + 1, y], fill=rnd.choice(['#c83a22', '#e0562a', '#f08a30', '#d8a030']))
+    ellipse_platform(d, 196, 86, 46, 9, '#d8c098', '#b89868', '#7a5a38')
+    ellipse_platform(d, 62, 132, 62, 11, '#d8c098', '#b89868', '#7a5a38')
+    return im
+
+
+def orbit():
+    """우주 정거장 (교환소): 큰 전망창 밖으로 푸른 행성과 별, 금속 격자 바닥, 기둥의 표시등"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#05060f', '#070a18', '#0a0e22', '#0c1230', '#0e163a'])
+    rnd = random.Random(404)
+    for _ in range(90):
+        x, y = rnd.randint(0, W - 1), rnd.randint(0, 72)
+        d.point((x, y), fill=rnd.choice(['#ffffff', '#c8d8ff', '#8aa0d8', '#ffe8b0']))
+    # 행성: 아래쪽에서 올라오는 큰 원 (가로 줄무늬 구름)
+    for r, col in [(70, '#1a4a9a'), (66, '#2a6ac0'), (60, '#3a88d8')]:
+        d.ellipse([60 - r, 96 - r, 60 + r, 96 + r], fill=col)
+    for y, x0, x1, col in [(40, 30, 78, '#8ad0f0'), (46, 12, 60, '#e8f8ff'), (54, 40, 104, '#8ad0f0'), (60, 4, 70, '#e8f8ff'), (66, 58, 118, '#5ab0e0'), (70, 10, 96, '#e8f8ff')]:
+        d.rectangle([x0, y, x1, y + 1], fill=col)
+    d.ellipse([196, 10, 214, 28], fill='#b8b0a0'); d.ellipse([200, 14, 206, 20], fill='#989080'); d.rectangle([208, 20, 210, 22], fill='#989080')   # 달
+    # 창틀: 세로 기둥 넷 + 위·아래 가로대
+    d.rectangle([0, 0, W, 5], fill='#3a4458'); d.rectangle([0, 5, W, 7], fill='#1e2636')
+    for x in (0, 84, 168, 250):
+        d.rectangle([x, 0, x + 6, 76], fill='#4a5670'); d.rectangle([x + 4, 0, x + 6, 76], fill='#2a3448')
+        for y in (18, 40, 62):
+            d.rectangle([x + 1, y, x + 2, y + 1], fill='#5af0c8')
+    d.rectangle([0, 70, W, 76], fill='#3a4458'); d.rectangle([0, 74, W, 76], fill='#1e2636')
+    bands(d, 76, H, ['#566480', '#4e5c78', '#465470', '#3e4c68', '#364460', '#2e3c58'])
+    for y in range(80, H, 8):   # 바닥 격자
+        d.line([(0, y), (W, y)], fill='#2a3650')
+    for x in range(-40, W + 40, 24):
+        d.line([(x, 76), (x + (x - 128) // 3, H)], fill='#2a3650')
+    for x in range(8, W, 48):   # 바닥 표시등 줄
+        d.rectangle([x, 78, x + 9, 79], fill='#5af0c8')
+    ellipse_platform(d, 196, 86, 46, 9, '#a8c8e8', '#6a8ab8', '#34486a')
+    ellipse_platform(d, 62, 132, 62, 11, '#a8c8e8', '#6a8ab8', '#34486a')
+    for cx, cy, rx in ((196, 86, 30), (62, 132, 42)):   # 발판 가운데 빛나는 고리
+        d.ellipse([cx - rx, cy - 5, cx + rx, cy + 5], outline='#5af0c8')
+    return im
+
+
+def firefly():
+    """반딧불 숲 (교환소): 깊은 밤의 숲, 굵은 나무 줄기와 덩굴, 이끼 낀 바닥과 버섯, 멀리 달빛"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 76, ['#081a1c', '#0a2224', '#0c2c2c', '#0e3632', '#124038', '#164a3e'])
+    d.ellipse([112, 8, 140, 36], fill='#d8f0c8'); d.ellipse([118, 12, 138, 32], fill='#f0ffe0')   # 달
+    for y in range(18, 34, 4):
+        d.rectangle([100, y, 152, y], fill='#164a3e')
+    rnd = random.Random(271)
+    for x, wd, col, sh in [(-6, 22, '#12241e', '#0a1814'), (38, 14, '#163028', '#0e2019'), (92, 10, '#1a3a30', '#102820'), (158, 12, '#1a3a30', '#102820'), (214, 16, '#163028', '#0e2019'), (244, 20, '#12241e', '#0a1814')]:   # 나무 줄기
+        d.rectangle([x, 0, x + wd, 78], fill=col); d.rectangle([x + wd - 4, 0, x + wd, 78], fill=sh)
+        for y in range(6, 76, 10):
+            d.rectangle([x + 2, y + (x % 5), x + 4, y + 3 + (x % 5)], fill=sh)
+        d.rectangle([x - 4, 72, x + wd + 4, 78], fill=col)   # 뿌리
+    for _ in range(14):   # 위에서 늘어진 잎·덩굴
+        x = rnd.randint(0, W - 12); ln = rnd.randint(6, 22)
+        d.rectangle([x, 0, x + 10, 4], fill='#1e5a3a')
+        for y in range(4, ln, 2):
+            d.rectangle([x + 4 + (y // 2) % 2, y, x + 5 + (y // 2) % 2, y + 1], fill='#2a7a4a')
+    bands(d, 76, H, ['#2a5a34', '#265430', '#224e2c', '#1e4828', '#1a4224', '#163c20'])
+    for y in range(80, H, 4):   # 이끼 결
+        for x in range((y * 3) % 7, W, 7):
+            d.point((x, y), fill='#3a7a44')
+    for _ in range(12):   # 버섯 (빛나는 갓)
+        x, y = rnd.randint(4, W - 8), rnd.randint(86, H - 6)
+        d.rectangle([x + 1, y, x + 2, y + 3], fill='#d8e8c8'); d.rectangle([x - 1, y - 2, x + 4, y], fill=rnd.choice(['#5af0c8', '#8ad8ff', '#c8f070']))
+    for _ in range(20):   # 고사리
+        x, y = rnd.randint(0, W - 6), rnd.randint(82, H - 3)
+        d.line([(x, y), (x + 4, y - 3)], fill='#4a9a54'); d.line([(x + 4, y), (x, y - 3)], fill='#3a8a48')
+    ellipse_platform(d, 196, 86, 46, 9, '#7ab87a', '#4a8a52', '#1e4a2a')
+    ellipse_platform(d, 62, 132, 62, 11, '#7ab87a', '#4a8a52', '#1e4a2a')
+    return im
+
+
 def stamp(d, x, y, shape, col, hl=None):
     for j, row in enumerate(shape):
         for i, ch in enumerate(row):
@@ -1093,7 +1203,7 @@ if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [('field', field), ('tower', tower), ('factory', factory), ('pwt', stadium), ('champion', champion),
                      ('cave', cave), ('beach', beach), ('snow', snow), ('volcano', volcano), ('gym', gym),
-                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry), ('sakura', sakura), ('desert', desert), ('aurora', aurora), ('deepsea', deepsea), ('skypillar', skypillar), ('neon', neon), ('yume', yume), ('yami', yami), ('menhera', menhera)]:
+                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry), ('sakura', sakura), ('desert', desert), ('aurora', aurora), ('deepsea', deepsea), ('skypillar', skypillar), ('momiji', momiji), ('orbit', orbit), ('firefly', firefly), ('neon', neon), ('yume', yume), ('yami', yami), ('menhera', menhera)]:
         im = fn()
         if name != 'title':
             im = extend_top(im, 48, stars=name not in ('cave', 'gym', 'palace', 'rush'), light=name in ('yume', 'menhera'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림
