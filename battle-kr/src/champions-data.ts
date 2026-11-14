@@ -43,6 +43,7 @@ export const CWHO: { [id: string]: CWho } = {
 	rival: { name: '도윤', title: '같은 날 등록한 트레이너', sprite: 'acetrainer-gen4' },
 	senior: { name: '강철', title: '하이퍼볼급의 문지기', sprite: 'blackbelt' },
 	champ: { name: '백야', title: '전 챔피언', sprite: 'veteran' },
+	mc: { name: '소라', title: 'PWT 진행자', sprite: 'reporter' },
 };
 /** 장: 등급 t 의 승점을 다 채우면 열리는 승급전 (0장은 등록·연습 승부). lines: [말하는 사람 id('' = 해설), 대사] */
 export interface Chapter { title: string; sub: string; who: string; bg: string; before: [string, string][]; after: [string, string][]; lose: string; /** 상대 팀의 에이스(있으면 꼭 넣음) */ ace?: string }
@@ -74,3 +75,17 @@ export const CHAPTERS: Chapter[] = [
 ];
 /** 빌려주는 팀 (연습 승부) */
 export const RENTAL = ['charizard', 'meganium', 'pidgeot', 'gyarados', 'jolteon', 'machamp'];
+
+/** 컷씬: 조건을 처음 채웠을 때 한 번 보여 줌 (champions.tsx 의 events). 랭크 매치·PWT 의 고비마다 */
+export interface CEvent { id: string; title: string; bg: string; lines: [string, string][] }
+export const EVENTS: CEvent[] = [
+	{ id: 'pwt', title: 'PWT 에 어서 오세요', bg: 'pwt', lines: [['mc', '포켓몬 월드 토너먼트, PWT 에 오신 걸 환영합니다! 저는 진행을 맡은 소라예요.'], ['mc', '여덟 명이 겨루는 토너먼트, 세 번 이기면 우승입니다. 처음엔 각 지방의 관장들이 모이는 리더스 대회부터예요.'], ['manager', '아홉 지방의 리더스를 모두 우승하면 월드 리더스에 나갈 자격이 생겨. 우리 아레나의 이름을 걸고 다녀와!']] },
+	{ id: 'world', title: '월드 리더스의 문', bg: 'pwt', lines: [['mc', '속보입니다! 아홉 지방의 리더스를 모두 제패한 선수가 나왔습니다!'], ['mc', '{me} 선수에게 월드 리더스 초청장이 도착했어요. 전 세계의 관장들이 무작위로 맞붙는 대회랍니다.'], ['rival', '아홉 군데를 다 돌았다고? …나는 아직 다섯 군데인데. 월드 리더스에서 기다려, 금방 갈 테니까!'], ['mc', '월드 리더스를 다섯 번 우승하면, 그 위의 무대가 열립니다. 건투를 빌어요!']] },
+	{ id: 'elite', title: '사천왕이 움직인다', bg: 'champion', lines: [['mc', '월드 리더스 다섯 번째 우승! 이쯤 되면 관장들 사이에서는 적수가 없다는 얘기죠.'], ['senior', '소문은 들었다. 관장들을 그렇게 몰아붙였으니, 그 위에서 가만있을 리가 없지.'], ['mc', '맞아요. 각 지방 사천왕들이 직접 참가 신청을 해 왔습니다 — 사천왕 대회, 지금부터 열립니다!'], ['senior', '사천왕은 타입 하나를 끝까지 판 사람들이다. 약점을 찌른다고 쉽게 무너지지 않아. 팀을 여러 개 짜 둬라.']] },
+	{ id: 'champs', title: '챔피언들의 초대', bg: 'champion', lines: [['mc', '사천왕 대회 다섯 번 우승… 솔직히 저도 믿기지 않아요.'], ['champ', '믿어도 되네. 내 눈으로 다 지켜봤으니.'], ['champ', '역대 챔피언들이 한자리에 모이는 대회가 있네. 이름은 그냥 「챔피언스」. 우리 아레나의 이름도 거기서 따온 거지.'], ['champ', '초대장에 자네 이름을 적어 뒀네. 정점이 어떤 곳인지, 가서 보고 오게.']] },
+	{ id: 'pwtchamp', title: '세계의 정점', bg: 'champion', lines: [['mc', '우승! 「챔피언스」 우승입니다! 역대 챔피언들을 모두 꺾었습니다!'], ['champ', '허허… 내가 현역일 때도 못 해 본 일을.'], ['manager', '해냈구나! 등록 첫날 내 포켓몬을 빌려 쓰던 애가 세계 대회 우승이라니… 나 지금 울어도 돼?'], ['rival', '쳇, 또 먼저 갔어. …축하해. 진심으로. 다음엔 결승에서 보자!']] },
+	{ id: 'rank1', title: '1위', bg: 'champion', lines: [['', '랭크 매치 순위표의 맨 윗줄에 낯익은 이름이 올라갔다.'], ['manager', '1위야, 1위! 순위표 봤어? 맨 위에 네 이름이 있어!'], ['champ', '오르는 것보다 지키는 게 어렵다네. 아래에서는 날마다 누군가 올라오고 있으니.'], ['champ', '그래도 오늘만큼은 마음껏 기뻐하게. 자네가 가장 강하네.']] },
+];
+/** 지방 리더스 대회 (모두 우승하면 월드 리더스) */
+export const REGION_CUPS = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos', 'alola', 'galar', 'paldea'];
+export const CUP_NEED = 5;

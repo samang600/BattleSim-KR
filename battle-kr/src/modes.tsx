@@ -1,7 +1,7 @@
 /** 게임 모드 진행 (배틀타워 · 배틀팩토리 · PWT · 네임드 트레이너 · 프리 배틀) */
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
-import { ask, abortMode, gen5Icon, confirmBox, ArrowPicker } from './ui/core';
+import { ask, abortMode, gen5Icon, confirmBox, ArrowPicker, toast } from './ui/core';
 import { BattleView, type BattleSetup, type BattleResult } from './ui/battle';
 import { PickScreen, InfoScreen, SwapScreen, ChoiceScreen, BracketView } from './ui/screens';
 import { randomTeam, randomSetFor, cloneSet, dedupeItems, rng, factoryTeam, assignGimmicks, fitSetToMega, FACTORY_TIERS, type PSet } from './sets';
@@ -575,19 +575,23 @@ export function namedTeam(t: NamedTrainer, size: number, gen: Gen = 9): PSet[] {
 	return dedupeItems(assignGimmicks(team, { mega: ['leader', 'admin'].includes(t.role) ? 0.5 : 0.9, z: 0.6 }));
 }
 
-export async function runPWT() {
-	const cup = await ask<typeof CUPS[number] | typeof BACK>(r => <ChoiceScreen title="PWT 월드 토너먼트" onBack={() => r(BACK)}
-		intro={<p class="hint">레벨 50 · 8명 토너먼트 3연승으로 우승!</p>}
-		options={CUPS.map(c => ({ value: c, label: c.name, desc: c.desc, badge: loadRecords().cups[c.id] ? `🏆×${loadRecords().cups[c.id]}` : undefined, icon: '🏟' }))}
+export async function runPWT(ctx?: ArenaCtx) {
+	const wins = (id: string) => ctx ? ctx.cups?.[id] || 0 : loadRecords().cups[id] || 0;
+	const cup = await ask<typeof CUPS[number] | typeof BACK>(r => <ChoiceScreen top title="PWT 월드 토너먼트" onBack={() => r(BACK)}
+		intro={<p class="hint">레벨 50 · 8명 토너먼트 3연승으로 우승!{ctx ? ' 지방 리더스를 모두 우승하면 월드 리더스, 월드 리더스 5회 우승 뒤 사천왕 대회, 사천왕 대회 5회 우승 뒤 챔피언스가 열립니다.' : ''}</p>}
+		options={CUPS.filter(c => !ctx || !c.rental).map(c => { const why = ctx?.lock?.(c.id); return { value: c, label: c.name, desc: why ? `잠김 — ${why}` : c.desc, disabled: !!why, badge: wins(c.id) ? `🏆×${wins(c.id)}` : undefined, icon: why ? '🔒' : '🏟' }; })}
 		onPick={r} />);
 	if (cup === BACK) return;
 	const opts = defaultOpts();
-	const fmt = await chooseFormat(cup.name, undefined, false, opts, cup.rental ? ['level100', 'inverse'] : ALL_OPTS);
+	const fmt = await chooseFormat(cup.name, undefined, false, ctx ? undefined : opts, cup.rental ? ['level100', 'inverse'] : ALL_OPTS);
 	if (fmt === BACK) return;
 	const n = isDoubles(fmt) ? 4 : 3;
 	let myTeam: PSet[];
 	if (cup.rental) {
 		myTeam = withLevel(randomTeam({ gen: 9, size: 6, minBst: 470, maxBst: 600, doubles: isDoubles(fmt) }), lvl(opts));
+	} else if (ctx) {
+		if (ctx.team.length < n) { toast(`팀에 포켓몬이 ${n}마리는 있어야 해요`); return; }
+		myTeam = ctx.team;
 	} else {
 		const t = await chooseTeam(9, `${cup.name} · 팀 선택`, true, opts.cheat, lvl(opts));
 		if (t === BACK) return;
@@ -661,6 +665,7 @@ export async function runPWT() {
 			else winners.push(rng.pick([cur[i], cur[i + 1]]));
 		}
 		rounds[round + 1] = winners;
+		if (res.win) ctx?.onWin?.();
 		if (!res.win) {
 			await ask<void>(r => <InfoScreen title={cup.name} heading="아쉽게 탈락!" lines={[`${['1회전', '준결승', '결승'][round]}에서 ${opp.name}에게 졌다.`]}
 				actions={[{ label: '메뉴로', onClick: () => r() }]} />);
@@ -677,7 +682,7 @@ export async function runPWT() {
 			</InfoScreen>);
 		}
 	}
-	if (!noRec(opts)) updateRecords(r => { r.cups[cup.id] = (r.cups[cup.id] || 0) + 1; });
+	if (ctx) ctx.onCup?.(cup.id); else if (!noRec(opts)) updateRecords(r => { r.cups[cup.id] = (r.cups[cup.id] || 0) + 1; });
 	playMusic('pwthall');
 	await ask<void>(r => <InfoScreen title={cup.name} banner="🏆 우승!" heading={`${cup.name} 우승을 축하합니다!`} lines={noRec(opts) ? ['(치트·거꾸로 배틀은 전적에 남지 않습니다)'] : undefined}
 		sprites={myTeam.map(s => s.species)} sets={myTeam} gen={9} actions={[{ label: '메뉴로', onClick: () => r() }]}>
@@ -764,18 +769,23 @@ export const RANK_TIERS: RankTierT[] = [{ name: '비기너', min: 0, ball: 'poke
 const RANK_BASE = 25, STREAK_STEP = 4, STREAK_MAX = 4, UPPER_STREAK = 10, UPPER_RATE = 0.2, UPPER_GAP = 480, UPPER_BONUS = 25;
 /** 가상 순위: 마스터볼급(1200 RP)부터. 가상의 다른 트레이너들도 날마다 올라가서(시즌=달) 가만히 있으면 순위가 내려가고, 날마다 조금씩 흔들림.
  *  대략 2,400 RP 안팎에서 100위 안(챔피언급) */
-export function virtualRank(rp: number, now = new Date()): number | null {
+/** 챔피언스 모드에서 부르는 랭크 매치·PWT 의 연결: 내 팀을 그대로 쓰고, 랭크는 더 어려운 척도(hard) */
+export interface ArenaCtx { team: PSet[]; hard?: boolean; /** PWT: 대회별 우승 수 · 잠긴 이유(없으면 열림) · 우승했을 때 */ cups?: { [id: string]: number }; lock?: (cupId: string) => string | undefined; onCup?: (cupId: string) => void; /** 이겼을 때 (미션 집계) */ onWin?: () => void }
+/** 챔피언스 랭크의 기록 이름표 (아케이드와 RP 를 따로 셈) */
+export const CH_TAG = '-ch';
+export function virtualRank(rp: number, now = new Date(), hard = false): number | null {
 	if (rp < MASTER_MIN) return null;
 	const day = (now.getDay() + 6) % 7;                  // 이번 시즌(월요일에 시작하는 1주)에 지난 날
-	const drift = day * 12;                              // 다른 트레이너들이 올라간 만큼
+	const drift = day * (hard ? 20 : 12);                // 다른 트레이너들이 올라간 만큼 (챔피언스는 더 빨리)
 	const seed = now.getFullYear() * 400 + now.getMonth() * 32 + now.getDate();
 	const jitter = 1 + 0.08 * Math.sin(seed * 12.9898 + rp * 0.0137);   // 날마다·RP 마다 조금씩 다름
-	const above = 60000 * Math.exp(-(rp - MASTER_MIN - drift) / 185) * jitter;
+	// 챔피언스(hard): 곡선을 완만하게 — 100위 ≈ 2,900 RP, 1위 ≈ 4,100 RP (아케이드는 2,400 · 3,200)
+	const above = 60000 * Math.exp(-(rp - MASTER_MIN - drift) / (hard ? 260 : 185)) * jitter;
 	return Math.max(1, Math.ceil(above));
 }
-export function rankTier(rp: number, now = new Date()): RankTierT {
+export function rankTier(rp: number, now = new Date(), hard = false): RankTierT {
 	let t = RANK_TIERS[0]; for (const x of RANK_TIERS) if (rp >= x.min) t = x;
-	const rank = virtualRank(rp, now);
+	const rank = virtualRank(rp, now, hard);
 	if (rank !== null && rank <= 100) return { name: '챔피언급', min: MASTER_MIN, ball: 'masterball', cls: '챔피언급', step: 0, rank };
 	return rank !== null ? { ...t, rank } : t;
 }
@@ -783,7 +793,7 @@ export function rankTier(rp: number, now = new Date()): RankTierT {
 const tierOrder = (t: RankTierT) => t.cls === '챔피언급' ? RANK_TIERS.length : RANK_TIERS.findIndex(x => x.name === t.name);
 const rankText = (t: RankTierT) => t.rank ? ` · ${t.rank.toLocaleString()}위` : '';
 /** 등급 이름 + (마스터볼급부터) 가상 순위: '마스터볼급 3 · 1,234위' */
-export function rankLabel(rp: number) { const t = rankTier(rp); return t.name + rankText(t); }
+export function rankLabel(rp: number, hard = false) { const t = rankTier(rp, new Date(), hard); return t.name + rankText(t); }
 type RankFmt = 'singles' | 'doubles';
 /** RP 에 따라 강해지는 상대: AI 실력 0.5→0.97, 종족값 하한 420→560, 300 RP 부터 준전설, (전설 허용 규칙이면) 600 RP 부터 전설 1마리·1000 RP 부터 2마리,
  *  초반엔 능력 포인트도 덜 찍음. 마스터볼급에서는 가끔 챔피언·주인공급 네임드 트레이너가 나옴 */
@@ -841,7 +851,7 @@ export function settleSeason(): string | null {
 		const lastEnd = new Date(seasonOf().start.getTime() - 60000);   // 지난 시즌 마지막 순간 기준 등급
 		for (const [k, v] of Object.entries(rec.rp || {})) {
 			if (!v) continue;
-			const tt = rankTier(v, lastEnd), t = tt.name;
+			const tt = rankTier(v, lastEnd, k.includes(CH_TAG)), t = tt.name;
 			if (tt.cls === '챔피언급') awardSymbol('rank', true);   // 시즌을 챔피언급으로 마감 → 챔피언 심볼(금)
 			ended.push({ id: last, fmt: k, rp: v, tier: t });
 			const sbp = SEASON_BP[tt.cls] || 2;
@@ -860,40 +870,44 @@ export function settleRankPending(): string | null {
 	updateRecords(r => { r.rp = { ...(r.rp || {}), [p.key]: p.rp }; r.rankStreak = { ...(r.rankStreak || {}), [p.key]: p.streak }; r.battles++; r.rankPending = undefined; r.rankNotice = true; });
 	return p.key;
 }
-export async function runRank() {
+export async function runRank(ctx?: ArenaCtx) {
+	const hard = !!ctx?.hard, tierOf = (v: number) => rankTier(v, new Date(), hard);
 	settleRankPending();
 	const seasonMsg = settleSeason();
 	const season = seasonOf();
 	const settled = !!loadRecords().rankNotice;   // 앱 시작 때 처리했어도 랭크 매치에 들어오면 한 번 알림
 	if (settled) updateRecords(r => { r.rankNotice = undefined; });
 	const opts = defaultOpts();
-	const fmt = await ask<RankFmt | typeof BACK>(r => <ChoiceScreen title="모의 랭크 매치" onBack={() => r(BACK)}
+	const kOf = (f: string) => f + rt() + (ctx ? CH_TAG : '');
+	const fmt = await ask<RankFmt | typeof BACK>(r => <ChoiceScreen title={ctx ? '랭크 매치' : '모의 랭크 매치'} onBack={() => r(BACK)}
 		intro={<>{seasonMsg && <p class="hint warn">🏁 {seasonMsg}</p>}<p class="hint">📅 시즌 {season.no} · {seasonLeft()} (매주 월요일 0시에 새 시즌, RP 는 60%로 줄어듦)</p>{settled && <p class="hint warn">⚠ 지난 랭크 매치가 끝나기 전에 앱이 꺼져서 패배로 처리했어요.</p>}<p class="hint">포켓몬 챔피언스 방식: 6마리를 등록하고 상대 엔트리를 본 뒤 참가 포켓몬을 고릅니다. 이기면 RP가 올라 등급이 오르고, 올라갈수록 상대 포켓몬과 AI가 강해집니다.</p></>}
 		options={[
-			{ value: 'singles' as RankFmt, label: '싱글 6→3', desc: '6마리 중 3마리 선택 · 1대1', icon: '③', badge: `${rankLabel(loadRecords().rp?.['singles' + rt()] || 0)} ${loadRecords().rp?.['singles' + rt()] || 0}RP` },
-			{ value: 'doubles' as RankFmt, label: '더블 6→4', desc: '6마리 중 4마리 선택 · 2대2', icon: '④', badge: `${rankLabel(loadRecords().rp?.['doubles' + rt()] || 0)} ${loadRecords().rp?.['doubles' + rt()] || 0}RP` },
-		]} footer={<OptsBox opts={opts} show={ALL_OPTS} />} onPick={r} />);
+			{ value: 'singles' as RankFmt, label: '싱글 6→3', desc: '6마리 중 3마리 선택 · 1대1', icon: '③', badge: `${rankLabel(loadRecords().rp?.[kOf('singles')] || 0, hard)} ${loadRecords().rp?.[kOf('singles')] || 0}RP` },
+			{ value: 'doubles' as RankFmt, label: '더블 6→4', desc: '6마리 중 4마리 선택 · 2대2', icon: '④', badge: `${rankLabel(loadRecords().rp?.[kOf('doubles')] || 0, hard)} ${loadRecords().rp?.[kOf('doubles')] || 0}RP` },
+		]} footer={ctx ? undefined : <OptsBox opts={opts} show={ALL_OPTS} />} onPick={r} />);
 	if (fmt === BACK) return;
-	const team = await chooseTeam(9, '랭크 매치 · 팀 등록', true, opts.cheat, lvl(opts));
+	const team = ctx ? ctx.team : await chooseTeam(9, '랭크 매치 · 팀 등록', true, opts.cheat, lvl(opts));
 	if (team === BACK) return;
 	const n = fmt === 'doubles' ? 4 : 3;
-	const key = fmt + rt();
+	if (team.length < n) { toast(`팀에 포켓몬이 ${n}마리는 있어야 해요`); return; }
+	const key = kOf(fmt);
 	while (true) {
 		const rec = loadRecords();
 		const rp = rec.rp?.[key] || 0;
-		const tier = rankTier(rp);
+		const tier = tierOf(rp);
 		const streak = rec.rankStreak?.[key] || 0;
 		// 상위 매칭: 10연승부터 가끔(20%) 지금보다 480 RP 높은 실력의 상대와 붙음. 이기면 보너스, 지면 일반 매치처럼 연승이 끊김
-		const upper = (globalThis as any).__rankUpper ?? (streak >= UPPER_STREAK && Math.random() < UPPER_RATE); // __rankUpper: 테스트용 강제
-		const oppRp = upper ? rp + UPPER_GAP : rp;
+		const upper = (globalThis as any).__rankUpper ?? (streak >= (hard ? 5 : UPPER_STREAK) && Math.random() < (hard ? 0.3 : UPPER_RATE)); // __rankUpper: 테스트용 강제
+		// 챔피언스(hard): 하이퍼볼급부터 늘 한 수 위의 상대, 마스터볼급부터는 더 위
+		const oppRp = (upper ? rp + UPPER_GAP : rp) + (hard ? (rp >= MASTER_MIN ? 240 : rp >= 720 ? 120 : 0) : 0);
 		const opp = rankOpponent(oppRp, fmt, lvl(opts));
 		// 연승할수록 더 많이 오름: 25 → 29 → 33 → 37 → 41 (+마스터볼급부터 5). 연승 수는 기록에 남아 나갔다 와도 이어짐
-		const gain = RANK_BASE + STREAK_STEP * Math.min(streak, STREAK_MAX) + (rp >= MASTER_MIN ? 5 : 0) + (upper ? UPPER_BONUS : 0), loss = rp < 120 ? 0 : 12;
+		const gain = RANK_BASE + STREAK_STEP * Math.min(streak, STREAK_MAX) + (rp >= MASTER_MIN && !hard ? 5 : 0) + (upper ? UPPER_BONUS : 0), loss = rp < 120 ? 0 : hard ? (rp >= 2400 ? 30 : rp >= MASTER_MIN ? 22 : rp >= 720 ? 16 : 12) : 12;
 		const go = await ask<'go' | 'quit'>(r => <InfoScreen title={`랭크 매치 · ${fmt === 'doubles' ? '더블 6→4' : '싱글 6→3'}`} banner={`${tier.name} · ${rp} RP${rankText(tier)}`}
 			heading={`${upper ? '⬆ 상위 매칭! ' : ''}${opp.title ? opp.title + ' ' : ''}${opp.name}${josa(opp.name)} 매칭되었다!`} trainer={opp.sprite}
 			lines={[`${streak ? `🔥 ${streak}연승 중 · ` : ''}승리 +${gain} RP${upper ? ` (상위 매칭 보너스 +${UPPER_BONUS} 포함)` : ''} · 패배 -${loss} RP`,
-				...(upper ? [`${streak}연승 중이라 ${rankTier(oppRp).name}(약 ${oppRp} RP) 실력의 상대가 나왔습니다.`] : []),
-				...(streak < STREAK_MAX ? [`연승할수록 획득 RP 증가 (최대 +${RANK_BASE + STREAK_STEP * STREAK_MAX + (rp >= MASTER_MIN ? 5 : 0)})`] : []), ...(opp.named ? ['★ 강적 등장!'] : []), ...(opp.ranker ? ['★ 상위 랭커'] : []), ...optsLines(opts)]}
+				...(upper ? [`${streak}연승 중이라 ${tierOf(oppRp).name}(약 ${oppRp} RP) 실력의 상대가 나왔습니다.`] : []),
+				...(streak < STREAK_MAX ? [`연승할수록 획득 RP 증가 (최대 +${RANK_BASE + STREAK_STEP * STREAK_MAX + (rp >= MASTER_MIN && !hard ? 5 : 0)})`] : []), ...(opp.named ? ['★ 강적 등장!'] : []), ...(opp.ranker ? ['★ 상위 랭커'] : []), ...optsLines(opts)]}
 			sprites={team.map(s => s.species)} sets={team} gen={9} prep={<BgmRow />}
 			actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '그만두기', kind: 'ghost', onClick: () => r('quit') }]} />);
 		if (go === 'quit') return;
@@ -918,18 +932,21 @@ export async function runRank() {
 			// 승패가 나자마자 RP 를 적음: 이긴 결과 화면에서 앱을 꺼도 다음에 패배로 처리되지 않게
 			onDecided: win => { if (!noRec(opts)) applyRank(win); },
 		});
+		if (res.win) ctx?.onWin?.();
+		void ({
+		});
 		let newRp = rp, msg = '';
 		if (!noRec(opts)) {
 			newRp = applyRank(res.win);
-			const nt = rankTier(newRp);
+			const nt = tierOf(newRp);
 			if (nt.cls === '챔피언급' && awardSymbol('rank', false)) await symbolScreen('rank', false);   // 챔피언급 도달 → 챔피언 심볼(은)
 			if (tierOrder(nt) > tierOrder(tier)) msg = `🎉 ${nt.name}(으)로 승급!`;
 			else if (tierOrder(nt) < tierOrder(tier)) msg = `${nt.name}(으)로 강등…`;
 		}
 		const again = await ask<'next' | 'quit'>(r => <InfoScreen title="랭크 매치" banner={res.win ? '승리!' : '패배…'}
 			heading={noRec(opts) ? '(전적·RP에 반영되지 않습니다)' : `${rp} → ${newRp} RP${msg ? ' · ' + msg : ''}`}
-			lines={[`현재 등급: ${rankTier(newRp).name}${rankText(rankTier(newRp))}${res.win && !noRec(opts) ? ` · ${streak + 1}연승` : ''}`,
-				...(newRp >= MASTER_MIN && rankTier(newRp).cls !== '챔피언급' ? ['가상 순위 100위 안에 들면 챔피언급! (다른 트레이너들도 날마다 올라가요)'] : []),
+			lines={[`현재 등급: ${tierOf(newRp).name}${rankText(tierOf(newRp))}${res.win && !noRec(opts) ? ` · ${streak + 1}연승` : ''}`,
+				...(newRp >= MASTER_MIN && tierOf(newRp).cls !== '챔피언급' ? ['가상 순위 100위 안에 들면 챔피언급! (다른 트레이너들도 날마다 올라가요)'] : []),
 				...(upper && res.win && !noRec(opts) ? [`⬆ 상위 매칭 승리! 보너스 +${UPPER_BONUS} RP`] : []),
 				// 상위 매칭에서 진 경우엔 '연승은 여기까지' 같은 상대 대사가 안내와 어긋나므로 생략
 				...(res.win && opp.lines?.lose ? [`“${opp.lines.lose}”`] : !res.win && opp.lines?.win ? [`“${opp.lines.win}”`] : [])]}

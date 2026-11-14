@@ -51,8 +51,8 @@ const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'onl
 /** 타이틀에서 고르는 큰 모드 (개발자 빌드에서만 — 공식 빌드는 시뮬레이터 모드 하나라 고르기 화면 없이 바로 들어감).
  *  시뮬레이터 = 지금까지의 메뉴 전체 · 챔피언스·시나리오 = 저장이 따로인 독립 모드 */
 const BIG_MODES: { id: string; name: string; sub: string; mon: string; cls: string; tag?: string; run?: () => Promise<void> }[] = [
-	{ id: 'sim', name: '시뮬레이터 모드', sub: '팀을 자유롭게 짜서 타워·팩토리·랭크·PWT·온라인 대전', mon: 'metagross', cls: 'sim' },
-	{ id: 'champions', name: '챔피언스 모드', sub: '빈손으로 시작 — 스카우트하고 키워서 챔피언급까지', mon: 'dragonite', cls: 'champ', tag: '개발 중', run: () => runChampions(TOOLS) },
+	{ id: 'sim', name: '아케이드 모드', sub: '팀을 자유롭게 짜서 타워·팩토리·팰리스·보스 러시·온라인 대전', mon: 'metagross', cls: 'sim' },
+	{ id: 'champions', name: '챔피언스 모드', sub: '스카우트하고 키워서 랭크 매치·PWT 의 정점까지', mon: 'dragonite', cls: 'champ', tag: '개발 중', run: () => runChampions(TOOLS) },
 	{ id: 'scenario', name: '시나리오 모드', sub: '관동 편 — 지방을 여행하며 인물의 이야기를 따라감', mon: 'bulbasaur', cls: 'scn', tag: '개발 중', run: () => runScenario(TOOLS) },
 ];
 
@@ -136,8 +136,8 @@ function Home({ go }: { go: (v: string) => void }) {
 				<span class="h2-team-mons">{lead ? lead.sets.slice(0, 6).map(x => <PokeIcon species={x.species} />) : <i>아직 팀이 없어요</i>}</span>
 				<span class="h2-team-text"><b>팀 편성</b><small>{teams.length ? `${lead.name} 외 ${teams.length - 1}팀 · 눌러서 편집` : '눌러서 첫 팀을 만들어 보세요'}</small></span><em>▶</em></button>
 			<div class="h2-body">
-				<section><h3>배틀 시설</h3>{FEATURED.map(id => row(id, true))}</section>
-				<section><h3>특별 모드</h3><div class="h2-grid">{['palace', 'ippitsu', 'pwt', 'boss', 'named', 'daily'].map(id => row(id))}</div></section>
+				<section><h3>배틀 시설</h3>{['tower', 'factory', 'palace'].map(id => row(id, true))}</section>
+				<section><h3>특별 모드</h3><div class="h2-grid">{['ippitsu', 'boss', 'named', 'daily'].map(id => row(id))}</div></section>
 				<section><h3>대전</h3><div class="h2-grid">{['free', 'online'].map(id => row(id))}</div>
 					<button class="h2-row shop" onClick={() => go('shop')}><span class="h2-ico"><Sprite species="gimmighoul" gen={9} size={48} anim={false} /></span>
 						<span class="h2-text"><b>BP 교환소</b><small>칭호 · 카드 · 배경 · 음악</small></span><em>{wallet.bp} BP</em></button></section>
