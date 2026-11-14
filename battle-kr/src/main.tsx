@@ -57,9 +57,9 @@ const BIG_MODES: { id: string; name: string; sub: string; mon: string; cls: stri
 ];
 
 /** 독립 모드(챔피언스·시나리오)에서도 쓰는 공용 화면. settings 의 onTitle = 「타이틀로 돌아가기」 단추 */
-export interface ModeTools { settings: (onBack: () => void, onTitle?: () => void) => VNode; calc: (onBack: () => void) => VNode; book: (onBack: () => void) => VNode; shop: (onBack: () => void) => VNode }
+export interface ModeTools { settings: (onBack: () => void, onTitle?: () => void, extra?: SetExtra) => VNode; calc: (onBack: () => void) => VNode; book: (onBack: () => void) => VNode; shop: (onBack: () => void) => VNode }
 const TOOLS: ModeTools = {
-	settings: (onBack, onTitle) => <SettingsScreen key={Math.random()} onBack={onBack} onTitle={onTitle} />, calc: onBack => <CalcScreen key={Math.random()} onBack={onBack} />,
+	settings: (onBack, onTitle, extra) => <SettingsScreen key={Math.random()} onBack={onBack} onTitle={onTitle} extra={extra} />, calc: onBack => <CalcScreen key={Math.random()} onBack={onBack} />,
 	book: onBack => <TrainerBook key={Math.random()} onBack={onBack} />, shop: onBack => <ShopScreen key={Math.random()} onBack={onBack} />,
 };
 function TitleScreen({ onStart }: { onStart: (mode?: string) => void }) {
@@ -525,7 +525,9 @@ function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }
 	</>;
 }
 
-function SettingsScreen({ onBack, onTitle }: { onBack: () => void; /** 있으면 맨 위에 「타이틀로 돌아가기」 */ onTitle?: () => void }) {
+/** 모드가 설정 화면 맨 아래에 덧붙이는 버튼 (예: 챔피언스 모드 초기화) */
+export interface SetExtra { label: string; note?: string; run: () => void }
+function SettingsScreen({ onBack, onTitle, extra }: { onBack: () => void; /** 있으면 맨 위에 「타이틀로 돌아가기」 */ onTitle?: () => void; extra?: SetExtra }) {
 	useEffect(() => { ruleNoticeShown = false; }, []);
 	const [newsAll, setNewsAll] = useState(false);
 	const [s, setS] = useState<Settings>(loadSettings());
@@ -603,6 +605,7 @@ function SettingsScreen({ onBack, onTitle }: { onBack: () => void; /** 있으면
 		{newsAll && <WhatsNew all onClose={() => setNewsAll(false)} />}
 		<p class="muted small">배틀 계산은 Pokémon Showdown 시뮬레이터(MIT)를 그대로 사용합니다. 비공식 팬 메이드 앱이며, 포켓몬 관련 명칭의 권리는 Nintendo·Creatures·GAME FREAK·The Pokémon Company에 있습니다.</p>
 		<p class="muted small">포켓몬 도트 그림: Pokémon Showdown·Smogon Sprite Project. 9세대 퍼퓨돈(암컷)·빠모트·스태솔트·찌리비·육파리·구르데·베라카스·키키링·차데스·오거폰·무쇠감투(테라스탈 모습 포함)은 PokéAPI sprites 저장소의 도트 그림(앞모습 KingOfThe-X-Roads, 뒷모습 DoveKyle).</p>
+		{extra && <><h3 class="sec">이 모드</h3><button class="btn danger" onClick={extra.run}>{extra.label}</button>{extra.note && <p class="muted small">{extra.note}</p>}</>}
 		<button class="btn danger" onClick={() => { if (confirm('모든 기록과 팀을 지울까요?')) { try { Object.keys(localStorage).filter(k => k.startsWith(STORE_PREFIX)).forEach(k => localStorage.removeItem(k)); (window as any).BattleSimNative?.forgetData?.(); } catch {} location.reload(); } }}>데이터 초기화</button>
 	</Screen>;
 }

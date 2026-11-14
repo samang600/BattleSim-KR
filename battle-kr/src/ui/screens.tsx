@@ -129,12 +129,12 @@ export function SwapScreen({ mine, theirs, gen, onDone }: {
 }
 
 /** 선택지 목록 */
-export function ChoiceScreen<T>({ title, intro, footer, options, onPick, onBack }: {
-	title: string; intro?: ComponentChildren; footer?: ComponentChildren; onBack?: () => void;
+export function ChoiceScreen<T>({ title, intro, footer, options, onPick, onBack, top }: {
+	title: string; intro?: ComponentChildren; footer?: ComponentChildren; onBack?: () => void; /** 열릴 때 맨 위부터 */ top?: boolean;
 	options: { value: T; label: string; desc?: string; badge?: string; disabled?: boolean; icon?: ComponentChildren; /** 묶음 제목 (바뀔 때마다 머리글) */ group?: string; /** 왼쪽 색 띠 */ color?: string }[];
 	onPick: (v: T) => void;
 }) {
-	return <Screen title={title} onBack={onBack} cls="choice-scr">
+	return <Screen title={title} onBack={onBack} cls="choice-scr" top={top}>
 		{intro}
 		<div class="option-list">
 			{options.map((o, i) => [o.group && o.group !== options[i - 1]?.group ? <h3 class="sec opt-group">{o.group}</h3> : null,

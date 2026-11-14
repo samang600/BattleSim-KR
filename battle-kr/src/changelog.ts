@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.80.0', date: '2026-11-14', title: '배틀 중 음량 조절', items: [
+		['new', '배틀 중 「메뉴」에서 배경음악·효과음 크기를 바로 바꿀 수 있어요 (끔 + 3단 막대)'],
+	] },
 	{ ver: '2.79.0', date: '2026-11-14', title: '계산기 개선', items: [
 		['new', '배틀 계산기에 다이맥스(다이맥스 기술 위력·HP 2배), Z기술, 고대활성·쿼크차지, 반감 열매를 넣고, 결정력·내구력 수치를 함께 보여 줘요'],
 	] },

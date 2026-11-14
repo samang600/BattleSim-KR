@@ -3741,7 +3741,7 @@ button.sc-usemon { display: flex; width: 100%; text-align: left; font: inherit; 
 .cp-tile.c1 { background: linear-gradient(180deg, #f08a7a 0 2px, #e05a48 2px 55%, #c84434 55%) border-box; } .cp-tile.c2 { background: linear-gradient(180deg, #f0d070 0 2px, #e0b030 2px 55%, #c89420 55%) border-box; }
 .cp-tile.c3 { background: linear-gradient(180deg, #7aa8f0 0 2px, #4a80e0 2px 55%, #3a68c8 55%) border-box; } .cp-tile.c4 { background: linear-gradient(180deg, #8ae0a0 0 2px, #3aa860 2px 55%, #2a8a4a 55%) border-box; }
 .cp-tile.c5 { background: linear-gradient(180deg, #c0a0f0 0 2px, #8a60d8 2px 55%, #7048b8 55%) border-box; } .cp-tile.c6 { background: linear-gradient(180deg, #f09ac0 0 2px, #e06a9a 2px 55%, #c85080 55%) border-box; }
-.cp-team { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; } .cp-team span { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: #16284c; box-shadow: inset 0 0 0 2px #0a0f18; overflow: hidden; color: #5a6a90; }
+.cp-team { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; } .cp-team > span { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: #16284c; box-shadow: inset 0 0 0 2px #0a0f18; overflow: hidden; color: #5a6a90; }
 .cp-team .sprite { width: 100%; height: 100%; object-fit: contain; }
 .cp-rules { display: flex; gap: 6px; align-items: center; margin: 8px 12px; font-size: 12px; } .cp-rules span { flex: 1; padding: 2px 6px; background: #1c1408; box-shadow: inset 0 0 0 2px #6a5420; color: #ffe890; } .cp-rules small { display: block; font-size: 10px; color: #d8b860; } .cp-rules em { font-style: normal; font-size: 11px; color: #9aa6bc; }
 .cp-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 12px; } .cp-scr .cp-btns { margin: 10px 0; } .cp-btns .btn { min-width: 0; font-size: 14px; padding: 8px 4px; }
@@ -3790,7 +3790,7 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 .cp-nav button { font: inherit; font-size: 14px; color: #ffe890; padding: 6px 2px; cursor: pointer; border: 4px solid transparent; border-image: var(--ring2-hi) 3 / 6px stretch; clip-path: var(--clip2); background: linear-gradient(180deg, #3a2c0e 0 50%, #2a1e08 50%) border-box; image-rendering: pixelated; }
 .cp-nav button:active { transform: translate(2px, 2px); }
 .cp-reset { display: block; margin: 6px auto 0; font: inherit; font-size: 11px; color: #7a7088; background: none; border: 0; text-decoration: underline; cursor: pointer; }
-.cp-hub { background: #14101c url(__IMG_arena_pwt__) center top / auto 46% no-repeat; image-rendering: pixelated; } .cp-hub > * { image-rendering: auto; }
+.cp-hub { background: #14101c; }
 .cp-hub .cp-pn, .cp-hub .cp-tile, .cp-hub .cp-top { image-rendering: pixelated; }
 .cp-tile { box-shadow: none; } .cp-tile span { position: relative; z-index: 1; }
 .cr-idx { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; margin: 6px 0 2px; font-size: 13px; color: #d8e4ff; } .cr-idx b { font-weight: normal; font-size: 16px; color: #ffd84a; }
@@ -3849,3 +3849,45 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 @media (min-width: 900px) { .h2-team-mons .poke-icon { margin: 0 2px; } }
 .cp-box-head button::before { content: ''; width: 16px; height: 10px; background: #fff; clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 4px 6px, 4px 8px, 2px 8px, 2px 10px, 0 10px, 0 0, 8px 0, 10px 0, 10px 2px, 12px 2px, 12px 4px, 14px 4px, 14px 6px, 12px 6px, 12px 8px, 10px 8px, 10px 10px, 8px 10px, 8px 0); } .cp-box-head button.prev::before { transform: scaleX(-1); }
 .cp-back::before { content: ''; width: 10px; height: 14px; background: #ffe890; clip-path: polygon(10px 0, 10px 14px, 8px 14px, 8px 12px, 6px 12px, 6px 10px, 4px 10px, 4px 8px, 2px 8px, 2px 6px, 4px 6px, 4px 4px, 6px 4px, 6px 2px, 8px 2px, 8px 0); margin-right: 2px; }
+/* 배틀 메뉴 음량 줄: 끔 + 3단 막대 */
+.vol-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 4px solid transparent; border-image: var(--ring2-grey) 3 / 6px stretch; clip-path: var(--clip2); background: #1b2a52 border-box; image-rendering: pixelated; }
+.vol-row > span { flex: 1; font-size: 15px; } .vol-row em { width: 40px; text-align: right; font-style: normal; font-size: 13px; color: #ffd84a; }
+.vol-off { font: inherit; font-size: 13px; color: #b8c8e8; width: 40px; height: 24px; line-height: 24px; padding: 0; text-align: center; display: block; flex: none; cursor: pointer; border: 0; background: #0d1830; box-shadow: inset 0 0 0 2px #5a6a90; clip-path: var(--clip1); } .vol-off.on { color: #fff; background: #c84434; box-shadow: inset 0 0 0 2px #fff; }
+.vol-bars { display: flex; align-items: flex-end; gap: 4px; height: 28px; } .vol-bars button { width: 28px; padding: 0; cursor: pointer; border: 0; background: #0d1830; box-shadow: inset 0 0 0 2px #5a6a90; } .vol-bars button.on { background: linear-gradient(180deg, #ffe890 0 50%, #e0a830 50%); box-shadow: inset 0 0 0 2px #0d1830; }
+.vol-off:active, .vol-bars button:active { transform: translate(2px, 2px); }
+/* ═════ 챔피언스: 간결한 허브 · 팝업 창(포켓몬·트레이닝) · 첫 파티 ═════ */
+.cp-pn h3 { display: flex; align-items: center; gap: 8px; } .cp-pn h3 small { margin-left: auto; }
+.cp-rule { margin-left: auto; font: inherit; font-size: 12px; color: #ffe890; padding: 0 8px; line-height: 20px; cursor: pointer; border: 4px solid transparent; border-image: var(--ring2-hi) 3 / 6px stretch; clip-path: var(--clip2); background: #2a1e08 border-box; image-rendering: pixelated; max-width: 62%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .cp-rule:active { transform: translate(2px, 2px); }
+.cp-brow { display: grid; grid-template-columns: minmax(0, 1fr) 72px 72px; gap: 6px; align-items: center; padding: 6px 0; border-top: 2px solid rgba(10,15,24,.5); }
+.cp-brow b { display: block; font-weight: normal; font-size: 16px; } .cp-brow small { display: block; font-size: 11px; color: #b8c8e8; }
+.cp-brow .btn { min-width: 0; padding: 4px 0; font-size: 15px; line-height: 1.2; } .cp-brow .btn small { font-size: 10px; color: inherit; opacity: .85; }
+.cp-myteam .cp-team > span { aspect-ratio: auto; height: 40px; clip-path: var(--clip1); box-shadow: none; } .cp-myteam .cp-team > span.empty::after { content: ''; width: 6px; height: 6px; background: #33437a; }
+.cp-tiles.four { grid-template-columns: repeat(4, 1fr); gap: 6px; } .cp-tiles.four .cp-tile { height: 72px; font-size: 13px; } .cp-tiles.four .cp-tile .poke-icon { transform: scale(1.25); top: 8px; }
+.cp-tile .poke-icon { left: 50%; margin-left: -20px; }
+/* 무료 스카우트 띠 · 카드 값 표시 */
+.cp-free { display: flex; align-items: center; gap: 8px; margin: 8px 0; padding: 4px 10px; font-size: 13px; color: #b8c8e8; border: 4px solid transparent; border-image: var(--ring2-input) 3 / 6px stretch; clip-path: var(--clip2); background: #16284c border-box; image-rendering: pixelated; }
+.cp-free b { font-weight: normal; color: #fff; } .cp-free span { flex: 1; } .cp-free em { font-style: normal; color: #9fe4ff; } .cp-free.on { border-image-source: var(--ring2-hi); background: #4a3a14 border-box; color: #ffe890; }
+.cp-price { position: absolute; right: 4px; top: 0; font-style: normal; font-size: 11px; color: #ffd84a; }
+/* 첫 파티 */
+.cp-start-mons { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; margin: 2px 0 6px; } .cp-start-mons > span { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 2px 0; background: #16284c; clip-path: var(--clip1); }
+.cp-start-mons small { max-width: 100%; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 팝업 창 안: 포켓몬 요약 */
+.cp-mp { display: flex; flex-direction: column; gap: 8px; }
+.cp-mp-head { display: flex; align-items: center; gap: 8px; } .cp-mp-spr { flex: none; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: #16284c; clip-path: var(--clip2); } .cp-mp-spr .sprite { max-width: 60px; max-height: 60px; object-fit: contain; }
+.cp-mp-head > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; } .cp-mp-head small { font-size: 12px; color: #b8c8e8; } .cp-mp-head .btn { flex: none; }
+.cp-mrows { display: flex; flex-direction: column; }
+.cp-mrow { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; align-items: center; gap: 6px; min-height: 36px; padding: 2px 6px; font: inherit; color: inherit; text-align: left; cursor: pointer; border: 0; border-bottom: 2px solid rgba(10,15,24,.45); background: none; }
+.cp-mrow:last-child { border-bottom: 0; } .cp-mrow:active, .cp-mmoves button:active, .cp-opt:active:not(:disabled) { transform: translate(2px, 2px); } .cp-mrow:hover, .cp-opt:hover:not(:disabled) { background: rgba(255,255,255,.06); }
+.cp-mrow > small { font-size: 12px; color: #9fe4ff; } .cp-mrow b { display: flex; align-items: center; gap: 4px; min-width: 0; font-weight: normal; font-size: 15px; } .cp-mrow b small { font-size: 11px; color: #b8c8e8; }
+.cp-mrow em, .cp-mmoves em { font-style: normal; font-size: 11px; color: #ffd84a; white-space: nowrap; } .cp-mrow em.free { color: #8af0a0; }
+.cp-mmoves { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cp-mmoves button { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 2px 6px; padding: 4px 6px; font: inherit; color: #fff; text-align: left; cursor: pointer; border: 4px solid transparent; border-image: var(--ring2-grey) 3 / 6px stretch; clip-path: var(--clip2); background: linear-gradient(180deg, #3a4f86 0 50%, #2a3a68 50%) border-box; image-rendering: pixelated; }
+.cp-mmoves b { font-weight: normal; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .cp-mmoves em { grid-column: 1 / -1; text-align: right; line-height: 1; }
+.cp-mfoot { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+/* 팝업 창 안: 고르는 목록 */
+.cp-opts { display: flex; flex-direction: column; } .modal .cp-search { position: sticky; top: 0; z-index: 1; margin: 0 0 4px; }
+.cp-opt { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 6px; font: inherit; color: inherit; text-align: left; border: 0; border-bottom: 2px solid rgba(10,15,24,.45); background: none; } button.cp-opt { cursor: pointer; }
+.cp-opt > div { flex: 1; min-width: 0; } .cp-opt b { display: flex; align-items: center; gap: 4px; font-weight: normal; font-size: 15px; } .cp-opt small { display: block; font-size: 11px; color: #b8c8e8; line-height: 1.35; } .cp-opt em { font-style: normal; font-size: 11px; color: #ffd84a; white-space: nowrap; }
+.cp-opt:disabled { opacity: .45; } .cp-spb .cp-note { margin: 0 0 4px; } .cp-spb .btn.big { margin-top: 8px; width: 100%; }
+.cp-tabs button small { font-size: 10px; opacity: .8; } .cp-shoplist { padding-top: 2px; padding-bottom: 2px; }
+.cp-line .cp-bar { margin-top: 4px; max-width: 220px; }

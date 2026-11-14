@@ -410,8 +410,12 @@ export function pickBattleMusic(situation: 'battle' | 'tower' | 'pwt' | 'boss' |
 	return pool[Math.floor(Math.random() * pool.length)];
 }
 
+/** 마지막으로 틀려던 곡 (음악이 꺼져 있어도 기억 — 배틀 중에 다시 켜면 이어서) */
+let wanted = '';
+export function resumeMusic() { if (wanted) playMusic(wanted); }
 export function playMusic(name: string) {
-	if (!name) { stopMusic(); return; }   // 배틀 음악 '없음'
+	if (!name) { wanted = ''; stopMusic(); return; }   // 배틀 음악 '없음'
+	wanted = name;
 	if (current === name) return;
 	stopMusic();
 	if (!musicOn()) return;
