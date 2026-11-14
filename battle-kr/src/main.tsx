@@ -43,17 +43,17 @@ const MODES = [
 	{ id: 'daily', name: '오늘의 도전', sub: '', run: runDaily, color: '#d8a018', mon: 'pikachu' },
 	{ id: 'online', name: '온라인 대전', sub: '로비 · 친구 · 랜덤', run: runOnline, color: '#2a8fb0', mon: 'rotom' },
 ];
-// 시나리오 모드 (시안): 개발자 빌드에서만. 챔피언스 모드·모드 고르기·새 메뉴(아케이드)는 v2.84 부터 정식 공개
+// 챔피언스 모드·모드 고르기·새 메뉴(아케이드)는 v2.84 부터, 시나리오 모드(관동 편, 제작 중)는 v2.85 부터 정식 공개
 declare const __DEV_BUILD__: boolean;
-const SCENARIO_ON = typeof __DEV_BUILD__ !== 'undefined' && __DEV_BUILD__;
+const SCENARIO_ON = true;
 const NEW_UI = true;
 const FEATURED = ['tower', 'factory', 'rank'];
 const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'online'];
 /** 타이틀에서 고르는 큰 모드. 아케이드 = 팀을 자유롭게 짜는 시설들 · 챔피언스 = 저장이 따로인 독립 모드 · 시나리오는 개발자 빌드에서만 */
 const ALL_BIG_MODES: { id: string; name: string; sub: string; mon: string; cls: string; tag?: string; run?: () => Promise<void> }[] = [
 	{ id: 'sim', name: '아케이드 모드', sub: '팀을 자유롭게 짜서 타워·팩토리·팰리스·보스 러시·온라인 대전', mon: 'metagross', cls: 'sim' },
-	{ id: 'champions', name: '챔피언스 모드', sub: '스카우트하고 키워서 랭크 매치·PWT 의 정점까지', mon: 'dragonite', cls: 'champ', tag: 'NEW', run: () => runChampions(TOOLS) },
-	{ id: 'scenario', name: '시나리오 모드', sub: '관동 편 — 지방을 여행하며 인물의 이야기를 따라감', mon: 'bulbasaur', cls: 'scn', tag: '개발 중', run: () => runScenario(TOOLS) },
+	{ id: 'champions', name: '챔피언스 모드', sub: '스카우트하고 키워서 랭크 매치·PWT 의 정점까지', mon: 'dragonite', cls: 'champ', run: () => runChampions(TOOLS) },
+	{ id: 'scenario', name: '시나리오 모드', sub: '관동 편 — 지방을 여행하며 인물의 이야기를 따라감', mon: 'bulbasaur', cls: 'scn', tag: '제작 중', run: () => runScenario(TOOLS) },
 ];
 const BIG_MODES = ALL_BIG_MODES.filter(m => m.id !== 'scenario' || SCENARIO_ON);
 

@@ -10,7 +10,7 @@
 - 저장 데이터는 localStorage `pkbkr:*` (settings, teams, tower-*, factory-*, records …).
 
 ## 릴리스 루틴 (공식 버전에 들어가는 작업 묶음이 끝날 때만)
-- **개발자 빌드에서만 보이는 작업(지금은 시나리오 모드)은 버전을 올리지 않고 APK 도 만들지 않는다** — 커밋·푸시와 스크린샷 확인까지만. APK 는 공식(정식) 버전에 한해서만 빌드한다(정식 APK 버전이 꼬임).
+- **개발자 빌드에서만 보이는 작업은 버전을 올리지 않고 APK 도 만들지 않는다** — 커밋·푸시와 스크린샷 확인까지만. APK 는 공식(정식) 버전에 한해서만 빌드한다(정식 APK 버전이 꼬임).
 1. `battle-kr/android/app/build.gradle` 의 `versionCode` +1, `versionName` 올림(`package.json`·`package-lock.json` 버전도), `battle-kr/README.md` 의 APK 파일명·버전 문구 갱신, 바뀐 기능을 README 에 적기, `battle-kr/src/changelog.ts` 맨 위에 짧은 업데이트 소식 추가(웹에서 새 버전 첫 실행 때 보여 줌 — 사용자가 알아야 할 새 기능·큰 변화만 한두 줄로. 칸 크기·간격·위치 조정, 문구 삭제 같은 작은 손질이나 같은 기능을 여러 번 다듬은 과정은 적지 않고, 이미 적은 항목이 있으면 그 항목을 고쳐 하나로 유지. 항목이 없으면 창이 뜨지 않음).
 2. `node battle-kr/build.mjs --android`
 3. 서명 빌드 (`battle-kr/android` 에서):
@@ -21,8 +21,8 @@
 ## 버전·공식 웹 (갈래를 나누지 않는다)
 - 버전은 `main` 한 줄만 쓴다. 공식 웹(`web` 브랜치)은 **`main` 을 그대로 옮겨서만** 올린다: `git push origin origin/main:refs/heads/web` → pages.yml. `web` 에 따로 커밋하거나 일부만 골라 넣지 않는다(버전이 두 갈래가 됨).
 - 버전 숫자를 낮추지 않는다 — 앱은 공식 웹의 버전이 자기보다 높을 때만 자동 갱신하므로, 이미 나간 APK 보다 낮아지면 갱신이 끊긴다.
-- 챔피언스 모드는 v2.84.0 부터 정식 공개 (타이틀의 모드 고르기: 아케이드 / 챔피언스 — `main.tsx` 의 `BIG_MODES`, 시나리오만 개발자 빌드에서).
-- 시나리오 모드는 개발 중이라 공개하지 않는다. 개발자 빌드(`DEV_BUILD=1`)에서만 켜지므로(`main.tsx` 의 `SCENARIO_ON`) `main` 을 공식 웹에 올려도 나오지 않는다. 이 조건을 풀지 말 것.
+- 챔피언스 모드는 v2.84.0, 시나리오 모드는 v2.85.0 부터 정식 공개 (타이틀의 모드 고르기: 아케이드 / 챔피언스 / 시나리오 — `main.tsx` 의 `BIG_MODES`).
+- 시나리오 모드(관동 편)는 사용자 요청으로 v2.85.0 에 「제작 중」 표시를 달고 공개했다 (`main.tsx` 의 `SCENARIO_ON = true`). 지금은 개발자 빌드 전용 기능이 없다 — 새로 숨길 것이 생기면 `__DEV_BUILD__` 로 가린다.
 - 아케이드 모드의 새 메뉴 디자인(`main.tsx` Home 의 `NEW_UI` 갈래, `.h2-*`)도 v2.84.0 부터 정식.
 - 예전 시뮬레이터 모드는 **아케이드 모드**라 부르고, 랭크 매치·PWT 는 챔피언스 모드로 옮겼다(아케이드 메뉴에서 빠지고 배틀팰리스가 큰 칸). 예전에 아케이드에서 쌓은 랭크 RP·PWT 우승 기록은 저장에 남아 있고, 챔피언스의 랭크는 `-ch` 로 새로 센다.
 - 공식 웹에 올리는 것은 사용자가 요청할 때만.
@@ -53,6 +53,6 @@
 | `src/sound.ts` | 효과음·배경음악, `BGM_CHOICES`, `pickBattleMusic` |
 | `src/rewards.ts` `src/ui/shop.tsx` | 보상: BP 지갑·얻는 규칙·교환소 상품·주간 과제 / 교환소 화면·카드 꾸미기·승리 연출 (꾸미기 전용, 배틀 능력 영향 없음) |
 | `src/champions.tsx` `src/champions-data.ts` | 챔피언스 모드(정식): 6마리 파티로 시작·스카우트(일반·지명, 12시간마다 무료 1회, 도구 없이 옴)·로스터(박스형, 포켓몬·트레이닝은 팝업 창)·상점(검색)·미션·랭크 매치와 PWT(`modes.tsx` 의 `runRank`/`runPWT` 에 `ArenaCtx` 로 내 팀을 넘김 — 랭크는 더 어려운 척도·RP 는 `-ch` 로 따로, PWT 는 지방 리더스 전부 → 월드 리더스 5회 → 사천왕 대회 5회 → 챔피언스 순으로 열림)·타워(싱글·더블, 상대도 6마리)·도구 중복 불가·규칙은 설정의 배틀 규칙·승급전 스토리(랭크 매치 등급이 오르면 열림)와 컷씬(`EVENTS`). PWT 는 마스터볼급부터·오픈 대회 우승 뒤 리더스. 전용 심볼 3종(`CSYM`, 저장 `sym`)·타워 이야기(`TOWER_EVENTS`)·전용 업적/칭호/꾸미기(`stats.ts`·`rewards.ts` 의 `CHAMP_ON` 갈래). 초기화는 설정 화면 맨 아래. 값(BP)·등급·대사는 data 쪽. 저장 `champions`, 재화는 `rewards.ts` 의 BP(`spendBP`) |
-| `src/scenario.tsx` `src/scenario-data.ts` `src/scenario-script.ts` | 시나리오 모드(개발자 빌드): 관동 편 |
+| `src/scenario.tsx` `src/scenario-data.ts` `src/scenario-script.ts` | 시나리오 모드(정식, 제작 중): 관동 편 |
 | `src/style.css` | 전체 스타일(도트 테두리 변수 포함) |
 | `scripts/gen-arenas.py` | 배틀 배경 그림 생성 |
