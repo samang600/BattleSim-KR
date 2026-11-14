@@ -3977,3 +3977,7 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 /* 파란 단추 (더블배틀) · 챔피언스 심볼 획득 */
 :root[data-frame] .btn.blue, .btn.blue { border-image-source: var(--ring4-p-stone); background: linear-gradient(180deg, #8ab8ff 0 4px, #3a78e8 4px 55%, #2f64cc 55% 80%, #2450a8 80%) border-box; color: #fff; }
 .cp-symget { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 10px; }
+/* 챔피언스 상단의 작은 스토리 단추 (BP 옆) */
+.cp-storybtn { position: relative; flex: none; display: flex; align-items: center; justify-content: center; padding: 0 8px; line-height: 20px; font: inherit; font-size: 13px; color: #ffe890; text-align: center; cursor: pointer; border: 4px solid transparent; border-image: var(--ring2-hi) 3 / 6px stretch; clip-path: var(--clip2); background: linear-gradient(180deg, #6a5420 0 50%, #4a3a14 50%) border-box; image-rendering: pixelated; }
+.cp-storybtn:active { transform: translate(2px, 2px); } .cp-storybtn.ready { color: #fff; background: linear-gradient(180deg, #ec4a32 0 50%, #c42c1c 50%) border-box; animation: blink 1s steps(1) infinite; }
+.cp-storybtn i { width: 6px; height: 6px; margin-left: 4px; background: #ffe890; }

@@ -77,10 +77,10 @@ function Bp() {
 	useState(() => onWallet(w => setBp(w.bp)));
 	return <span class="cp-chip">{bp} BP</span>;
 }
-function Top({ title, sub, S, onBack }: { title: string; sub?: string; S: CSave; onBack?: () => void }) {
+function Top({ title, sub, S, onBack, extra }: { title: string; sub?: string; S: CSave; onBack?: () => void; /** BP 왼쪽에 붙는 작은 단추 (메인 화면의 스토리) */ extra?: any }) {
 	return <div class="cp-top">{onBack && <button class="cp-back" onClick={onBack} aria-label="뒤로" />}
 		<b>{title}{sub && <small>{sub}</small>}</b>
-		{S.tk.regular > 0 && <span class="cp-chip t">티켓 {S.tk.regular}</span>}{S.tk.pick > 0 && <span class="cp-chip t">지명 {S.tk.pick}</span>}<Bp /></div>;
+		{S.tk.regular > 0 && <span class="cp-chip t">티켓 {S.tk.regular}</span>}{S.tk.pick > 0 && <span class="cp-chip t">지명 {S.tk.pick}</span>}{extra}<Bp /></div>;
 }
 const types = (sp: string) => ((speciesData(sp, 9) as any)?.t || []) as string[];
 /** 포켓몬 카드 (소개·로스터) */
@@ -122,7 +122,8 @@ const champRp = () => { const r = loadRecords().rp || {}, t = recTag(CR()) + CH_
 const rankStep = () => Math.max(0, RANK_CLS.indexOf(rankTier(champRp(), new Date(), true).cls));
 /** 다음 승급전에 도전할 수 있는가: 랭크 매치 등급이 지금 이야기 등급보다 높을 때 */
 const promoReady = (S: CSave) => S.ch > 0 && S.ch < CHAPTERS.length && rankStep() > S.tier;
-/** PWT 는 랭크 매치 마스터볼급부터 */
+/** 배틀타워는 랭크 매치 하이퍼볼급부터 · PWT 는 마스터볼급부터 */
+const towerOpen = () => rankStep() >= 3;
 const pwtOpen = () => rankStep() >= 4;
 /** PWT 대회가 잠긴 이유 (없으면 열림) */
 const cupLock = (S: CSave, id: string) => { const c = S.cups || {}, left = REGION_CUPS.filter(x => !c[x]).length;
@@ -535,22 +536,18 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 	const brow = (k: BattleKind, name: string, state: string) => <div class="cp-brow"><div><b>{name}</b><small>{state}</small></div>
 		<button class="btn primary" onClick={() => done({ k, doubles: false })}>싱글<small>3마리</small></button><button class="btn blue" onClick={() => done({ k, doubles: true })}>더블<small>4마리</small></button></div>;
 	const erow = (a: HubAct, name: string, state: string, locked = false) => <div class={'cp-brow one' + (locked ? ' locked' : '')}><div><b>{name}</b><small>{state}</small></div><button class={'btn' + (locked ? '' : ' primary')} onClick={() => { sfx('select'); done(a); }}>{locked ? '잠김' : '입장'}</button></div>;
-	return <div class="cp-hub"><Top title="챔피언스 모드" sub={`${t.name} · 로스터 ${S.roster.length} / ${t.cap}`} S={S} onBack={() => done('exit')} />
+	return <div class="cp-hub"><Top title="챔피언스 모드" sub={t.name} S={S} onBack={() => done('exit')}
+			extra={<button class={'cp-storybtn' + (ready ? ' ready' : '')} onClick={() => { sfx('select'); done('story'); }} aria-label={ready ? '스토리 — 승급전에 도전할 수 있어요' : '스토리'}>스토리</button>} />
 		<button class="cp-pn cp-me" onClick={() => { sfx('select'); done('book'); }}>
 			<img src={SPRITE_URL(playerSprite())} onError={trainerImgError} alt="" />
 			<div><b>{playerName()}</b><small>{rankLabel(rp, true)} · {rp} RP</small>
 				<span class="cp-me-syms">{CSYM.map(y => <span title={y.name}><SymbolIcon kind={y.icon} lv={S.sym?.[y.id] || 0} size={24} /></span>)}<i>도전과제 {achDone} / {ACHIEVEMENTS.length}</i></span></div>
 		</button>
-		<button class="cp-pn gold cp-story" onClick={() => done('story')}>
-			{c ? <><img src={SPRITE_URL(CWHO[c.who].sprite)} onError={trainerImgError} alt="" /><div><small>스토리 — CHAPTER {S.ch + 1}</small><b>{c.title}</b>
-				<span>{ready ? '승급전에 도전할 수 있어요!' : S.ch > 0 ? `랭크 매치에서 ${RANK_CLS[Math.min(S.ch, 5)]}에 오르면 승급전` : c.sub}</span></div>{ready && <em>도전!</em>}</>
-				: <div><small>스토리</small><b>챔피언급 — 이야기를 모두 봤습니다</b><span>랭크 매치 1위와 PWT 「챔피언스」 우승에 도전해 보세요</span></div>}
-		</button>
 		<div class="cp-pn cp-arena"><h3>배틀<button class="cp-rule" onClick={() => done('settings')}>규칙 바꾸기</button></h3>
 			<p class="cp-rulename">{ruleById(CR()).name}</p>
 			{erow('rank', '랭크 매치', `${rankLabel(rp, true)} · 6마리 등록 · 싱글/더블`)}
-			{erow('pwt', 'PWT', pwtOpen() ? `8명 토너먼트 · ${pwtNext}` : pwtNext, !pwtOpen())}
-			{brow('tower', '배틀타워', `${S.tower}연승 · 7연승마다 지명 티켓 (${S.tower % 7} / 7)`)}</div>
+			{towerOpen() ? brow('tower', '배틀타워', `${S.tower}연승 · 7연승마다 지명 티켓 (${S.tower % 7} / 7)`) : erow({ k: 'tower', doubles: false }, '배틀타워', '랭크 매치 하이퍼볼급부터 도전', true)}
+			{erow('pwt', 'PWT', pwtOpen() ? `8명 토너먼트 · ${pwtNext}` : pwtNext, !pwtOpen())}</div>
 		<button class="cp-pn cp-myteam" onClick={() => { sfx('select'); done('roster'); }}><h3>내 팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
 			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => <span class={team[i] ? '' : 'empty'}>{team[i] && <PokeIcon species={team[i].set.species} />}{team[i]?.set.item && <span class="cp-held"><ItemIcon item={team[i].set.item} size={16} /></span>}</span>)}</div></button>
 		<div class="cp-tiles four">{tile('scout', '스카우트', 'c2', 'pikachu', !freeLeft(S) ? '무료' : newLine ? '새 소개' : undefined)}{tile('roster', '로스터', 'c3', 'gardevoir')}
@@ -576,6 +573,7 @@ export async function runChampions(tools?: Tools) {
 		if (S.ch === 0) { await chapterFlow(S); continue; }
 		if (a === 'story') { if (await ask<boolean>(r => <StoryScreen key={K()} S={S} done={r} />)) { if (S.ch > 0 && teamOf(S).length < 3) { toast('팀에 포켓몬이 3마리는 있어야 해요'); continue; } await chapterFlow(S); } }
 		if (typeof a === 'object') {
+			if (!towerOpen()) { toast('배틀타워는 랭크 매치에서 하이퍼볼급에 오르면 도전할 수 있어요'); continue; }
 			if (teamOf(S).length < (a.doubles ? 4 : 3)) { toast(`팀에 포켓몬이 ${a.doubles ? 4 : 3}마리는 있어야 해요 — 스카우트에서 데려오세요`); continue; }
 			await events(S, 'tower');
 			await towerBattle(S, a.doubles);
