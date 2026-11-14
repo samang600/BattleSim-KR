@@ -3821,22 +3821,28 @@ button.cp-line { cursor: pointer; } button.cp-line:active { transform: translate
 .cp-nav button, .h2-nav button { text-align: center; }
 /* 챔피언스: 박스 모양 로스터 · 배틀 형식 고르기 */
 .cp-btns.one { grid-template-columns: 1fr; }
-.cp-party { margin: 8px 0; padding: 6px 8px; border: 4px solid transparent; border-image: var(--ring4-gold) 5 / 10px stretch; clip-path: var(--clip3); background: linear-gradient(180deg, #6a5420 0 2px, #4a3a14 2px 60%, #3a2c0e 60%) border-box; image-rendering: pixelated; }
-.cp-party > b { display: block; font-weight: normal; font-size: 13px; color: #ffe890; margin-bottom: 4px; } .cp-party > div { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
-.cp-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; height: 60px; padding: 0; font: inherit; color: #fff; cursor: pointer; border: 0; background: #f4f6fa; box-shadow: inset 0 0 0 2px #0a0f18, inset 0 0 0 4px #c8d0e0; clip-path: var(--clip1); }
-.cp-slot small { max-width: 100%; font-size: 10px; color: #1a2438; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .cp-slot.empty { background: #2a2010; box-shadow: inset 0 0 0 2px #0a0f18; cursor: default; } .cp-slot.empty small { color: #7a6a40; }
+/* 로스터: PC 박스 한 덩어리 — 팀 칸(남색 창) + 박스(초록 벽지), 같은 폭·같은 테두리 */
+.cp-pc { max-width: 480px; margin: 8px auto; display: flex; flex-direction: column; gap: 8px; }
+.cp-party, .cp-box { border: 4px solid transparent; border-image: var(--ring4-p-stone) 5 / 10px stretch; clip-path: var(--clip3); image-rendering: pixelated; }
+.cp-party { padding: 6px 8px 8px; background: linear-gradient(180deg, #3a4f86 0 2px, #2a3a68 2px 50%, #223058 50%) border-box; }
+.cp-party > b { display: flex; justify-content: space-between; font-weight: normal; font-size: 13px; color: #ffe890; margin: 0 2px 6px; text-shadow: 2px 2px 0 rgba(0,0,0,.4); } .cp-party > b small { font-size: 11px; color: #b8c8e8; }
+.cp-party > div { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+.cp-slot { position: relative; display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: center; min-width: 0; height: 64px; padding: 2px 0 4px; font: inherit; color: #fff; cursor: pointer; border: 4px solid transparent; border-image: var(--ring2-grey) 3 / 6px stretch; clip-path: var(--clip2); background: linear-gradient(180deg, #ffffff 0 2px, #eef2f8 2px 62%, #dde4ef 62%) border-box; image-rendering: pixelated; }
+.cp-slot small { display: block; width: 100%; padding: 0 2px; text-align: center; font-size: 10px; line-height: 12px; color: #1a2438; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-slot.empty { cursor: default; border-image-source: var(--ring2-input); background: #1a2444 border-box; } .cp-slot.empty::before { content: ''; width: 8px; height: 8px; background: #33437a; clip-path: var(--clip1); }
 .cp-slot:active:not(:disabled), .cp-cell:active:not(:disabled) { transform: translate(2px, 2px); }
-.cp-box { border: 4px solid transparent; border-image: var(--ring4-p-stone) 5 / 10px stretch; clip-path: var(--clip3); background: #0d1830 border-box; image-rendering: pixelated; }
-.cp-box-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: linear-gradient(180deg, #8ad078 0 2px, #5aa850 2px 50%, #488a40 50%); }
-.cp-box-head b { flex: 1; text-align: center; font-weight: normal; font-size: 16px; color: #fff; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
-.cp-box-head button { font: inherit; font-size: 12px; color: #fff; width: 44px; line-height: 24px; padding: 0; cursor: pointer; border: 0; background: #14182a; box-shadow: inset 0 0 0 2px #f4f6fa; clip-path: var(--clip1); } .cp-box-head button:disabled { opacity: .35; }
-.cp-box-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; padding: 6px; background: repeating-linear-gradient(0deg, #4a9a48 0 4px, #469444 4px 8px); }
-.cp-cell { position: relative; aspect-ratio: 1; min-width: 0; padding: 0; display: flex; align-items: center; justify-content: center; border: 0; background: none; cursor: pointer; }
-.cp-cell .pkicon, .cp-cell .poke-icon, .cp-slot .pkicon, .cp-slot .poke-icon { transform: scale(1.25); image-rendering: pixelated; }
-.cp-cell.empty { cursor: default; } .cp-cell.empty::after { content: ''; width: 6px; height: 6px; background: rgba(10,40,16,.35); }
-.cp-cell.in { background: rgba(255,232,144,.35); box-shadow: inset 0 0 0 2px #ffd84a; } .cp-cell i { position: absolute; right: 0; top: 0; font-style: normal; font-size: 10px; line-height: 12px; padding: 0 3px; color: #2a1a04; background: #ffd84a; }
+.cp-slot:not(.empty)::after, .cp-box-head button::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset -2px -2px 0 rgba(10,20,50,.18); }
+.cp-box { background: #3f8f42 border-box; }
+.cp-box-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: linear-gradient(180deg, #a4e08c 0 2px, #62b458 2px 50%, #4f9c48 50%); box-shadow: 0 2px 0 #0a2a12; position: relative; z-index: 1; }
+.cp-box-head b { flex: 1; text-align: center; font-weight: normal; font-size: 16px; color: #fff; text-shadow: 2px 2px 0 rgba(10,42,18,.6); } .cp-box-head b small { font-size: 11px; opacity: .85; margin-left: 4px; }
+.cp-box-head button { position: relative; font: inherit; font-size: 12px; color: #fff; width: 40px; line-height: 16px; padding: 0; cursor: pointer; border: 4px solid transparent; border-image: var(--ring2-grey) 3 / 6px stretch; clip-path: var(--clip2); background: linear-gradient(180deg, #3a4f86 0 50%, #2a3a68 50%) border-box; image-rendering: pixelated; } .cp-box-head button:disabled { opacity: .4; cursor: default; } .cp-box-head button:active:not(:disabled) { transform: translate(2px, 2px); }
+.cp-box-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; padding: 8px; background: repeating-linear-gradient(0deg, #4a9a48 0 4px, #469444 4px 8px); }
+.cp-cell { position: relative; height: 48px; min-width: 0; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 4px solid transparent; background: rgba(10,50,20,.22) border-box; clip-path: var(--clip2); image-rendering: pixelated; }
+.cp-cell .poke-icon, .cp-slot .poke-icon { display: block; flex: none; margin: 0; transform: scale(1.25); image-rendering: pixelated; }
+.cp-cell.empty { cursor: default; background: rgba(10,50,20,.12) border-box; }
+.cp-cell.in { border-image: var(--ring2-hi) 3 / 6px stretch; background: linear-gradient(180deg, #fff6c4 0 2px, #ffe890 2px 60%, #f4d060 60%) border-box; }
+.cp-cell i { position: absolute; left: -2px; top: -2px; min-width: 14px; font-style: normal; font-size: 10px; line-height: 14px; text-align: center; color: #ffe890; background: #0d1830; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 2px), calc(100% - 2px) 100%, 0 100%); }
 .cp-battle { cursor: default; } .cp-fmt { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; } .cp-fmt .btn { min-width: 0; padding: 6px 4px; font-size: 15px; } .cp-fmt .btn small { display: inline; font-size: 11px; opacity: .85; }
-@media (min-width: 900px) { .cp-scr:has(.cp-box) .cp-box-grid { grid-template-columns: repeat(10, 1fr); } }
 @media (min-width: 900px) { body:has(.home.h2) #app { max-width: 1000px; } .home.h2 { padding-top: 24px; } .h2-team-text small { max-width: none; } .h2-grid .h2-text small { display: block; } }
 @media (orientation: landscape) and (max-height: 540px) { body:has(.home.h2) #app { max-width: none; } }
 .h2-team-mons { align-items: center; gap: 0; } .h2-team-mons .poke-icon { flex: none; margin: 0 -4px; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.35)); }
