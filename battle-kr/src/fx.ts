@@ -720,7 +720,7 @@ export function ballBurst(layer: HTMLElement, at: Pt, s: number, ballId = 'pokeb
 	if (c.heart) pixelFx(layer, at, s, { fx: 'heartPickup', len: .5, dy: 20 });
 }
 function ballPop(layer: HTMLElement, at: Pt, s: number, base: string, light: string, part: string, c: BallConcept) {
-	const W = 128, C = W / 2, k = s * 1.2, FR = 22, move = c.move || 'burst';
+	const W = 128, C = W / 2, k = s * 1.02, FR = 22, move = c.move || 'burst';
 	const cv = document.createElement('canvas');
 	cv.width = W; cv.height = W; cv.className = 'fxp pxfx';
 	cv.style.cssText = `left:${Math.round(at.x - C * k)}px;top:${Math.round(at.y - C * k)}px;width:${Math.round(W * k)}px;height:${Math.round(W * k)}px;`;

@@ -6,7 +6,7 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
-	{ ver: '2.85.1', date: '2026-11-14', title: '연출 손질', items: [
+	{ ver: '2.85.2', date: '2026-11-14', title: '연출 손질', items: [
 		['new', '메가지가르데의 그림이 생겼어요 (정지·움직이는 그림, 색이 다른 모습 포함).'],
 		['new', '울트라네크로즈마의 울트라버스트에 전용 연출이 생겼어요.'],
 		['up', '볼과 색이 다른 포켓몬의 등장 이펙트가 더 잘 보이고, 배경의 비·모래·눈 움직임은 날씨와 헷갈리지 않게 다른 효과로 바뀌었어요.'],
