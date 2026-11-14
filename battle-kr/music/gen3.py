@@ -535,6 +535,17 @@ NEW.update({
          'e6.4 g6.4 e6.4 c6.4|d6.4 g6.4 d6.4 b5.4|a5.2 d6.2 f#6.2 a6.2 f#6.4 d6.4|g6.8 r.4 d5.4', {'harm': 'pad', 'bass': 'walk', 'arp': True}),
     ], {'main': 'k...h.h.s...h.h.', 'intro': 'k.......s...s.s.'}, 'k...h.h.s.h.s.ss',
      {'lead': 'p50', 'vib': 0.5, 'echo': [0.16, 0.3, 0.25], 'harm': 'tri', 'bassv': 'tri'}),
+    # 챔피언스 아레나 로비 (D장조 120): 밝고 느긋한 대기실 — 3도 화음과 걷는 베이스, B 구간은 한 단계 올라가며 고조
+    'champhub': (120, [
+        ('intro', ['D', 'A'], 'a5.4 d6.4 f#6.4 a6.4|g6.4 e6.4 c#6.4 a5.4', {'harm': 'third', 'bass': 'walk', 'drum': 'intro'}),
+        ('A', ['D', 'Bm', 'G', 'A', 'D', 'Bm', 'Em', 'A'],
+         'f#6.6 e6.2 d6.4 a5.4|b5.4 d6.4 f#6.6 e6.2|d6.4 b5.4 g5.4 b5.4|c#6.4 e6.4 a6.8|'
+         'f#6.4 a6.4 d6.6 e6.2|f#6.2 e6.2 d6.4 b5.8|g5.2 b5.2 e6.4 g6.6 f#6.2|e6.12 r.4', {'harm': 'third', 'bass': 'walk'}),
+        ('B', ['G', 'A', 'F#m', 'Bm', 'G', 'A', 'D', 'D'],
+         'b5.4 d6.4 g6.6 f#6.2|e6.4 c#6.4 a5.8|a5.4 c#6.4 f#6.6 e6.2|d6.8 b5.4 f#5.4|'
+         'g5.4 b5.4 d6.4 g6.4|a6.6 g6.2 e6.4 c#6.4|d6.4 f#6.4 a6.4 f#6.4|d6.12 r.4', {'harm': 'pad', 'bass': 'walk', 'arp': True}),
+    ], {'main': 'k..hs..hk.k.s..h', 'intro': 'k.......s...s.s.'}, 'k..hs..hk.k.s.ss',
+     {'lead': 'p25', 'vib': 0.6, 'echo': [0.18, 0.3, 0.25], 'harm': 'tri', 'bassv': 'tri'}),
     # 길 (C장조 140): 발걸음이 가벼운 행진, 도약하는 선율
     'scroute': (140, [
         ('intro', ['C', 'G'], 'g5.2 g5.2 c6.4 e6.4 g6.4|f6.2 e6.2 d6.4 g5.4 b5.4', {'harm': 'none', 'bass': 'march', 'drum': 'intro'}),

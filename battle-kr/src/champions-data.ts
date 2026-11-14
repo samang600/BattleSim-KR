@@ -2,7 +2,7 @@
  *  구조는 포켓몬 챔피언스(스카우트: 소개 10마리·트라이얼/레귤러, 트레이닝, 도구 상점, 등급)를 참고했고,
  *  재화는 시뮬레이터 모드와 같은 BP(rewards.ts 지갑)를 쓴다. 인물·대사는 이 모드를 위해 새로 쓴 것. */
 
-/** 값 (BP) */
+/** 값 (BP). 준전설은 스카우트 값이 2배, 초전설·환상은 4배 */
 export const PRICE = {
 	/** 레귤러 스카우트 · 지명 스카우트 · 소개 새로 받기 · 다음 소개에 타입 지정 */ scout: 8, pick: 20, refresh: 3, typeTicket: 3,
 	/** 도구: 보통 · 강한 도구 · 열매 · 메가스톤 · Z크리스탈 */ item: 6, itemHi: 8, berry: 3, mega: 15, z: 6,
@@ -21,24 +21,32 @@ export const TIERS = [
 	{ name: '챔피언급', need: 0, cap: 60, bst: [520, 680], q: 0.9, skill: 0.95 },
 ];
 
-/** 규칙 순환: 주마다 한 칸씩 넘어감. 타워·팩토리·랭크는 서로 다른 칸을 씀 */
-export const ROTATION: { rule: string; name: string; desc: string }[] = [
-	{ rule: 'm_one.natdex.no.no', name: '메가진화', desc: '전국도감 · 메가스톤을 지닌 포켓몬 한 마리가 메가진화' },
-	{ rule: 't_one.natdex.no.no', name: '테라스탈', desc: '전국도감 · 한 마리가 테라스탈' },
-	{ rule: '_one.natdex.no.no', name: '기믹 없음', desc: '전국도감 · 메가진화·Z기술·다이맥스·테라스탈 없이' },
-	{ rule: 'z_one.natdex.no.no', name: 'Z기술', desc: '전국도감 · Z크리스탈을 지닌 포켓몬이 한 번 Z기술' },
-	{ rule: 'm_one.champmc.no.no', name: '챔피언스 M-C', desc: '레귤레이션 M-C 의 포켓몬만 · 메가진화' },
-	{ rule: 'd_one.natdex.no.no', name: '다이맥스', desc: '전국도감 · 한 마리가 3턴 동안 다이맥스' },
+/** 규칙 순환: 날마다 바뀜. 포켓몬 풀은 늘 전국도감(제한 없음)이고 기믹만 돌아감. 타워·팩토리·랭크는 서로 다른 칸을 씀 */
+export const GIMMICKS: [string, string, string][] = [
+	['m_one', '메가진화', '메가스톤을 지닌 포켓몬 한 마리가 메가진화'],
+	['t_one', '테라스탈', '한 마리가 테라스탈'],
+	['_one', '기믹 없음', '메가진화·Z기술·다이맥스·테라스탈 없이'],
+	['z_one', 'Z기술', 'Z크리스탈을 지닌 포켓몬이 한 번 Z기술'],
+	['d_one', '다이맥스', '한 마리가 3턴 동안 다이맥스'],
+	['mzdt_one', '기믹 자유', '메가진화·Z기술·다이맥스·테라스탈 가운데 한 가지'],
 ];
-const WEEK = 7 * 864e5, EPOCH = new Date(2026, 0, 5).getTime();
-export const weekNo = (now = Date.now()) => Math.floor((now - EPOCH) / WEEK);
-export const daysLeft = (now = Date.now()) => Math.max(1, Math.ceil((EPOCH + (weekNo(now) + 1) * WEEK - now) / 864e5));
+/** 전설 허용 단계: 0 = 일반 포켓몬만 · 1 = 준전설까지 · 2 = 초전설·환상까지. 등급이 높을수록 높은 단계가 섞여 나옴 */
+export const LEGEND_NAME = ['일반 룰', '준전설 룰', '전설 룰'];
+const LEGEND_BY_TIER = [[0], [0], [0, 0, 1], [0, 1, 1], [1, 2, 1, 0, 2], [2, 1, 2, 1, 0]];
+const EPOCH = new Date(2026, 0, 5).getTime();
+export const dayNo = (now = new Date()) => Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - EPOCH) / 864e5);
+/** 다음 규칙 변경(자정)까지 남은 시간 */
+export const hoursLeft = (now = new Date()) => Math.max(1, Math.ceil((new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime()) / 36e5));
 export type BattleKind = 'rank' | 'tower' | 'factory';
-/** 이번 주 그 배틀의 규칙. 랭크는 주마다 싱글(3마리)·더블(4마리)이 번갈아 */
-export function rotationOf(kind: BattleKind, w = weekNo()) {
-	const r = ROTATION[(((w + { rank: 0, tower: 2, factory: 4 }[kind]) % ROTATION.length) + ROTATION.length) % ROTATION.length];
-	const doubles = kind === 'rank' && w % 2 === 1;
-	return { ...r, doubles, pick: doubles ? 4 : 3 };
+/** 오늘 그 배틀의 규칙 (등급에 따라 전설 허용 단계가 달라짐). 랭크는 날마다 싱글(3마리)·더블(4마리)이 번갈아 */
+export function rotationOf(kind: BattleKind, tier: number, d = dayNo()) {
+	const off = { rank: 0, tower: 2, factory: 4 }[kind], mod = (a: number, n: number) => ((a % n) + n) % n;
+	const [g, name, gdesc] = GIMMICKS[mod(d + off, GIMMICKS.length)];
+	const lv = LEGEND_BY_TIER[Math.min(tier, LEGEND_BY_TIER.length - 1)], legend = kind === 'factory' ? 0 : lv[mod(d + off, lv.length)];
+	const doubles = kind === 'rank' && mod(d, 2) === 1;
+	// 전국도감은 준전설이 기본 허용이라, 일반 룰에서는 따로 막음 (끝의 .no)
+	const rule = `${g}.natdex.${legend >= 2 ? 'yes.yes' : 'no.no'}${legend === 0 ? '.no' : ''}`;
+	return { rule, name: legend ? `${name} · ${LEGEND_NAME[legend]}` : name, desc: `${gdesc}${legend === 2 ? ' · 초전설·환상의 포켓몬도 참가' : legend === 1 ? ' · 준전설까지 참가' : ''}`, doubles, pick: doubles ? 4 : 3, legend };
 }
 
 /** 가지고 시작하는 도구 */

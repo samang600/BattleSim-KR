@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.79.0', date: '2026-11-14', title: '계산기 개선', items: [
+		['new', '배틀 계산기에 다이맥스(다이맥스 기술 위력·HP 2배), Z기술, 고대활성·쿼크차지, 반감 열매를 넣고, 결정력·내구력 수치를 함께 보여 줘요'],
+	] },
 	{ ver: '2.72.5', date: '2026-11-11', title: 'PP 표시', items: [
 		['fix', '팀 편집·포켓몬 상세의 기술 PP 가 배틀에서 실제로 쓰는 값과 다르게 보이던 문제를 고쳤어요 (챔피언스 사양 룰은 방어 8·지진 12, 본가 사양 룰은 방어 16·지진 16)'],
 	] },

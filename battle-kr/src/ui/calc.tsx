@@ -11,7 +11,7 @@ import { SetEditor, matches } from './teambuilder';
 
 const GEN: Gen = 9;
 type Boosts = { [k in StatID]?: number };
-interface Side { set: PSet; boosts: Boosts; tera: boolean; status: string }
+interface Side { set: PSet; boosts: Boosts; tera: boolean; status: string; /** 다이맥스 중 (공격: 다이맥스 기술 · 방어: HP 2배) */ dmax?: boolean; /** Z기술로 씀 */ zmove?: boolean; /** 고대활성·쿼크차지가 켜진 것으로 봄 (쾌청·일렉트릭필드·부스트에너지면 저절로) */ paradox?: boolean }
 interface Field { weather: '' | 'sun' | 'rain' | 'sand' | 'snow'; terrain: '' | 'electric' | 'grassy' | 'psychic' | 'misty'; doubles: boolean; reflect: boolean; lightscreen: boolean; auroraveil: boolean; crit: boolean; helpinghand: boolean }
 
 export function typeEff(moveType: string, defTypes: string[]) {
@@ -23,6 +23,27 @@ export function typeEff(moveType: string, defTypes: string[]) {
 	return mult;
 }
 const boostMul = (b: number) => b >= 0 ? (2 + b) / 2 : 2 / (2 - b);
+/** 다이맥스 기술의 위력 (원래 기술의 위력 기준. 격투·독은 낮음) */
+export function maxPower(bp: number, type: string) {
+	const low = type === 'Fighting' || type === 'Poison';
+	const t: [number, number, number][] = [[40, 90, 70], [50, 100, 75], [60, 110, 80], [70, 120, 85], [100, 130, 90], [140, 140, 95], [999, 150, 100]];
+	const r = t.find(x => bp <= x[0])!; return low ? r[2] : r[1];
+}
+/** Z기술의 위력 (원래 기술의 위력 기준) */
+export function zPower(bp: number) { return bp <= 55 ? 100 : bp <= 65 ? 120 : bp <= 75 ? 140 : bp <= 85 ? 160 : bp <= 95 ? 175 : bp <= 100 ? 180 : bp <= 110 ? 185 : bp <= 125 ? 190 : bp <= 130 ? 195 : 200; }
+/** 반감 열매: 효과가 굉장한 그 타입 기술의 데미지를 절반으로 (노말은 늘) */
+const RESIST_BERRY: { [k: string]: string } = { occaberry: 'Fire', passhoberry: 'Water', wacanberry: 'Electric', rindoberry: 'Grass', yacheberry: 'Ice', chopleberry: 'Fighting', kebiaberry: 'Poison', shucaberry: 'Ground', cobaberry: 'Flying',
+	payapaberry: 'Psychic', tangaberry: 'Bug', chartiberry: 'Rock', kasibberry: 'Ghost', habanberry: 'Dragon', colburberry: 'Dark', babiriberry: 'Steel', roseliberry: 'Fairy', chilanberry: 'Normal' };
+/** 고대활성·쿼크차지: 켜져 있으면 가장 높은 능력(HP 제외, 랭크 반영)을 돌려줌 — 그 능력이 1.3배(스피드는 1.5배) */
+export function paradoxStat(side: Side, f: { weather: string; terrain: string }): StatID | null {
+	const ab = effAbility(side.set);
+	if (ab !== 'protosynthesis' && ab !== 'quarkdrive') return null;
+	const on = side.paradox || toID(side.set.item) === 'boosterenergy' || (ab === 'protosynthesis' ? f.weather === 'sun' : f.terrain === 'electric');
+	if (!on) return null;
+	let best: StatID = 'atk', bv = -1;
+	for (const k of ['atk', 'def', 'spa', 'spd', 'spe'] as StatID[]) { const v = stat(side.set, k) * boostMul(side.boosts[k] || 0); if (v > bv) { bv = v; best = k; } }
+	return best;
+}
 /** 메가스톤을 들고 있으면 메가진화 후 종족으로 계산 */
 function effSpeciesId(set: PSet): string {
 	const it = (RAW.items as any)[toID(set.item)];
@@ -41,12 +62,13 @@ function stat(set: PSet, k: StatID) {
 	return calcStat(sd.bs[STATS.indexOf(k)], spToEv(evToSp(set.evs[k] || 0)), 31, set.level || 50, mul, k === 'hp');
 }
 
-export interface CalcResult { min: number; max: number; minPct: number; maxPct: number; rolls: number[]; eff: number; notes: string[]; hp: number }
+export interface CalcResult { min: number; max: number; minPct: number; maxPct: number; rolls: number[]; eff: number; notes: string[]; hp: number; /** 결정력(위력 × 공격 × 자속·도구 등 공격측 보정) · 내구력(HP × 방어 ÷ 0.411) · 실제로 쓴 위력 */ power?: number; bulk?: number; bp?: number }
 export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): CalcResult | null {
 	const mv = moveData(moveId, GEN); if (!mv) return null;
 	const as = speciesData(effSpeciesId(atk.set), GEN)!, ds = speciesData(effSpeciesId(def.set), GEN)!;
-	const hp = stat(def.set, 'hp');
+	const hp = stat(def.set, 'hp') * (def.dmax ? 2 : 1);
 	const notes: string[] = [];
+	if (def.dmax) notes.push('방어측 다이맥스(HP 2배)');
 	if (mv.category === 'Status') return { min: 0, max: 0, minPct: 0, maxPct: 0, rolls: [], eff: 1, notes: ['변화 기술'], hp };
 	let bp = mv.basePower;
 	const id = mv.id;
@@ -65,6 +87,10 @@ export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): Calc
 
 	let moveType = mv.type;
 	if (id.startsWith('hiddenpower')) moveType = mv.type;
+	// 다이맥스 기술·Z기술: 위력이 원래 기술의 위력에 따라 정해지고, 범위·접촉·위력 관련 특성(테크니션 등)은 적용되지 않음
+	const special = atk.dmax || atk.zmove;
+	if (atk.dmax) { bp = maxPower(mv.basePower || bp, moveType); notes.push(`다이맥스 기술(위력 ${bp})`); }
+	else if (atk.zmove) { bp = zPower(mv.basePower || bp); notes.push(`Z기술(위력 ${bp})`); }
 	const aAb = effAbility(atk.set), dAb = effAbility(def.set), aItem = toID(atk.set.item), dItem = toID(def.set.item);
 	if (effSpeciesId(atk.set) !== toID(atk.set.species)) notes.push(`공격측 메가진화(${speciesData(effSpeciesId(atk.set), GEN)!.n})`);
 	if (effSpeciesId(def.set) !== toID(def.set.species)) notes.push(`방어측 메가진화(${speciesData(effSpeciesId(def.set), GEN)!.n})`);
@@ -73,14 +99,14 @@ export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): Calc
 	if (aAb === 'aerilate' && moveType === 'Normal') { moveType = 'Flying'; bp *= 1.2; }
 	if (aAb === 'galvanize' && moveType === 'Normal') { moveType = 'Electric'; bp *= 1.2; }
 	if (aAb === 'normalize') moveType = 'Normal';
-	if (aAb === 'technician' && bp <= 60) { bp *= 1.5; notes.push('테크니션'); }
-	if (aAb === 'ironfist' && /punch|fist/.test(id)) bp *= 1.2;
-	if (aAb === 'strongjaw' && /bite|crunch|fang/.test(id)) bp *= 1.5;
-	if (aAb === 'sheerforce') { bp *= 1.3; notes.push('우격다짐(추가효과 있는 기술로 가정)'); }
-	if (aAb === 'reckless' && /doubleedge|bravebird|flareblitz|woodhammer|headsmash|wildcharge|takedown|submission|volttackle|jumpkick|highjumpkick/.test(id)) bp *= 1.2;
-	if (aAb === 'toughclaws' && mv.contact) bp *= 1.3;
-	if (aAb === 'punkrock' && /boomburst|hypervoice|overdrive|snarl|bugbuzz|round/.test(id)) bp *= 1.3;
-	if (aAb === 'sharpness' && /slash|cut|blade|sword|edge|cleave|scissor|psychocut|nightslash|aquacutter|leafblade|sacredsword|secretsword|kowtow|bitterblade|stoneaxe|ceaseless/.test(id)) bp *= 1.5;
+	if (!special && aAb === 'technician' && bp <= 60) { bp *= 1.5; notes.push('테크니션'); }
+	if (!special && aAb === 'ironfist' && /punch|fist/.test(id)) bp *= 1.2;
+	if (!special && aAb === 'strongjaw' && /bite|crunch|fang/.test(id)) bp *= 1.5;
+	if (!special && aAb === 'sheerforce') { bp *= 1.3; notes.push('우격다짐(추가효과 있는 기술로 가정)'); }
+	if (!special && aAb === 'reckless' && /doubleedge|bravebird|flareblitz|woodhammer|headsmash|wildcharge|takedown|submission|volttackle|jumpkick|highjumpkick/.test(id)) bp *= 1.2;
+	if (!special && aAb === 'toughclaws' && mv.contact) bp *= 1.3;
+	if (!special && aAb === 'punkrock' && /boomburst|hypervoice|overdrive|snarl|bugbuzz|round/.test(id)) bp *= 1.3;
+	if (!special && aAb === 'sharpness' && /slash|cut|blade|sword|edge|cleave|scissor|psychocut|nightslash|aquacutter|leafblade|sacredsword|secretsword|kowtow|bitterblade|stoneaxe|ceaseless/.test(id)) bp *= 1.5;
 	if (f.terrain === 'electric' && moveType === 'Electric') bp *= 1.3;
 	if (f.terrain === 'grassy' && moveType === 'Grass') bp *= 1.3;
 	if (f.terrain === 'psychic' && moveType === 'Psychic') bp *= 1.3;
@@ -96,6 +122,9 @@ export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): Calc
 	const defStat: StatID = (id === 'psyshock' || id === 'psystrike' || id === 'secretsword') ? 'def' : physical ? 'def' : 'spd';
 	let A = stat(id === 'foulplay' ? def.set : atk.set, atkStat) * boostMul(f.crit ? Math.max(0, (id === 'foulplay' ? def : atk).boosts[atkStat] || 0) : ((id === 'foulplay' ? def : atk).boosts[atkStat] || 0));
 	let D = stat(def.set, defStat) * boostMul(f.crit ? Math.min(0, def.boosts[defStat] || 0) : (def.boosts[defStat] || 0));
+	const aPx = paradoxStat(atk, f), dPx = paradoxStat(def, f);
+	if (aPx === atkStat && id !== 'foulplay') { A *= 1.3; notes.push(`${aAb === 'protosynthesis' ? '고대활성' : '쿼크차지'} ×1.3`); }
+	if (dPx === defStat) { D *= 1.3; notes.push(`방어측 ${dAb === 'protosynthesis' ? '고대활성' : '쿼크차지'} ×1.3`); }
 	if (physical && (aAb === 'hugepower' || aAb === 'purepower')) A *= 2;
 	if (physical && aAb === 'hustle') A *= 1.5;
 	if (physical && aAb === 'guts' && atk.status) A *= 1.5;
@@ -117,7 +146,7 @@ export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): Calc
 	const L = atk.set.level || 50;
 	let base = Math.floor(Math.floor(Math.floor(2 * L / 5 + 2) * Math.floor(bp) * Math.floor(A) / Math.max(1, Math.floor(D))) / 50) + 2;
 	// 보정 순서: 범위 → 날씨 → 급소 → 난수 → 자속 → 상성 → 화상 → 기타
-	if (f.doubles && ['allAdjacentFoes', 'allAdjacent'].includes(mv.target)) base = Math.floor(base * 0.75);
+	if (f.doubles && !special && ['allAdjacentFoes', 'allAdjacent'].includes(mv.target)) base = Math.floor(base * 0.75);
 	if (f.weather === 'rain') base = Math.floor(base * (moveType === 'Water' ? 1.5 : moveType === 'Fire' ? 0.5 : 1));
 	if (f.weather === 'sun') base = Math.floor(base * (moveType === 'Fire' ? 1.5 : moveType === 'Water' ? 0.5 : 1));
 	if (f.crit) { base = Math.floor(base * 1.5); notes.push('급소'); }
@@ -152,7 +181,7 @@ export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): Calc
 	if (dAb === 'thickfat' && (moveType === 'Fire' || moveType === 'Ice')) other *= 0.5;
 	if (dAb === 'heatproof' && moveType === 'Fire') other *= 0.5;
 	if (dAb === 'waterbubble' && moveType === 'Fire') other *= 0.5;
-	if (dAb === 'fluffy') { if (mv.contact) other *= 0.5; if (moveType === 'Fire') other *= 2; }
+	if (dAb === 'fluffy') { if (mv.contact && !special) other *= 0.5; if (moveType === 'Fire') other *= 2; }
 	if (dAb === 'icescales' && !physical) other *= 0.5;
 	if (dAb === 'punkrock' && /boomburst|hypervoice|overdrive|snarl|bugbuzz|round/.test(id)) other *= 0.5;
 	if (aAb === 'tintedlens' && eff < 1) other *= 2;
@@ -161,7 +190,7 @@ export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): Calc
 	if (aItem === 'expertbelt' && eff > 1) other *= 1.2;
 	if (aItem === 'muscleband' && physical) other *= 1.1;
 	if (aItem === 'wiseglasses' && !physical) other *= 1.1;
-	if (dItem && /berry$/.test(dItem) && eff > 1) notes.push('반감 열매는 미반영');
+	if (RESIST_BERRY[dItem] === moveType && (eff > 1 || moveType === 'Normal')) { other *= 0.5; notes.push(`${itemKo(dItem)} ×0.5`); }
 	const rolls: number[] = [];
 	for (let r = 85; r <= 100; r++) {
 		let d = Math.floor(base * r / 100);
@@ -170,7 +199,11 @@ export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): Calc
 		d = Math.floor(d * other);
 		rolls.push(Math.max(1, d));
 	}
-	return { min: rolls[0], max: rolls[15], minPct: rolls[0] / hp * 100, maxPct: rolls[15] / hp * 100, rolls, eff, notes, hp };
+	// 결정력 = 위력 × 공격(보정 포함) × 자속 × 공격측 기타 보정(도구·날씨 등) · 내구력 = HP × 방어(보정 포함) ÷ 0.411
+	const wMul = f.weather === 'rain' ? (moveType === 'Water' ? 1.5 : moveType === 'Fire' ? 0.5 : 1) : f.weather === 'sun' ? (moveType === 'Fire' ? 1.5 : moveType === 'Water' ? 0.5 : 1) : 1;
+	const aOther = (aItem === 'lifeorb' ? 1.3 : 1) * (aItem === 'expertbelt' && eff > 1 ? 1.2 : 1) * (aItem === 'muscleband' && physical ? 1.1 : 1) * (aItem === 'wiseglasses' && !physical ? 1.1 : 1) * (physical && atk.status === 'brn' && aAb !== 'guts' && id !== 'facade' ? 0.5 : 1);
+	const power = Math.floor(Math.floor(bp) * Math.floor(A) * stab * wMul * aOther), bulk = Math.floor(hp * Math.floor(D) / 0.411);
+	return { min: rolls[0], max: rolls[15], minPct: rolls[0] / hp * 100, maxPct: rolls[15] / hp * 100, rolls, eff, notes, hp, power, bulk, bp: Math.floor(bp) };
 }
 
 /** n타 확정/난수 확률 */
@@ -246,14 +279,18 @@ export function CalcScreen({ onBack }: { onBack: () => void }) {
 			<div class="stat-strip">{STATS.map(k => <div class={'ss ' + ((which === 'atk' ? (k === 'atk' || k === 'spa' || k === 'spe') : (k === 'hp' || k === 'def' || k === 'spd' || k === 'spe')) ? 'key' : '')}><span>{STAT_SHORT[k]}</span><b>{stat(side.set, k)}</b></div>)}</div>
 			<div class="chips-row">
 				<button class={'chipbtn' + (side.tera ? ' on' : '')} onClick={() => setSide({ ...side, tera: !side.tera })}>테라스탈 {typeKo((fixedTera(side.set.species) || side.set.teraType) || sd.t[0])}</button>
+				<button class={'chipbtn' + (side.dmax ? ' on' : '')} onClick={() => setSide({ ...side, dmax: !side.dmax, zmove: false })}>다이맥스</button>
+				{which === 'atk' && <button class={'chipbtn' + (side.zmove ? ' on' : '')} onClick={() => setSide({ ...side, zmove: !side.zmove, dmax: false })}>Z기술</button>}
+				{['protosynthesis', 'quarkdrive'].includes(effAbility(side.set)) && <button class={'chipbtn' + (paradoxStat(side, field) ? ' on' : '')} onClick={() => setSide({ ...side, paradox: !side.paradox })}>
+					{effAbility(side.set) === 'protosynthesis' ? '고대활성' : '쿼크차지'}{paradoxStat(side, field) ? ` (${STAT_SHORT[paradoxStat(side, field)!]}↑)` : ''}</button>}
 				{(which === 'atk' ? ['brn', 'par', 'psn'] : ['brn', 'par', 'psn', 'slp']).map(st => <button class={'chipbtn' + (side.status === st ? ' on' : '')} onClick={() => setSide({ ...side, status: side.status === st ? '' : st })}>{{ brn: '화상', par: '마비', psn: '독', slp: '잠듦' }[st]}</button>)}
 			</div>
 			{boostRow(side, setSide, which === 'atk' ? ['atk', 'spa', 'spe'] : ['def', 'spd', 'spe'])}
 		</div>;
 	};
 	const md = moveData(move, GEN);
-	const spdA = stat(atk.set, 'spe') * boostMul(atk.boosts.spe || 0) * (atk.status === 'par' ? 0.5 : 1) * (toID(atk.set.item) === 'choicescarf' ? 1.5 : 1);
-	const spdD = stat(def.set, 'spe') * boostMul(def.boosts.spe || 0) * (def.status === 'par' ? 0.5 : 1) * (toID(def.set.item) === 'choicescarf' ? 1.5 : 1);
+	const spd = (x: Side) => stat(x.set, 'spe') * boostMul(x.boosts.spe || 0) * (x.status === 'par' ? 0.5 : 1) * (toID(x.set.item) === 'choicescarf' && !x.dmax ? 1.5 : 1) * (paradoxStat(x, field) === 'spe' ? 1.5 : 1);
+	const spdA = spd(atk), spdD = spd(def);
 	return <Screen title="배틀 계산기" onBack={onBack} right={<button class="btn small" onClick={swap}>⇅ 교대</button>}>
 		<div class="seg"><button class={tab === 'damage' ? 'on' : ''} onClick={() => setTab('damage')}>데미지</button><button class={tab === 'speed' ? 'on' : ''} onClick={() => setTab('speed')}>스피드</button></div>
 		{sideCard('공격', atk, setAtk, 'atk')}
@@ -287,16 +324,17 @@ export function CalcScreen({ onBack }: { onBack: () => void }) {
 					<div class="cr-main">{res.rolls.length ? `${res.min} ~ ${res.max}` : '—'}</div>
 					<div class="cr-pct">{res.rolls.length ? `${res.minPct.toFixed(1)}% ~ ${res.maxPct.toFixed(1)}%  (HP ${res.hp})` : res.notes.join(', ')}</div>
 					{res.rolls.length > 0 && <div class="cr-ko">{koChance(res.rolls, res.hp)}{res.eff !== 1 && ` · 상성 ×${res.eff}`}</div>}
+					{res.power !== undefined && res.rolls.length > 0 && <div class="cr-idx"><span>결정력 <b>{res.power.toLocaleString()}</b></span><span>내구력 <b>{res.bulk!.toLocaleString()}</b></span><span>위력 <b>{res.bp}</b></span></div>}
 					{res.notes.length > 0 && res.rolls.length > 0 && <div class="muted small">{res.notes.join(' · ')}</div>}
 					<div class="muted small">난수 16개: {res.rolls.join(', ')}</div>
 				</> : <div class="muted">기술을 고르세요</div>}
 			</div>
-			<p class="muted small">9세대 공식과 같은 순서로 계산합니다(범위→날씨→급소→난수→자속→상성→화상→기타). 일부 특성·도구는 미반영이며 결과에 표시합니다.</p>
+			<p class="muted small">9세대 공식과 같은 순서로 계산합니다(범위→날씨→급소→난수→자속→상성→화상→기타). 다이맥스 기술·Z기술의 위력, 다이맥스 HP 2배, 고대활성·쿼크차지, 반감 열매를 반영합니다. 결정력 = 위력 × 공격 × 자속·도구·날씨, 내구력 = HP × 방어 ÷ 0.411. 일부 특성·도구는 미반영이며 결과에 표시합니다.</p>
 		</>}
 		{tab === 'speed' && <div class="calc-result">
 			<div class="cr-main">{Math.floor(spdA)} <span class="muted small">vs</span> {Math.floor(spdD)}</div>
 			<div class="cr-ko">{spdA === spdD ? '동속 (50%)' : spdA > spdD ? `${atk.set.name} 선공` : `${def.set.name} 선공`}</div>
-			<div class="muted small">랭크·마비·구애스카프 반영. 트릭룸이면 반대.</div>
+			<div class="muted small">랭크·마비·구애스카프·고대활성/쿼크차지(스피드가 가장 높을 때 1.5배) 반영. 트릭룸이면 반대.</div>
 		</div>}
 	</Screen>;
 }

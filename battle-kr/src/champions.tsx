@@ -11,10 +11,10 @@ import { randomTrainer } from './trainers';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { load, save, loadSettings } from './store';
 import { loadWallet, earnBP, spendBP, onWallet } from './rewards';
-import { ruleById, applyRuleData, teamRuleIssues } from './rules';
+import { ruleById, applyRuleData, teamRuleIssues, speciesAllowed } from './rules';
 import { speciesKo, speciesData, moveKo, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, toID, ALL_TYPES } from './data';
 import { playMusic, sfx } from './sound';
-import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, FIRST_FIXED, START_ITEMS, SHOP, NATURES, rotationOf, daysLeft, type BattleKind } from './champions-data';
+import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, FIRST_FIXED, START_ITEMS, SHOP, NATURES, rotationOf, hoursLeft, type BattleKind } from './champions-data';
 
 // ───────── 저장 ─────────
 interface CMon { id: number; set: PSet; /** 트라이얼: 이 시각(ms)까지 */ trial?: number }
@@ -44,9 +44,22 @@ function expireTrials(S: CSave) {
 }
 /** 그 규칙의 데이터 사양으로 잠깐 바꿔서 실행 (상대 팀·소개 포켓몬을 그 규칙에 맞게 만들기) */
 function withRule<R>(rule: string, f: () => R): R { applyRuleData(ruleById(rule)); try { return f(); } finally { applyRuleData(ruleById(loadSettings().battleRule)); } }
-const BASE_RULE = 'm_one.natdex.no.no';
+const BASE_RULE = 'm_one.natdex.no.no.no';
+/** 희귀도: 0 일반 · 1 준전설 · 2 초전설·환상 (스카우트 값 1·2·4배, 등급이 올라야 소개됨) */
+const R_SUB = ruleById('m_one.natdex.no.no'), R_NONE = ruleById(BASE_RULE);
+const rarity = (id: string) => speciesAllowed(R_NONE, id) ? 0 : speciesAllowed(R_SUB, id) ? 1 : 2;
+const scoutCost = (id: string, pick = false) => (pick ? PRICE.pick : PRICE.scout) * [1, 2, 4][rarity(id)];
+const RARE = ['', '준전설', '전설'];
 const josa = (w: string, a: string, b: string) => { const c = w.charCodeAt(w.length - 1); return w + (c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 ? a : b); };
 const K = () => Math.random();
+/** 전용 메뉴 음악 (music/gen3.py 의 champhub) */
+const HUB_BGM = 'champhub';
+/** 화면 전환: fade(검게 덮였다 열림) · blinds(가로 띠) · battle(번쩍 + 띠) — 시나리오 모드와 같은 도트 연출 */
+function Fx({ kind, done }: { kind: string; done: () => void }) {
+	useState(() => { setTimeout(done, kind === 'battle' ? 900 : 520); });
+	return <div class={'sc-fx cp-fx sc-fx-' + kind}><div class="sc-fx-ov">{kind === 'blinds' && [0, 1, 2, 3, 4, 5, 6, 7].map(i => <i style={{ animationDelay: i * 40 + 'ms' }} />)}{kind === 'battle' && [0, 1, 2, 3, 4, 5].map(i => <i style={{ animationDelay: 260 + i * 50 + 'ms' }} />)}</div></div>;
+}
+const fx = (kind: 'fade' | 'blinds' | 'battle') => ask<void>(r => <Fx key={K()} kind={kind} done={r} />);
 const pay = (n: number, why: string) => { if (!spendBP(n, why)) { toast(`BP 가 모자라요 (${n} BP 필요)`); return false; } return true; };
 
 // ───────── 공용 조각 ─────────
@@ -66,7 +79,7 @@ const types = (sp: string) => ((speciesData(sp, 9) as any)?.t || []) as string[]
 function MonCard({ set, cls = '', mark, sub, onClick }: { set: PSet; cls?: string; mark?: any; sub?: string; onClick?: () => void }) {
 	return <button class={'cp-card ' + cls} onClick={onClick}>{mark}
 		<span class="cp-card-spr"><Sprite species={set.species} gen={9} size={56} anim={false} cls="front" shiny={set.shiny} /></span>
-		<span class="cp-card-body"><b>{speciesKo(set.species)}</b><span>{types(set.species).map(t => <TypeBadge type={t} small />)}</span>
+		<span class="cp-card-body"><b>{speciesKo(set.species)}{rarity(toID(set.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(set.species))]}</i>}</b><span>{types(set.species).map(t => <TypeBadge type={t} small />)}</span>
 			<small>{sub ?? `${natureKo(set.nature)} · ${abilityKo(set.ability)}`}</small></span></button>;
 }
 /** 대화 장면: 배틀 배경 그림 위에 트레이너 도트와 대화창. 누르면 다음 줄 */
@@ -99,9 +112,11 @@ async function fight(S: CSave, mine: PSet[], opp: Opp, rot: { rule: string; doub
 		if (!p) return null;
 		entry = p;
 	}
+	await fx('battle');
 	const res = await battle({ gen: 9, doubles: rot.doubles, aiSkill: opp.skill, bg: bg as any, music: (opp.music || 'battle') as any, label, noRecord: true, ruleId: rot.rule,
 		p1: { name: playerName(), team: entry.map(cloneSet), sprite: playerSprite() }, p2: { name: opp.name, title: opp.title || '', team: opp.team, sprite: opp.sprite, line: opp.line } } as any);
-	playMusic('lobby');
+	playMusic(HUB_BGM);
+	await fx('fade');
 	return res.win;
 }
 /** 이긴 뒤의 공통 처리: BP · 오늘의 미션 진행 */
@@ -112,9 +127,9 @@ function won(S: CSave, kind: BattleKind, entryHadTrial: boolean) {
 const result = (title: string, heading: string, lines: string[]) => ask<void>(r => <Screen key={K()} title={title} cls="cp-scr"><div class="cp-pn gold cp-result"><h2>{heading}</h2>{lines.map(l => <p>{l}</p>)}</div><button class="btn big primary" onClick={() => r()}>확인</button></Screen>);
 
 async function rankBattle(S: CSave) {
-	const rot = rotationOf('rank'), t = T(S), mine = teamOf(S);
+	const rot = rotationOf('rank', S.tier), t = T(S), mine = teamOf(S);
 	const tr = randomTrainer(S.tier >= 3 ? 'expert' : 'grown');
-	const team = withRule(rot.rule, () => randomTeam({ gen: 9, size: rot.pick, minBst: t.bst[0], maxBst: t.bst[1], allowSubLegend: false, doubles: rot.doubles, quality: t.q, gimmicks: true }));
+	const team = withRule(rot.rule, () => randomTeam({ gen: 9, size: rot.pick, minBst: t.bst[0], maxBst: t.bst[1] + rot.legend * 60, allowSubLegend: rot.legend >= 1, allowLegend: rot.legend >= 2, doubles: rot.doubles, quality: t.q, gimmicks: true }));
 	const win = await fight(S, mine.map(m => m.set), { name: tr.name, title: tr.className, sprite: tr.sprite, team, skill: t.skill, line: tr.lines.intro }, rot, `챔피언스 랭크 · ${t.name}`, 'pwt');
 	if (win === null) return;
 	dayOf(S).modes.rank = 1;
@@ -125,7 +140,7 @@ async function rankBattle(S: CSave) {
 		t.need ? `${t.name} · 승점 ${S.pts} / ${t.need}${S.pts >= t.need ? ' — 승급전에 도전할 수 있어요! (스토리)' : ''}` : '챔피언급 — 가장 높은 등급입니다']);
 }
 async function towerBattle(S: CSave) {
-	const rot = rotationOf('tower'), mine = teamOf(S);
+	const rot = rotationOf('tower', S.tier), mine = teamOf(S);
 	const o = withRule(rot.rule, () => towerOpponent(S.tower, 'singles', mine.map(m => m.set)));
 	const win = await fight(S, mine.map(m => m.set), { name: o.name, title: (o as any).title, sprite: (o as any).sprite, team: o.team, skill: o.skill, line: (o as any).line, music: (o as any).music || 'tower' }, rot, `챔피언스 타워 ${S.tower + 1}번째`, 'tower');
 	if (win === null) return;
@@ -139,7 +154,7 @@ async function towerBattle(S: CSave) {
 	await result('배틀타워', win ? '승리!' : '패배…', lines);
 }
 async function factoryBattle(S: CSave) {
-	const rot = rotationOf('factory'), tier = FACTORY_TIERS[Math.min(FACTORY_TIERS.length - 1, 1 + Math.floor(S.factory / 7))];
+	const rot = rotationOf('factory', S.tier), tier = FACTORY_TIERS[Math.min(FACTORY_TIERS.length - 1, 1 + Math.floor(S.factory / 7))];
 	const [rental, foe] = withRule(rot.rule, () => { const mine = factoryTeam(tier, 6, 50); return [mine, factoryTeam(tier, 3, 50, new Set(mine.map(s => toID(s.species))))]; });
 	const tr = randomTrainer('grown');
 	const win = await fight(S, rental, { name: tr.name, title: tr.className, sprite: tr.sprite, team: foe, skill: Math.min(0.9, 0.55 + S.factory * 0.02), line: tr.lines.intro, music: 'factory' }, rot, `챔피언스 팩토리 ${S.factory + 1}번째`, 'factory');
@@ -154,14 +169,14 @@ async function factoryBattle(S: CSave) {
 	await result('배틀팩토리', win ? '승리!' : '패배…', lines);
 }
 function BattleMenu({ S, done }: { S: CSave; done: (k: BattleKind | null) => void }) {
-	const row = (k: BattleKind, name: string, desc: string, state: string) => { const r = rotationOf(k); return <button class="cp-pn cp-battle" onClick={() => done(k)}>
+	const row = (k: BattleKind, name: string, desc: string, state: string) => { const r = rotationOf(k, S.tier); return <button class="cp-pn cp-battle" onClick={() => done(k)}>
 		<b>{name}<em>{r.name} · {r.doubles ? `더블 ${r.pick}마리` : `싱글 ${r.pick}마리`}</em></b><small>{desc}</small><small class="cp-dim">{r.desc}</small><small class="cp-y">{state}</small></button>; };
 	const t = T(S);
-	return <Screen title="배틀" onBack={() => done(null)} cls="cp-scr"><Top title="배틀" sub={`규칙은 ${daysLeft()}일 뒤에 바뀝니다`} S={S} />
+	return <Screen title="배틀" onBack={() => done(null)} cls="cp-scr"><Top title="배틀" sub={`오늘의 규칙 · ${hoursLeft()}시간 뒤에 바뀝니다`} S={S} onBack={() => done(null)} />
 		{row('rank', '랭크 배틀', '이기면 승점. 승점을 채우면 승급전(스토리)', t.need ? `${t.name} · 승점 ${S.pts} / ${t.need}` : '챔피언급')}
 		{row('tower', '배틀타워', '내 팀으로 연승. 7연승마다 지명 티켓', `${S.tower}연승 중 · 이번 세트 ${S.tower % 7} / 7`)}
 		{row('factory', '배틀팩토리', '빌린 6마리 중 3마리로 연승. 7연승마다 레귤러 티켓', `${S.factory}연승 중 · 이번 세트 ${S.factory % 7} / 7`)}
-		<p class="cp-note">1승마다 +{EARN.win} BP. 규칙·기믹은 주마다 바뀌고, 배틀마다 다른 규칙이 걸립니다. 규칙에 맞지 않는 포켓몬·도구는 그 배틀에 나갈 수 없어요.</p>
+		<p class="cp-note">1승마다 +{EARN.win} BP. 규칙·기믹은 날마다 바뀌고, 배틀마다 다른 규칙이 걸립니다. 포켓몬은 전국도감 전체가 대상이고, 등급이 오르면 준전설·전설이 나오는 날이 생깁니다.</p>
 	</Screen>;
 }
 
@@ -171,10 +186,14 @@ function newLineup(S: CSave, first = false) {
 	const t = T(S), have = new Set(S.roster.map(m => toID(m.set.species)));
 	S.lineup = withRule(BASE_RULE, () => {
 		const pool = rng.shuffle(speciesPool({ gen: 9, minBst: first ? 440 : t.bst[0], maxBst: first ? 560 : t.bst[1] + 40, allowSubLegend: false })).filter(id => !have.has(id));
+		// 등급이 오르면 준전설(슈퍼볼급~)·초전설·환상(마스터볼급~)이 한 마리씩 섞여 나옴 (값은 2배·4배)
+		const special = (lv: number) => withRule(lv === 2 ? 'm_one.natdex.yes.yes' : 'm_one.natdex.no.no', () => rng.shuffle(speciesPool({ gen: 9, minBst: 500, allowSubLegend: true, allowLegend: lv === 2 }))).find(id => rarity(id) === lv && !have.has(id));
 		const pickN: string[] = first ? [FIRST_FIXED] : [];
 		const wants = S.wish.filter(w => !have.has(w));
 		if (wants.length && (S.wishMiss >= 2 || Math.random() < 0.34)) { pickN.push(rng.pick(wants)); S.wishMiss = 0; } else if (wants.length) S.wishMiss++;
 		if (S.typeNext) { for (const id of pool) { if (pickN.length >= 6) break; if (!pickN.includes(id) && types(id).some(x => x === S.typeNext)) pickN.push(id); } S.typeNext = undefined; }
+		if (!first && S.tier >= 2) { const x = special(1); if (x) pickN.push(x); }
+		if (!first && S.tier >= 4) { const x = special(2); if (x) pickN.push(x); }
 		for (const id of pool) { if (pickN.length >= 10) break; if (!pickN.includes(id)) pickN.push(id); }
 		// 지닌 도구는 가진 것만 (없는 도구는 빼고 옴 — 도구는 상점에서)
 		return pickN.map(id => { const st = randomSetFor(id, 9, 50, false, 0.65); if (!S.items[toID(st.item)]) st.item = ''; return st; });
@@ -185,7 +204,7 @@ const addMon = (S: CSave, set: PSet, trial = false) => { const m: CMon = { id: S
 type ScoutAct = { k: 'back' } | { k: 'mon'; i: number } | { k: 'refresh' } | { k: 'type' } | { k: 'pick' } | { k: 'wish' };
 function ScoutScreen({ S, done }: { S: CSave; done: (a: ScoutAct) => void }) {
 	const trialLeft = S.trialDay === today() ? 0 : 1;
-	return <Screen title="스카우트" onBack={() => done({ k: 'back' })} cls="cp-scr"><Top title="스카우트" sub={`오늘의 소개 ${S.lineup.length}마리 · 내일 새로 옵니다`} S={S} />
+	return <Screen title="스카우트" onBack={() => done({ k: 'back' })} cls="cp-scr"><Top title="스카우트" sub={`오늘의 소개 ${S.lineup.length}마리 · 내일 새로 옵니다`} S={S} onBack={() => done({ k: 'back' })} />
 		<div class="cp-grid">{S.lineup.map((s, i) => <MonCard set={s} cls={S.wish.includes(toID(s.species)) ? 'rare' : ''} mark={S.wish.includes(toID(s.species)) ? <i class="cp-wish">♥ 찜</i> : null} onClick={() => done({ k: 'mon', i })} />)}</div>
 		{!S.lineup.length && <p class="cp-note">오늘 소개받은 포켓몬을 모두 데려갔어요.</p>}
 		<div class="cp-pn"><div class="cp-line"><div><b>레귤러 스카우트</b><small>계속 함께함 · 트레이닝 가능</small></div><span class="cp-cost">{PRICE.scout} BP<small>또는 레귤러 티켓</small></span></div>
@@ -208,12 +227,13 @@ function SpeciesPick({ title, pool, hint, done }: { title: string; pool: string[
 		{list.length >= 60 && <p class="cp-note">이름을 입력하면 더 좁혀집니다.</p>}
 	</Screen>;
 }
-const pickable = (S: CSave) => withRule(BASE_RULE, () => speciesPool({ gen: 9, minBst: 300, allowSubLegend: false })).filter(id => !S.roster.some(m => toID(m.set.species) === id)).sort((a, b) => speciesKo(a).localeCompare(speciesKo(b), 'ko'));
+const pickable = (S: CSave) => withRule(S.tier >= 4 ? 'm_one.natdex.yes.yes' : S.tier >= 2 ? 'm_one.natdex.no.no' : BASE_RULE, () => speciesPool({ gen: 9, minBst: 300, allowSubLegend: S.tier >= 2, allowLegend: S.tier >= 4 })).filter(id => !S.roster.some(m => toID(m.set.species) === id)).sort((a, b) => speciesKo(a).localeCompare(speciesKo(b), 'ko'));
 const full = (S: CSave) => { if (S.roster.length >= T(S).cap) { toast(`로스터가 가득 찼어요 (${T(S).cap}마리). 로스터에서 내보내거나 등급을 올리세요`); return true; } return false; };
 /** 레귤러 영입 값 치르기: 티켓이 있으면 티켓부터 */
-function payScout(S: CSave, kind: 'regular' | 'pick', name: string) {
-	if (S.tk[kind] > 0) { S.tk[kind]--; persist(S); return true; }
-	return pay(kind === 'pick' ? PRICE.pick : PRICE.scout, `챔피언스 · ${name} 스카우트`);
+function payScout(S: CSave, kind: 'regular' | 'pick', name: string, id = '') {
+	// 티켓은 일반 포켓몬에게만 (준전설·전설은 BP 로)
+	if (S.tk[kind] > 0 && !rarity(id)) { S.tk[kind]--; persist(S); return true; }
+	return pay(scoutCost(id, kind === 'pick'), `챔피언스 · ${name} 스카우트`);
 }
 async function scoutFlow(S: CSave, first = false) {
 	if (S.lineDay !== today() && !first) newLineup(S);
@@ -224,10 +244,10 @@ async function scoutFlow(S: CSave, first = false) {
 		if (a.k === 'mon') {
 			const s = S.lineup[a.i], name = speciesKo(s.species), canTrial = !first && S.trialDay !== today();
 			const c = await ask<string>(r => <Screen key={K()} title={name} onBack={() => r('')} cls="cp-scr"><MonDetail set={s} gen={9} />
-				<div class="cp-btns"><button class="btn primary" onClick={() => r('regular')}>레귤러 스카우트 ({S.tk.regular > 0 ? '티켓' : PRICE.scout + ' BP'})</button>
+				<div class="cp-btns"><button class="btn primary" onClick={() => r('regular')}>레귤러 스카우트 ({S.tk.regular > 0 && !rarity(toID(s.species)) ? '티켓' : scoutCost(toID(s.species)) + ' BP'})</button>
 					{!first && <button class="btn" disabled={!canTrial} onClick={() => r('trial')}>트라이얼 (7일 · {canTrial ? '무료' : '오늘은 이미 함'})</button>}</div></Screen>);
 			if (!c || full(S)) continue;
-			if (c === 'regular') { if (!payScout(S, 'regular', name)) continue; }
+			if (c === 'regular') { if (!payScout(S, 'regular', name, toID(s.species))) continue; }
 			else S.trialDay = today();
 			addMon(S, s, c === 'trial'); S.lineup.splice(a.i, 1); persist(S); sfx('heal');
 			toast(c === 'trial' ? `${josa(name, '이', '가')} 7일 동안 함께합니다 (트라이얼)` : `${josa(name, '을', '를')} 영입했습니다!`);
@@ -239,12 +259,12 @@ async function scoutFlow(S: CSave, first = false) {
 			if (t && pay(PRICE.typeTicket, '챔피언스 · 타입 지정')) { S.typeNext = t; persist(S); toast(`다음 소개에 ${typeKo(t)} 타입이 많이 나옵니다`); }
 		}
 		if (a.k === 'pick') {
-			const id = await ask<string | null>(r => <SpeciesPick key={K()} title="지명 스카우트" pool={pickable(S)} hint={`도감에서 골라 바로 영입합니다 — ${S.tk.pick > 0 ? `지명 티켓 1장 (가진 수 ${S.tk.pick})` : `${PRICE.pick} BP`}`} done={r} />);
+			const id = await ask<string | null>(r => <SpeciesPick key={K()} title="지명 스카우트" pool={pickable(S)} hint={`도감에서 골라 바로 영입합니다 — ${S.tk.pick > 0 ? `지명 티켓 1장 (가진 수 ${S.tk.pick})` : `${PRICE.pick} BP`}${S.tier >= 2 ? ` · 준전설 ${PRICE.pick * 2} BP${S.tier >= 4 ? ` · 전설 ${PRICE.pick * 4} BP` : ''}` : ''}`} done={r} />);
 			if (!id || full(S)) continue;
 			const set = withRule(BASE_RULE, () => randomSetFor(id, 9, 50, false, 0.7)), name = speciesKo(id);
 			if (!S.items[toID(set.item)]) set.item = '';
 			if (!(await confirmBox('지명 스카우트', `${josa(name, '을', '를')} 영입할까요?\n${natureKo(set.nature)} · ${abilityKo(set.ability)}\n${set.moves.map(moveKo).join(' · ')}`, '영입한다', '그만두기'))) continue;
-			if (!payScout(S, 'pick', name)) continue;
+			if (!payScout(S, 'pick', name, id)) continue;
 			addMon(S, set); S.wish = S.wish.filter(w => w !== id); persist(S); sfx('heal'); toast(`${josa(name, '을', '를')} 영입했습니다!`);
 		}
 		if (a.k === 'wish') {
@@ -268,7 +288,7 @@ function RosterScreen({ S, done }: { S: CSave; done: (m: CMon | null) => void })
 	const row = (m: CMon) => { const left = m.trial ? Math.max(1, Math.ceil((m.trial - Date.now()) / 864e5)) : 0; const inTeam = S.team.includes(m.id);
 		return <MonCard set={m.set} cls={inTeam ? 'sel' : ''} mark={<>{inTeam && <i class="cp-wish y">팀 {S.team.indexOf(m.id) + 1}</i>}{m.trial && <i class="cp-trial">트라이얼 {left}일</i>}</>}
 			sub={`${m.set.item ? itemKo(m.set.item) : '도구 없음'} · ${natureKo(m.set.nature)}`} onClick={() => done(m)} />; };
-	return <Screen title="로스터" onBack={() => done(null)} cls="cp-scr"><Top title="로스터" sub={`${S.roster.length} / ${T(S).cap}마리 · 팀 ${S.team.length} / 6`} S={S} />
+	return <Screen title="로스터" onBack={() => done(null)} cls="cp-scr"><Top title="로스터" sub={`${S.roster.length} / ${T(S).cap}마리 · 팀 ${S.team.length} / 6`} S={S} onBack={() => done(null)} />
 		<div class="cp-grid">{[...teamOf(S), ...S.roster.filter(m => !S.team.includes(m.id))].map(row)}</div>
 		{!S.roster.length && <p class="cp-note">아직 포켓몬이 없어요. 스카우트에서 데려오세요.</p>}
 		<p class="cp-note">포켓몬을 누르면 팀에 넣고 빼기·트레이닝·도구 바꾸기를 할 수 있어요. 테두리가 노란 포켓몬이 지금 팀입니다.</p>
@@ -278,7 +298,7 @@ type MonAct = '' | 'team' | 'item' | 'move' | 'nature' | 'ability' | 'sp' | 'ter
 function MonScreen({ S, m, done }: { S: CSave; m: CMon; done: (a: MonAct) => void }) {
 	const inTeam = S.team.includes(m.id), tr = !!m.trial;
 	const b = (a: MonAct, label: string, cost?: number, dis?: boolean) => <button class="btn" disabled={dis} onClick={() => done(a)}>{label}{cost !== undefined && <small class="cp-y"> {cost} BP</small>}</button>;
-	return <Screen title={speciesKo(m.set.species)} onBack={() => done('')} cls="cp-scr"><Top title={speciesKo(m.set.species)} sub={tr ? '트라이얼 — 트레이닝은 레귤러로 바꾼 뒤에' : inTeam ? '팀에 들어 있음' : '로스터'} S={S} />
+	return <Screen title={speciesKo(m.set.species)} onBack={() => done('')} cls="cp-scr"><Top title={speciesKo(m.set.species)} sub={tr ? '트라이얼 — 트레이닝은 레귤러로 바꾼 뒤에' : inTeam ? '팀에 들어 있음' : '로스터'} S={S} onBack={() => done('')} />
 		<MonDetail set={m.set} gen={9} />
 		<div class="cp-btns">{b('team', inTeam ? '팀에서 빼기' : '팀에 넣기')}{b('item', '지닌 도구 바꾸기')}</div>
 		<h3 class="cp-h">트레이닝</h3>
@@ -336,24 +356,27 @@ async function rosterFlow(S: CSave) {
 				const t = await ask<string | null>(r => <ChoiceScreen key={K()} title="테라스탈 타입" onBack={() => r(null)} options={ALL_TYPES.map(x => ({ value: x, label: typeKo(x), disabled: s.teraType === x }))} onPick={r} />);
 				if (t && pay(PRICE.tera, `챔피언스 · ${name} 테라스탈 타입`)) { s.teraType = t; persist(S); sfx('statUp'); }
 			}
-			if (a === 'regular' && payScout(S, 'regular', name)) { delete m.trial; persist(S); toast(`${josa(name, '이', '가')} 레귤러가 됐습니다!`); sfx('heal'); }
+			if (a === 'regular' && payScout(S, 'regular', name, toID(s.species))) { delete m.trial; persist(S); toast(`${josa(name, '이', '가')} 레귤러가 됐습니다!`); sfx('heal'); }
 			if (a === 'release' && await confirmBox('내보내기', `${josa(name, '을', '를')} 내보낼까요? 되돌릴 수 없어요.`, '내보낸다', '그만두기')) { S.roster = S.roster.filter(x => x !== m); S.team = S.team.filter(i => i !== m.id); persist(S); }
 		}
 	}
 }
 
 // ───────── 상점 · 미션 ─────────
-function ShopScreen({ S, done }: { S: CSave; done: () => void }) {
-	const [, tick] = useState(0);
-	const buy = (id: string, cost: number) => { if (S.items[id]) return; if (!pay(cost, `챔피언스 · ${itemKo(id)}`)) return; S.items[id] = 1; persist(S); sfx('select'); tick(x => x + 1); };
+function ShopScreen({ S, done }: { S: CSave; done: (cosmetic?: boolean) => void }) {
 	const stones = [...new Set(S.roster.flatMap(m => megaStonesFor(m.set.species)))];
-	const sec = (name: string, cost: number, ids: string[]) => !ids.length ? null : <div class="cp-pn"><h3>{name} <small class="cp-y">{cost} BP</small></h3>
-		{ids.map(id => <div class="cp-line"><ItemIcon item={id} size={24} /><div><b>{itemKo(id)}</b><small>{itemDesc(id)}</small></div>
-			{S.items[id] ? <span class="cp-own">가짐</span> : <button class="btn small yellow" onClick={() => buy(id, cost)}>산다</button>}</div>)}</div>;
-	return <Screen title="상점" onBack={done} cls="cp-scr"><Top title="도구 상점" sub="한 번 사면 계속 씁니다" S={S} />
-		{sec('메가스톤 (내 로스터의 포켓몬용)', PRICE.mega, stones)}
-		{SHOP.map(([name, kind, ids]) => sec(name, PRICE[kind], ids))}
-		<p class="cp-note">도구는 로스터 › 포켓몬 › 「지닌 도구 바꾸기」에서 지니게 합니다. 메가스톤은 그 포켓몬을 로스터에 데려오면 진열됩니다.</p>
+	const cats: [string, number, string[]][] = [['메가스톤', PRICE.mega, stones], ...SHOP.map(([name, kind, ids]) => [name, PRICE[kind], ids] as [string, number, string[]])];
+	const [tab, setTab] = useState(stones.length ? 0 : 1), [, tick] = useState(0);
+	const buy = (id: string, cost: number) => { if (S.items[id]) return; if (!pay(cost, `챔피언스 · ${itemKo(id)}`)) return; S.items[id] = 1; persist(S); sfx('select'); tick(x => x + 1); };
+	const [name, cost, ids] = cats[tab];
+	return <Screen title="상점" onBack={() => done()} cls="cp-scr"><Top title="상점" sub="도구는 한 번 사면 계속 씁니다" S={S} onBack={() => done()} />
+		<div class="cp-tabs">{cats.map(([n], i) => <button class={i === tab ? 'on' : ''} onClick={() => { sfx('select'); setTab(i); }}>{n}</button>)}
+			<button class="cos" onClick={() => done(true)}>꾸미기 ▸</button></div>
+		<div class="cp-pn"><h3>{name} <small class="cp-y">{cost} BP</small> <small>{ids.filter(id => S.items[id]).length} / {ids.length} 보유</small></h3>
+			{!ids.length && <p class="cp-note">내 로스터의 포켓몬이 쓸 수 있는 메가스톤이 여기에 진열됩니다. 메가진화하는 포켓몬을 스카우트해 보세요.</p>}
+			{ids.map(id => <div class="cp-line"><ItemIcon item={id} size={24} /><div><b>{itemKo(id)}</b><small>{itemDesc(id)}</small></div>
+				{S.items[id] ? <span class="cp-own">가짐</span> : <button class="btn small yellow" onClick={() => buy(id, cost)}>산다</button>}</div>)}</div>
+		<p class="cp-note">도구는 로스터 › 포켓몬 › 「지닌 도구 바꾸기」에서 지니게 합니다. 「꾸미기」는 시뮬레이터 모드와 같은 BP 교환소(칭호·카드·배경·음악)입니다.</p>
 	</Screen>;
 }
 const MISSIONS: { id: string; name: string; bp: number; prog: (d: CSave['day']) => [number, number] }[] = [
@@ -364,7 +387,7 @@ const MISSIONS: { id: string; name: string; bp: number; prog: (d: CSave['day']) 
 const missionReady = (S: CSave) => MISSIONS.filter(m => { const [a, b] = m.prog(dayOf(S)); return a >= b && !S.day.got[m.id]; }).length;
 function MissionScreen({ S, done }: { S: CSave; done: () => void }) {
 	const [, tick] = useState(0), d = dayOf(S);
-	return <Screen title="미션" onBack={done} cls="cp-scr"><Top title="오늘의 미션" sub="날마다 새로 시작" S={S} />
+	return <Screen title="미션" onBack={done} cls="cp-scr"><Top title="오늘의 미션" sub="날마다 새로 시작" S={S} onBack={done} />
 		<div class="cp-pn">{MISSIONS.map(m => { const [a, b] = m.prog(d), ok = a >= b; return <div class="cp-line"><div><b>{m.name}</b><small>{Math.min(a, b)} / {b}</small></div>
 			{d.got[m.id] ? <span class="cp-own">받음</span> : <button class="btn small yellow" disabled={!ok} onClick={() => { d.got[m.id] = 1; persist(S); earnBP(m.bp, '챔피언스 미션'); tick(x => x + 1); }}>+{m.bp} BP</button>}</div>; })}</div>
 	</Screen>;
@@ -374,6 +397,7 @@ function MissionScreen({ S, done }: { S: CSave; done: () => void }) {
 /** 승급전(또는 등록 장). 이기면 다음 등급으로 */
 async function chapterFlow(S: CSave) {
 	const c = CHAPTERS[S.ch], w = CWHO[c.who];
+	await fx('blinds');
 	await talk(c.before, c.bg, [`CHAPTER ${S.ch + 1}`, c.title]);
 	const next = TIERS[Math.min(S.ch, TIERS.length - 1)];
 	let win: boolean | null;
@@ -382,21 +406,22 @@ async function chapterFlow(S: CSave) {
 		const [mine, foe] = withRule(BASE_RULE, () => [RENTAL.map(id => randomSetFor(id, 9, 50, false, 0.7)), randomTeam({ gen: 9, size: 3, minBst: 380, maxBst: 480, allowSubLegend: false, quality: 0.3 })]);
 		win = await fight(S, mine, { name: w.name, title: w.title, sprite: w.sprite, team: foe, skill: 0.3, line: '자, 편하게 와!' }, rot, '연습 승부', c.bg);
 	} else {
-		const rot = rotationOf('rank');
-		const foe = withRule(rot.rule, () => randomTeam({ gen: 9, size: rot.pick, minBst: next.bst[0], maxBst: next.bst[1], allowSubLegend: false, doubles: rot.doubles, quality: Math.min(0.95, next.q + 0.1), gimmicks: true, must: c.ace ? [c.ace] : [] }));
+		const rot = rotationOf('rank', S.tier);
+		const foe = withRule(rot.rule, () => randomTeam({ gen: 9, size: rot.pick, minBst: next.bst[0], maxBst: next.bst[1] + rot.legend * 60, allowSubLegend: rot.legend >= 1, allowLegend: rot.legend >= 2, doubles: rot.doubles, quality: Math.min(0.95, next.q + 0.1), gimmicks: true, must: c.ace ? [c.ace] : [] }));
 		win = await fight(S, teamOf(S).map(m => m.set), { name: w.name, title: w.title, sprite: w.sprite, team: foe, skill: Math.min(0.97, next.skill + 0.05), line: c.before[c.before.length - 1][1], music: S.ch >= 4 ? 'champion' : 'boss' }, rot, `승급전 · ${c.title}`, c.bg);
 	}
 	if (win === null) return;
 	// 연습 승부는 져도 이야기가 이어짐 (등록 첫날에 막히지 않게)
 	if (!win) { await talk([[c.who, c.lose]], c.bg); if (S.ch > 0) { S.pts = Math.max(0, S.pts - 1); persist(S); return; } }
 	await talk(S.ch === 0 && !win ? c.after.slice(1) : c.after, c.bg);
+	await fx('fade');
 	if (S.ch === 0) { S.ch = 1; S.tk.regular = 3; newLineup(S, true); persist(S); await scoutFlow(S, true); newLineup(S); return; }
 	S.ch++; S.tier = Math.min(TIERS.length - 1, S.tier + 1); S.pts = 0; persist(S); earnBP(EARN.promo, '챔피언스 승급');
 	await result('승급!', `${T(S).name}으로 올라갔다!`, [`+${EARN.promo} BP`, `로스터 한도 ${T(S).cap}마리`, S.tier >= TIERS.length - 1 ? '챔피언스 아레나의 정점입니다. 축하합니다!' : '스카우트에 더 강한 포켓몬이 소개됩니다']);
 }
 function StoryScreen({ S, done }: { S: CSave; done: (go: boolean) => void }) {
 	const ready = S.ch < CHAPTERS.length && (S.ch === 0 || S.pts >= T(S).need);
-	return <Screen title="스토리" onBack={() => done(false)} cls="cp-scr"><Top title="스토리" sub="등급이 오를 때마다 다음 이야기가 열립니다" S={S} />
+	return <Screen title="스토리" onBack={() => done(false)} cls="cp-scr"><Top title="스토리" sub="등급이 오를 때마다 다음 이야기가 열립니다" S={S} onBack={() => done(false)} />
 		{CHAPTERS.map((c, i) => { const st = i < S.ch ? 'done' : i === S.ch ? 'now' : 'lock'; return <div class={'cp-ch ' + st}><img src={SPRITE_URL(CWHO[c.who].sprite)} onError={trainerImgError} alt="" />
 			<div><b>{i + 1} · {st === 'lock' ? '？？？' : c.title}</b><small>{st === 'lock' ? `${TIERS[Math.max(0, i - 1)].name}의 승점을 채우면` : c.sub}</small></div>
 			<em>{st === 'done' ? '완료' : st === 'now' ? (i === 0 ? '시작' : `승점 ${S.pts} / ${T(S).need}`) : ''}</em></div>; })}
@@ -405,7 +430,7 @@ function StoryScreen({ S, done }: { S: CSave; done: (go: boolean) => void }) {
 }
 
 // ───────── 전용 메뉴 ─────────
-type HubAct = 'exit' | 'story' | 'battle' | 'scout' | 'roster' | 'shop' | 'mission' | 'reset';
+type HubAct = 'exit' | 'story' | 'battle' | 'scout' | 'roster' | 'shop' | 'mission' | 'reset' | 'settings' | 'calc' | 'book';
 function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 	const t = T(S), c = CHAPTERS[S.ch], ready = !!c && S.pts >= t.need, mr = missionReady(S), newLine = S.lineDay !== today();
 	const tile = (a: HubAct, name: string, cls: string, mon: string, badge?: string) => <button class={'cp-tile ' + cls} onClick={() => { sfx('select'); done(a); }}>{badge && <i>{badge}</i>}<PokeIcon species={mon} /><span>{name}</span></button>;
@@ -419,14 +444,17 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 			{tile('shop', '상점', 'c5', 'rotomwash')}{tile('mission', '미션', 'c6', 'togekiss', mr ? String(mr) : undefined)}{tile('story', '스토리', 'c4', 'machamp', ready ? '!' : undefined)}</div>
 		<div class="cp-pn"><h3>내 팀 <small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
 			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => { const m = teamOf(S)[i]; return <span class={m ? '' : 'empty'}>{m ? <Sprite species={m.set.species} gen={9} size={48} anim={false} cls="front" shiny={m.set.shiny} /> : '＋'}</span>; })}</div></div>
-		<div class="cp-rules">{(['rank', 'tower', 'factory'] as BattleKind[]).map(k => { const r = rotationOf(k); return <span><small>{{ rank: '랭크', tower: '타워', factory: '팩토리' }[k]}</small>{r.name}</span>; })}<em>{daysLeft()}일 뒤 변경</em></div>
-		<div class="cp-btns"><button class="btn" onClick={() => done('exit')}>타이틀로</button><button class="btn ghost" onClick={() => done('reset')}>처음부터</button></div>
+		<div class="cp-rules">{(['rank', 'tower', 'factory'] as BattleKind[]).map(k => { const r = rotationOf(k, S.tier); return <span><small>{{ rank: '랭크', tower: '타워', factory: '팩토리' }[k]}</small>{r.name}</span>; })}<em>{hoursLeft()}시간 뒤 변경</em></div>
+		<div class="cp-nav"><button onClick={() => done('book')}>수첩</button><button onClick={() => done('calc')}>계산기</button><button onClick={() => done('settings')}>설정</button><button onClick={() => done('exit')}>타이틀</button></div>
+		<button class="cp-reset" onClick={() => done('reset')}>챔피언스 모드를 처음부터 다시</button>
 	</div>;
 }
 
-export async function runChampions() {
+export interface Tools { settings: (onBack: () => void, onTitle?: () => void) => any; calc: (onBack: () => void) => any; book: (onBack: () => void) => any; shop: (onBack: () => void) => any }
+export async function runChampions(tools?: Tools) {
 	let S: CSave = { ...fresh(), ...load<Partial<CSave>>(KEY, {}) } as CSave;
-	playMusic('lobby');
+	playMusic(HUB_BGM);
+	await fx('fade');
 	if (S.ch === 0) await chapterFlow(S);
 	while (true) {
 		expireTrials(S);
@@ -443,7 +471,10 @@ export async function runChampions() {
 		}
 		if (a === 'scout') await scoutFlow(S);
 		if (a === 'roster') await rosterFlow(S);
-		if (a === 'shop') await ask<void>(r => <ShopScreen key={K()} S={S} done={r} />);
+		if (a === 'shop') { while (await ask<boolean | undefined>(r => <ShopScreen key={K()} S={S} done={r} />)) { if (tools) await ask<void>(r => tools.shop(r)); } }
+		if (a === 'settings' && tools) { if (await ask<boolean>(r => tools.settings(() => r(false), () => r(true)))) { persist(S); return; } playMusic(HUB_BGM); }
+		if (a === 'calc' && tools) await ask<void>(r => tools.calc(r));
+		if (a === 'book' && tools) await ask<void>(r => tools.book(r));
 		if (a === 'mission') await ask<void>(r => <MissionScreen key={K()} S={S} done={r} />);
 	}
 }

@@ -8,6 +8,7 @@ import { TeamList, TeamEditor } from './ui/teambuilder';
 import { CalcScreen } from './ui/calc';
 import { runOnline } from './online-ui';
 import { runScenario } from './scenario';
+import { loadTeams as loadTeamsHome } from './store';
 import { runChampions } from './champions';
 import { replaySession } from './online';
 import { cloudInfo, cloudUpload, cloudFetch, cloudApply, fmtCode, cleanCode, DEVICE_ONLY } from './cloud';
@@ -51,24 +52,20 @@ const MORE = ['palace', 'ippitsu', 'pwt', 'boss', 'named', 'free', 'daily', 'onl
  *  시뮬레이터 = 지금까지의 메뉴 전체 · 챔피언스·시나리오 = 저장이 따로인 독립 모드 */
 const BIG_MODES: { id: string; name: string; sub: string; mon: string; cls: string; tag?: string; run?: () => Promise<void> }[] = [
 	{ id: 'sim', name: '시뮬레이터 모드', sub: '팀을 자유롭게 짜서 타워·팩토리·랭크·PWT·온라인 대전', mon: 'metagross', cls: 'sim' },
-	{ id: 'champions', name: '챔피언스 모드', sub: '빈손으로 시작 — 스카우트하고 키워서 챔피언급까지', mon: 'dragonite', cls: 'champ', tag: '개발 중', run: runChampions },
-	{ id: 'scenario', name: '시나리오 모드', sub: '관동 편 — 지방을 여행하며 인물의 이야기를 따라감', mon: 'bulbasaur', cls: 'scn', tag: '개발 중', run: runScenario },
+	{ id: 'champions', name: '챔피언스 모드', sub: '빈손으로 시작 — 스카우트하고 키워서 챔피언급까지', mon: 'dragonite', cls: 'champ', tag: '개발 중', run: () => runChampions(TOOLS) },
+	{ id: 'scenario', name: '시나리오 모드', sub: '관동 편 — 지방을 여행하며 인물의 이야기를 따라감', mon: 'bulbasaur', cls: 'scn', tag: '개발 중', run: () => runScenario(TOOLS) },
 ];
 
+/** 독립 모드(챔피언스·시나리오)에서도 쓰는 공용 화면. settings 의 onTitle = 「타이틀로 돌아가기」 단추 */
+export interface ModeTools { settings: (onBack: () => void, onTitle?: () => void) => VNode; calc: (onBack: () => void) => VNode; book: (onBack: () => void) => VNode; shop: (onBack: () => void) => VNode }
+const TOOLS: ModeTools = {
+	settings: (onBack, onTitle) => <SettingsScreen key={Math.random()} onBack={onBack} onTitle={onTitle} />, calc: onBack => <CalcScreen key={Math.random()} onBack={onBack} />,
+	book: onBack => <TrainerBook key={Math.random()} onBack={onBack} />, shop: onBack => <ShopScreen key={Math.random()} onBack={onBack} />,
+};
 function TitleScreen({ onStart }: { onStart: (mode?: string) => void }) {
-	if (SCENARIO_ON) return <div class="title-screen title-pick">
-		<div class="title-glow" />
-		<div class="title-fs"><FullscreenButton /></div>
-		<div class="title-mons">
-			<Sprite species="garchomp" gen={9} size={110} anim={false} cls="front" />
-			<Sprite species="lucario" gen={9} size={90} anim={false} cls="front" />
-		</div>
-		<div class="title-logo-img" role="img" aria-label="배틀 시뮬레이터" />
-		<div class="title-modes">{BIG_MODES.map(m => <button class={'title-mode ' + m.cls} onClick={() => onStart(m.id)}>
-			{m.tag && <em>{m.tag}</em>}<Sprite species={m.mon} gen={9} size={64} anim={false} cls="front" /><span><b>{m.name}</b><small>{m.sub}</small></span></button>)}</div>
-		<div class="title-foot">모드마다 저장이 따로입니다 · Pokémon Showdown 엔진 기반 · 팬 메이드</div>
-	</div>;
-	return <div class="title-screen" onClick={() => onStart()}>
+	// 개발자 빌드: 한 번 누르면 모드 고르기가 올라옴. 공식 빌드는 모드가 하나라 누르면 바로 들어감
+	const [pick, setPick] = useState(false);
+	return <div class={'title-screen' + (pick ? ' title-pick' : '')} onClick={() => { if (pick) return; if (SCENARIO_ON) { unlockAudio(); sfx('select'); setPick(true); } else onStart(); }}>
 		<div class="title-glow" />
 		<div class="title-fs"><FullscreenButton /></div>
 		<div class="title-mons">
@@ -76,8 +73,10 @@ function TitleScreen({ onStart }: { onStart: (mode?: string) => void }) {
 			<Sprite species="lucario" gen={9} size={90} anim={false} cls="front" />
 		</div>
 		<div class="title-logo-img" role="img" aria-label="배틀 시뮬레이터 — 타워 · 팩토리 · 토너먼트" />
-		<div class="title-tap" aria-label="화면을 터치하세요">TAP ANYWHERE</div>
-		<div class="title-foot">Pokémon Showdown 엔진 기반 · 팬 메이드</div>
+		{pick ? <div class="title-modes">{BIG_MODES.map((m, i) => <button class={'title-mode ' + m.cls} style={{ animationDelay: i * 80 + 'ms' }} onClick={e => { e.stopPropagation(); onStart(m.id); }}>
+			{m.tag && <em>{m.tag}</em>}<Sprite species={m.mon} gen={9} size={64} anim={false} cls="front" /><span><b>{m.name}</b><small>{m.sub}</small></span></button>)}</div>
+			: <div class="title-tap" aria-label="화면을 터치하세요">TAP ANYWHERE</div>}
+		<div class="title-foot">{pick ? '모드마다 진행이 따로 저장됩니다 · ' : ''}Pokémon Showdown 엔진 기반 · 팬 메이드</div>
 	</div>;
 }
 
@@ -109,6 +108,48 @@ function Home({ go }: { go: (v: string) => void }) {
 			<span class="hm-mon"><Sprite species={m.mon} gen={9} size={96} anim={false} /></span>
 			<span class="hm-text"><b>{m.name}</b>{(big || id !== 'daily') && m.sub && <small>{m.sub}</small>}{badge[m.id] && <em>{badge[m.id]}</em>}</span>
 		</button>; };
+	// 새 메뉴 디자인 (개발자 빌드에서 먼저 — 확인받은 뒤 공식에도): 큰 「팀 편성」 띠 · 묶음별 줄 목록 · 타이틀로 돌아가기
+	if (SCENARIO_ON) {
+		const teams = loadTeamsHome(), lead = teams[0];
+		const row = (id: string, big = false) => { const m = MODES.find(x => x.id === id)!;
+			return <button class={'h2-row' + (big ? ' big' : '')} style={{ '--mc': m.color } as any} onClick={() => go('mode:' + m.id)}>
+				<span class="h2-ico"><Sprite species={m.mon} gen={9} size={big ? 72 : 48} anim={false} /></span>
+				<span class="h2-text"><b>{m.name}</b>{m.sub && <small>{m.sub}</small>}</span>{badge[m.id] && <em>{badge[m.id]}</em>}</button>; };
+		return <div class="home h2">
+			{(window as any).BattleSimNative?.otaStatus && <UpdateBanner />}
+			<div class="hm-top">
+				<button class={'home-head hm-card' + cardSkinClass(wallet)} style={cardSkin(wallet)} onClick={() => go('book')} aria-label="트레이너 수첩">
+					<img class="hm-face" src={SPRITE_URL(settings.playerSprite || 'lucas')} onError={trainerImgError} alt="" />
+					<span class="hm-who">
+						<b>{settings.playerName}<TitleChip it={titleItem(wallet)} /></b>
+						<small>{rec.wins}승 {rec.battles - rec.wins}패{rec.battles ? ` · ${Math.round(rec.wins / rec.battles * 100)}%` : ''} · 업적 {achDone}/{ACHIEVEMENTS.length}</small>
+						<span class="hm-syms">{(['tower', 'factory', 'rank'] as const).map(k => <SymbolIcon kind={k} lv={st.sym[k] || 0} size={24} />)}<i>{rp ? rankLabel(rp) : `시즌 ${season.no}`}</i></span>
+					</span>
+				</button>
+				<div class="head-btns">
+					<FullscreenButton />
+					<button class="icon-btn pix-btn" onClick={() => go('settings')} aria-label="설정"><span class="pix-ico gear" aria-hidden="true" /></button>
+				</div>
+			</div>
+			{suspended && <div class="notice hm-notice">쉬는 중인 도전이 있어요. 해당 모드에 들어가면 이어서 할 수 있습니다.</div>}
+			<button class="h2-team" onClick={() => go('teams')}>
+				<span class="h2-team-mons">{lead ? lead.sets.slice(0, 6).map(x => <Sprite species={x.species} gen={9} size={48} anim={false} shiny={x.shiny} />) : <i>아직 팀이 없어요</i>}</span>
+				<span class="h2-team-text"><b>팀 편성</b><small>{teams.length ? `${lead.name} 외 ${teams.length - 1}팀 · 눌러서 편집` : '눌러서 첫 팀을 만들어 보세요'}</small></span><em>▶</em></button>
+			<div class="h2-body">
+				<section><h3>배틀 시설</h3>{FEATURED.map(id => row(id, true))}</section>
+				<section><h3>특별 모드</h3><div class="h2-grid">{['palace', 'ippitsu', 'pwt', 'boss', 'named', 'daily'].map(id => row(id))}</div></section>
+				<section><h3>대전</h3><div class="h2-grid">{['free', 'online'].map(id => row(id))}</div>
+					<button class="h2-row shop" onClick={() => go('shop')}><span class="h2-ico"><Sprite species="gimmighoul" gen={9} size={48} anim={false} /></span>
+						<span class="h2-text"><b>BP 교환소</b><small>칭호 · 카드 · 배경 · 음악</small></span><em>{wallet.bp} BP</em></button></section>
+			</div>
+			<div class="h2-nav">
+				<button onClick={() => go('book')}>수첩{pendingAchTotal() > 0 && <i class="claim-dot" aria-label="받을 업적 보상" />}</button>
+				<button onClick={() => go('records')}>기록</button>
+				<button onClick={() => go('calc')}>계산기</button>
+				<button class="title" onClick={() => go('title')}>◀ 타이틀</button>
+			</div>
+		</div>;
+	}
 	return <div class="home hm">
 		{(window as any).BattleSimNative?.otaStatus && <UpdateBanner />}
 		<div class="hm-top">
@@ -484,13 +525,14 @@ function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }
 	</>;
 }
 
-function SettingsScreen({ onBack }: { onBack: () => void }) {
+function SettingsScreen({ onBack, onTitle }: { onBack: () => void; /** 있으면 맨 위에 「타이틀로 돌아가기」 */ onTitle?: () => void }) {
 	useEffect(() => { ruleNoticeShown = false; }, []);
 	const [newsAll, setNewsAll] = useState(false);
 	const [s, setS] = useState<Settings>(loadSettings());
 	const [userSpr, setUserSpr] = useState(false);
 	const up = (p: Partial<Settings>) => { const n = { ...s, ...p }; setS(n); saveSettings(n); };
 	return <Screen title="설정" onBack={onBack} cls="set-scr">
+		{onTitle && <button class="btn big set-title" onClick={onTitle}>◀ 타이틀로 돌아가기</button>}
 		{(window as any).BattleSimNative?.otaStatus && <AppUpdate />}
 		<label class="field-label">트레이너 이름
 			<input value={s.playerName} maxLength={10} onInput={e => up({ playerName: (e.target as HTMLInputElement).value || '플레이어' })} />

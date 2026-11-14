@@ -458,7 +458,7 @@ function Result({ heading, xp, n, got, money, notes, party, cap, done }: { headi
 
 // ───────── 거점 화면 ─────────
 type Node = { k: string; label: string; mark: string; face?: Who; kind?: string; done?: boolean; data?: any };
-type Act = Node | { k: 'map' | 'party' | 'bag' | 'route' | 'box' | 'wait' } | typeof BACK;
+type Act = Node | { k: 'map' | 'party' | 'bag' | 'route' | 'box' | 'wait' | 'settings' } | typeof BACK;
 /** 그린이 기다리는 곳: [대본 id, 장소, 필요한 표식] */
 const RIVAL_AT: [string, string, string][] = [['rival2', 'viridian', 'intro'], ['rival3', 'cerulean', 'met'], ['rival4', 'cape', 'ev4']];
 /** 큰 줄거리 (체육관·사건): [대본 id, 장소, 필요한 표식, 끝난 표식, 단추 이름, 얼굴] */
@@ -515,7 +515,8 @@ function Hub({ run, banner, done }: { run: Run; banner: boolean; done: (a: Act) 
 		<div class={'sh-bg sc-bg fld-' + loc.bg} /><div class={'sc-tint ' + TIME_CLS[run.time]} />
 		{run.time === 3 && <div class="sc-stars" style={{ backgroundImage: pxUrl('sky') }} />}
 		<div class="sh-top sc-top">
-			<button class="st-exit" onClick={async () => { if (await confirmBox('시나리오 나가기', '메인 화면으로 돌아갈까요?\n지금까지의 진행은 저장돼 있어요.', '나가기', '계속하기')) done(BACK); }} aria-label="나가기"><Pxi name="chevron-left" /></button>
+			<button class="st-exit" onClick={async () => { if (await confirmBox('시나리오 나가기', '타이틀로 돌아갈까요?\n지금까지의 진행은 저장돼 있어요.', '나가기', '계속하기')) done(BACK); }} aria-label="나가기"><Pxi name="chevron-left" /></button>
+			<button class="st-exit" onClick={() => done({ k: 'settings' })} aria-label="설정"><span class="pix-ico gear" aria-hidden="true" /></button>
 			<Clock run={run} onClick={() => done({ k: 'wait' })} />
 			<div class="sh-title">관동 · {loc.name}<em class="sc-mission">{goalText(run)}</em></div>
 			<div class="sc-wallet"><span>{won(run.money)}</span>{focus && <span class="sc-wallet-h"><small>{focus.name}</small><span class="sc-hearts sc-hmini"><Px art="heart" scale={2} /><b>{Math.floor(relOf(run, focus.id).heart / 100)}/{maxEv(focus)}</b></span></span>}</div>
@@ -915,7 +916,7 @@ async function friendEvent(run: Run, E: Eng, c: Char) {
 }
 
 // ───────── 진행 ─────────
-export async function runScenario() {
+export async function runScenario(tools?: { settings: (onBack: () => void, onTitle?: () => void) => any }) {
 	const saved = migrate(load<any>(KEY, null));
 	const pick = await ask<'go' | 'new' | null>(r => <SeriesSelect saved={saved} done={r} />);
 	if (!pick) return;
@@ -929,6 +930,12 @@ export async function runScenario() {
 		const a = await ask<Act>(r => <Hub run={run} banner={banner} done={r} />);
 		banner = false;
 		if (a === BACK) { persist(run); return; }
+		if ((a as any).k === 'settings') {   // 설정 (여기서 타이틀로 돌아갈 수 있음)
+			const out = tools ? await ask<boolean>(r => tools.settings(() => r(false), () => r(true))) : false;
+			playMusic(locOf(run.loc).music);
+			if (out) { persist(run); return; }
+			continue;
+		}
 		const loc = locOf(run.loc);
 		if (a.k === 'wait') {   // 시계를 누름: 이동하지 않고 시간만 한 칸 (밤에만 열리는 이야기에 시간을 맞추기 쉽게)
 			const next = run.time === 3 ? '다음 날 아침' : TIMES[run.time + 1];
