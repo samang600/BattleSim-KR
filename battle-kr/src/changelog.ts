@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.6', date: '2026-11-15', title: '전용 Z기술 연출', items: [
+		['new', '전용 Z기술 16종(바다의심포니·브레이징소울비트·칠성탈혼퇴 등)에 기술마다 다른 연출이 생겼어요.'],
+	] },
 	{ ver: '2.85.5', date: '2026-11-15', title: '전용 Z크리스탈', items: [
 		['new', '챔피언스 모드 상점에서 전용 Z크리스탈(누리레느Z·짜랑고우거Z 등)을 팔아요 — 그 포켓몬이 로스터에 있으면 Z크리스탈 칸에 진열됩니다.'],
 	] },
