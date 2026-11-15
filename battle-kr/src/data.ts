@@ -358,6 +358,14 @@ const ITEM_DESC: { [id: string]: string } = {
 };
 
 /** 이 종족이 쓸 수 있는 메가스톤 */
+/** 이 포켓몬의 전용 Z크리스탈 (누리레느Z·짜랑고우거Z 등). 울트라네크로Z 는 황혼의 갈기·새벽의 날개 네크로즈마가 지님 */
+export function zCrystalsFor(speciesId: string): string[] {
+	const id = toID(speciesId), en = D.species[id]?.en;
+	if (!en) return [];
+	const out = Object.entries(D.items).filter(([, it]: [string, any]) => it.zf && it.zu?.includes(en)).map(([k]) => k);
+	if (id === 'necrozmaduskmane' || id === 'necrozmadawnwings') out.push('ultranecroziumz');
+	return out;
+}
 export function megaStonesFor(speciesId: string): string[] {
 	const en = D.species[toID(speciesId)]?.en;
 	if (!en) return [];

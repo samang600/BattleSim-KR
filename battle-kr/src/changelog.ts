@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.5', date: '2026-11-15', title: '전용 Z크리스탈', items: [
+		['new', '챔피언스 모드 상점에서 전용 Z크리스탈(누리레느Z·짜랑고우거Z 등)을 팔아요 — 그 포켓몬이 로스터에 있으면 Z크리스탈 칸에 진열됩니다.'],
+	] },
 	{ ver: '2.85.4', date: '2026-11-15', title: '싸라기눈과 설경', items: [
 		['up', '전국도감·스칼렛바이올렛·챔피언스 규칙에서는 싸라기눈이 설경으로 바뀌어 나오고, 8세대까지의 규칙에서는 설경이 싸라기눈으로 나와요.'],
 	] },

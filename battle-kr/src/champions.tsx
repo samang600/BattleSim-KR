@@ -20,7 +20,7 @@ import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { load, save, loadSettings } from './store';
 import { loadWallet, earnBP, spendBP, onWallet } from './rewards';
 import { ruleById, applyRuleData, teamRuleIssues, speciesAllowed } from './rules';
-import { speciesKo, speciesData, moveData, moveKo, abilityDesc, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, toID, ALL_TYPES, shownName, isNick, nickKo, allBalls } from './data';
+import { speciesKo, speciesData, moveData, moveKo, abilityDesc, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, zCrystalsFor, toID, ALL_TYPES, shownName, isNick, nickKo, allBalls } from './data';
 import { playMusic, sfx } from './sound';
 import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, START_ITEMS, SHOP, NATURES, EVENTS, TOWER_EVENTS, CSYM, REGION_CUPS, CUP_NEED } from './champions-data';
 
@@ -450,7 +450,7 @@ function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclu
 	let title = '', cost = 0, why = '', search = false, opts: Opt[] = [], grid: Grid = '';
 	if (sub === 'item') {
 		title = '지닌 도구'; why = '도구'; search = true;
-		const stones = megaStonesFor(s.species), own = Object.keys(S.items).filter(id => PLAIN_ITEMS.has(id) || stones.includes(id));
+		const stones = [...megaStonesFor(s.species), ...zCrystalsFor(s.species)], own = Object.keys(S.items).filter(id => PLAIN_ITEMS.has(id) || stones.includes(id));
 		opts = [{ label: '없음', off: !s.item, run: () => { s.item = ''; } }, ...own.map(id => { const holder = S.roster.find(x => x !== m && toID(x.set.item) === id), cur = toID(s.item) === id;
 			return { icon: <ItemIcon item={id} size={24} />, label: itemKo(id), desc: itemDesc(id), note: cur ? '지금' : holder ? `${monKo(holder.set)}에게서 가져옴 (저장할 때)` : '', off: cur, run: () => { s.item = id; } }; })];
 	} else if (sub === 'ability') {
@@ -476,7 +476,9 @@ function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclu
 // ───────── 상점 · 미션 ─────────
 function ShopScreen({ S, done }: { S: CSave; done: (cosmetic?: boolean) => void }) {
 	const stones = [...new Set(S.roster.flatMap(m => megaStonesFor(m.set.species)))];
-	const cats: [string, number, string[]][] = [...SHOP.map(([name, kind, ids]) => [name, PRICE[kind], ids] as [string, number, string[]]), ['메가스톤', PRICE.mega, stones]];
+	/** 전용 Z크리스탈: 메가스톤처럼 내 로스터의 포켓몬 것만 Z크리스탈 칸 끝에 진열 */
+	const zs = [...new Set(S.roster.flatMap(m => zCrystalsFor(m.set.species)))];
+	const cats: [string, number, string[]][] = [...SHOP.map(([name, kind, ids]) => [name, PRICE[kind], kind === 'z' ? [...ids, ...zs] : ids] as [string, number, string[]]), ['메가스톤', PRICE.mega, stones]];
 	const [tab, setTab] = useState(0), [q, setQ] = useState(''), [, tick] = useState(0);
 	const buy = (id: string, cost: number) => { if (S.items[id]) return; if (!pay(cost, `챔피언스 · ${itemKo(id)}`)) return; S.items[id] = 1; persist(S); tick(x => x + 1); };
 	const rows: [string, number][] = q ? cats.flatMap(([, c, ids]) => ids.filter(id => matches(q, itemKo(id))).map(id => [id, c] as [string, number])) : cats[tab][2].map(id => [id, cats[tab][1]] as [string, number]);
@@ -488,7 +490,7 @@ function ShopScreen({ S, done }: { S: CSave; done: (cosmetic?: boolean) => void 
 			{!rows.length && <p class="cp-note">{q ? '맞는 도구가 없어요.' : '내 로스터의 포켓몬이 쓸 수 있는 메가스톤이 여기에 진열됩니다.'}</p>}
 			{rows.map(([id, cost]) => <div class="cp-line"><ItemIcon item={id} size={24} /><div><b>{itemKo(id)}</b><small>{itemDesc(id)}</small></div>
 				{S.items[id] ? <span class="cp-own">가짐</span> : <button class="btn small yellow" onClick={() => buy(id, cost)}>{cost} BP</button>}</div>)}</div>
-		<p class="cp-note">산 도구는 로스터에서 포켓몬을 눌러 지니게 합니다. 「꾸미기」는 아케이드 모드와 같은 BP 교환소입니다.</p>
+		<p class="cp-note">산 도구는 로스터에서 포켓몬을 눌러 지니게 합니다. 전용 Z크리스탈과 메가스톤은 그 포켓몬이 로스터에 있을 때 진열됩니다. 「꾸미기」는 아케이드 모드와 같은 BP 교환소입니다.</p>
 	</Screen>;
 }
 const MISSIONS: { id: string; name: string; bp: number; prog: (d: CSave['day']) => [number, number] }[] = [
