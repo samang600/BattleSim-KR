@@ -474,7 +474,7 @@ function typeTint(type: string) {
 		if (!hits.length) hits = [to];
 		// Z기술(전용 Z기술 포함, 변화 Z기술 제외): 전용 대형 연출
 		if (simMove?.isZ && cat !== 'Status') {
-			const impact = (1 / FX.fxSpeed()) * FX.zMove(layer, arena, type, cat, from, hits, scale);
+			const impact = (1 / FX.fxSpeed()) * FX.zMove(layer, arena, type, cat, from, hits, scale, mid);
 			pendingHitRef.current = { at: impact, sound: 'hitExplode' };
 			return impact;
 		}

@@ -549,9 +549,127 @@ export function maxMove(layer: HTMLElement, arena: HTMLElement, type: string, fr
 	return 840;
 }
 
+/** 전용 Z기술의 ② 단계(대기술) — 기술마다 다른 장면. 공통의 ① Z파워 모으기와 ③ 대폭발 사이(약 480ms)에 들어감 */
+type ZSig = (L: HTMLElement, arena: HTMLElement, from: Pt, to: Pt, s: number, H: number) => void;
+const orb = (L: HTMLElement, at: Pt, size: number, cols: string, extra = '') => px(L, at.x, at.y, size, size, `radial-gradient(circle at 38% 32%, ${cols})`, 'border-radius:50%;' + extra);
+const fly = (el: HTMLElement, dx: number, dy: number, dur: number, delay = 0, sc0 = 1, sc1 = 1, fade = 0.2) =>
+	anim(el, [{ transform: `translate(0,0) scale(${sc0})`, opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(${sc1})`, opacity: fade }], { duration: dur, delay, easing: 'steps(9)' });
+/** 하늘에서 대상으로 떨어지는 큰 덩어리 */
+const drop = (L: HTMLElement, to: Pt, s: number, H: number, size: number, cols: string, extra = '', dur = 440, delay = 0) => { const el = orb(L, { x: to.x, y: to.y - H }, size * s, cols, extra); anim(el, [{ transform: 'translate(0,0) scale(.6)', opacity: 1 }, { transform: `translate(0,${H - 8 * s}px) scale(1)`, opacity: 1 }], { duration: dur, delay, easing: 'steps(10)' }); return el; };
+const Z_SIG: { [id: string]: ZSig } = {
+	// 피카츄 — 필살의피카슛: 번개를 두르고 하늘로 솟구쳤다가 내리꽂음
+	catastropika: (L, arena, from, to, s, H) => {
+		for (let i = 0; i < 5; i++) fly(orb(L, from, 40 * s, '#fff, #fff080 35%, #f8c000 65%, transparent 70%'), (to.x - from.x) * 0.5, -H * 0.7, 200, i * 22, 1, 0.8, 0.3);
+		later(() => { for (let i = 0; i < 6; i++) fly(orb(L, { x: (from.x + to.x) / 2, y: to.y - H * 0.7 }, 48 * s, '#fff, #fff080 35%, #f8c000 65%, transparent 70%'), (to.x - from.x) * 0.5, H * 0.7, 220, i * 24, 0.9, 1.5); bolt(L, to, 'Electric', s * 1.6, 5); }, 230);
+		later(() => bolt(L, to, 'Electric', s * 2, 7), 400);
+	},
+	// 지우 모자 피카츄 — 1000만볼트: 일곱 빛깔 번개가 한데 모여 꽂힘
+	'10000000voltthunderbolt': (L, arena, from, to, s) => {
+		const RB = ['#ff4040', '#ff9a30', '#ffe040', '#50e060', '#40c8ff', '#6070ff', '#c060ff'];
+		RB.forEach((c, i) => { const a = (i - 3) * 0.16, len = Math.hypot(to.x - from.x, to.y - from.y), ang = Math.atan2(to.y - from.y, to.x - from.x) + a;
+			const el = px(L, from.x + Math.cos(ang) * len / 2, from.y + Math.sin(ang) * len / 2, len, 6 * s, `linear-gradient(90deg, #fff, ${c} 30%, ${c})`);
+			el.style.rotate = `${ang}rad`;
+			anim(el, [{ transform: 'scaleX(.05)', opacity: 1 }, { transform: 'scaleX(1)', opacity: 1, offset: 0.4 }, { transform: 'scaleX(1) scaleY(2.4)', opacity: 0 }], { duration: 440, delay: i * 30, easing: 'steps(8)' }); });
+		later(() => bolt(L, to, 'Electric', s * 1.8, 8), 180); later(() => bolt(L, to, 'Electric', s * 1.4, 6), 340);
+	},
+	// 알로라 라이츄 — 라이트닝서프라이드: 번개 파도를 타고 돌진
+	stokedsparksurfer: (L, arena, from, to, s) => {
+		wave(L, to, 'Electric', s * 1.5, from.x < to.x);
+		for (let i = 0; i < 6; i++) fly(orb(L, from, 42 * s, '#fff, #fff8a0 30%, #f8c000 60%, transparent 70%'), to.x - from.x, to.y - from.y, 380, i * 28, 1, 1.4);
+		later(() => bolt(L, to, 'Electric', s * 1.6, 6), 300);
+	},
+	// 잠만보 — 진심의공격: 거대한 몸이 하늘에서 덮침
+	pulverizingpancake: (L, arena, from, to, s, H) => {
+		drop(L, to, s, H, 150, '#f8f0d8, #6a9aa8 45%, #2a4a58', 'box-shadow:0 0 0 4px #1a2a30');
+		const sh = px(L, to.x, to.y + 14 * s, 40 * s, 12 * s, 'rgba(0,0,0,.5)', 'border-radius:50%'); anim(sh, [{ transform: 'scale(.4)', opacity: .3 }, { transform: 'scale(3.4)', opacity: .8 }], { duration: 440, easing: 'steps(8)' });
+		later(() => { quake(L, arena, 'Normal', s * 1.4); for (let i = 0; i < 6; i++) punch(L, { x: to.x + rnd(-40, 40) * s, y: to.y + rnd(-10, 20) * s }, 'Normal', s * 1.5); }, 430);
+	},
+	// 뮤 — 오리진즈슈퍼노바: 거대한 사이코 구체가 부풀었다가 내리꽂힘
+	genesissupernova: (L, arena, from, to, s, H) => {
+		const o = orb(L, { x: from.x, y: from.y - 70 * s }, 30 * s, '#fff, #ffb0e0 30%, #f060c0 60%, #7030a0');
+		anim(o, [{ transform: 'translate(0,0) scale(.3)', opacity: 1 }, { transform: 'translate(0,0) scale(3)', opacity: 1, offset: 0.5 }, { transform: `translate(${to.x - from.x}px,${to.y - from.y + 70 * s}px) scale(3.6)`, opacity: 1 }], { duration: 470, easing: 'steps(12)' });
+		vortex(L, { x: from.x, y: from.y - 70 * s }, 'Psychic', s * 1.3, 300);
+		later(() => { vortex(L, to, 'Psychic', s * 2.2, 500); ring(L, to, 'Psychic', s * 1.6); }, 380);
+	},
+	// 모크나이퍼 — 그림자화살스트라이크: 그림자 화살 다발이 하늘에서 쏟아짐
+	sinisterarrowraid: (L, arena, from, to, s, H) => {
+		for (let i = 0; i < 16; i++) { const x = to.x + rnd(-60, 60) * s, el = px(L, x - 50 * s, to.y - H * 0.9, 4 * s, 34 * s, 'linear-gradient(180deg, transparent, #b080ff 40%, #ffffff)');
+			el.style.rotate = '-8deg';
+			anim(el, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${50 * s}px,${H * 0.9 + rnd(-10, 14) * s}px)`, opacity: 1, offset: 0.9 }, { transform: `translate(${50 * s}px,${H * 0.9}px)`, opacity: 0 }], { duration: 300, delay: i * 26, easing: 'steps(7)' }); }
+		later(() => vortex(L, to, 'Ghost', s * 1.5, 420), 180);
+		for (let i = 0; i < 4; i++) later(() => slash(L, { x: to.x + rnd(-24, 24) * s, y: to.y + rnd(-18, 18) * s }, 'Ghost', s * 1.3, 2, -80), 200 + i * 70);
+	},
+	// 어흥염 — 하이퍼다크크러셔: 불꽃을 두르고 공중에서 몸을 던짐
+	maliciousmoonsault: (L, arena, from, to, s, H) => {
+		const ring2 = px(L, to.x, to.y + 10 * s, 150 * s, 50 * s, 'transparent', 'border-radius:50%;box-shadow:0 0 0 4px #ff6020, 0 0 0 8px #401010'); anim(ring2, [{ transform: 'scale(.3)', opacity: 0 }, { transform: 'scale(1)', opacity: 1, offset: 0.3 }, { transform: 'scale(1.1)', opacity: 0 }], { duration: 520, easing: 'steps(8)' });
+		drop(L, to, s, H, 110, '#fff0a0, #ff7020 35%, #a01818 62%, #201010', '', 400, 60);
+		later(() => { burst(L, to, 'Fire', s * 2.2, true); burst(L, to, 'Dark', s * 1.8, true); quake(L, arena, 'Dark', s); }, 450);
+	},
+	// 누리레느 — 바다의심포니: 노래로 부풀린 거대한 물방울이 떨어져 터짐
+	oceanicoperetta: (L, arena, from, to, s, H) => {
+		notes(L, { x: from.x, y: from.y - 20 * s }, 'Water', s * 1.4);
+		const b = orb(L, { x: to.x, y: to.y - 110 * s }, 30 * s, 'rgba(255,255,255,.95), rgba(160,220,255,.75) 30%, rgba(60,130,240,.7) 70%, rgba(30,70,180,.8)', 'box-shadow:0 0 0 3px #d0f0ff');
+		anim(b, [{ transform: 'translate(0,0) scale(.3)', opacity: 1 }, { transform: 'translate(0,0) scale(4)', opacity: 1, offset: 0.62 }, { transform: `translate(0,${100 * s}px) scale(4.4)`, opacity: 1 }], { duration: 470, easing: 'steps(12)' });
+		later(() => { wave(L, to, 'Water', s * 1.6, from.x < to.x); rain(L, to, 'Water', s * 1.4, 14, 8); }, 440);
+	},
+	// 루가루암 — 레이디얼에지스톰: 뾰족한 바위가 사방에서 솟아 꽂힘
+	splinteredstormshards: (L, arena, from, to, s, H) => {
+		for (let i = 0; i < 9; i++) { const x = to.x + (i - 4) * 16 * s, h = (50 + (i % 3) * 22) * s, el = px(L, x, to.y + 24 * s - h / 2, 16 * s, h, 'linear-gradient(90deg, #e8d8b0, #a08050 55%, #5a4428)', 'clip-path:polygon(50% 0,100% 100%,0 100%);transform-origin:50% 100%');
+			anim(el, [{ transform: 'scaleY(0)', opacity: 1 }, { transform: 'scaleY(1)', opacity: 1, offset: 0.35 }, { transform: 'scaleY(1)', opacity: 1, offset: 0.8 }, { transform: 'scaleY(1.1)', opacity: 0 }], { duration: 460, delay: Math.abs(i - 4) * 36, easing: 'steps(8)' }); }
+		throwRocks(L, { x: to.x, y: to.y - H * 0.8 }, to, 'Rock', s * 1.3, 7);
+		later(() => quake(L, arena, 'Rock', s), 300);
+	},
+	// 따라큐 — 투닥투닥프렌드타임: 검은 천이 덮치고 그 안에서 난타
+	letssnuggleforever: (L, arena, from, to, s) => {
+		const cloth = px(L, to.x, to.y - 6 * s, 90 * s, 90 * s, 'radial-gradient(circle at 50% 40%, #3a2a48, #18101e 70%)', 'border-radius:46% 46% 30% 30%;box-shadow:0 0 0 3px #f0d870');
+		anim(cloth, [{ transform: 'translateY(-60px) scale(.3)', opacity: 0 }, { transform: 'translateY(0) scale(1.1)', opacity: 1, offset: 0.25 }, { transform: 'translateY(0) scale(1)', opacity: 1, offset: 0.85 }, { transform: 'scale(1.4)', opacity: 0 }], { duration: 480, easing: 'steps(10)' });
+		for (let i = 0; i < 7; i++) later(() => { punch(L, { x: to.x + rnd(-34, 34) * s, y: to.y + rnd(-34, 26) * s }, 'Fairy', s * 1.3); shake(arena); }, 130 + i * 48);
+		later(() => sparkle(L, to, 'Fairy', s * 1.6), 200);
+	},
+	// 짜랑고우거 — 브레이징소울비트: 비늘을 울려 퍼뜨리는 소리의 충격파
+	clangoroussoulblaze: (L, arena, from, to, s) => {
+		notes(L, { x: from.x, y: from.y - 24 * s }, 'Dragon', s * 1.5);
+		for (let i = 0; i < 5; i++) { const r = px(L, from.x, from.y, 30 * s, 30 * s, 'transparent', `border-radius:50%;box-shadow:0 0 0 ${Math.max(2, Math.round(3 * s))}px ${i % 2 ? '#ffd040' : '#7a8cff'}`);
+			anim(r, [{ transform: 'translate(0,0) scale(.4)', opacity: 1 }, { transform: `translate(${(to.x - from.x) * 0.9}px,${(to.y - from.y) * 0.9}px) scale(${4 + i})`, opacity: 0 }], { duration: 420, delay: i * 55, easing: 'steps(9)' }); }
+		later(() => { ring(L, to, 'Dragon', s * 1.6); burst(L, to, 'Dragon', s * 1.8, true); }, 380);
+	},
+	// 카푸 — 가디언 데 알로라: 수호신의 거대한 주먹이 내리침
+	guardianofalola: (L, arena, from, to, s, H) => {
+		const fist = px(L, to.x, to.y - H, 120 * s, 150 * s, 'linear-gradient(90deg, #fff0a0, #f0b830 45%, #a06818)', 'clip-path:polygon(12% 0,88% 0,100% 62%,84% 100%,16% 100%,0 62%);');
+		anim(fist, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(0,${H - 60 * s}px)`, opacity: 1, offset: 0.8 }, { transform: `translate(0,${H - 54 * s}px)`, opacity: 0 }], { duration: 470, easing: 'steps(10)' });
+		later(() => { quake(L, arena, 'Fairy', s * 1.5); powder(L, to, 'Fairy', s * 1.8); }, 390);
+	},
+	// 솔가레오 — 선샤인스매셔: 타오르는 태양이 되어 돌진
+	searingsunrazesmash: (L, arena, from, to, s) => {
+		const sun = orb(L, from, 60 * s, '#ffffff, #fff0a0 25%, #ffb020 55%, #e04810 75%, transparent 78%'); anim(sun, [{ transform: 'scale(.3)', opacity: 1 }, { transform: 'scale(1.5)', opacity: 1, offset: 0.4 }, { transform: `translate(${to.x - from.x}px,${to.y - from.y}px) scale(2)`, opacity: 1 }], { duration: 460, easing: 'steps(11)' });
+		for (let i = 0; i < 10; i++) { const deg = i * 36, el = px(L, from.x, from.y - 40 * s, 5 * s, 80 * s, 'linear-gradient(0deg, #fff8c0, transparent)', 'transform-origin:50% 100%'); anim(el, [{ transform: `rotate(${deg}deg) scaleY(.2)`, opacity: 1 }, { transform: `rotate(${deg + 30}deg) scaleY(1)`, opacity: 0 }], { duration: 300, easing: 'steps(6)' }); }
+		later(() => burst(L, to, 'Fire', s * 2.2, true), 420);
+	},
+	// 루나아라 — 문라이트블래스터: 보랏빛 달에서 쏟아지는 빛줄기
+	menacingmoonrazemaelstrom: (L, arena, from, to, s) => {
+		const mp = { x: from.x, y: from.y - 80 * s };
+		const moon = orb(L, mp, 56 * s, '#ffffff, #e0d0ff 35%, #9070e0 70%, #402080', 'box-shadow:0 0 0 3px #c0a0ff'); anim(moon, [{ transform: 'scale(.2)', opacity: 0 }, { transform: 'scale(1)', opacity: 1, offset: 0.3 }, { transform: 'scale(1)', opacity: 1, offset: 0.85 }, { transform: 'scale(1.3)', opacity: 0 }], { duration: 520, easing: 'steps(9)' });
+		later(() => { beam(L, mp, to, 'Ghost', s * 3, 380); beam(L, mp, to, 'Psychic', s * 1.4, 300); vortex(L, to, 'Ghost', s * 1.8, 460); }, 150);
+	},
+	// 울트라네크로즈마 — 하늘을태우는멸망의빛: 하늘 높이 떠오른 빛의 구체가 온 필드를 덮음
+	lightthatburnsthesky: (L, arena, from, to, s, H) => {
+		const top = { x: (from.x + to.x) / 2, y: 20 * s };
+		const o = orb(L, top, 40 * s, '#ffffff, #fff8c0 35%, #ffd040 62%, rgba(255,160,40,.7) 75%, transparent 78%');
+		anim(o, [{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(3)', opacity: 1, offset: 0.5 }, { transform: `translate(${to.x - top.x}px,${to.y - top.y}px) scale(7)`, opacity: 1 }], { duration: 480, easing: 'steps(12)' });
+		for (let i = 0; i < 12; i++) { const deg = i * 30, el = px(L, top.x, top.y - H * 0.5, 6 * s, H, `linear-gradient(0deg, #ffffff, ${i % 2 ? '#ffe060' : '#a8e8ff'} 40%, transparent)`, 'transform-origin:50% 100%'); anim(el, [{ transform: `rotate(${deg}deg) scaleY(.1)`, opacity: 1 }, { transform: `rotate(${deg + 24}deg) scaleY(1)`, opacity: 0 }], { duration: 440, delay: (i % 4) * 30, easing: 'steps(8)' }); }
+		later(() => flash(L, '#fff8d0', 200), 300);
+	},
+	// 마샤도 — 칠성탈혼퇴: 일곱 별자리를 그리며 일곱 번 꽂고 마지막 일격
+	soulstealing7starstrike: (L, arena, from, to, s) => {
+		const ST = [[-34, -30], [-10, -42], [16, -32], [30, -8], [10, 14], [-18, 20], [-36, 2]];
+		ST.forEach(([dx, dy], i) => later(() => { const at = { x: to.x + dx * s, y: to.y + dy * s }; punch(L, at, 'Ghost', s * 1.2); const st = px(L, at.x, at.y, 8 * s, 8 * s, '#ffe870', 'clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%)'); anim(st, [{ transform: 'scale(.3)', opacity: 1 }, { transform: 'scale(2.2)', opacity: 1, offset: 0.3 }, { transform: 'scale(1.6)', opacity: 0 }], { duration: 480 - i * 50, easing: 'steps(7)' }); shake(arena); }, i * 55));
+		later(() => { for (let i = 0; i < 5; i++) fly(orb(L, from, 40 * s, '#fff, #c0a0ff 35%, #6040a0 65%, transparent 70%'), to.x - from.x, to.y - from.y, 120, i * 14, 1, 1.5); }, 380);
+	},
+};
+
 /** Z기술 전용 대형 연출 (1.2초): ① Z파워 모으기(화면 어두워짐·황금빛 줄기·Z 문양) ② 타입별 대기술 ③ 대폭발
  *  돌진형(노말·격투·비행·벌레·악·강철) / 낙하형(바위·땅·드래곤·얼음) / 광선형(불꽃·물·전기·풀·에스퍼·고스트·페어리·독) */
-export function zMove(layer: HTMLElement, arena: HTMLElement, type: string, cat: string, from: Pt, hits: Pt[], s: number): number {
+export function zMove(layer: HTMLElement, arena: HTMLElement, type: string, cat: string, from: Pt, hits: Pt[], s: number, /** 기술 id: 전용 Z기술이면 그 기술만의 장면 */ id = ''): number {
 	const { c, l, d } = col(type);
 	const to = hits[0];
 	const W = layer.clientWidth || 400, H = layer.clientHeight || 300;
@@ -576,7 +694,9 @@ export function zMove(layer: HTMLElement, arena: HTMLElement, type: string, cat:
 	// ② 타입별 대기술 (600ms~)
 	const rushT = ['Normal', 'Fighting', 'Flying', 'Bug', 'Dark', 'Steel'], fallT = ['Rock', 'Ground', 'Dragon', 'Ice'];
 	const kind = fallT.includes(type) ? 'fall' : rushT.includes(type) || cat === 'Physical' && !['Fire', 'Water', 'Electric', 'Grass', 'Psychic', 'Ghost', 'Fairy', 'Poison'].includes(type) ? 'rush' : 'beam';
+	const sig = Z_SIG[id];
 	later(() => {
+		if (sig) { sig(layer, arena, from, to, s, H); return; }
 		if (kind === 'rush') {
 			// 혜성처럼 빛을 두르고 돌진: 굵은 꼬리 + 잔상
 			for (let i = 0; i < 7; i++) {
