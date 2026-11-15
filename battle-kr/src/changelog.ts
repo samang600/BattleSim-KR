@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.4', date: '2026-11-15', title: '싸라기눈과 설경', items: [
+		['up', '전국도감·스칼렛바이올렛·챔피언스 규칙에서는 싸라기눈이 설경으로 바뀌어 나오고, 8세대까지의 규칙에서는 설경이 싸라기눈으로 나와요.'],
+	] },
 	{ ver: '2.85.3', date: '2026-11-14', title: '챔피언스 모드 손질', items: [
 		['new', '챔피언스 모드에서 포켓몬에게 닉네임을 지어 줄 수 있고, 담긴 볼이 보여요 (스카우트한 포켓몬은 볼이 무작위).'],
 		['up', '검색에 초성을 쓸 수 있고(ㄹㅌㅁ → 로토무), 이름은 모습이 달라도 종 이름으로 나와요 (워시로토무 → 로토무).'],

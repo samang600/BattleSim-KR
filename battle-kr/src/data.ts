@@ -107,6 +107,12 @@ export function moveKo(nameOrId: string): string {
 }
 /** 8세대 이하 룰: 눈 날씨는 싸라기눈(데미지·눈퍼뜨리기·오로라베일 조건) → 설명의 '설경'을 '싸라기눈'으로 */
 export function hailEra() { return ERA === '6' || ERA === '7' || ERA === '8'; }
+/** 눈 날씨 기술을 규칙의 세대에 맞춤: 9세대부터 싸라기눈은 설경으로 완전히 바뀌었으므로 최신 규칙(전국도감·스칼렛바이올렛·챔피언스·무제한)에서는
+ *  싸라기눈 → 설경, 8세대까지의 규칙에서는 반대로 설경 → 싸라기눈. era 를 주면 그 규칙 기준(배틀 시작 때), 없으면 지금 데이터 규칙 */
+export function snowMove(id: string, era: string = ERA): string {
+	const old = era === '6' || era === '7' || era === '8';
+	return old ? (id === 'snowscape' ? 'hail' : id) : id === 'hail' ? 'snowscape' : id;
+}
 export function eraText(t: string) { return t && hailEra() ? t.replace(/설경/g, '싸라기눈') : t; }
 /** 챔피언스 사양(전국도감·챔피언스 룰)에서 효과가 바뀐 기술의 설명 (위력·명중 같은 숫자는 화면에 따로 나옴) */
 const MOVE_CHAMP_DESC: { [id: string]: string } = {
@@ -226,7 +232,8 @@ export function floats(speciesId: string): boolean {
 }
 /** 기술 배우기 목록: 전국도감은 본가 전 세대 목록(ls) + 포켓몬 챔피언스 목록(cls)을 합침, 챔피언스 풀은 cls, 게임 풀은 그 세대에 배울 수 있는 기술.
  * 배틀 중 모습(메가 등)은 기본 모습의 목록 */
-export function learnset(id: string, gen: Gen): string[] {
+export function learnset(id: string, gen: Gen): string[] { return [...new Set(learnsetRaw(id, gen).map(m => snowMove(m)))]; }
+function learnsetRaw(id: string, gen: Gen): string[] {
 	const s: any = speciesData(id, gen);
 	if (!s) return [];
 	if (s.id === 'smeargle' || toID(s.en || '') === 'smeargle') return sketchable(gen);
