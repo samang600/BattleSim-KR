@@ -290,10 +290,10 @@ function ScoutScreen({ S, top, done }: { S: CSave; top?: boolean; done: (a: Scou
 /** 도감에서 포켓몬 고르기 (지명·찜) */
 function SpeciesPick({ title, pool, hint, done }: { title: string; pool: string[]; hint: string; done: (id: string | null) => void }) {
 	const [q, setQ] = useState('');
-	const list = pool.filter(id => matches(q, speciesKo(id), id)).slice(0, 60);
+	const list = pool.filter(id => matches(q, speciesKo(id), id, String((speciesData(id, 9) as any)?.num || ''))).slice(0, 60);
 	return <Screen title={title} onBack={() => done(null)} cls="cp-scr" top>
 		<p class="cp-note">{hint}</p>
-		<input class="cp-search" placeholder="이름으로 찾기 (초성 가능: ㄹㅌㅁ)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />
+		<input class="cp-search" placeholder="이름·도감 번호로 찾기 (초성 가능: ㄹㅌㅁ)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />
 		<div class="cp-list">{list.map(id => <button class="cp-row" onClick={() => done(id)}><PokeIcon species={id} /><b>{speciesKo(id)}</b><span>{types(id).map(t => <TypeBadge type={t} small />)}</span></button>)}</div>
 		{list.length >= 60 && <p class="cp-note">이름을 입력하면 더 좁혀집니다.</p>}
 	</Screen>;
@@ -387,7 +387,7 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 		</div></div>
 		<p class="cp-note">포켓몬을 누르면 팀에 넣고 빼기·도구·트레이닝 창이 열립니다. 숫자가 붙은 포켓몬이 지금 팀입니다. 팀은 화살표로 넘겨 {TEAM_MAX}개까지 따로 짤 수 있고, 지금 보이는 팀으로 배틀에 나갑니다.</p>
 		{sel && draft && !sub && <MonPop S={S} m={sel} d={draft} open={setSub} close={() => setSel(null)} re={re} />}
-		{sel && draft && sub && <SubPop S={S} m={sel} d={draft} sub={sub} back={() => { setSub(null); tick(x => x + 1); }} />}
+		{sel && draft && sub && <SubPop S={S} m={sel} d={draft} sub={sub} open={setSub} back={() => { setSub(null); tick(x => x + 1); }} />}
 	</Screen>;
 }
 /** 트레이닝 값: 원래 세트와 고친 사본을 견주어 바뀐 항목만 (특성·성격·테라·능력 포인트 + 바뀐 기술 칸마다) */
@@ -402,9 +402,9 @@ function trainCost(o: PSet, d: PSet, gxPaid = false) {
 	if (toID(o.species) !== toID(d.species)) parts.push(['모습', PRICE.form]);
 	// 거다이맥스: 처음 켤 때만 값을 치르고, 그 뒤로는 켜고 끄기가 무료
 	if (!o.gigantamax && d.gigantamax && !gxPaid) parts.push(['거다이맥스', PRICE.gmax]);
-	const mv = [0, 1, 2, 3].filter(k => (o.moves[k] || '') !== (d.moves[k] || '')).length;
+	const mv = d.moves.filter(x => x && !o.moves.includes(x)).length, reordered = o.moves.join() !== d.moves.join();
 	if (mv && !formed) parts.push([`기술 ${mv}개`, mv * PRICE.move]);
-	return { parts, total: parts.reduce((a, x) => a + x[1], 0), dirty: parts.length > 0 || toID(o.item) !== toID(d.item) || shownName(o) !== shownName(d) || ballOf(o) !== ballOf(d) || !!o.gigantamax !== !!d.gigantamax };
+	return { parts, total: parts.reduce((a, x) => a + x[1], 0), dirty: parts.length > 0 || toID(o.item) !== toID(d.item) || shownName(o) !== shownName(d) || ballOf(o) !== ballOf(d) || !!o.gigantamax !== !!d.gigantamax || reordered };
 }
 /** 포켓몬 창: 줄을 누르면 그 항목을 고르는 창이 열림. 고친 것은 「저장」을 눌러야 한 번에 값을 치르고 반영됨 */
 function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open: (s: Sub) => void; close: () => void; re: () => void }) {
@@ -413,6 +413,8 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 	const c = trainCost(o, d, !!m.gx), ch = (label: string) => c.parts.some(x => x[0] === label);
 	const row = (k: Sub, label: string, val: any, cost?: number, changed = false) => <button class={'cp-mrow' + (changed ? ' ch' : '')} onClick={() => open(k)}><small>{label}</small><b>{val}</b><em class={cost === undefined ? 'free' : ''}>{cost === undefined ? '무료' : (changed ? '+' : '') + cost + ' BP'}</em></button>;
 	const toggle = () => { if (inTeam) S.team = S.team.filter(i => i !== m.id); else if (S.team.length >= 6) { toast('팀은 6마리까지예요. 먼저 한 마리를 빼 주세요'); return; } else S.team.push(m.id); re(); };
+	/** 팀 안에서의 순서 바꾸기 (바로 저장, 무료) */
+	const shift = (dlt: number) => { const i = S.team.indexOf(m.id), j = i + dlt; if (i < 0 || j < 0 || j >= S.team.length) return; [S.team[i], S.team[j]] = [S.team[j], S.team[i]]; syncTeams(S); re(); };
 	const release = async () => { if (await confirmBox('내보내기', `${josa(name, '을', '를')} 내보낼까요? 되돌릴 수 없어요.`, '내보낸다', '그만두기')) { S.roster = S.roster.filter(x => x !== m); S.team = S.team.filter(i => i !== m.id); syncTeams(S); S.teams = S.teams!.map(t => t.filter(i => i !== m.id)); S.team = S.teams[S.cur!]; re(); close(); } };
 	const saveAll = () => {
 		if (c.total && !pay(c.total, `챔피언스 · ${name} 트레이닝 (${c.parts.map(x => x[0]).join('·')})`)) return;
@@ -425,6 +427,7 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 		<div class="cp-mp-head"><span class="cp-mp-spr"><Sprite species={d.species} gen={9} size={64} anim={false} cls="front" shiny={o.shiny} /></span>
 			<div><span>{types(d.species).map(t => <TypeBadge type={t} small />)}{rarity(toID(o.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(o.species))]}</i>}</span><small class="cp-ball"><ItemIcon item={ballOf(d)} size={16} />{itemKo(ballOf(d))}{o.shiny && <i class="cp-shiny">★색이 다른</i>}</small><small>{speciesKo(d.species)} · {inTeam ? `팀 ${S.team.indexOf(m.id) + 1}번째` : '박스에 있음'}</small></div>
 			<button class={'btn small' + (inTeam ? '' : ' primary')} onClick={toggle}>{inTeam ? '팀에서 빼기' : '팀에 넣기'}</button></div>
+		{inTeam && S.team.length > 1 && <div class="cp-ord"><span>팀 순서 {S.team.indexOf(m.id) + 1} / {S.team.length}</span><button class="btn small" disabled={S.team.indexOf(m.id) === 0} onClick={() => shift(-1)}>앞으로</button><button class="btn small" disabled={S.team.indexOf(m.id) >= S.team.length - 1} onClick={() => shift(1)}>뒤로</button></div>}
 		<div class="cp-mrows">
 			{row('nick', '닉네임', isNick(d.name, d.species) ? d.name : <small>없음 ({nickKo(d.species)})</small>, undefined, (isNick(o.name, o.species) ? o.name : '') !== (isNick(d.name, d.species) ? d.name : ''))}
 			{formsOf(o.species).length > 1 && row('form', '모습', speciesKo(d.species), PRICE.form, ch('모습'))}
@@ -437,7 +440,7 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 			{row('sp', '능력 포인트', <small>{spText}</small>, PRICE.sp, ch('능력 포인트'))}
 			{canGmax(d.species) && <button class={'cp-mrow' + (!!o.gigantamax !== !!d.gigantamax ? ' ch' : '')} onClick={() => { d.gigantamax = !d.gigantamax; re2(); }}><small>거다이맥스</small><b>{d.gigantamax ? '켬' : '끔'}</b><em class={m.gx ? 'free' : ''}>{m.gx ? '무료' : (ch('거다이맥스') ? '+' : '') + PRICE.gmax + ' BP'}</em></button>}
 		</div>
-		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = (o.moves[k] || '') !== (d.moves[k] || ''); return <button class={changed ? 'ch' : ''} onClick={() => open({ move: k })}>
+		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = !!d.moves[k] && !o.moves.includes(d.moves[k]); return <button class={changed ? 'ch' : ''} onClick={() => open({ move: k })}>
 			{md && <TypeBadge type={md.type} small />}<b>{d.moves[k] ? moveKo(d.moves[k]) : '(빈 칸)'}</b><em>{changed ? '+' : ''}{PRICE.move} BP</em></button>; })}</div>
 		<div class="cp-msave"><span>{c.parts.length ? c.parts.map(x => `${x[0]} ${x[1]}`).join(' · ') : c.dirty ? '무료 항목만 바꿈' : '고친 항목이 없습니다'}</span>
 			<button class="btn primary" disabled={!c.dirty} onClick={saveAll}>저장{c.total ? ` (총 ${c.total} BP)` : ''}</button></div>
@@ -457,9 +460,10 @@ function SpBody({ set, done }: { set: PSet; done: (sp: { [k: string]: number }) 
 interface Opt { icon?: any; label: string; desc?: string; note?: string; off?: boolean; run: () => void }
 type Grid = '' | 'grid' | 'grid two';
 /** 항목을 고르는 창: 고친 사본(d)에만 적고 포켓몬 창으로 돌아감 — 값은 포켓몬 창의 「저장」에서 한 번에 */
-function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclude<Sub, null>; back: () => void }) {
+function SubPop({ S, m, d, sub, back, open }: { S: CSave; m: CMon; d: PSet; sub: Exclude<Sub, null>; back: () => void; open: (s: Sub) => void }) {
 	const s = d, name = monKo(s), [q, setQ] = useState(''), [nick, setNick] = useState(isNick(d.name, d.species) ? d.name : '');
 	const apply = (_cost: number, _why: string, f: () => void) => { f(); back(); };
+	const mvSwap = (a: number, b: number) => { [s.moves[a], s.moves[b]] = [s.moves[b], s.moves[a]]; open({ move: b }); };
 	if (sub === 'nick') return <Modal title="닉네임" onClose={back}><div class="cp-nick">
 		<input class="cp-search" maxLength={12} placeholder={nickKo(s.species)} value={nick} onInput={e => setNick((e.target as HTMLInputElement).value.replace(/[,|[\]]/g, ''))} />
 		<p class="cp-note">12자까지. 비워 두면 종 이름({nickKo(s.species)})으로 나옵니다. 닉네임은 무료예요.</p>
@@ -502,6 +506,8 @@ function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclu
 	}
 	const list = opts.filter(o => matches(q, o.label));
 	return <Modal title={`${title}${cost ? ` · ${cost} BP` : ''}`} onClose={back}>
+		{typeof sub === 'object' && s.moves[sub.move] && <div class="set-mvacts"><button class="btn small" disabled={sub.move === 0} onClick={() => mvSwap(sub.move, sub.move - 1)}>앞으로</button>
+			<button class="btn small" disabled={sub.move >= s.moves.length - 1} onClick={() => mvSwap(sub.move, sub.move + 1)}>뒤로</button><span class="cp-note">순서 바꾸기는 무료</span></div>}
 		{search && <input class="cp-search" placeholder="이름으로 찾기 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />}
 		<div class={'cp-opts ' + grid}>{list.slice(0, 120).map(o => <button class={'cp-opt' + (grid && o.off ? ' cur' : '')} disabled={o.off} onClick={() => apply(cost, why, o.run)}>{o.icon}<div><b>{o.label}{o.note === '지금' && <em>지금</em>}</b>{o.note && o.note !== '지금' && <em class="ln">{o.note}</em>}{o.desc && <small>{o.desc}</small>}</div></button>)}
 			{!list.length && <p class="cp-note">맞는 항목이 없어요.</p>}</div>

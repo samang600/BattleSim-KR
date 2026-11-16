@@ -7,7 +7,7 @@ import { typeEff } from './calc';
 import { randomSetFor, applySpread, randomTeam, normalizeSP, fillSP, cheatSP, spOf, spToEv, evToSp, SP_MAX, SP_TOTAL, evDisplay, fmtSP, evsFor510, type PSet } from '../sets';
 import { ruleById, teamRuleWarnings } from '../rules';
 import { loadSettings } from '../store';
-import { loadTeams, upsertTeam, deleteTeam, newId, load, save, type SavedTeam } from '../store';
+import { loadTeams, saveTeams, upsertTeam, deleteTeam, newId, load, save, type SavedTeam } from '../store';
 import { Screen, Sprite, MiniSprite, TypeBadge, Modal, toast, confirmBox, ItemIcon, CatIcon } from './core';
 import { SetCard } from './screens';
 
@@ -25,7 +25,10 @@ export function matches(query: string, ...names: string[]) {
 	const q = query.trim().toLowerCase().replace(/\s/g, '');
 	if (!q) return true;
 	const isCho = /^[ㄱ-ㅎ]+$/.test(q);
+	// 숫자만 넣으면 도감 번호로도 찾음 (이름 대신 넘겨받은 숫자 문자열과 같을 때)
+	if (/^\d+$/.test(q) && names.some(n => /^\d+$/.test(n) && +n === +q)) return true;
 	return names.some(n => {
+		if (/^\d+$/.test(n)) return false;
 		const nn = n.toLowerCase().replace(/\s/g, '');
 		if (nn.includes(q) || toID(n).includes(toID(q) || '\u0000')) return true;
 		return isCho && chosung(nn).includes(q);
@@ -45,6 +48,9 @@ export function TeamList({ onBack, onEdit }: { onBack: () => void; onEdit: (t: S
 		upsertTeam(t);
 		onEdit(t);
 	};
+	/** 팀 순서: 저장된 순서를 바꿈 (위로·아래로, 이름순·최근 고친 순) */
+	const reorder = (list: SavedTeam[]) => { saveTeams(list); setTeams(loadTeams()); };
+	const move = (i: number, d: number) => { const l = teams.slice(); [l[i], l[i + d]] = [l[i + d], l[i]]; reorder(l); };
 	return <Screen title="팀 편집" onBack={onBack}>
 		<div class="row wrap">
 			<button class="btn primary" onClick={() => create(9, false)}>+ 새 팀</button>
@@ -54,10 +60,14 @@ export function TeamList({ onBack, onEdit }: { onBack: () => void; onEdit: (t: S
 		<p class="muted small">치트 팀: 아무 기술·특성이나 넣고 능력 포인트 제한(합계 66) 없이 만들 수 있어요. 각 배틀 모드의 형식 선택 화면에서 ‘치트 팀 허용’을 켜면 쓸 수 있고, 전적에 남지 않습니다.</p>
 		<ImportBox onImported={() => setTeams(loadTeams())} />
 		{!teams.length && <p class="empty-msg">아직 팀이 없습니다. 새 팀을 만들거나 추천팀을 받아 보세요.</p>}
+		{teams.length > 1 && <div class="team-sort"><span>순서</span>
+			<button class="btn small ghost" onClick={() => reorder(teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true })))}>이름순</button>
+			<button class="btn small ghost" onClick={() => reorder(teams.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0)))}>최근 고친 순</button></div>}
 		<div class="card-list">
-			{teams.map(t => <div class="team-row clickable" onClick={() => onEdit(t)}>
+			{teams.map((t, ti) => <div class="team-row clickable" onClick={() => onEdit(t)}>
 				<div class="team-row-head"><b>{t.name}</b>{t.cheat && <span class="cheat-tag">치트</span>}<span class="muted">{t.sets.length}/6</span>
-					<button class="btn small" onClick={e => { e.stopPropagation(); upsertTeam({ ...JSON.parse(JSON.stringify(t)), id: newId(), name: t.name + ' 복사본' }); setTeams(loadTeams()); toast('팀을 복제했습니다'); }}>복제</button></div>
+					<button class="btn small" onClick={e => { e.stopPropagation(); upsertTeam({ ...JSON.parse(JSON.stringify(t)), id: newId(), name: t.name + ' 복사본' }); setTeams(loadTeams()); toast('팀을 복제했습니다'); }}>복제</button>
+					<span class="team-ord" onClick={e => e.stopPropagation()}><button class="icon-btn up" disabled={ti === 0} onClick={() => move(ti, -1)} aria-label="위로"><i /></button><button class="icon-btn down" disabled={ti >= teams.length - 1} onClick={() => move(ti, 1)} aria-label="아래로"><i /></button></span></div>
 				<div class="preview-row">{t.sets.map(s => <MiniSprite species={s.species} gen={t.gen} size={40} shiny={s.shiny} />)}</div>
 			</div>)}
 		</div>
@@ -226,12 +236,12 @@ function SpeciesPicker({ gen, exclude, onPick, onBack }: { gen: Gen; exclude: st
 	const [type, setType] = useState('');
 	const [sort, setSort] = useState<'num' | 'bst' | 'name' | 'spe' | 'atk'>('num');
 	const tot = (x: any) => x.bs.reduce((p: number, c: number) => p + c, 0);
-	let shown = list.filter(s => s && matches(q, s.n, s.en) && (!type || s.t.includes(type)));
+	let shown = list.filter(s => s && matches(q, s.n, s.en, String(s.num)) && (!type || s.t.includes(type)));
 	if (sort !== 'num') shown = shown.slice().sort((a, b) => sort === 'bst' ? tot(b) - tot(a) : sort === 'spe' ? b!.bs[5] - a!.bs[5] :
 		sort === 'atk' ? Math.max(b!.bs[1], b!.bs[3]) - Math.max(a!.bs[1], a!.bs[3]) : a!.n.localeCompare(b!.n, 'ko'));
 	shown = shown.slice(0, 150);
 	return <Screen top title="포켓몬 고르기" onBack={onBack}>
-		<input class="search" placeholder="이름 검색 (초성 가능: ㅎㅋㄹ)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} autoFocus />
+		<input class="search" placeholder="이름·도감 번호 검색 (초성 가능: ㅎㅋㄹ)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} autoFocus />
 		<div class="sort-bar"><span>정렬</span>{([['num', '도감'], ['name', '가나다'], ['bst', '종족값'], ['atk', '공격력'], ['spe', '스피드']] as const).map(([k, l]) =>
 			<button class={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button>)}</div>
 		<div class="type-filter"><button class={!type ? 'on' : ''} onClick={() => setType('')}>전체</button>
@@ -274,6 +284,8 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 	// 고르기는 화면을 바꾸지 않고 팝업 창에서 (챔피언스 모드의 포켓몬 창과 같은 방식)
 	const [picker, setPicker] = useState<null | { kind: 'move'; idx: number } | { kind: 'item' } | { kind: 'nature' } | { kind: 'ability' } | { kind: 'tera' } | { kind: 'sp' } | { kind: 'etc' }>(null);
 	const openPicker = (p: NonNullable<typeof picker>) => setPicker(p), close = () => setPicker(null);
+	/** 이 포켓몬 한 마리의 텍스트 내보내기·불러오기 창 */
+	const [txt, setTxt] = useState<string | null>(null);
 	const up = (patch: Partial<PSet>) => { const n = { ...s, ...patch }; setS(n); onChange(n); };
 	const sd = speciesData(toID(s.species), gen)!;
 	// 같은 포켓몬의 다른 모습 (메가·원시·거다이맥스처럼 배틀 중 바뀌는 모습과 배틀 전용 모습 제외)
@@ -304,7 +316,8 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 						<button class={'set-tg shiny' + (s.shiny ? ' on' : '')} onClick={() => up({ shiny: !s.shiny })} aria-pressed={!!s.shiny} aria-label="색이 다른 포켓몬" title="색이 다른 포켓몬"><i /></button>
 						<button class={'set-tg gender ' + (sd.gr || s.gender || 'R')} disabled={!!sd.gr} onClick={() => up({ gender: s.gender === 'M' ? 'F' : s.gender === 'F' ? '' : 'M' })} aria-label="성별" title={sd.gr ? '성별 고정' : '성별: 누르면 수컷 → 암컷 → 무작위'}>{(sd.gr || s.gender) === 'M' ? '수컷' : (sd.gr || s.gender) === 'F' ? '암컷' : sd.gr === 'N' ? '없음' : '무작위'}</button></div>
 					<div class="set-headbtns"><button class="btn small" onClick={() => openPicker({ kind: 'etc' })}>모습·볼</button>
-						<button class="btn ghost small" onClick={() => { const n = randomSetFor(toID(s.species), gen, 50); n.shiny = s.shiny; setS(n); onChange(n); toast('추천 세트로 바꿨습니다'); }}>추천 세트</button></div>
+						<button class="btn ghost small" onClick={() => { const n = randomSetFor(toID(s.species), gen, 50); n.shiny = s.shiny; setS(n); onChange(n); toast('추천 세트로 바꿨습니다'); }}>추천 세트</button>
+						<button class="btn ghost small set-txtbtn" onClick={() => setTxt(exportText([s]))}>텍스트 내보내기·불러오기</button></div>
 				</div></div>
 			<div class="cp-pn set-pn"><div class="cp-mrows">
 				{row('item', '도구', s.item ? <><ItemIcon item={s.item} size={24} />{itemKo(s.item)}</> : '없음')}
@@ -322,6 +335,13 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 			{cheat ? <div class="set-row"><span>레벨 {s.level}</span><input type="range" min={1} max={100} value={s.level} onInput={e => up({ level: parseInt((e.target as HTMLInputElement).value, 10) })} /></div>
 				: <p class="muted small">레벨 {s.level} (모드에 따라 50/100으로 맞춰짐) · 줄이나 기술을 누르면 바꾸는 창이 열립니다</p>}
 		</div>
+		{txt !== null && <Modal title="텍스트 내보내기 · 불러오기" onClose={() => setTxt(null)}><div class="set-txt">
+			<p class="muted small">이 포켓몬의 세트입니다. 복사해 두거나, 다른 세트를 붙여 넣고 「불러오기」를 누르면 이 칸의 포켓몬이 그 세트로 바뀝니다. (쇼다운 형식 · 한국어 이름 모두 가능)</p>
+			<textarea rows={10} value={txt} onInput={e => setTxt((e.target as HTMLTextAreaElement).value)} />
+			<div class="row"><button class="btn" onClick={() => { navigator.clipboard?.writeText(txt).then(() => toast('복사했습니다'), () => toast('복사 실패')); }}>복사</button>
+				<button class="btn primary" onClick={() => { const got = importText(txt, gen);
+					if (!got.length) { toast('포켓몬을 찾지 못했습니다'); return; }
+					const n = (cheat ? cheatSP : normalizeSP)(got[0]); setS(n); onChange(n); setTxt(null); toast(`${speciesKo(n.species)} 세트를 불러왔습니다${got.length > 1 ? ' (첫 번째 포켓몬만)' : ''}`); }}>불러오기</button></div></div></Modal>}
 		{picker?.kind === 'move' && <Modal title={s.moves[mvIdx] ? `${moveData(s.moves[mvIdx], gen)?.name || ''} 바꾸기` : '기술 고르기'} onClose={close}>
 			{s.moves[mvIdx] && <div class="set-mvacts"><button class="btn small" disabled={mvIdx === 0} onClick={() => swap(mvIdx, mvIdx - 1)}>앞으로</button>
 				<button class="btn small" disabled={mvIdx >= s.moves.length - 1} onClick={() => swap(mvIdx, mvIdx + 1)}>뒤로</button>

@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.10', date: '2026-11-16', title: '순서 바꾸기 · 번호 검색', items: [
+		['new', '팀 목록의 순서를 바꿀 수 있고, 포켓몬 한 마리만 텍스트로 내보내거나 불러올 수 있어요.'],
+		['new', '챔피언스 모드의 로스터에서 팀 순서와 기술 순서를 바꿀 수 있어요 (무료).'],
+		['up', '포켓몬을 도감 번호로도 찾을 수 있고, 배틀팰리스에서 치트 팀을 쓸 수 있어요.'],
+	] },
 	{ ver: '2.85.9', date: '2026-11-16', title: '챔피언스 모드 — 도구 나눠 지니기', items: [
 		['fix', '챔피언스 모드에서 스카우트한 직후 오류가 나며 타이틀로 돌아가던 것을 고쳤어요.'],
 		['up', '산 도구는 여러 포켓몬이 함께 지닐 수 있어요. 배틀에 나가는 팀 안에서만 같은 도구가 겹치면 안 됩니다.'],

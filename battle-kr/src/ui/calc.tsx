@@ -356,9 +356,9 @@ function SetPicker({ title, onPick, onBack }: { title: string; onPick: (s: PSet)
 	const [q, setQ] = useState('');
 	const teams = loadTeams();
 	const list = useMemo(() => allSpecies(GEN).filter(s => s && !s.bo), []);
-	const shown = q ? list.filter(s => s && matches(q, s.n, s.en)).slice(0, 40) : [];
+	const shown = q ? list.filter(s => s && matches(q, s.n, s.en, String(s.num))).slice(0, 40) : [];
 	return <Screen top title={title} onBack={onBack}>
-		<input class="search" placeholder="종족 검색 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} autoFocus />
+		<input class="search" placeholder="종족·도감 번호 검색 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} autoFocus />
 		{shown.length > 0 && <div class="pick-list">{shown.map(s => s && <button class="pick-row" onClick={() => onPick(randomSetFor(s.id, GEN, 50))}>
 			<MiniSprite species={s.id} gen={GEN} size={40} /><span class="pick-name">{s.n}</span><span class="pick-types">{s.t.map(t => <TypeBadge type={t} small />)}</span></button>)}</div>}
 		{!q && teams.map(t => <Fragment key={t.id}>

@@ -11,7 +11,7 @@ import { aiPickEntry } from './smogon';
 import { chooseAI } from './ai';
 import { Dex } from '../../sim/dex';
 import { speciesKo, toID, ALL_TYPES, typeKo } from './data';
-import { BACK, battle, chooseTeam, withLevel, namedTeam, playerName, playerSprite, BgmRow, josa, confirmQuit, towerOpponent, ROLE_ORDER, namedMusic, isDoubles, symbolScreen, type Fmt } from './modes';
+import { BACK, battle, chooseTeam, withLevel, namedTeam, playerName, playerSprite, BgmRow, josa, confirmQuit, towerOpponent, ROLE_ORDER, namedMusic, isDoubles, symbolScreen, OptsBox, type Fmt, type BattleOpts } from './modes';
 import { updateStats, loadStats, setMax, BOSS_LEN, awardSymbol } from './stats';
 import { earnBP, setClearBP, BRAIN_BP } from './rewards';
 
@@ -79,14 +79,17 @@ export function palaceChoice(battle: any, req: any, sideId: 'p1' | 'p2'): string
 	}).join(', ');
 }
 
-const PALACE_KEY = (fmt: Fmt) => `palace-${fmt}${rt()}`;
+const PALACE_KEY = (fmt: Fmt, cheat = false) => `palace-${fmt}${rt()}${cheat ? '-cheat' : ''}`;
 interface PalaceState { fmt: Fmt; team: PSet[]; streak: number }
 export async function runPalace() {
-	const fmt = await ask<Fmt | typeof BACK>(r => <ChoiceScreen title="배틀팰리스" onBack={() => r(BACK)}
+	// 치트 팀 허용: 전적·연승·BP·심볼에 반영하지 않고, 도전도 따로 저장
+	const opts: BattleOpts = { cheat: false, level100: false, inverse: false };
+	const fmt = await ask<Fmt | typeof BACK>(r => <ChoiceScreen title="배틀팰리스" onBack={() => r(BACK)} footer={<OptsBox opts={opts} show={['cheat']} />}
 		intro={<p class="hint">포켓몬이 <b>성격</b>대로 스스로 기술을 고릅니다. 트레이너는 지켜볼 뿐! HP가 절반 이하가 되면 성격에 따라 싸우는 방식이 바뀝니다. 21·49번째에는 팰리스 메이븐이 나옵니다. (레벨 50 · 기믹 없음)</p>}
 		options={[{ value: 'singles' as Fmt, label: '싱글 3vs3', desc: '1대1 · 3마리', icon: '①' }, { value: 'doubles' as Fmt, label: '더블 4vs4', desc: '2마리씩 · 4마리', icon: '②' }]} onPick={r} />);
 	if (fmt === BACK) return;
-	let state = load<PalaceState | null>(PALACE_KEY(fmt), null);
+	const cheat = opts.cheat;
+	let state = load<PalaceState | null>(PALACE_KEY(fmt, cheat), null);
 	if (state) {
 		const v = await ask<'resume' | 'new' | typeof BACK>(r => <InfoScreen title="배틀팰리스" heading={`${state!.streak}연승 중인 도전이 있습니다`} sprites={state!.team.map(s => s.species)} sets={state!.team} gen={9}
 			actions={[{ label: '이어서 도전', onClick: () => r('resume') }, { label: '새로 시작', kind: 'ghost', onClick: () => r('new') }, { label: '돌아가기', kind: 'ghost', onClick: () => r(BACK) }]} />);
@@ -94,15 +97,15 @@ export async function runPalace() {
 		if (v === 'new') state = null;
 	}
 	if (!state) {
-		const team = await chooseTeam(9, '배틀팰리스 · 팀 선택', true, false, 50);
+		const team = await chooseTeam(9, '배틀팰리스 · 팀 선택', true, cheat, 50);
 		if (team === BACK) return;
 		const n = fmt === 'doubles' ? 4 : 3;
 		const picked = team.length > n ? await ask<PSet[] | typeof BACK>(r => <PickScreen title="참가 포켓몬" team={team} gen={9} count={n} hint="성격이 싸우는 방식을 정합니다. 공격형(고집·대담 등)과 방어형을 섞어 보세요. 구애 도구(머리띠·안경·스카프)를 들면 교체가 없어 한 기술만 쓰게 돼요." onBack={() => r(BACK)} onDone={r} />) : team;
 		if (picked === BACK) return;
-		state = { fmt, team: dedupeItems(picked.map(cloneSet)), streak: 0 };
-		save(PALACE_KEY(fmt), state);
+		state = { fmt, team: cheat ? picked.map(cloneSet) : dedupeItems(picked.map(cloneSet)), streak: 0 };
+		save(PALACE_KEY(fmt, cheat), state);
 	}
-	const key = PALACE_KEY(fmt);
+	const key = PALACE_KEY(fmt, cheat);
 	const ruleId = noGimmickRule();
 	while (true) {
 		const no = state.streak + 1;
@@ -113,7 +116,7 @@ export async function runPalace() {
 		opp.team = palaceItems(withLevel(opp.team, 50));
 		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title={`배틀팰리스 · ${fmt === 'doubles' ? '더블' : '싱글'}`} banner={`${no}번째 승부`} prep={<BgmRow />}
 			heading={maven ? '⚠ 팰리스 메이븐 등장!' : `${opp.title ? opp.title + ' ' : ''}${opp.name}${josa(opp.name)} 승부를 걸어왔다!`} trainer={opp.sprite}
-			lines={[`현재 ${state!.streak}연승 · 포켓몬이 성격대로 스스로 싸웁니다`]} sprites={state!.team.map(s => s.species)} sets={state!.team} gen={9}
+			lines={[`현재 ${state!.streak}연승 · 포켓몬이 성격대로 스스로 싸웁니다`, ...(cheat ? ['※ 🃏 치트 — 전적·연승에 반영되지 않습니다'] : [])]} sprites={state!.team.map(s => s.species)} sets={state!.team} gen={9}
 			actions={[{ label: '승부한다', onClick: () => r('go') }, { label: '쉬기 (저장 후 나가기)', kind: 'ghost', onClick: () => r('rest') }, { label: '도전 그만두기', kind: 'danger', onClick: () => r('quit') }]} />),
 			'quit', `지금까지의 ${state!.streak}연승 도전이 끝납니다. 정말 그만둘까요?`);
 		if (go === 'rest') return;
@@ -124,17 +127,17 @@ export async function runPalace() {
 			p1: { name: playerName(), team: state.team, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: opp.team, line: opp.line, sprite: opp.sprite, lines: { intro: opp.line, ...opp.lines } },
 		});
 		if (!res.win) {
-			remove(key); updateRecords(r => { r.current[key] = 0; });
-			await ask<void>(r => <InfoScreen title="배틀팰리스" heading="도전 종료" banner={`${state!.streak}연승`} lines={[`최고 기록: ${loadRecords().best[key] || 0}연승`]} actions={[{ label: '메뉴로', onClick: () => r() }]} />);
+			remove(key); if (!cheat) updateRecords(r => { r.current[key] = 0; });
+			await ask<void>(r => <InfoScreen title="배틀팰리스" heading="도전 종료" banner={`${state!.streak}연승`} lines={cheat ? ['치트 도전은 기록에 남지 않습니다'] : [`최고 기록: ${loadRecords().best[key] || 0}연승`]} actions={[{ label: '메뉴로', onClick: () => r() }]} />);
 			return;
 		}
 		state.streak++;
 		const s = state.streak;
-		updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
+		if (!cheat) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 		save(key, state);
-		if (maven) earnBP(no === 49 ? BRAIN_BP.gold : BRAIN_BP.silver, '팰리스 메이븐 격파');
-		if (maven && awardSymbol('palace', no === 49)) await symbolScreen('palace', no === 49);
-		if (s % 7 === 0) earnBP(setClearBP(s), '세트 클리어');
+		if (maven && !cheat) earnBP(no === 49 ? BRAIN_BP.gold : BRAIN_BP.silver, '팰리스 메이븐 격파');
+		if (maven && !cheat && awardSymbol('palace', no === 49)) await symbolScreen('palace', no === 49);
+		if (s % 7 === 0 && !cheat) earnBP(setClearBP(s), '세트 클리어');
 		if (s % 7 === 0) {
 			const v = await ask<'go' | 'rest'>(r => <InfoScreen title="배틀팰리스" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`} lines={['포켓몬들의 체력이 회복되었다.']}
 				actions={[{ label: '계속', onClick: () => r('go') }, { label: '여기서 쉬기', kind: 'ghost', onClick: () => r('rest') }]} />);

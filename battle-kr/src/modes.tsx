@@ -31,7 +31,7 @@ export interface BattleOpts { cheat: boolean; level100: boolean; inverse: boolea
 export type Diff = 'easy' | 'normal' | 'hard';
 const DIFF_LABEL: { [k in Diff]: string } = { easy: '쉬움', normal: '보통', hard: '어려움' };
 /** 난이도만큼 세트(7연승)를 당기거나 미룸: 쉬움 -2세트, 어려움 +3세트 */
-type OptKey = Exclude<keyof BattleOpts, 'diff'>;
+export type OptKey = Exclude<keyof BattleOpts, 'diff'>;
 const defaultOpts = (): BattleOpts => ({ cheat: false, level100: false, inverse: false, mono: false });
 const lvl = (o: BattleOpts) => o.level100 ? 100 : 50;
 /** 치트·거꾸로 배틀은 전적·연승에 반영하지 않음 */
@@ -48,7 +48,7 @@ const OPT_INFO: { [k in OptKey]: { label: string; desc: string } } = {
 	inverse: { label: '🔄 거꾸로 배틀', desc: '타입 상성이 반대로: 약점은 반감, 반감·무효는 2배. 전적·연승에 반영되지 않습니다.' },
 	mono: { label: '🎨 타입 구애 도전', desc: '특별 상대(네임드·타이쿤·헤드)를 뺀 모든 상대가 한 타입으로만 짠 팀(타입 구애팟)으로 나옵니다.' },
 };
-function OptsBox({ opts, show, diff }: { opts: BattleOpts; show: OptKey[]; diff?: boolean }) {
+export function OptsBox({ opts, show, diff }: { opts: BattleOpts; show: OptKey[]; diff?: boolean }) {
 	const [, force] = useState(0);
 	return <div class="opts-box">
 		{diff && <div class="set-row"><span>난이도</span><div class="seg">{(['easy', 'normal', 'hard'] as Diff[]).map(d =>

@@ -2805,6 +2805,13 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 /* 화면이 좌우로 밀리지 않게: 화면 폭을 넘는 것은 잘라 냄 (세로 스크롤·sticky 는 그대로) */
 #app { overflow-x: clip; } html, body { max-width: 100%; overflow-x: hidden; }
 
+/* 팀 목록 순서 · 포켓몬 한 마리 텍스트 · 챔피언스 팀 순서 */
+.team-sort { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 12px; color: #b8c8e8; }
+.team-ord { display: inline-flex; gap: 4px; margin-left: 6px; } .team-ord .icon-btn { width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.team-ord .icon-btn i { display: block; width: 12px; height: 8px; background: currentColor; clip-path: polygon(50% 0, 100% 100%, 0 100%); } .team-ord .icon-btn.down i { clip-path: polygon(0 0, 100% 0, 50% 100%); } .team-ord .icon-btn:disabled { opacity: .35; }
+.set-headbtns .set-txtbtn { grid-column: 1 / -1; } .set-txt { display: flex; flex-direction: column; gap: 6px; } .set-txt textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 12px; } .set-txt .row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } .set-txt .btn { min-width: 0; }
+.cp-ord { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 12px; color: #b8c8e8; } .cp-ord span { flex: 1; } .set-mvacts .cp-note { margin: 0 0 0 6px; align-self: center; }
+
 /* ═════ FX:BEGIN — scripts/gen-fx-css.py 가 만든 부분 (손으로 고치지 말 것) ═════ */
 /* HP 창 테마: 띠 + 도트 무늬 + 은은한 움직임 (::before, 글자 아래) */
 [class*="hpt-"] .info { isolation: isolate; }
