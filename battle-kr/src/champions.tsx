@@ -19,8 +19,8 @@ import { randomTrainer } from './trainers';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { load, save, loadSettings } from './store';
 import { loadWallet, earnBP, spendBP, onWallet } from './rewards';
-import { ruleById, applyRuleData, teamRuleIssues, speciesAllowed } from './rules';
-import { speciesKo, speciesData, moveData, moveKo, abilityDesc, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, zCrystalsFor, toID, ALL_TYPES, shownName, isNick, nickKo, allBalls } from './data';
+import { ruleById, applyRuleData, teamRuleIssues, speciesAllowed, itemAllowed } from './rules';
+import { speciesKo, speciesData, moveData, moveKo, abilityDesc, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, zCrystalsFor, exclusiveItemsFor, RAW, toID, ALL_TYPES, shownName, isNick, nickKo, allBalls } from './data';
 import { playMusic, sfx } from './sound';
 import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, START_ITEMS, SHOP, NATURES, EVENTS, TOWER_EVENTS, CSYM, REGION_CUPS, CUP_NEED } from './champions-data';
 
@@ -89,12 +89,14 @@ const monKo = (set: PSet) => shownName(set);
 /** 담긴 볼 (없으면 몬스터볼) */
 const ballOf = (set: PSet) => set.pokeball || 'pokeball';
 const randomBall = () => rng.pick(allBalls()).id;
+/** 스카우트에 색이 다른 포켓몬이 나올 확률 */
+const SHINY_RATE = 0.03;
 const types = (sp: string) => ((speciesData(sp, 9) as any)?.t || []) as string[];
 /** 포켓몬 카드 (소개·로스터) */
 function MonCard({ set, cls = '', mark, sub, onClick }: { set: PSet; cls?: string; mark?: any; sub?: string; onClick?: () => void }) {
 	return <button class={'cp-card ' + cls} onClick={onClick}>{mark}
 		<span class="cp-card-spr"><Sprite species={set.species} gen={9} size={56} anim={false} cls="front" shiny={set.shiny} /></span>
-		<span class="cp-card-body"><b>{monKo(set)}{rarity(toID(set.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(set.species))]}</i>}</b><span>{types(set.species).map(t => <TypeBadge type={t} small />)}</span>
+		<span class="cp-card-body"><b>{monKo(set)}{set.shiny && <i class="cp-shiny">★색</i>}{rarity(toID(set.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(set.species))]}</i>}</b><span>{types(set.species).map(t => <TypeBadge type={t} small />)}</span>
 			<small>{sub ?? `${natureKo(set.nature)} · ${abilityKo(set.ability)}`}</small></span></button>;
 }
 /** 대화 장면: 배틀 배경 그림 위에 트레이너 도트와 대화창. 누르면 다음 줄 */
@@ -251,19 +253,20 @@ async function startFlow(S: CSave) {
 // ───────── 스카우트 ─────────
 /** 새 소개 10마리 (지금 규칙·등급에 맞는 포켓몬, 가진 포켓몬은 빼고, 도구 없이). 찜은 세 번 안에 꼭 나오고, 타입 지정이 있으면 절반이 그 타입 */
 function newLineup(S: CSave) {
-	const t = T(S), have = new Set(S.roster.map(m => toID(m.set.species))), rule = ruleById(CR()), lg = legendOf(S);
-	const pool = rng.shuffle(speciesPool({ gen: 9, minBst: t.bst[0], maxBst: t.bst[1] + 40, allowSubLegend: false })).filter(id => !have.has(id));
+	// 같은 종류를 이미 가졌어도 다시 소개됨 (중복 스카우트 가능)
+	const t = T(S), rule = ruleById(CR()), lg = legendOf(S);
+	const pool = rng.shuffle(speciesPool({ gen: 9, minBst: t.bst[0], maxBst: t.bst[1] + 40, allowSubLegend: false }));
 	// 규칙이 허용하고 등급이 오르면 준전설(슈퍼볼급~)·초전설·환상(마스터볼급~)이 한 마리씩 섞여 나옴 (값은 2배·4배)
-	const special = (lv: number) => rng.shuffle(speciesPool({ gen: 9, minBst: 500, allowSubLegend: true, allowLegend: lv === 2 } as any)).find(id => rarity(id) === lv && !have.has(id) && speciesAllowed(rule, id));
+	const special = (lv: number) => rng.shuffle(speciesPool({ gen: 9, minBst: 500, allowSubLegend: true, allowLegend: lv === 2, noBan: true } as any)).find(id => rarity(id) === lv && speciesAllowed(rule, id));
 	const pickN: string[] = [];
-	const wants = S.wish.filter(w => !have.has(w));
+	const wants = S.wish.slice();
 	if (wants.length && (S.wishMiss >= 2 || Math.random() < 0.34)) { pickN.push(rng.pick(wants)); S.wishMiss = 0; } else if (wants.length) S.wishMiss++;
 	if (S.typeNext) { for (const id of pool) { if (pickN.length >= 6) break; if (!pickN.includes(id) && types(id).some(x => x === S.typeNext)) pickN.push(id); } S.typeNext = undefined; }
 	if (lg.allowSubLegend) { const x = special(1); if (x) pickN.push(x); }
 	if (lg.allowLegend) { const x = special(2); if (x) pickN.push(x); }
 	for (const id of pool) { if (pickN.length >= 10) break; if (!pickN.includes(id)) pickN.push(id); }
 	S.lineup = noItems(pickN.map(id => randomSetFor(id, 9, 50, false, 0.65)));
-	for (const x of S.lineup) x.pokeball = randomBall();   // 담긴 볼은 무작위
+	for (const x of S.lineup) { x.pokeball = randomBall(); x.shiny = Math.random() < SHINY_RATE; }   // 담긴 볼은 무작위, 가끔 색이 다른 포켓몬
 	S.lineDay = today(); persist(S);
 }
 const addMon = (S: CSave, set: PSet) => { const m: CMon = { id: S.seq++, set: cloneSet(set) }; if (!m.set.pokeball) m.set.pokeball = randomBall(); dayOf(S).scout++; S.roster.push(m); if (S.team.length < 6) S.team.push(m.id); persist(S); return m; };
@@ -295,7 +298,7 @@ function SpeciesPick({ title, pool, hint, done }: { title: string; pool: string[
 		{list.length >= 60 && <p class="cp-note">이름을 입력하면 더 좁혀집니다.</p>}
 	</Screen>;
 }
-const pickable = (S: CSave) => { const lg = legendOf(S), rule = ruleById(CR()); return speciesPool({ gen: 9, minBst: 300, ...lg } as any).filter(id => speciesAllowed(rule, id) && !S.roster.some(m => toID(m.set.species) === id)).sort((a, b) => speciesKo(a).localeCompare(speciesKo(b), 'ko')); };
+const pickable = (S: CSave) => { const lg = legendOf(S), rule = ruleById(CR()); return speciesPool({ gen: 9, minBst: 300, noBan: true, ...lg } as any).filter(id => speciesAllowed(rule, id)).sort((a, b) => speciesKo(a).localeCompare(speciesKo(b), 'ko')); };
 const full = (S: CSave) => { if (S.roster.length >= T(S).cap) { toast(`로스터가 가득 찼어요 (${T(S).cap}마리). 로스터에서 내보내거나 등급을 올리세요`); return true; } return false; };
 /** 스카우트 값 치르기: 일반 포켓몬은 무료(12시간마다) → 티켓 → BP 순서. 준전설·전설은 BP 로만. 지명은 지명 티켓 → BP */
 function payScout(S: CSave, kind: 'regular' | 'pick', name: string, id = '') {
@@ -318,7 +321,7 @@ async function scoutFlow(S: CSave) {
 			const s = S.lineup[a.i], name = speciesKo(s.species);
 			if (full(S) || !payScout(S, 'regular', name, toID(s.species))) continue;
 			addMon(S, s); S.lineup.splice(a.i, 1); persist(S); sfx('heal');
-			toast(`${josa(name, '을', '를')} 영입했습니다!`);
+			toast(set.shiny ? `색이 다른 ${josa(name, '을', '를')} 영입했습니다!` : `${josa(name, '을', '를')} 영입했습니다!`);
 		}
 		if (a.k === 'refresh') { if (pay(PRICE.refresh, '챔피언스 · 새 소개')) { newLineup(S); } }
 		if (a.k === 'type') {
@@ -331,7 +334,7 @@ async function scoutFlow(S: CSave) {
 			const id = await ask<string | null>(r => <SpeciesPick key={K()} title="지명 스카우트" pool={pickable(S)} hint={`도감에서 골라 바로 영입합니다 — ${S.tk.pick > 0 ? `지명 티켓 1장 (가진 수 ${S.tk.pick})` : `${PRICE.pick} BP`}${lg.allowSubLegend ? ` · 준전설 ${PRICE.pick * 2} BP${lg.allowLegend ? ` · 전설 ${PRICE.pick * 4} BP` : ''}` : ''}`} done={r} />);
 			if (!id || full(S)) continue;
 			const set = randomSetFor(id, 9, 50, false, 0.7), name = speciesKo(id);
-			set.item = '';
+			set.item = ''; set.shiny = Math.random() < SHINY_RATE;
 			if (!(await confirmBox('지명 스카우트', `${josa(name, '을', '를')} 영입할까요?\n${natureKo(set.nature)} · ${abilityKo(set.ability)}\n${set.moves.map(moveKo).join(' · ')}`, '영입한다', '그만두기'))) continue;
 			if (!payScout(S, 'pick', name, id)) continue;
 			addMon(S, set); S.wish = S.wish.filter(w => w !== id); persist(S); sfx('heal'); toast(`${josa(name, '을', '를')} 영입했습니다!`);
@@ -348,11 +351,21 @@ async function scoutFlow(S: CSave) {
 const STAT_NAME = ['HP', '공격', '방어', '특공', '특방', '스피드'];
 const CAT_KO: { [k: string]: string } = { Physical: '물리', Special: '특수', Status: '변화' };
 const BOX = 30;
+/** 바꿀 수 있는 모습: 같은 포켓몬의 다른 모습 (배틀 중에만 되는 모습·메가진화·무한다이맥스·아르세우스와 실버디의 타입 모습 제외, 지금 규칙에 나올 수 있는 것) */
+const formsOf = (sp: string): string[] => { const id = toID(sp), base = (RAW.species as any)[id]?.base || id, rule = ruleById(CR());
+	return Object.keys(RAW.species).filter(x => (x === base || (RAW.species as any)[x].base === base)).filter(x => { const f: any = speciesData(x, 9); if (!f || f.bo || x === 'eternatuseternamax' || /mega|primal|ultra|gmax/.test(x.slice(base.length)) || base === 'arceus' || base === 'silvally') return false;
+		// 도구가 있어야 되는 모습(기라티나 오리진폼·자시안 검왕 등)은 그 도구가 메가스톤이 아닐 때만 — 바꾸면 그 도구를 함께 지님
+		if (f.req && (RAW.items as any)[f.req]?.mega) return false;
+		return x === id || speciesAllowed(rule, x); }); };
+/** 거다이맥스할 수 있는 포켓몬 (무한다이노는 제외) */
+const canGmax = (sp: string) => !!(speciesData(sp, 9) as any)?.gx && !toID(sp).startsWith('eternatus');
+/** 전용 도구(대파·백금옥 등) 가운데 지금 규칙에서 쓸 수 있는 것 */
+const exclusiveFor = (sp: string) => { const rule = ruleById(CR()); return exclusiveItemsFor(sp).filter(x => itemAllowed(rule, x)); };
 /** 팀 칸의 이름: 길면 글자를 줄여서 잘리지 않게 */
 const slotCls = (n: string) => n.length >= 6 ? 'n6' : n.length === 5 ? 'n5' : n.length === 4 ? 'n4' : '';
 /** 상점에서 파는 보통 도구 (이 밖의 가진 도구는 메가스톤 — 그 포켓몬 것만 보여 줌) */
 const PLAIN_ITEMS = new Set([...START_ITEMS, ...SHOP.flatMap(c => c[2])]);
-type Sub = null | 'nick' | 'item' | 'nature' | 'ability' | 'sp' | 'tera' | 'detail' | { move: number };
+type Sub = null | 'nick' | 'ball' | 'form' | 'item' | 'nature' | 'ability' | 'sp' | 'tera' | 'detail' | { move: number };
 function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 	const [page, setPage] = useState(0), [sel, setSel0] = useState<CMon | null>(null), [sub, setSub] = useState<Sub>(null), [, tick] = useState(0);
 	/** 고치는 중인 사본: 저장을 눌러야 값을 치르고 반영됨 */
@@ -381,17 +394,21 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 function trainCost(o: PSet, d: PSet) {
 	const tera = (x: PSet) => x.teraType || types(x.species)[0];
 	const parts: [string, number][] = [];
-	if (toID(o.ability) !== toID(d.ability)) parts.push(['특성', PRICE.ability]);
+	const formed = toID(o.species) !== toID(d.species);   // 모습을 바꾸면 특성·기술이 함께 바뀌므로 그 값은 모습 값에 포함
+	if (!formed && toID(o.ability) !== toID(d.ability)) parts.push(['특성', PRICE.ability]);
 	if (toID(o.nature) !== toID(d.nature)) parts.push(['성격', PRICE.nature]);
 	if (tera(o) !== tera(d)) parts.push(['테라 타입', PRICE.tera]);
 	if (STAT_KEYS.some(k => (o.evs[k] || 0) !== (d.evs[k] || 0))) parts.push(['능력 포인트', PRICE.sp]);
+	if (toID(o.species) !== toID(d.species)) parts.push(['모습', PRICE.form]);
+	if (!!o.gigantamax !== !!d.gigantamax) parts.push(['거다이맥스', PRICE.gmax]);
 	const mv = [0, 1, 2, 3].filter(k => (o.moves[k] || '') !== (d.moves[k] || '')).length;
-	if (mv) parts.push([`기술 ${mv}개`, mv * PRICE.move]);
-	return { parts, total: parts.reduce((a, x) => a + x[1], 0), dirty: parts.length > 0 || toID(o.item) !== toID(d.item) || shownName(o) !== shownName(d) };
+	if (mv && !formed) parts.push([`기술 ${mv}개`, mv * PRICE.move]);
+	return { parts, total: parts.reduce((a, x) => a + x[1], 0), dirty: parts.length > 0 || toID(o.item) !== toID(d.item) || shownName(o) !== shownName(d) || ballOf(o) !== ballOf(d) };
 }
 /** 포켓몬 창: 줄을 누르면 그 항목을 고르는 창이 열림. 고친 것은 「저장」을 눌러야 한 번에 값을 치르고 반영됨 */
 function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open: (s: Sub) => void; close: () => void; re: () => void }) {
 	const o = m.set, inTeam = S.team.includes(m.id), sp = spOf(d), name = monKo(d), nat = NATURES.find(n => n[0] === toID(d.nature));
+	const [, re2x] = useState(0), re2 = () => re2x(x => x + 1);
 	const c = trainCost(o, d), ch = (label: string) => c.parts.some(x => x[0] === label);
 	const row = (k: Sub, label: string, val: any, cost?: number, changed = false) => <button class={'cp-mrow' + (changed ? ' ch' : '')} onClick={() => open(k)}><small>{label}</small><b>{val}</b><em class={cost === undefined ? 'free' : ''}>{cost === undefined ? '무료' : (changed ? '+' : '') + cost + ' BP'}</em></button>;
 	const toggle = () => { if (inTeam) S.team = S.team.filter(i => i !== m.id); else if (S.team.length >= 6) { toast('팀은 6마리까지예요. 먼저 한 마리를 빼 주세요'); return; } else S.team.push(m.id); re(); };
@@ -404,21 +421,24 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 	const tryClose = async () => { if (!c.dirty || await confirmBox('저장하지 않음', '고친 내용을 저장하지 않고 닫을까요?', '닫는다', '계속 고치기')) close(); };
 	const spText = STAT_KEYS.map((k, i) => sp[k] ? `${STAT_NAME[i]} ${sp[k]}` : '').filter(Boolean).join(' · ') || '나누지 않음';
 	return <Modal title={name} onClose={tryClose}><div class="cp-mp">
-		<div class="cp-mp-head"><span class="cp-mp-spr"><Sprite species={o.species} gen={9} size={64} anim={false} cls="front" shiny={o.shiny} /></span>
-			<div><span>{types(o.species).map(t => <TypeBadge type={t} small />)}{rarity(toID(o.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(o.species))]}</i>}</span><small class="cp-ball"><ItemIcon item={ballOf(o)} size={16} />{itemKo(ballOf(o))}</small><small>{speciesKo(o.species)} · {inTeam ? `팀 ${S.team.indexOf(m.id) + 1}번째` : '박스에 있음'}</small></div>
+		<div class="cp-mp-head"><span class="cp-mp-spr"><Sprite species={d.species} gen={9} size={64} anim={false} cls="front" shiny={o.shiny} /></span>
+			<div><span>{types(d.species).map(t => <TypeBadge type={t} small />)}{rarity(toID(o.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(o.species))]}</i>}</span><small class="cp-ball"><ItemIcon item={ballOf(d)} size={16} />{itemKo(ballOf(d))}{o.shiny && <i class="cp-shiny">★색이 다른</i>}</small><small>{speciesKo(d.species)} · {inTeam ? `팀 ${S.team.indexOf(m.id) + 1}번째` : '박스에 있음'}</small></div>
 			<button class={'btn small' + (inTeam ? '' : ' primary')} onClick={toggle}>{inTeam ? '팀에서 빼기' : '팀에 넣기'}</button></div>
 		<div class="cp-mrows">
 			{row('nick', '닉네임', isNick(d.name, d.species) ? d.name : <small>없음 ({nickKo(d.species)})</small>, undefined, (isNick(o.name, o.species) ? o.name : '') !== (isNick(d.name, d.species) ? d.name : ''))}
+			{formsOf(o.species).length > 1 && row('form', '모습', speciesKo(d.species), PRICE.form, ch('모습'))}
+			{row('ball', '볼', <><ItemIcon item={ballOf(d)} size={24} />{itemKo(ballOf(d))}</>, undefined, ballOf(o) !== ballOf(d))}
 			{row('item', '도구', d.item ? <><ItemIcon item={d.item} size={24} />{itemKo(d.item)}</> : '없음', undefined, toID(o.item) !== toID(d.item))}
 			{row('ability', '특성', abilityKo(d.ability), PRICE.ability, ch('특성'))}
 			<p class="cp-mdesc">{abilityDesc(d.ability)}</p>
 			{row('nature', '성격', <>{natureKo(d.nature)}{nat?.[1] ? <small> {nat[1]}↑ {nat[2]}↓</small> : null}</>, PRICE.nature, ch('성격'))}
 			{row('tera', '테라 타입', <TypeBadge type={d.teraType || types(d.species)[0]} small />, PRICE.tera, ch('테라 타입'))}
 			{row('sp', '능력 포인트', <small>{spText}</small>, PRICE.sp, ch('능력 포인트'))}
+			{canGmax(d.species) && <button class={'cp-mrow' + (ch('거다이맥스') ? ' ch' : '')} onClick={() => { d.gigantamax = !d.gigantamax; re2(); }}><small>거다이맥스</small><b>{d.gigantamax ? '켬 — 다이맥스하면 거다이맥스 모습·기술' : '끔'}</b><em>{ch('거다이맥스') ? '+' : ''}{PRICE.gmax} BP</em></button>}
 		</div>
 		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = (o.moves[k] || '') !== (d.moves[k] || ''); return <button class={changed ? 'ch' : ''} onClick={() => open({ move: k })}>
 			{md && <TypeBadge type={md.type} small />}<b>{d.moves[k] ? moveKo(d.moves[k]) : '(빈 칸)'}</b><em>{changed ? '+' : ''}{PRICE.move} BP</em></button>; })}</div>
-		<div class="cp-msave"><span>{c.parts.length ? c.parts.map(x => `${x[0]} ${x[1]}`).join(' · ') : c.dirty ? '도구·닉네임만 바꿈 (무료)' : '고친 항목이 없습니다'}</span>
+		<div class="cp-msave"><span>{c.parts.length ? c.parts.map(x => `${x[0]} ${x[1]}`).join(' · ') : c.dirty ? '도구·닉네임·볼만 바꿈 (무료)' : '고친 항목이 없습니다'}</span>
 			<button class="btn primary" disabled={!c.dirty} onClick={saveAll}>저장{c.total ? ` (총 ${c.total} BP)` : ''}</button></div>
 		<div class="cp-mfoot"><button class="btn small" onClick={() => open('detail')}>능력치 자세히</button><button class="btn small ghost" onClick={release}>내보내기</button></div>
 	</div></Modal>;
@@ -443,6 +463,21 @@ function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclu
 		<input class="cp-search" maxLength={12} placeholder={nickKo(s.species)} value={nick} onInput={e => setNick((e.target as HTMLInputElement).value.replace(/[,|[\]]/g, ''))} />
 		<p class="cp-note">12자까지. 비워 두면 종 이름({nickKo(s.species)})으로 나옵니다. 닉네임은 무료예요.</p>
 		<div class="cp-fmt"><button class="btn" onClick={() => { s.name = nickKo(s.species); back(); }}>지우기</button><button class="btn primary" onClick={() => { s.name = nick.trim() || nickKo(s.species); back(); }}>확인</button></div></div></Modal>;
+	if (sub === 'ball') return <Modal title="볼" onClose={back}><div class="ball-grid cp-ballgrid">{allBalls().map(b => <button class={'ball-cell' + (ballOf(s) === b.id ? ' on' : '')} onClick={() => { s.pokeball = b.id; back(); }}>
+		<ItemIcon item={b.id} size={30} /><span>{b.n}</span></button>)}</div><p class="cp-note">나올 때 볼의 색과 빛이 달라집니다. 볼 바꾸기는 무료예요.</p></Modal>;
+	if (sub === 'form') return <Modal title={`모습 · ${PRICE.form} BP`} onClose={back}><div class="cp-opts">{formsOf(m.set.species).map(x => { const f: any = speciesData(x, 9), cur = toID(s.species) === x;
+		return <button class="cp-opt" disabled={cur} onClick={() => {
+			// 바꾼 모습이 배울 수 없는 기술은 빼고, 특성은 그 모습의 것으로
+			const legal = new Set(learnset(x, 9)), dropped = s.moves.filter(mv => mv && !legal.has(toID(mv)));
+			s.moves = s.moves.filter(mv => mv && legal.has(toID(mv)));
+			for (const mv of learnset(x, 9)) { if (s.moves.length >= 4) break; if (!s.moves.includes(mv) && (moveData(mv, 9)?.basePower || 0) >= 60) s.moves.push(mv); }
+			if (!isNick(s.name, s.species)) s.name = nickKo(x);
+			s.species = f.en; if (!f.ab.includes(s.ability)) s.ability = f.ab[0];
+			if (!canGmax(x)) s.gigantamax = false;
+			if (f.req) { s.item = f.req; S.items[f.req] = 1; toast(`${f.n} 모습에 필요한 ${itemKo(f.req)}을(를) 함께 지닙니다`); }   // 그 모습에 필요한 도구는 값에 포함
+			if (dropped.length) toast(`${f.n} 모습이 배울 수 없는 기술을 바꿨어요: ${dropped.map(moveKo).join(', ')}`);
+			back(); }}><PokeIcon species={x} /><div><b>{f.n}{cur && <em>지금</em>}</b><small>{(f.t as string[]).map(typeKo).join(' · ')} · {(f.ab as string[]).map(abilityKo).join(' / ')}{f.req ? ` · ${itemKo(f.req)} 필요(함께 받음)` : ''}</small></div></button>; })}</div>
+		<p class="cp-note">모습을 바꾸면 그 모습이 배울 수 없는 기술은 다른 기술로 바뀝니다. 값은 저장할 때 한 번에 치릅니다.</p></Modal>;
 	if (sub === 'detail') return <Modal title={name} onClose={back}><MonDetail set={s} gen={9} /></Modal>;
 	void S; void m;
 	if (sub === 'sp') return <Modal title={`${name} · 능력 포인트`} onClose={back}><SpBody set={s} done={sp => apply(PRICE.sp, '능력 포인트', () => { for (const k of STAT_KEYS) s.evs[k] = spToEv(sp[k]); })} /></Modal>;
@@ -450,7 +485,7 @@ function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclu
 	let title = '', cost = 0, why = '', search = false, opts: Opt[] = [], grid: Grid = '';
 	if (sub === 'item') {
 		title = '지닌 도구'; why = '도구'; search = true;
-		const stones = [...megaStonesFor(s.species), ...zCrystalsFor(s.species)], own = Object.keys(S.items).filter(id => PLAIN_ITEMS.has(id) || stones.includes(id));
+		const stones = [...megaStonesFor(s.species), ...zCrystalsFor(s.species), ...exclusiveFor(s.species)], own = Object.keys(S.items).filter(id => PLAIN_ITEMS.has(id) || stones.includes(id));
 		opts = [{ label: '없음', off: !s.item, run: () => { s.item = ''; } }, ...own.map(id => { const holder = S.roster.find(x => x !== m && toID(x.set.item) === id), cur = toID(s.item) === id;
 			return { icon: <ItemIcon item={id} size={24} />, label: itemKo(id), desc: itemDesc(id), note: cur ? '지금' : holder ? `${monKo(holder.set)}에게서 가져옴 (저장할 때)` : '', off: cur, run: () => { s.item = id; } }; })];
 	} else if (sub === 'ability') {
@@ -478,7 +513,9 @@ function ShopScreen({ S, done }: { S: CSave; done: (cosmetic?: boolean) => void 
 	const stones = [...new Set(S.roster.flatMap(m => megaStonesFor(m.set.species)))];
 	/** 전용 Z크리스탈: 메가스톤처럼 내 로스터의 포켓몬 것만 Z크리스탈 칸 끝에 진열 */
 	const zs = [...new Set(S.roster.flatMap(m => zCrystalsFor(m.set.species)))];
-	const cats: [string, number, string[]][] = [...SHOP.map(([name, kind, ids]) => [name, PRICE[kind], kind === 'z' ? [...ids, ...zs] : ids] as [string, number, string[]]), ['메가스톤', PRICE.mega, stones]];
+	/** 전용 도구(대파·백금옥·굵은뼈 등)도 그 포켓몬이 로스터에 있으면 도구 칸 끝에 */
+	const ex = [...new Set(S.roster.flatMap(m => exclusiveFor(m.set.species)))];
+	const cats: [string, number, string[]][] = [...SHOP.map(([name, kind, ids]) => [name, PRICE[kind], kind === 'z' ? [...ids, ...zs] : kind === 'item' ? [...new Set([...ids, ...ex])] : ids] as [string, number, string[]]), ['메가스톤', PRICE.mega, stones]];
 	const [tab, setTab] = useState(0), [q, setQ] = useState(''), [, tick] = useState(0);
 	const buy = (id: string, cost: number) => { if (S.items[id]) return; if (!pay(cost, `챔피언스 · ${itemKo(id)}`)) return; S.items[id] = 1; persist(S); tick(x => x + 1); };
 	const rows: [string, number][] = q ? cats.flatMap(([, c, ids]) => ids.filter(id => matches(q, itemKo(id))).map(id => [id, c] as [string, number])) : cats[tab][2].map(id => [id, cats[tab][1]] as [string, number]);
@@ -490,7 +527,7 @@ function ShopScreen({ S, done }: { S: CSave; done: (cosmetic?: boolean) => void 
 			{!rows.length && <p class="cp-note">{q ? '맞는 도구가 없어요.' : '내 로스터의 포켓몬이 쓸 수 있는 메가스톤이 여기에 진열됩니다.'}</p>}
 			{rows.map(([id, cost]) => <div class="cp-line"><ItemIcon item={id} size={24} /><div><b>{itemKo(id)}</b><small>{itemDesc(id)}</small></div>
 				{S.items[id] ? <span class="cp-own">가짐</span> : <button class="btn small yellow" onClick={() => buy(id, cost)}>{cost} BP</button>}</div>)}</div>
-		<p class="cp-note">산 도구는 로스터에서 포켓몬을 눌러 지니게 합니다. 전용 Z크리스탈과 메가스톤은 그 포켓몬이 로스터에 있을 때 진열됩니다. 「꾸미기」는 아케이드 모드와 같은 BP 교환소입니다.</p>
+		<p class="cp-note">산 도구는 로스터에서 포켓몬을 눌러 지니게 합니다. 전용 도구(대파·백금옥 등)·전용 Z크리스탈·메가스톤은 그 포켓몬이 로스터에 있을 때 진열됩니다. 「꾸미기」는 아케이드 모드와 같은 BP 교환소입니다.</p>
 	</Screen>;
 }
 const MISSIONS: { id: string; name: string; bp: number; prog: (d: CSave['day']) => [number, number] }[] = [

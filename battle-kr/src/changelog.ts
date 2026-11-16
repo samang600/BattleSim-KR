@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.7', date: '2026-11-16', title: '챔피언스 모드 — 볼·모습·거다이맥스', items: [
+		['new', '챔피언스 모드의 포켓몬 창에서 볼(무료), 모습(쉐이미 스카이폼·테오키스 폼 등), 거다이맥스를 바꿀 수 있어요.'],
+		['new', '같은 종류의 포켓몬을 또 스카우트할 수 있고, 가끔 색이 다른 포켓몬이 소개돼요. 테오키스처럼 빠져 있던 포켓몬도 지명할 수 있습니다.'],
+		['new', '대파·백금옥 같은 전용 도구는 그 포켓몬이 로스터에 있으면 상점에 진열돼요.'],
+	] },
 	{ ver: '2.85.6', date: '2026-11-15', title: '전용 Z기술 연출', items: [
 		['new', '전용 Z기술 16종(바다의심포니·브레이징소울비트·칠성탈혼퇴 등)에 기술마다 다른 연출이 생겼어요.'],
 	] },

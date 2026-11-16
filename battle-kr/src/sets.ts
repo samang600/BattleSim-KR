@@ -317,6 +317,8 @@ export interface PoolOptions {
 	gen: Gen; minBst?: number; maxBst?: number; allowSubLegend?: boolean; types?: string[]; exclude?: Set<string>; /** nfe: 진화 전·중간 진화만 */ stage?: 'nfe'; /** 성능 좋은 미진화체(진화의휘석)도 빼기 — 약한 상대용 */ noStrongNfe?: boolean;
 	/** 전설·환상(restricted/mythical)도 포함 (규칙이 허용할 때만) / legendOnly: 전설·환상만 */
 	allowLegend?: boolean; legendOnly?: boolean;
+	/** 무작위 팀에서 빼 두는 포켓몬(테오키스·쉐이미 스카이폼·파오리 등)도 포함 — 직접 고르는 목록용. 무한다이노는 늘 제외 */
+	noBan?: boolean;
 }
 
 const BANNED_POOL = new Set(['unown', 'ditto', 'smeargle', 'wobbuffet', 'wynaut', 'shedinja', 'pichuspikyeared', 'castform',
@@ -340,7 +342,7 @@ export function speciesPool(o: PoolOptions): string[] {
 		if (!s || !RAW.species[id].g[o.gen]) continue;
 		// stage 'nfe': 진화 전·중간 진화만 (쉬움 난이도 초반), 아니면 최종 진화만
 		// 성능이 좋은 미진화체(종족값 450 이상, 진화의휘석으로 자주 쓰이는 것)는 최종 진화와 함께 나옴
-		if ((o.stage === 'nfe' ? s.fe : !s.fe && (o.noStrongNfe || !strongNfe(id, o.gen))) || s.bo || BANNED_POOL.has(id) || o.exclude?.has(id)) continue;
+		if ((o.stage === 'nfe' ? s.fe : !s.fe && (o.noStrongNfe || !strongNfe(id, o.gen))) || s.bo || (o.noBan ? id === 'eternatuseternamax' : BANNED_POOL.has(id)) || o.exclude?.has(id)) continue;
 		const isR = !!s.tags?.includes('Restricted Legendary'), isM = !!s.tags?.includes('Mythical'), legend = isR || isM;
 		// 상대 무작위 팀의 초전설·환상: 그 종류가 가능한 규칙에서만
 		const foeOk = (isR && rule.restricted === 'yes') || (isM && rule.mythical === 'yes');

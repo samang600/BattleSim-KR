@@ -2797,6 +2797,7 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 /* 챔피언스: 팀 칸 이름은 길수록 작게 · 도구 창의 알림 줄 · 담긴 볼 · 닉네임 창 */
 .cp-slot small.n4 { font-size: 9px; letter-spacing: -.5px; } .cp-slot small.n5 { font-size: 8px; letter-spacing: -.5px; padding: 0; } .cp-slot small.n6 { font-size: 7px; letter-spacing: -.5px; padding: 0; }
 .cp-start-mons small.n4 { font-size: 10px; letter-spacing: 0; } .cp-start-mons small.n5 { font-size: 9px; } .cp-start-mons small.n6 { font-size: 8px; letter-spacing: -.5px; }
+.cp-shiny { margin-left: 4px; font-style: normal; font-size: 10px; color: #ffe870; white-space: nowrap; } .cp-ballgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; } .cp-ballgrid .ball-cell { border-radius: 0; clip-path: var(--clip1); font: inherit; font-size: 10px; cursor: pointer; border: 0; padding: 6px 0; min-width: 0; } .cp-ballgrid .ball-cell span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cp-opt b em { margin-left: 4px; } .cp-opt em.ln { display: block; white-space: normal; line-height: 1.35; }
 .cp-mp-head small.cp-ball, .cp-ballline { display: flex; align-items: center; gap: 4px; } .cp-ballline { margin: 4px 0; font-size: 12px; color: #b8c8e8; } .cp-ball .item-icon, .cp-ballline .item-icon { flex: none; }
 .cp-nick { display: flex; flex-direction: column; gap: 6px; } .cp-nick .cp-search { position: static; margin: 0; }

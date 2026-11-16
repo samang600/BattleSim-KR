@@ -366,6 +366,12 @@ export function zCrystalsFor(speciesId: string): string[] {
 	if (id === 'necrozmaduskmane' || id === 'necrozmadawnwings') out.push('ultranecroziumz');
 	return out;
 }
+/** 이 포켓몬의 전용 도구 (대파·백금옥·굵은뼈·전기구슬 등 — 메가스톤·Z크리스탈은 따로) */
+export function exclusiveItemsFor(speciesId: string): string[] {
+	const en = D.species[toID(speciesId)]?.en;
+	if (!en) return [];
+	return Object.entries(D.items).filter(([, it]: [string, any]) => it.zu?.includes(en) && !it.zf && !it.mega).map(([k]) => k);
+}
 export function megaStonesFor(speciesId: string): string[] {
 	const en = D.species[toID(speciesId)]?.en;
 	if (!en) return [];
