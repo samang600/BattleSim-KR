@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.8', date: '2026-11-16', title: 'Z기술·다이맥스 기술 설명', items: [
+		['fix', '배틀에서 기술을 길게 누르면 Z기술과 다이맥스·거다이맥스 기술의 위력과 효과가 제대로 나와요.'],
+		['up', '챔피언스 모드의 거다이맥스는 한 번 켜 두면 그 뒤로는 켜고 끄는 데 BP 가 들지 않아요.'],
+	] },
 	{ ver: '2.85.7', date: '2026-11-16', title: '챔피언스 모드 — 볼·모습·거다이맥스', items: [
 		['new', '챔피언스 모드의 포켓몬 창에서 볼(무료), 모습(쉐이미 스카이폼·테오키스 폼 등), 거다이맥스를 바꿀 수 있어요.'],
 		['new', '같은 종류의 포켓몬을 또 스카우트할 수 있고, 가끔 색이 다른 포켓몬이 소개돼요. 테오키스처럼 빠져 있던 포켓몬도 지명할 수 있습니다.'],

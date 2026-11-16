@@ -1467,16 +1467,26 @@ function typeTint(type: string) {
 					const eff = zmv.boost ? `Z파워 효과: ${Object.entries(zmv.boost).map(([k, v]) => `${STAT_KO[k] || k} +${v}`).join(', ')}` :
 						zmv.effect ? `Z파워 효과: ${({ heal: 'HP 모두 회복', healreplacement: '교체해 나오는 포켓몬 HP 회복', clearnegativeboost: '내려간 능력 원래대로', redirect: '상대 기술을 자신에게', crit2: '급소율 2단계 상승', curse: '저주 중이면 HP 모두 회복' } as any)[zmv.effect] || zmv.effect}` : '';
 					const zId = toID(z.move);
-					const zDesc = Z_SIG_KO[zId] || (zd?.desc && !/사용할 수 없는 기술/.test(zd.desc) ? zd.desc :
-						(simBase?.category === 'Status' ? `${md?.name}의 Z파워 버전. 원래 효과에 더해 Z파워 효과가 발동한다.` : `${md?.name}을(를) Z파워로 강화한 기술. 반드시 명중하고 방어·판별을 뚫고 1/4 데미지.`));
-					gmInfo = { kind: 'Z기술', power: simBase?.category === 'Status' ? '—' : String(zmv.basePower || zd?.basePower || '—'), acc: '필중',
-						desc: [zDesc, eff, md?.desc ? `원래 기술(${md.name}): ${md.desc}` : ''].filter(Boolean).join('\n'), cat: simBase?.category || md?.category || 'Physical' };
+					// 전용 Z기술(바다의심포니 195 등)은 그 기술의 위력, 타입 Z기술은 원래 기술의 위력에서 정해진 값
+					const zSim: any = sessionRef.current?.battle.dex.moves.get(zId);
+					const own = zSim?.exists && zSim.isZ && zSim.isZ !== true && (zSim.basePower > 1 || zSim.damageCallback || zSim.category === 'Status');
+					const status = (own ? zSim.category : simBase?.category) === 'Status';
+					const dataDesc = zd?.desc && !/사용할 수 없는 기술/.test(zd.desc) ? zd.desc : '';
+					const zDesc = [dataDesc, Z_SIG_KO[zId] ? `효과: ${Z_SIG_KO[zId]}` : ''].filter(Boolean).join('\n') ||
+						(status ? `${md?.name}의 Z파워 버전. 원래 효과에 더해 Z파워 효과가 발동한다.` : `${md?.name}을(를) Z파워로 강화한 기술. 반드시 명중하고, 방어로 막혀도 1/4 데미지를 준다.`);
+					const zPow = own ? (zSim.basePower > 1 ? zSim.basePower : 0) : (zmv.basePower || 0);
+					gmInfo = { kind: own ? '전용 Z기술' : 'Z기술', power: status || !zPow ? '—' : String(zPow), acc: '필중',
+						desc: [zDesc, eff, md?.desc ? `원래 기술(${md.name}): ${md.desc}` : ''].filter(Boolean).join('\n'), cat: (own ? zSim.category : simBase?.category) || md?.category || 'Physical' };
 				} else if ((gimmick === 'dynamax' || dmaxed) && activeReq.maxMoves?.maxMoves?.[infoMove]) {
 					const mx = activeReq.maxMoves.maxMoves[infoMove];
 					const xd = moveData(toID(mx.move), gen);
-					const isGuard = toID(mx.move) === 'maxguard';
-					gmInfo = { kind: isGuard ? '다이맥스 기술' : '다이맥스 기술', power: isGuard ? '—' : String(simBase?.maxMove?.basePower || xd?.basePower || '—'), acc: '필중',
-						desc: [xd?.desc, md?.desc && !isGuard ? `원래 기술(${md.name}): ${md.desc}` : ''].filter(Boolean).join('\n'), cat: isGuard ? 'Status' : (simBase?.category || md?.category || 'Physical') };
+					const mxId = toID(mx.move), isGuard = mxId === 'maxguard';
+					// 위력이 정해진 거다이맥스 기술(거다이난타·화염구·저격 160)은 그 값, 나머지는 원래 기술의 위력에서 정해진 값
+					const mxSim: any = sessionRef.current?.battle.dex.moves.get(mxId);
+					const fixed = mxSim?.exists && mxSim.basePower > 10 ? mxSim.basePower : 0;
+					const gm = mxId.startsWith('gmax');
+					gmInfo = { kind: gm ? '거다이맥스 기술' : '다이맥스 기술', power: isGuard ? '—' : String(fixed || simBase?.maxMove?.basePower || xd?.basePower || '—'), acc: '필중',
+						desc: [GMAX_KO[mxId] ? `거다이맥스한 포켓몬이 날리는 ${typeKo(fi.type)}타입의 공격. ${GMAX_KO[mxId]}` : xd?.desc, md?.desc && !isGuard ? `원래 기술(${md.name}): ${md.desc}` : ''].filter(Boolean).join('\n'), cat: isGuard ? 'Status' : (simBase?.category || md?.category || 'Physical') };
 				}
 				return <Modal title={fi.name} onClose={() => setInfoMove(null)}>
 					<div class="mi-head"><TypeBadge type={fi.type} />{(gmInfo || md) && <CatIcon cat={gmInfo ? gmInfo.cat : md!.category} />}{gmInfo && <span class="tag">{gmInfo.kind}</span>}</div>
@@ -2009,12 +2019,26 @@ const RXp = (re: RegExp, id: string) => re.test(id);
 const Z_SIG_KO: { [id: string]: string } = {
 	lightthatburnsthesky: '공격과 특수공격 중 높은 쪽으로 데미지를 준다. 상대의 특성을 무시한다.',
 	searingsunrazesmash: '상대의 특성을 무시하고 공격한다.', menacingmoonrazemaelstrom: '상대의 특성을 무시하고 공격한다.',
-	catastropika: '피카츄 전용. 전력을 다한 전기타입 공격.', tenmillionvoltthunderbolt: '급소에 맞을 확률이 높다.',
+	catastropika: '피카츄 전용. 전력을 다한 전기타입 공격.', '10000000voltthunderbolt': '급소에 맞을 확률이 높다.',
 	stokedsparksurfer: '상대를 마비 상태로 만든다.', extremeevoboost: '모든 능력이 2단계 올라간다.',
 	pulverizingpancake: '괴력의 노말타입 공격.', genesissupernova: '사이코필드를 깐다.', sinisterarrowraid: '그림자 화살의 집중 공격.',
 	maliciousmoonsault: '필살의 악타입 공격.', oceanicoperetta: '강력한 물타입 공격.', splinteredstormshards: '필드를 없앤다.',
 	letssnuggleforever: '필살의 페어리타입 공격.', clangoroussoulblaze: '모든 능력이 1단계 올라간다.', guardianofalola: '상대 HP의 3/4 데미지.',
 	soulstealing7starstrike: '7개의 별의 힘으로 공격.',
+};
+/** 거다이맥스 기술의 추가 효과 (앱 데이터에 설명이 없어 따로 적음) */
+const GMAX_KO: { [id: string]: string } = {
+	gmaxbefuddle: '상대 모두를 독·마비·잠듦 중 하나로 만든다.', gmaxcannonade: '4턴 동안 물타입이 아닌 상대에게 매 턴 최대 HP 의 1/6 데미지를 준다.',
+	gmaxcentiferno: '상대를 4~5턴 동안 불꽃 속에 가둔다.', gmaxchistrike: '같은 편의 급소율을 올린다.', gmaxcuddle: '상대를 헤롱헤롱 상태로 만든다.',
+	gmaxdepletion: '상대가 마지막에 쓴 기술의 PP 를 2 줄인다.', gmaxdrumsolo: '상대의 특성을 무시하고 공격한다.', gmaxfinale: '같은 편의 HP 를 최대 HP 의 1/6 회복한다.',
+	gmaxfireball: '상대의 특성을 무시하고 공격한다.', gmaxfoamburst: '상대의 스피드를 2단계 내린다.', gmaxgoldrush: '상대를 혼란시킨다.', gmaxgravitas: '5턴 동안 중력을 건다.',
+	gmaxhydrosnipe: '상대의 특성을 무시하고 공격한다.', gmaxmalodor: '상대를 독 상태로 만든다.', gmaxmeltdown: '상대가 같은 기술을 연달아 쓸 수 없게 한다.',
+	gmaxoneblow: '다이월을 포함해 방어를 뚫고 공격한다.', gmaxrapidflow: '다이월을 포함해 방어를 뚫고 공격한다.', gmaxreplenish: '50% 확률로 같은 편이 먹은 나무열매를 되살린다.',
+	gmaxresonance: '5턴 동안 오로라베일을 친다.', gmaxsandblast: '상대를 4~5턴 동안 모래지옥에 가둔다.', gmaxsmite: '상대를 혼란시킨다.', gmaxsnooze: '50% 확률로 상대를 다음 턴 끝에 잠들게 한다.',
+	gmaxsteelsurge: '상대 자리에 뾰족한 강철을 깐다 (나올 때 강철타입 상성의 데미지).', gmaxstonesurge: '상대 자리에 스텔스록을 깐다.', gmaxstunshock: '상대를 독 또는 마비 상태로 만든다.',
+	gmaxsweetness: '같은 편의 상태 이상을 회복한다.', gmaxtartness: '상대의 회피율을 1단계 내린다.', gmaxterror: '상대가 교체하거나 도망칠 수 없게 한다.',
+	gmaxvinelash: '4턴 동안 풀타입이 아닌 상대에게 매 턴 최대 HP 의 1/6 데미지를 준다.', gmaxvolcalith: '4턴 동안 바위타입이 아닌 상대에게 매 턴 최대 HP 의 1/6 데미지를 준다.',
+	gmaxvoltcrash: '상대를 마비 상태로 만든다.', gmaxwildfire: '4턴 동안 불꽃타입이 아닌 상대에게 매 턴 최대 HP 의 1/6 데미지를 준다.', gmaxwindrage: '상대의 벽·필드·설치 기술을 없앤다.',
 };
 /** 지닌 메가스톤으로 바뀔 수 있는 모습 */
 function megaFormsOf(set: PSet): string[] {

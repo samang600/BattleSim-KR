@@ -25,7 +25,7 @@ import { playMusic, sfx } from './sound';
 import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, START_ITEMS, SHOP, NATURES, EVENTS, TOWER_EVENTS, CSYM, REGION_CUPS, CUP_NEED } from './champions-data';
 
 // ───────── 저장 ─────────
-interface CMon { id: number; set: PSet }
+interface CMon { id: number; set: PSet; /** 거다이맥스를 한 번 켠 적이 있음 — 그 뒤로는 켜고 끄기가 무료 */ gx?: 1 }
 interface CSave {
 	v: 1; /** 다음에 볼 장 (0 = 등록 전) */ ch: number; tier: number; pts: number;
 	roster: CMon[]; /** 지금 고른 팀에 넣은 포켓몬 id (6마리까지) — teams[cur] 과 같은 것 */ team: number[]; seq: number;
@@ -391,7 +391,7 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 	</Screen>;
 }
 /** 트레이닝 값: 원래 세트와 고친 사본을 견주어 바뀐 항목만 (특성·성격·테라·능력 포인트 + 바뀐 기술 칸마다) */
-function trainCost(o: PSet, d: PSet) {
+function trainCost(o: PSet, d: PSet, gxPaid = false) {
 	const tera = (x: PSet) => x.teraType || types(x.species)[0];
 	const parts: [string, number][] = [];
 	const formed = toID(o.species) !== toID(d.species);   // 모습을 바꾸면 특성·기술이 함께 바뀌므로 그 값은 모습 값에 포함
@@ -400,22 +400,24 @@ function trainCost(o: PSet, d: PSet) {
 	if (tera(o) !== tera(d)) parts.push(['테라 타입', PRICE.tera]);
 	if (STAT_KEYS.some(k => (o.evs[k] || 0) !== (d.evs[k] || 0))) parts.push(['능력 포인트', PRICE.sp]);
 	if (toID(o.species) !== toID(d.species)) parts.push(['모습', PRICE.form]);
-	if (!!o.gigantamax !== !!d.gigantamax) parts.push(['거다이맥스', PRICE.gmax]);
+	// 거다이맥스: 처음 켤 때만 값을 치르고, 그 뒤로는 켜고 끄기가 무료
+	if (!o.gigantamax && d.gigantamax && !gxPaid) parts.push(['거다이맥스', PRICE.gmax]);
 	const mv = [0, 1, 2, 3].filter(k => (o.moves[k] || '') !== (d.moves[k] || '')).length;
 	if (mv && !formed) parts.push([`기술 ${mv}개`, mv * PRICE.move]);
-	return { parts, total: parts.reduce((a, x) => a + x[1], 0), dirty: parts.length > 0 || toID(o.item) !== toID(d.item) || shownName(o) !== shownName(d) || ballOf(o) !== ballOf(d) };
+	return { parts, total: parts.reduce((a, x) => a + x[1], 0), dirty: parts.length > 0 || toID(o.item) !== toID(d.item) || shownName(o) !== shownName(d) || ballOf(o) !== ballOf(d) || !!o.gigantamax !== !!d.gigantamax };
 }
 /** 포켓몬 창: 줄을 누르면 그 항목을 고르는 창이 열림. 고친 것은 「저장」을 눌러야 한 번에 값을 치르고 반영됨 */
 function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open: (s: Sub) => void; close: () => void; re: () => void }) {
 	const o = m.set, inTeam = S.team.includes(m.id), sp = spOf(d), name = monKo(d), nat = NATURES.find(n => n[0] === toID(d.nature));
 	const [, re2x] = useState(0), re2 = () => re2x(x => x + 1);
-	const c = trainCost(o, d), ch = (label: string) => c.parts.some(x => x[0] === label);
+	const c = trainCost(o, d, !!m.gx), ch = (label: string) => c.parts.some(x => x[0] === label);
 	const row = (k: Sub, label: string, val: any, cost?: number, changed = false) => <button class={'cp-mrow' + (changed ? ' ch' : '')} onClick={() => open(k)}><small>{label}</small><b>{val}</b><em class={cost === undefined ? 'free' : ''}>{cost === undefined ? '무료' : (changed ? '+' : '') + cost + ' BP'}</em></button>;
 	const toggle = () => { if (inTeam) S.team = S.team.filter(i => i !== m.id); else if (S.team.length >= 6) { toast('팀은 6마리까지예요. 먼저 한 마리를 빼 주세요'); return; } else S.team.push(m.id); re(); };
 	const release = async () => { if (await confirmBox('내보내기', `${josa(name, '을', '를')} 내보낼까요? 되돌릴 수 없어요.`, '내보낸다', '그만두기')) { S.roster = S.roster.filter(x => x !== m); S.team = S.team.filter(i => i !== m.id); syncTeams(S); S.teams = S.teams!.map(t => t.filter(i => i !== m.id)); S.team = S.teams[S.cur!]; re(); close(); } };
 	const saveAll = () => {
 		if (c.total && !pay(c.total, `챔피언스 · ${name} 트레이닝 (${c.parts.map(x => x[0]).join('·')})`)) return;
 		if (d.item) for (const x of S.roster) if (x !== m && toID(x.set.item) === toID(d.item)) x.set.item = '';   // 같은 도구는 한 마리만: 가져옴
+		if (d.gigantamax) m.gx = 1;
 		m.set = cloneSet(d); if (c.total) sfx('statUp'); re(); toast(c.total ? `저장했습니다 (−${c.total} BP)` : '저장했습니다'); close();
 	};
 	const tryClose = async () => { if (!c.dirty || await confirmBox('저장하지 않음', '고친 내용을 저장하지 않고 닫을까요?', '닫는다', '계속 고치기')) close(); };
@@ -434,11 +436,11 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 			{row('nature', '성격', <>{natureKo(d.nature)}{nat?.[1] ? <small> {nat[1]}↑ {nat[2]}↓</small> : null}</>, PRICE.nature, ch('성격'))}
 			{row('tera', '테라 타입', <TypeBadge type={d.teraType || types(d.species)[0]} small />, PRICE.tera, ch('테라 타입'))}
 			{row('sp', '능력 포인트', <small>{spText}</small>, PRICE.sp, ch('능력 포인트'))}
-			{canGmax(d.species) && <button class={'cp-mrow' + (ch('거다이맥스') ? ' ch' : '')} onClick={() => { d.gigantamax = !d.gigantamax; re2(); }}><small>거다이맥스</small><b>{d.gigantamax ? '켬 — 다이맥스하면 거다이맥스 모습·기술' : '끔'}</b><em>{ch('거다이맥스') ? '+' : ''}{PRICE.gmax} BP</em></button>}
+			{canGmax(d.species) && <button class={'cp-mrow' + (!!o.gigantamax !== !!d.gigantamax ? ' ch' : '')} onClick={() => { d.gigantamax = !d.gigantamax; re2(); }}><small>거다이맥스</small><b>{d.gigantamax ? '켬' : '끔'}</b><em class={m.gx ? 'free' : ''}>{m.gx ? '무료' : (ch('거다이맥스') ? '+' : '') + PRICE.gmax + ' BP'}</em></button>}
 		</div>
 		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = (o.moves[k] || '') !== (d.moves[k] || ''); return <button class={changed ? 'ch' : ''} onClick={() => open({ move: k })}>
 			{md && <TypeBadge type={md.type} small />}<b>{d.moves[k] ? moveKo(d.moves[k]) : '(빈 칸)'}</b><em>{changed ? '+' : ''}{PRICE.move} BP</em></button>; })}</div>
-		<div class="cp-msave"><span>{c.parts.length ? c.parts.map(x => `${x[0]} ${x[1]}`).join(' · ') : c.dirty ? '도구·닉네임·볼만 바꿈 (무료)' : '고친 항목이 없습니다'}</span>
+		<div class="cp-msave"><span>{c.parts.length ? c.parts.map(x => `${x[0]} ${x[1]}`).join(' · ') : c.dirty ? '무료 항목만 바꿈' : '고친 항목이 없습니다'}</span>
 			<button class="btn primary" disabled={!c.dirty} onClick={saveAll}>저장{c.total ? ` (총 ${c.total} BP)` : ''}</button></div>
 		<div class="cp-mfoot"><button class="btn small" onClick={() => open('detail')}>능력치 자세히</button><button class="btn small ghost" onClick={release}>내보내기</button></div>
 	</div></Modal>;
