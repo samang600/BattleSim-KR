@@ -5,7 +5,7 @@ import { h, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { ask, Screen, Sprite, PokeIcon, ItemIcon, TypeBadge, Modal, toast, confirmBox } from './ui/core';
 import { PickScreen, ChoiceScreen, MonDetail } from './ui/screens';
-import { NatureTable, matches } from './ui/teambuilder';
+import { NatureTable, matches, HpTypeGrid } from './ui/teambuilder';
 import { battle, playerName, playerSprite, towerOpponent, BACK, runRank, runPWT, rankTier, rankLabel, CH_TAG, type ArenaCtx } from './modes';
 import { loadRecords, updateRecords } from './store';
 import { loadStats, ACHIEVEMENTS } from './stats';
@@ -20,7 +20,7 @@ import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { load, save, loadSettings } from './store';
 import { loadWallet, earnBP, spendBP, onWallet } from './rewards';
 import { ruleById, applyRuleData, teamRuleIssues, speciesAllowed, itemAllowed } from './rules';
-import { speciesKo, speciesData, moveData, moveKo, abilityDesc, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, zCrystalsFor, exclusiveItemsFor, RAW, toID, ALL_TYPES, shownName, isNick, nickKo, allBalls } from './data';
+import { speciesKo, speciesData, moveData, moveKo, abilityDesc, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, zCrystalsFor, exclusiveItemsFor, RAW, hpBase, toID, ALL_TYPES, shownName, isNick, nickKo, allBalls } from './data';
 import { playMusic, sfx } from './sound';
 import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, START_ITEMS, SHOP, NATURES, EVENTS, TOWER_EVENTS, CSYM, REGION_CUPS, CUP_NEED } from './champions-data';
 
@@ -402,7 +402,8 @@ function trainCost(o: PSet, d: PSet, gxPaid = false) {
 	if (toID(o.species) !== toID(d.species)) parts.push(['모습', PRICE.form]);
 	// 거다이맥스: 처음 켤 때만 값을 치르고, 그 뒤로는 켜고 끄기가 무료
 	if (!o.gigantamax && d.gigantamax && !gxPaid) parts.push(['거다이맥스', PRICE.gmax]);
-	const mv = d.moves.filter(x => x && !o.moves.includes(x)).length, reordered = o.moves.join() !== d.moves.join();
+	// 잠재파워의 타입만 바꾼 것은 새 기술로 치지 않음
+	const mv = d.moves.filter(x => x && !o.moves.some(y => hpBase(toID(y)) === hpBase(toID(x)))).length, reordered = o.moves.join() !== d.moves.join();
 	if (mv && !formed) parts.push([`기술 ${mv}개`, mv * PRICE.move]);
 	return { parts, total: parts.reduce((a, x) => a + x[1], 0), dirty: parts.length > 0 || toID(o.item) !== toID(d.item) || shownName(o) !== shownName(d) || ballOf(o) !== ballOf(d) || !!o.gigantamax !== !!d.gigantamax || reordered };
 }
@@ -440,7 +441,7 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 			{row('sp', '능력 포인트', <small>{spText}</small>, PRICE.sp, ch('능력 포인트'))}
 			{canGmax(d.species) && <button class={'cp-mrow' + (!!o.gigantamax !== !!d.gigantamax ? ' ch' : '')} onClick={() => { d.gigantamax = !d.gigantamax; re2(); }}><small>거다이맥스</small><b>{d.gigantamax ? '켬' : '끔'}</b><em class={m.gx ? 'free' : ''}>{m.gx ? '무료' : (ch('거다이맥스') ? '+' : '') + PRICE.gmax + ' BP'}</em></button>}
 		</div>
-		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = !!d.moves[k] && !o.moves.includes(d.moves[k]); return <button class={changed ? 'ch' : ''} onClick={() => open({ move: k })}>
+		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = !!d.moves[k] && !o.moves.some(y => hpBase(toID(y)) === hpBase(toID(d.moves[k]))); return <button class={changed ? 'ch' : ''} onClick={() => open({ move: k })}>
 			{md && <TypeBadge type={md.type} small />}<b>{d.moves[k] ? moveKo(d.moves[k]) : '(빈 칸)'}</b><em>{changed ? '+' : ''}{PRICE.move} BP</em></button>; })}</div>
 		<div class="cp-msave"><span>{c.parts.length ? c.parts.map(x => `${x[0]} ${x[1]}`).join(' · ') : c.dirty ? '무료 항목만 바꿈' : '고친 항목이 없습니다'}</span>
 			<button class="btn primary" disabled={!c.dirty} onClick={saveAll}>저장{c.total ? ` (총 ${c.total} BP)` : ''}</button></div>
@@ -501,13 +502,14 @@ function SubPop({ S, m, d, sub, back, open }: { S: CSave; m: CMon; d: PSet; sub:
 		opts = ALL_TYPES.map(x => ({ icon: <TypeBadge type={x} small />, label: typeKo(x), off: s.teraType === x, run: () => { s.teraType = x; } }));
 	} else {
 		const i = sub.move; title = `${s.moves[i] ? moveKo(s.moves[i]) : '빈 칸'} 바꾸기`; cost = PRICE.move; why = '기술'; search = true;
-		opts = learnset(s.species, 9).filter(x => !s.moves.includes(x)).sort((x, y) => moveKo(x).localeCompare(moveKo(y), 'ko')).map(x => { const md = moveData(x, 9);
+		opts = learnset(s.species, 9).filter(x => !s.moves.some(y => hpBase(toID(y)) === x)).sort((x, y) => moveKo(x).localeCompare(moveKo(y), 'ko')).map(x => { const md = moveData(x, 9);
 			return { icon: md ? <TypeBadge type={md.type} small /> : null, label: moveKo(x), desc: md ? `${CAT_KO[md.category] || ''}${md.basePower ? ` · 위력 ${md.basePower}` : ''}${typeof md.accuracy === 'number' && md.accuracy > 0 && md.accuracy <= 100 ? ` · 명중 ${md.accuracy}` : ''}` : '', run: () => { s.moves[i] = x; } }; });
 	}
 	const list = opts.filter(o => matches(q, o.label));
 	return <Modal title={`${title}${cost ? ` · ${cost} BP` : ''}`} onClose={back}>
 		{typeof sub === 'object' && s.moves[sub.move] && <div class="set-mvacts"><button class="btn small" disabled={sub.move === 0} onClick={() => mvSwap(sub.move, sub.move - 1)}>앞으로</button>
 			<button class="btn small" disabled={sub.move >= s.moves.length - 1} onClick={() => mvSwap(sub.move, sub.move + 1)}>뒤로</button><span class="cp-note">순서 바꾸기는 무료</span></div>}
+		{typeof sub === 'object' && s.moves[sub.move] && hpBase(toID(s.moves[sub.move])) === 'hiddenpower' && <HpTypeGrid value={toID(s.moves[sub.move]).slice(11)} onPick={t => { s.moves[sub.move] = 'hiddenpower' + t.toLowerCase(); back(); }} />}
 		{search && <input class="cp-search" placeholder="이름으로 찾기 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />}
 		<div class={'cp-opts ' + grid}>{list.slice(0, 120).map(o => <button class={'cp-opt' + (grid && o.off ? ' cur' : '')} disabled={o.off} onClick={() => apply(cost, why, o.run)}>{o.icon}<div><b>{o.label}{o.note === '지금' && <em>지금</em>}</b>{o.note && o.note !== '지금' && <em class="ln">{o.note}</em>}{o.desc && <small>{o.desc}</small>}</div></button>)}
 			{!list.length && <p class="cp-note">맞는 항목이 없어요.</p>}</div>

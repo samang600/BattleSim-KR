@@ -96,7 +96,8 @@ export function moveKo(nameOrId: string): string {
 	if (/^Z-/.test(nameOrId)) return 'Z' + moveKo(nameOrId.slice(2));
 	let id = toID(nameOrId);
 	if (id.startsWith('hiddenpower')) {
-		const t = nameOrId.replace(/^Hidden Power\s*/i, '').replace(/\s*\d+$/, '').trim();
+		// 'Hidden Power Fire' 같은 이름이면 뒤의 타입, 'hiddenpowerfire' 같은 id 면 id 의 뒷부분
+		const t = /^Hidden Power/i.test(nameOrId) && /\s/.test(nameOrId.trim()) ? nameOrId.replace(/^Hidden Power\s*/i, '').replace(/\s*\d+$/, '').replace(/[^A-Za-z]/g, '').trim() : '';
 		const type = t ? t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() : id.slice(11);
 		const tko = type ? typeKo(type.charAt(0).toUpperCase() + type.slice(1)) : '';
 		return '잠재파워' + (tko ? `(${tko})` : '');
@@ -135,6 +136,9 @@ const MOVE_CHAMP_DESC: { [id: string]: string } = {
 export function moveData(id: string, gen: Gen) {
 	id = toID(id);
 	if (/^return\d+$/.test(id)) id = 'return';
+	// 타입을 정한 잠재파워 (hiddenpowerfire): 잠재파워의 수치에 그 타입
+	const hp = /^hiddenpower([a-z]+)$/.exec(id);
+	if (hp) { const b: any = moveData('hiddenpower', gen); return b ? { ...b, id, name: moveKo(id), type: hp[1].charAt(0).toUpperCase() + hp[1].slice(1) } : null; }
 	const m = D.moves[id];
 	if (!m) return null;
 	const g = ERA === 'max' ? maxMove(m) : (ERA ? m.e?.[ERA] ?? m.e?.['9'] : undefined) || m.g[gen] || m.g[9];
@@ -232,7 +236,19 @@ export function floats(speciesId: string): boolean {
 }
 /** 기술 배우기 목록: 전국도감은 본가 전 세대 목록(ls) + 포켓몬 챔피언스 목록(cls)을 합침, 챔피언스 풀은 cls, 게임 풀은 그 세대에 배울 수 있는 기술.
  * 배틀 중 모습(메가 등)은 기본 모습의 목록 */
-export function learnset(id: string, gen: Gen): string[] { return [...new Set(learnsetRaw(id, gen).map(m => snowMove(m)))]; }
+/** 잠재파워: 8세대부터 없어진 기술 — 소드실드·스칼렛바이올렛·챔피언스 풀에서는 쓸 수 없고, 6·7세대 규칙은 그때 배우던 포켓몬만,
+ *  전국도감·무제한에서는 테라버스트처럼 설정상 기술머신을 못 쓰는 포켓몬(캐터피·잉어킹·메타몽 등)만 빼고 모두 배움 */
+export function hiddenPowerAllowed(era: string = ERA, lsMode: string = LS_MODE) { return !(era === '8' || era === '9' || lsMode === 'champ'); }
+/** 잠재파워의 타입 (노말·페어리·스텔라는 없음) */
+export const HP_TYPES = ['Fighting', 'Flying', 'Poison', 'Ground', 'Rock', 'Bug', 'Ghost', 'Steel', 'Fire', 'Water', 'Grass', 'Electric', 'Psychic', 'Ice', 'Dragon', 'Dark'];
+/** 'hiddenpowerfire' → 'hiddenpower' (타입을 뗀 기술 id) */
+export const hpBase = (id: string) => /^hiddenpower/.test(id) ? 'hiddenpower' : id;
+export function learnset(id: string, gen: Gen): string[] {
+	let out = [...new Set(learnsetRaw(id, gen).map(m => snowMove(m)))];
+	if (!hiddenPowerAllowed()) out = out.filter(m => !m.startsWith('hiddenpower'));
+	else if (LS_MODE === 'all' && (ERA === '' || ERA === 'max') && !out.includes('hiddenpower') && out.includes('terablast')) out.push('hiddenpower');
+	return out;
+}
 function learnsetRaw(id: string, gen: Gen): string[] {
 	const s: any = speciesData(id, gen);
 	if (!s) return [];

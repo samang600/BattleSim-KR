@@ -209,7 +209,7 @@ export function teamRuleWarnings(rule: BattleRule, sets: { species: string; item
 		if (st.ability && sp.ab && !sp.ab.includes(toID(st.ability))) w.push(`${name}: 이 풀에서는 특성 ${RAW.abilities[toID(st.ability)]?.n || st.ability}을(를) 가질 수 없어요`);
 		if (st.moves?.length) {
 			const ls = new Set(learnset(st.species, GEN));
-			const badM = st.moves.filter(m => m && !/^hiddenpower/.test(toID(m)) && !ls.has(toID(m))).map(m => RAW.moves[toID(m)]?.n || m);
+			const badM = st.moves.filter(m => m && !ls.has(toID(m).replace(/^hiddenpower.*/, 'hiddenpower'))).map(m => RAW.moves[toID(m)]?.n || m);
 			if (badM.length) w.push(`${name}: 이 풀에서 배울 수 없는 기술 — ${badM.join(', ')}`);
 		}
 	}

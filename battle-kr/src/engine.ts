@@ -3,7 +3,7 @@ import { Battle } from '../../sim/battle';
 import type { PokemonSet } from '../../sim/teams';
 import { chooseAI } from './ai';
 import { loadSettings } from './store';
-import { toID, snowMove } from './data';
+import { toID, snowMove, hiddenPowerAllowed } from './data';
 import { ruleById, megaStoneAllowed, megaFormAllowed, type BattleRule, type GimmickKind } from './rules';
 
 export interface SideConfig { name: string; team: PokemonSet[] }
@@ -60,6 +60,8 @@ export class Session {
 		this.rule = ruleById(cfg.ruleId || loadSettings().battleRule);
 		// 눈 날씨 기술을 규칙의 세대에 맞춤 (예전에 저장한 팀·상대 팀의 싸라기눈 ↔ 설경)
 		for (const sd of [cfg.p1, cfg.p2]) for (const st of (sd?.team || []) as any[]) if (Array.isArray(st.moves)) st.moves = [...new Set(st.moves.map((m: string) => { const id = toID(m), n = snowMove(id, this.rule.era); return n === id ? m : n; }))];
+		// 잠재파워는 8세대부터 없는 기술: 소드실드·스칼렛바이올렛·챔피언스 풀에서는 뺌 (기술이 하나도 안 남으면 몸통박치기)
+		if (!hiddenPowerAllowed(this.rule.era, this.rule.lsMode)) for (const sd of [cfg.p1, cfg.p2]) for (const st of (sd?.team || []) as any[]) if (Array.isArray(st.moves) && st.moves.some((m: string) => toID(m).startsWith('hiddenpower'))) { st.moves = st.moves.filter((m: string) => !toID(m).startsWith('hiddenpower')); if (!st.moves.length) st.moves = ['tackle']; }
 		// 포켓몬 풀에 맞는 데이터 모드 (종족값·특성·기술 수치·챔피언스 사양)
 		const formatid = `gen${cfg.gen}kr${cfg.doubles ? 'doubles' : 'singles'}${cfg.inverse ? 'inverse' : ''}${this.rule.mod === 'gen9' ? '' : this.rule.mod}`;
 		this.seed = cfg.seed || [0, 0, 0, 0].map(() => Math.floor(Math.random() * 0x10000)) as [number, number, number, number];

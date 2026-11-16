@@ -2812,6 +2812,9 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 .set-headbtns .set-txtbtn { grid-column: 1 / -1; } .set-txt { display: flex; flex-direction: column; gap: 6px; } .set-txt textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 12px; } .set-txt .row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } .set-txt .btn { min-width: 0; }
 .cp-ord { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 12px; color: #b8c8e8; } .cp-ord span { flex: 1; } .set-mvacts .cp-note { margin: 0 0 0 6px; align-self: center; }
 
+/* 잠재파워 타입 고르기 */
+.hp-types { margin: 4px 0 8px; } .hp-types .cp-opts.grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .hp-types .cp-opt { min-height: 32px; cursor: pointer; } .hp-types p { margin: 0 0 4px; }
+
 /* ═════ FX:BEGIN — scripts/gen-fx-css.py 가 만든 부분 (손으로 고치지 말 것) ═════ */
 /* HP 창 테마: 띠 + 도트 무늬 + 은은한 움직임 (::before, 글자 아래) */
 [class*="hpt-"] .info { isolation: isolate; }

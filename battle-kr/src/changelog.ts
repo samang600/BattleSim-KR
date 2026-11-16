@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.11', date: '2026-11-16', title: '잠재파워', items: [
+		['up', '잠재파워의 타입을 포켓몬 편집에서 고를 수 있어요. 전국도감·무제한 규칙에서는 거의 모든 포켓몬이 배웁니다.'],
+		['up', '소드·실드, 스칼렛·바이올렛, 챔피언스 규칙에서는 잠재파워를 쓸 수 없어요 (원작처럼 8세대부터 없는 기술).'],
+	] },
 	{ ver: '2.85.10', date: '2026-11-16', title: '순서 바꾸기 · 번호 검색', items: [
 		['new', '팀 목록의 순서를 바꿀 수 있고, 포켓몬 한 마리만 텍스트로 내보내거나 불러올 수 있어요.'],
 		['new', '챔피언스 모드의 로스터에서 팀 순서와 기술 순서를 바꿀 수 있어요 (무료).'],

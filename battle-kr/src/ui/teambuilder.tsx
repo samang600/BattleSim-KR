@@ -2,7 +2,7 @@
 import { h } from 'preact';
 import { useMemo, useState, useRef, useLayoutEffect } from 'preact/hooks';
 import { allSpecies, allItems, allNatures, learnset, moveData, speciesData, toID, abilityKo, abilityDesc, itemKo, itemDesc,
-	natureKo, STAT_KO, STAT_SHORT, STATS, RAW, speciesKo, nickKo, isNick, ALL_TYPES, typeKo, fixedTera, megaStonesFor, allBalls, type Gen, type StatID } from '../data';
+	natureKo, STAT_KO, STAT_SHORT, STATS, RAW, speciesKo, nickKo, isNick, HP_TYPES, hpBase, ALL_TYPES, typeKo, fixedTera, megaStonesFor, allBalls, type Gen, type StatID } from '../data';
 import { typeEff } from './calc';
 import { randomSetFor, applySpread, randomTeam, normalizeSP, fillSP, cheatSP, spOf, spToEv, evToSp, SP_MAX, SP_TOTAL, evDisplay, fmtSP, evsFor510, type PSet } from '../sets';
 import { ruleById, teamRuleWarnings } from '../rules';
@@ -279,6 +279,11 @@ export function NatureTable({ value, onPick }: { value: string; onPick: (id: str
 	</div>;
 }
 
+/** 잠재파워의 타입 고르기 (16타입) */
+export function HpTypeGrid({ value, onPick }: { value: string; onPick: (type: string) => void }) {
+	return <div class="hp-types"><p class="muted small">잠재파워의 타입{value ? '' : ' — 고르지 않으면 악타입'}</p>
+		<div class="cp-opts grid">{HP_TYPES.map(t => <button class={'cp-opt' + (value === t.toLowerCase() ? ' cur' : '')} onClick={() => onPick(t)}><TypeBadge type={t} small /></button>)}</div></div>;
+}
 export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set: PSet; gen: Gen; onChange: (s: PSet) => void; onDelete: () => void; onBack: () => void; cheat?: boolean }) {
 	const [s, setS] = useState<PSet>(() => (cheat ? cheatSP : normalizeSP)(JSON.parse(JSON.stringify(set))));
 	// 고르기는 화면을 바꾸지 않고 팝업 창에서 (챔피언스 모드의 포켓몬 창과 같은 방식)
@@ -346,8 +351,12 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 			{s.moves[mvIdx] && <div class="set-mvacts"><button class="btn small" disabled={mvIdx === 0} onClick={() => swap(mvIdx, mvIdx - 1)}>앞으로</button>
 				<button class="btn small" disabled={mvIdx >= s.moves.length - 1} onClick={() => swap(mvIdx, mvIdx + 1)}>뒤로</button>
 				<button class="btn small ghost" disabled={s.moves.length <= 1} onClick={() => { up({ moves: s.moves.filter((_, k) => k !== mvIdx) }); close(); }}>빼기</button></div>}
+			{s.moves[mvIdx] && hpBase(toID(s.moves[mvIdx])) === 'hiddenpower' && <HpTypeGrid value={toID(s.moves[mvIdx]).slice(11)} onPick={t => { const moves = s.moves.slice(); moves[mvIdx] = 'hiddenpower' + t.toLowerCase(); up({ moves }); close(); }} />}
 			<MovePicker gen={gen} species={toID(s.species)} current={s.moves} all={cheat}
-				onPick={mid => { const moves = s.moves.slice(); if (mvIdx < moves.length) moves[mvIdx] = mid; else moves.push(mid); up({ moves: moves.filter(Boolean) }); close(); }} /></Modal>}
+				onPick={mid => { const moves = s.moves.slice(); if (mvIdx < moves.length) moves[mvIdx] = mid; else moves.push(mid);
+					// 잠재파워를 고르면 이어서 타입을 고르게 창을 열어 둠 (같은 잠재파워를 두 칸에 넣지는 못함)
+					const uniq = moves.filter((m, k) => m && moves.findIndex(x => hpBase(toID(x)) === hpBase(toID(m))) === k);
+					up({ moves: uniq }); if (mid === 'hiddenpower' && uniq.includes(mid)) setPicker({ kind: 'move', idx: uniq.indexOf(mid) }); else close(); }} /></Modal>}
 		{picker?.kind === 'item' && <Modal title="도구 고르기" onClose={close}><ItemPicker gen={gen} onPick={id => { up({ item: id }); close(); }} /></Modal>}
 		{picker?.kind === 'ability' && <Modal title="특성" onClose={close}>
 			<div class="cp-opts">{sd.ab.map(a => <button class="cp-opt" disabled={s.ability === a} onClick={() => { up({ ability: a }); close(); }}><div><b>{abilityKo(a)}</b><small>{abilityDesc(a)}</small></div>{s.ability === a && <em>지금</em>}</button>)}</div>
