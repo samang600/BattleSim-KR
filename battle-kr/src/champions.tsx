@@ -121,7 +121,7 @@ const CR = () => loadSettings().battleRule;
 const rotOf = (doubles: boolean) => ({ rule: CR(), doubles, pick: doubles ? 4 : 3, name: ruleById(CR()).name });
 /** 상대 팀·소개에 준전설·전설이 섞이는 조건: 규칙이 허용하고 등급이 충분할 때 */
 const legendOf = (S: CSave) => { const r = ruleById(CR()); return { allowSubLegend: r.sub === 'yes' && S.tier >= 2, allowLegend: r.restricted === 'yes' && S.tier >= 4 }; };
-/** 같은 도구를 둘이 지녔으면 그 도구 id (챔피언스 모드는 모든 규칙에서 도구 중복 불가) */
+/** 같은 도구를 둘이 지녔으면 그 도구 id (챔피언스 모드는 모든 규칙에서 한 팀 안의 도구 중복 불가 — 로스터 전체로는 여러 마리가 같은 도구를 지녀도 됨) */
 const dupItem = (team: PSet[]) => { const seen = new Set<string>(); for (const s of team) { const i = toID(s.item); if (!i) continue; if (seen.has(i)) return i; seen.add(i); } return ''; };
 const noItems = (team: PSet[]) => team.map(s => { s.item = ''; return s; });
 
@@ -161,7 +161,7 @@ const arena = (S: CSave): ArenaCtx => ({ team: teamOf(S).map(m => cloneSet(m.set
 function teamOk(S: CSave) {
 	const mine = teamOf(S).map(m => m.set), bad = teamRuleIssues(ruleById(CR()), mine);
 	if (bad.length) { toast(`지금 규칙에 나갈 수 없는 포켓몬이 팀에 있어요: ${[...new Set(bad.map(b => speciesKo(b.species)))].join(' · ')}`); return false; }
-	const dup = dupItem(mine); if (dup) { toast(`같은 도구(${itemKo(dup)})를 두 마리가 지닐 수 없어요 — 로스터에서 바꿔 주세요`); return false; }
+	const dup = dupItem(mine); if (dup) { toast(`지금 팀에서 같은 도구(${itemKo(dup)})를 두 마리가 지니고 있어요 — 로스터에서 한 쪽을 바꿔 주세요`); return false; }
 	if (mine.length < 3) { toast('팀에 포켓몬이 3마리는 있어야 해요'); return false; }
 	return true;
 }
@@ -173,7 +173,7 @@ async function fight(S: CSave, mine: PSet[], opp: Opp, rot: { rule: string; doub
 	if (bad.length) toast(`지금 규칙(${rot.name})에 나갈 수 없음: ${[...new Set(bad.map(b => speciesKo(b.species) + (b.kind === 'item' ? `(${itemKo(b.item || '')})` : '')))].join(' · ')}`);
 	if (ok.length < rot.pick) { toast(`규칙에 맞는 포켓몬이 ${rot.pick}마리 필요해요 (지금 ${ok.length}마리)`); return null; }
 	const dup = dupItem(ok);
-	if (dup) { toast(`같은 도구(${itemKo(dup)})를 두 마리가 지닐 수 없어요 — 로스터에서 바꿔 주세요`); return null; }
+	if (dup) { toast(`지금 팀에서 같은 도구(${itemKo(dup)})를 두 마리가 지니고 있어요 — 로스터에서 한 쪽을 바꿔 주세요`); return null; }
 	let entry = ok;
 	if (ok.length > rot.pick) {
 		const p = await ask<PSet[] | null>(r => <PickScreen key={K()} title={label} team={ok} gen={9} count={rot.pick} opponent={{ name: opp.name, team: opp.team }}
@@ -321,7 +321,7 @@ async function scoutFlow(S: CSave) {
 			const s = S.lineup[a.i], name = speciesKo(s.species);
 			if (full(S) || !payScout(S, 'regular', name, toID(s.species))) continue;
 			addMon(S, s); S.lineup.splice(a.i, 1); persist(S); sfx('heal');
-			toast(set.shiny ? `색이 다른 ${josa(name, '을', '를')} 영입했습니다!` : `${josa(name, '을', '를')} 영입했습니다!`);
+			toast(s.shiny ? `색이 다른 ${josa(name, '을', '를')} 영입했습니다!` : `${josa(name, '을', '를')} 영입했습니다!`);
 		}
 		if (a.k === 'refresh') { if (pay(PRICE.refresh, '챔피언스 · 새 소개')) { newLineup(S); } }
 		if (a.k === 'type') {
@@ -337,7 +337,7 @@ async function scoutFlow(S: CSave) {
 			set.item = ''; set.shiny = Math.random() < SHINY_RATE;
 			if (!(await confirmBox('지명 스카우트', `${josa(name, '을', '를')} 영입할까요?\n${natureKo(set.nature)} · ${abilityKo(set.ability)}\n${set.moves.map(moveKo).join(' · ')}`, '영입한다', '그만두기'))) continue;
 			if (!payScout(S, 'pick', name, id)) continue;
-			addMon(S, set); S.wish = S.wish.filter(w => w !== id); persist(S); sfx('heal'); toast(`${josa(name, '을', '를')} 영입했습니다!`);
+			addMon(S, set); S.wish = S.wish.filter(w => w !== id); persist(S); sfx('heal'); toast(set.shiny ? `색이 다른 ${josa(name, '을', '를')} 영입했습니다!` : `${josa(name, '을', '를')} 영입했습니다!`);
 		}
 		if (a.k === 'wish') {
 			if (S.wish.length >= 3) { const i = await ask<number | null>(r => <ChoiceScreen key={K()} top title="찜 목록" intro={<p class="cp-note">찜은 3마리까지예요. 뺄 포켓몬을 고르세요.</p>} onBack={() => r(null)} options={S.wish.map((w, k) => ({ value: k, label: speciesKo(w) + ' 빼기' }))} onPick={r} />); if (i !== null) { S.wish.splice(i, 1); persist(S); } continue; }
@@ -416,7 +416,6 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 	const release = async () => { if (await confirmBox('내보내기', `${josa(name, '을', '를')} 내보낼까요? 되돌릴 수 없어요.`, '내보낸다', '그만두기')) { S.roster = S.roster.filter(x => x !== m); S.team = S.team.filter(i => i !== m.id); syncTeams(S); S.teams = S.teams!.map(t => t.filter(i => i !== m.id)); S.team = S.teams[S.cur!]; re(); close(); } };
 	const saveAll = () => {
 		if (c.total && !pay(c.total, `챔피언스 · ${name} 트레이닝 (${c.parts.map(x => x[0]).join('·')})`)) return;
-		if (d.item) for (const x of S.roster) if (x !== m && toID(x.set.item) === toID(d.item)) x.set.item = '';   // 같은 도구는 한 마리만: 가져옴
 		if (d.gigantamax) m.gx = 1;
 		m.set = cloneSet(d); if (c.total) sfx('statUp'); re(); toast(c.total ? `저장했습니다 (−${c.total} BP)` : '저장했습니다'); close();
 	};
@@ -488,8 +487,8 @@ function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclu
 	if (sub === 'item') {
 		title = '지닌 도구'; why = '도구'; search = true;
 		const stones = [...megaStonesFor(s.species), ...zCrystalsFor(s.species), ...exclusiveFor(s.species)], own = Object.keys(S.items).filter(id => PLAIN_ITEMS.has(id) || stones.includes(id));
-		opts = [{ label: '없음', off: !s.item, run: () => { s.item = ''; } }, ...own.map(id => { const holder = S.roster.find(x => x !== m && toID(x.set.item) === id), cur = toID(s.item) === id;
-			return { icon: <ItemIcon item={id} size={24} />, label: itemKo(id), desc: itemDesc(id), note: cur ? '지금' : holder ? `${monKo(holder.set)}에게서 가져옴 (저장할 때)` : '', off: cur, run: () => { s.item = id; } }; })];
+		opts = [{ label: '없음', off: !s.item, run: () => { s.item = ''; } }, ...own.map(id => { const holder = S.team.includes(m.id) ? teamOf(S).find(x => x !== m && toID(x.set.item) === id) : undefined, cur = toID(s.item) === id;
+			return { icon: <ItemIcon item={id} size={24} />, label: itemKo(id), desc: itemDesc(id), note: cur ? '지금' : holder ? `지금 팀의 ${monKo(holder.set)}도 지님 — 같은 팀에서는 한 마리만` : '', off: cur, run: () => { s.item = id; } }; })];
 	} else if (sub === 'ability') {
 		title = '특성'; cost = PRICE.ability; why = '특성';
 		opts = (((speciesData(s.species, 9) as any)?.ab || []) as string[]).map(x => ({ label: abilityKo(x), desc: abilityDesc(x), note: toID(x) === toID(s.ability) ? '지금' : '', off: toID(x) === toID(s.ability), run: () => { s.ability = x; } }));
@@ -506,7 +505,7 @@ function SubPop({ S, m, d, sub, back }: { S: CSave; m: CMon; d: PSet; sub: Exclu
 		{search && <input class="cp-search" placeholder="이름으로 찾기 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />}
 		<div class={'cp-opts ' + grid}>{list.slice(0, 120).map(o => <button class={'cp-opt' + (grid && o.off ? ' cur' : '')} disabled={o.off} onClick={() => apply(cost, why, o.run)}>{o.icon}<div><b>{o.label}{o.note === '지금' && <em>지금</em>}</b>{o.note && o.note !== '지금' && <em class="ln">{o.note}</em>}{o.desc && <small>{o.desc}</small>}</div></button>)}
 			{!list.length && <p class="cp-note">맞는 항목이 없어요.</p>}</div>
-		{sub === 'item' && <p class="cp-note">같은 도구는 한 마리만 지닐 수 있어요. 새 도구는 상점에서 삽니다.</p>}
+		{sub === 'item' && <p class="cp-note">산 도구는 여러 포켓몬이 지닐 수 있어요. 다만 배틀에 나가는 팀 안에서는 같은 도구를 두 마리가 지닐 수 없습니다. 새 도구는 상점에서 삽니다.</p>}
 	</Modal>;
 }
 

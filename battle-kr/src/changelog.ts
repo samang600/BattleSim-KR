@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.9', date: '2026-11-16', title: '챔피언스 모드 — 도구 나눠 지니기', items: [
+		['fix', '챔피언스 모드에서 스카우트한 직후 오류가 나며 타이틀로 돌아가던 것을 고쳤어요.'],
+		['up', '산 도구는 여러 포켓몬이 함께 지닐 수 있어요. 배틀에 나가는 팀 안에서만 같은 도구가 겹치면 안 됩니다.'],
+	] },
 	{ ver: '2.85.8', date: '2026-11-16', title: 'Z기술·다이맥스 기술 설명', items: [
 		['fix', '배틀에서 기술을 길게 누르면 Z기술과 다이맥스·거다이맥스 기술의 위력과 효과가 제대로 나와요.'],
 		['up', '챔피언스 모드의 거다이맥스는 한 번 켜 두면 그 뒤로는 켜고 끄는 데 BP 가 들지 않아요.'],
