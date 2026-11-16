@@ -169,8 +169,8 @@ const leagueRegions = () => { const r = rec(); const regs = new Set(NAMED.map(t 
 
 export const ACHIEVEMENTS: Ach[] = [
 	// 배틀
-	{ id: 'wins', name: '승리의 길', desc: '모든 모드 합쳐 {n}승', cat: '배틀', steps: [10, 100, 500, 1000], value: () => rec().wins },
-	{ id: 'battles', name: '배틀 참가', desc: '배틀 {n}회 참가', cat: '배틀', steps: [10, 100, 400, 2000], value: () => rec().battles },
+	{ id: 'wins', name: '승리의 길', desc: '모든 모드 합쳐 {n}승', cat: '배틀', steps: [10, 100, 500, 1000, 2000, 5000], value: () => rec().wins },
+	{ id: 'battles', name: '배틀 참가', desc: '배틀 {n}회 참가', cat: '배틀', steps: [10, 100, 400, 2000, 4000, 10000], value: () => rec().battles },
 	{ id: 'perfect', name: '무결점 승리', desc: '내 포켓몬이 하나도 쓰러지지 않고 {n}승', cat: '배틀', steps: [10, 50, 100], value: cnt('perfect') },
 	{ id: 'se', name: '상성의 달인', desc: '효과가 굉장한 공격 {n}회', cat: '배틀', steps: [30, 150, 300], value: cnt('se') },
 	{ id: 'crit', name: '급소 사냥꾼', desc: '급소에 {n}회 맞힘', cat: '배틀', steps: [10, 50, 100], value: cnt('crit') },

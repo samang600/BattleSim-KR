@@ -95,7 +95,7 @@ function Achievements({ st: st0 }: any) {
 				<div class="ach-body">
 					<b>{a.name}{l > 0 && a.steps.length > 1 && <small class="ach-tier" style={{ color: TIER_COL[achTier(a, l)] }}> {TIER_NAME[achTier(a, l)]}</small>}</b>
 					<small>{achDesc(a, done ? a.steps.length - 1 : l)}</small>
-					<div class="ach-bar"><i style={{ width: Math.min(100, v / next * 100) + '%' }} /><span>{done ? '완료' : `${Math.min(v, next)} / ${next}`}</span></div>
+					<div class="ach-bar"><i style={{ width: Math.min(100, v / next * 100) + '%' }} /><span>{done ? (next >= 10 ? `완료 · ${v.toLocaleString()}` : '완료') : `${v > next ? next : v} / ${next}`}</span></div>
 				</div>
 				{p > 0 ? <button class="ach-claim" onClick={() => { if (claimAch([a.id])) sfx('select'); }}><span><BpCoin size={12} /><b>+{p}</b></span><small>받기</small></button>
 					: <span class="ach-pips">{a.steps.map((_, i) => <i class={i < l ? 'on' : ''} />)}</span>}
