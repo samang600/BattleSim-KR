@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.13', date: '2026-11-16', title: '계산기', items: [
+		['up', '배틀 계산기에서 메가진화 같은 배틀 중 모습을 바로 고를 수 있고, 포켓몬이 배우지 않는 기술로도 데미지를 계산할 수 있어요.'],
+	] },
 	{ ver: '2.85.12', date: '2026-11-16', title: '레전드플레이트 · 모습을 바꾸는 도구', items: [
 		['new', '아르세우스의 레전드플레이트가 생겼어요 — 심판의뭉치가 상대에게 가장 효과적인 타입으로 바뀌고 아르세우스도 그 타입이 됩니다. (무제한 규칙 · 치트 팀)'],
 		['fix', '챔피언스 상점에 녹슨검·플레이트·메모리 같은 모습을 바꾸는 도구가 진열되고, 지닌 도구에 맞는 모습으로 배틀에 나와요. 계산기에서 자시안(검왕)도 찾을 수 있습니다.'],

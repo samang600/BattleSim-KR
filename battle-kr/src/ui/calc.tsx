@@ -344,13 +344,19 @@ export function CalcScreen({ onBack }: { onBack: () => void }) {
 
 function MoveList({ species, current, onPick }: { species: string; current: string[]; onPick: (m: string) => void }) {
 	const [q, setQ] = useState('');
-	const moves = useMemo(() => learnset(species, GEN).map(id => moveData(id, GEN)!).filter(Boolean).sort((a, b) => b.basePower - a.basePower), [species]);
+	// 계산기는 치트 팀처럼 아무 기술이나 고를 수 있음: 이 포켓몬이 배우는 기술을 먼저, 그 밖의 모든 기술을 뒤에 (타입 Z기술처럼 위력이 정해지지 않은 것은 뺌)
+	const moves = useMemo(() => {
+		const own = new Set(learnset(species, GEN));
+		const all = Object.keys(RAW.moves).filter(id => { const r: any = (RAW.moves as any)[id]; return own.has(id) || !((r.z || r.x) && (r.g?.[9]?.[2] || 0) <= 10); });
+		return all.map(id => ({ ...moveData(id, GEN)!, own: own.has(id) })).filter(m => m.id)
+			.sort((a, b) => Number(b.own) - Number(a.own) || b.basePower - a.basePower);
+	}, [species]);
 	const curSet = new Set(current);
 	const shown = moves.filter(m => matches(q, m.name, m.id));
 	return <div class="pick-list">
-		<input class="search" placeholder="기술 검색" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} />
+		<input class="search" placeholder="기술 검색 (배우지 않는 기술도 계산할 수 있어요)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} />
 		{current.map(id => moveData(id, GEN)).filter(Boolean).map(m => <button class="pick-row" onClick={() => onPick(m!.id)}><TypeBadge type={m!.type} small /><span class="pick-name">{m!.name} <small class="muted">(세트)</small></span><small class="mv-stats">{m!.category === 'Status' ? '변화' : m!.basePower}</small></button>)}
-		{shown.filter(m => !curSet.has(m.id)).slice(0, 60).map(m => <button class="pick-row" onClick={() => onPick(m.id)}><TypeBadge type={m.type} small /><span class="pick-name">{m.name}</span><small class="mv-stats">{m.category === 'Status' ? '변화' : m.basePower}</small></button>)}
+		{shown.filter(m => !curSet.has(m.id)).slice(0, 60).map(m => <button class="pick-row" onClick={() => onPick(m.id)}><TypeBadge type={m.type} small /><span class="pick-name">{m.name}{!m.own && <small class="muted"> (못 배움)</small>}</span><small class="mv-stats">{m.category === 'Status' ? '변화' : m.basePower}</small></button>)}
 	</div>;
 }
 
@@ -358,11 +364,17 @@ function MoveList({ species, current, onPick }: { species: string; current: stri
 function SetPicker({ title, onPick, onBack }: { title: string; onPick: (s: PSet) => void; onBack: () => void }) {
 	const [q, setQ] = useState('');
 	const teams = loadTeams();
-	const list = useMemo(() => allSpecies(GEN).filter(s => s && (!s.bo || /crowned$/.test(s.id))), []);
+	// 계산기는 치트 팀처럼 배틀 중에만 되는 모습(메가진화·원시회귀·울트라네크로즈마·검왕 등)도 바로 고를 수 있음
+	const list = useMemo(() => allSpecies(GEN).filter(s => s), []);
+	const pick = (s: any) => { let set: PSet;
+		try { set = randomSetFor(s.id, GEN, 50); } catch { set = randomSetFor(s.base || s.id, GEN, 50); }
+		// 배틀 중 모습은 추천 세트가 원래 모습 기준으로 나오므로 종·특성을 그 모습으로 맞춤
+		if (toID(set.species) !== s.id) { set.species = s.en; set.name = s.n; if (!s.ab.includes(toID(set.ability))) set.ability = s.ab[0]; }
+		onPick(set); };
 	const shown = q ? list.filter(s => s && matches(q, s.n, s.en, String(s.num))).slice(0, 40) : [];
 	return <Screen top title={title} onBack={onBack}>
-		<input class="search" placeholder="종족·도감 번호 검색 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} autoFocus />
-		{shown.length > 0 && <div class="pick-list">{shown.map(s => s && <button class="pick-row" onClick={() => onPick(randomSetFor(s.id, GEN, 50))}>
+		<input class="search" placeholder="종족·도감 번호 검색 (초성 가능 · 메가진화 등 배틀 중 모습도)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} autoFocus />
+		{shown.length > 0 && <div class="pick-list">{shown.map(s => s && <button class="pick-row" onClick={() => pick(s)}>
 			<MiniSprite species={s.id} gen={GEN} size={40} /><span class="pick-name">{s.n}</span><span class="pick-types">{s.t.map(t => <TypeBadge type={t} small />)}</span></button>)}</div>}
 		{!q && teams.map(t => <Fragment key={t.id}>
 			<h3 class="sec">{t.name}</h3>
