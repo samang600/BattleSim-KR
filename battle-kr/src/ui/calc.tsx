@@ -3,7 +3,7 @@ import { h, Fragment } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import { TypeChart } from '../../../data/typechart';
 import { speciesData, moveData, learnset, toID, abilityKo, itemKo, natureKo, natureData, calcStat, STAT_KO, STAT_SHORT, STATS, speciesKo,
-	nickKo, allSpecies, typeKo, fixedTera, RAW, type Gen, type StatID } from '../data';
+	nickKo, formForItem, allSpecies, typeKo, fixedTera, RAW, type Gen, type StatID } from '../data';
 import { randomSetFor, evToSp, spToEv, type PSet } from '../sets';
 import { loadTeams } from '../store';
 import { Screen, Sprite, MiniSprite, TypeBadge, Modal, toast, CatIcon } from './core';
@@ -49,6 +49,9 @@ function effSpeciesId(set: PSet): string {
 	const it = (RAW.items as any)[toID(set.item)];
 	const sd = speciesData(toID(set.species), GEN);
 	if (it?.mega && sd && it.megaFrom?.includes(sd.en)) { const mid = toID(it.mega); if (speciesData(mid, GEN)) return mid; }
+	// 도구로 모습이 바뀌는 포켓몬: 자시안+녹슨검 → 검왕, 기라티나+큰백금옥 → 오리진폼, 아르세우스+플레이트 → 그 타입
+	const fid = toID(formForItem(set.species, set.item || '', false, false));
+	if (speciesData(fid, GEN)) return fid;
 	return toID(set.species);
 }
 function effAbility(set: PSet): string {
@@ -92,8 +95,8 @@ export function calcDamage(atk: Side, def: Side, moveId: string, f: Field): Calc
 	if (atk.dmax) { bp = maxPower(mv.basePower || bp, moveType); notes.push(`다이맥스 기술(위력 ${bp})`); }
 	else if (atk.zmove) { bp = zPower(mv.basePower || bp); notes.push(`Z기술(위력 ${bp})`); }
 	const aAb = effAbility(atk.set), dAb = effAbility(def.set), aItem = toID(atk.set.item), dItem = toID(def.set.item);
-	if (effSpeciesId(atk.set) !== toID(atk.set.species)) notes.push(`공격측 메가진화(${speciesData(effSpeciesId(atk.set), GEN)!.n})`);
-	if (effSpeciesId(def.set) !== toID(def.set.species)) notes.push(`방어측 메가진화(${speciesData(effSpeciesId(def.set), GEN)!.n})`);
+	if (effSpeciesId(atk.set) !== toID(atk.set.species)) notes.push(`공격측 ${speciesData(effSpeciesId(atk.set), GEN)!.n}(으)로 계산`);
+	if (effSpeciesId(def.set) !== toID(def.set.species)) notes.push(`방어측 ${speciesData(effSpeciesId(def.set), GEN)!.n}(으)로 계산`);
 	if (aAb === 'pixilate' && moveType === 'Normal') { moveType = 'Fairy'; bp *= 1.2; notes.push('페어리스킨'); }
 	if (aAb === 'refrigerate' && moveType === 'Normal') { moveType = 'Ice'; bp *= 1.2; }
 	if (aAb === 'aerilate' && moveType === 'Normal') { moveType = 'Flying'; bp *= 1.2; }
@@ -355,7 +358,7 @@ function MoveList({ species, current, onPick }: { species: string; current: stri
 function SetPicker({ title, onPick, onBack }: { title: string; onPick: (s: PSet) => void; onBack: () => void }) {
 	const [q, setQ] = useState('');
 	const teams = loadTeams();
-	const list = useMemo(() => allSpecies(GEN).filter(s => s && !s.bo), []);
+	const list = useMemo(() => allSpecies(GEN).filter(s => s && (!s.bo || /crowned$/.test(s.id))), []);
 	const shown = q ? list.filter(s => s && matches(q, s.n, s.en, String(s.num))).slice(0, 40) : [];
 	return <Screen top title={title} onBack={onBack}>
 		<input class="search" placeholder="종족·도감 번호 검색 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} autoFocus />

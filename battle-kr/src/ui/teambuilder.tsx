@@ -357,7 +357,7 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 					// 잠재파워를 고르면 이어서 타입을 고르게 창을 열어 둠 (같은 잠재파워를 두 칸에 넣지는 못함)
 					const uniq = moves.filter((m, k) => m && moves.findIndex(x => hpBase(toID(x)) === hpBase(toID(m))) === k);
 					up({ moves: uniq }); if (mid === 'hiddenpower' && uniq.includes(mid)) setPicker({ kind: 'move', idx: uniq.indexOf(mid) }); else close(); }} /></Modal>}
-		{picker?.kind === 'item' && <Modal title="도구 고르기" onClose={close}><ItemPicker gen={gen} onPick={id => { up({ item: id }); close(); }} /></Modal>}
+		{picker?.kind === 'item' && <Modal title="도구 고르기" onClose={close}><ItemPicker gen={gen} cheat={cheat} onPick={id => { up({ item: id }); close(); }} /></Modal>}
 		{picker?.kind === 'ability' && <Modal title="특성" onClose={close}>
 			<div class="cp-opts">{sd.ab.map(a => <button class="cp-opt" disabled={s.ability === a} onClick={() => { up({ ability: a }); close(); }}><div><b>{abilityKo(a)}</b><small>{abilityDesc(a)}</small></div>{s.ability === a && <em>지금</em>}</button>)}</div>
 			{cheat && <><h3 class="sec">🃏 다른 특성 (치트)</h3><AbilityPicker onPick={a => { up({ ability: a }); close(); }} /></>}</Modal>}
@@ -457,11 +457,11 @@ function AbilityPicker({ onPick }: { onPick: (id: string) => void }) {
 }
 
 type ItemSort = 'name' | 'popular';
-function ItemPicker({ gen, onPick }: { gen: Gen; onPick: (id: string) => void }) {
+function ItemPicker({ gen, onPick, cheat }: { gen: Gen; onPick: (id: string) => void; /** 치트 팀: 규칙과 관계없이 고를 수 있는 도구(레전드플레이트)도 */ cheat?: boolean }) {
 	const [q, setQ] = useState('');
 	const [filter, setFilter] = useState<'all' | 'battle' | 'berry' | 'mega' | 'z'>('all');
 	const [sort, setSort] = useState<ItemSort>(() => load<ItemSort>('itemSort', 'popular'));
-	const items = useMemo(() => allItems(gen).filter(i => !/mail$|^tr\d|^tm\d|fossil|shard/.test(i.id))
+	const items = useMemo(() => allItems(gen, cheat).filter(i => !/mail$|^tr\d|^tm\d|fossil|shard/.test(i.id))
 		.filter(i => filter === 'all' ? true : filter === 'mega' ? !!(i as any).mega : filter === 'z' ? !!(i as any).zt :
 			filter === 'berry' ? i.id.endsWith('berry') : !(i as any).mega && !(i as any).zt && !i.id.endsWith('berry')), [gen, filter]);
 	const popular = ['leftovers', 'lifeorb', 'choicescarf', 'choiceband', 'choicespecs', 'focussash', 'assaultvest', 'sitrusberry', 'lumberry', 'expertbelt', 'heavydutyboots', 'boosterenergy', 'blacksludge', 'eviolite', 'rockyhelmet', 'airballoon', 'lightclay', 'covertcloak', 'clearamulet', 'loadeddice', 'mirrorherb', 'weaknesspolicy', 'safetygoggles', 'quickclaw'];

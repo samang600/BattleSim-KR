@@ -861,6 +861,8 @@ export const Conditions: import('../sim/dex-conditions').ConditionDataTable = {
 			let type: string | undefined = 'Normal';
 			if (pokemon.ability === 'multitype') {
 				type = pokemon.getItem().onPlate;
+				// 배틀시뮬 KR — 레전드플레이트: 마지막에 쓴 심판의뭉치의 타입 (아직 안 썼으면 노말)
+				if (pokemon.getItem().id === 'legendplate') type = pokemon.m.legendType;
 				if (!type) {
 					type = 'Normal';
 				}

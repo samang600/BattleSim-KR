@@ -122,7 +122,7 @@ export async function runPalace() {
 		if (go === 'rest') return;
 		if (go === 'quit') { remove(key); return; }
 		const res = await battle({
-			gen: 9, doubles: isDoubles(fmt), aiSkill: opp.skill, bg: (maven ? 'champion' : 'palace') as any, label: `배틀팰리스 ${no}번째`, ruleId, music: (maven ? 'boss' : 'palace') as any,
+			gen: 9, doubles: isDoubles(fmt), aiSkill: opp.skill, bg: (maven ? 'champion' : 'palace') as any, label: `배틀팰리스 ${no}번째`, ruleId, cheat, noRecord: cheat, music: (maven ? 'boss' : 'palace') as any,
 			auto: (b, req) => palaceChoice(b, req, 'p1'), p2Auto: (b, req) => palaceChoice(b, req, 'p2'), autoMsg: '포켓몬이 스스로 판단해서 싸우고 있다!',
 			p1: { name: playerName(), team: state.team, sprite: playerSprite() }, p2: { name: opp.name, title: opp.title, team: opp.team, line: opp.line, sprite: opp.sprite, lines: { intro: opp.line, ...opp.lines } },
 		});

@@ -1199,6 +1199,7 @@ function typeTint(type: string) {
 			...(setup.ruleId ? { ruleId: setup.ruleId } : {}), p2Auto: setup.p2Auto,
 			...(setup.replay ? { seed: setup.replay.seed, ruleId: setup.replay.ruleId, replayP2: setup.replay.p2 } : {}),
 			partnerFlags: setup.partner?.theirs, p1State: setup.story?.state,
+			cheat: !!setup.cheat,
 			p1: { name: setup.p1.name, team: toSimTeam(setup.p1.team, !!setup.cheat) as any },
 			p2: { name: setup.p2.name, team: toSimTeam(setup.p2.team, !!setup.cheat) as any },
 		});
@@ -1415,7 +1416,13 @@ function typeTint(type: string) {
 		case 'terablast': return tera || base;
 		case 'weatherball': return ({ sunnyday: 'Fire', desolateland: 'Fire', raindance: 'Water', primordialsea: 'Water', sandstorm: 'Rock', hail: 'Ice', snowscape: 'Ice' } as any)[weather] || base;
 		case 'terrainpulse': return ({ electricterrain: 'Electric', grassyterrain: 'Grass', mistyterrain: 'Fairy', psychicterrain: 'Psychic' } as any)[b.field.terrain] || base;
-		case 'judgment': case 'multiattack': case 'revelationdance': case 'ragingbull': case 'ivycudgel': return tera || u.getTypes()[0] || base;
+		case 'judgment':
+			// 레전드플레이트: 상대에 따라 정해지는 타입을 미리 보여 줌 (엔진의 타입 고르기를 그대로 부름 — 기술 객체의 타입만 바꾸는 계산)
+			if (u.item === 'legendplate' && u.baseSpecies?.num === 493) {
+				try { const am: any = b.dex.getActiveMove('judgment'); (b.dex.moves.get('judgment') as any).onModifyType?.call(b, am, u, b.p2.active.find((x: any) => x && !x.fainted)); return am.type || base; } catch { return base; }
+			}
+			return tera || u.getTypes()[0] || base;
+		case 'multiattack': case 'revelationdance': case 'ragingbull': case 'ivycudgel': return tera || u.getTypes()[0] || base;
 		case 'technoblast': return ({ dousedrive: 'Water', shockdrive: 'Electric', burndrive: 'Fire', chilldrive: 'Ice' } as any)[u.item] || base;
 		case 'aurawheel': return u.species.id === 'morpekohangry' ? 'Dark' : base;
 		case 'naturalgift': return b.dex.items.get(u.item)?.naturalGift?.type || base;

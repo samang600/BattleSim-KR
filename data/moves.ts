@@ -9826,11 +9826,42 @@ export const Moves: import('../sim/dex-moves').MoveDataTable = {
 		pp: 10,
 		priority: 0,
 		flags: { protect: 1, mirror: 1, metronome: 1 },
-		onModifyType(move, pokemon) {
+		onModifyType(move, pokemon, target) {
 			if (pokemon.ignoringItem()) return;
 			const item = pokemon.getItem();
 			if (item.id && item.onPlate && !item.zMove) {
 				move.type = item.onPlate;
+			}
+			// 배틀시뮬 KR — 레전드플레이트: 상대에게 가장 효과적인 타입으로.
+			// 우선순위(나무위키): 4배 > 2배 > 등배 …, 같은 배율 안에서는 상대의 자기 타입 기술을 더 많이 반감(무효)하는 타입
+			if (item.id === 'legendplate' && pokemon.baseSpecies.num === 493 && !pokemon.transformed) {
+				const foe = target && target !== pokemon ? target : pokemon.side.foe.active.find(x => x && !x.fainted);
+				if (!foe) return;
+				const foeTypes = foe.getTypes();
+				let best = 'Normal', bestScore = -Infinity;
+				for (const type of this.dex.types.names()) {
+					if (type === 'Stellar') continue;
+					if (!this.dex.getImmunity(type, foeTypes)) continue;
+					const eff = this.dex.getEffectiveness(type, foeTypes);
+					let resist = 0;
+					for (const ft of foeTypes) {
+						if (!this.dex.getImmunity(ft, type)) resist += 1.5;
+						else if (this.dex.getEffectiveness(ft, type) < 0) resist += 1;
+						else if (this.dex.getEffectiveness(ft, type) > 0) resist -= 0.25;
+					}
+					const score = eff * 10 + resist;
+					if (score > bestScore) { bestScore = score; best = type; }
+				}
+				move.type = best;
+			}
+		},
+		onPrepareHit(target, source, move) {
+			// 레전드플레이트: 공격하기 전에 아르세우스도 그 타입이 된다
+			if (source.getItem().id === 'legendplate' && !source.ignoringItem() && source.baseSpecies.num === 493 && !source.transformed) {
+				if (source.m.legendType !== move.type) {
+					source.m.legendType = move.type;
+					this.add('-start', source, 'typechange', move.type, '[from] item: Legend Plate');
+				}
 			}
 		},
 		target: "normal",

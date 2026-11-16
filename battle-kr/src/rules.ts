@@ -138,6 +138,7 @@ export function itemAllowed(rule: BattleRule, itemId: string): boolean {
 	const id = toID(itemId), it = RAW.items[id];
 	if (!id) return true;
 	if (!it) return false;
+	if (id === 'legendplate') return rule.era === 'max';   // 레전드플레이트는 무제한 규칙에서만
 	if (it.mega) return megaStoneAllowed(rule, id);
 	if (it.zt || it.zf) return rule.kinds.includes('zmove');
 	if (!rule.itemAv) return true;

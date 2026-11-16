@@ -3362,7 +3362,26 @@ export const Items: import('../sim/dex-items').ItemDataTable = {
 		gen: 2,
 	},
 	legendplate: {
+		// 배틀시뮬 KR: LEGENDS 아르세우스의 효과를 구현 — 아르세우스가 지니면 심판의뭉치가 상대에게 가장 효과적인 타입으로 바뀌고,
+		// 공격하기 전에 아르세우스도 그 타입이 된다 (타입 고르기는 moves.ts 의 judgment, 타입 반영은 conditions.ts 의 arceus)
 		name: "Legend Plate",
+		spritenum: 610,
+		onStart(pokemon) {
+			pokemon.m.legendType = undefined;   // 나올 때는 노말타입으로
+		},
+		onBasePowerPriority: 15,
+		onBasePower(basePower, user, target, move) {
+			if (move.id === 'judgment' && user.baseSpecies.num === 493) {
+				return this.chainModify([4915, 4096]);   // 다른 플레이트와 같은 1.2배
+			}
+		},
+		onTakeItem(item, pokemon, source) {
+			if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
+				return false;
+			}
+			return true;
+		},
+		itemUser: ["Arceus"],
 		num: 1828,
 		gen: 8,
 		isNonstandard: "Legends",

@@ -31,6 +31,9 @@ export const RAW = D;
 if (D.moves.hail) { D.moves.hail.n = '싸라기눈'; D.moves.hail.d = '5턴 동안 싸라기눈을 내리게 해서 얼음타입이 아닌 포켓몬 모두에게 데미지를 준다.'; }
 if (D.text.hail) Object.assign(D.text.hail, { weatherName: '싸라기눈', start: '  싸라기눈이 내리기 시작했다!', end: '  싸라기눈이 그쳤다!', upkeep: '  (싸라기눈이 계속 내리고 있다)', damage: '  싸라기눈이 {POKEMON:object} 덮쳤다!' });
 if (D.text.snowscape) D.text.snowscape.weatherName = '설경';
+// 레전드플레이트 (LEGENDS 아르세우스): 쇼다운 데이터에는 이름만 있어 앱 데이터에 없음 — 효과는 엔진(data/items.ts·moves.ts·conditions.ts)에 구현
+// 설명은 게임 설명문(세레비넷)과 효과(나무위키·세레비넷)를 합쳐 적음. 무제한 규칙에서만 쓸 수 있음(치트 팀은 규칙과 관계없이) — itemInPool·itemAllowed·engine
+if (!(D.items as any).legendplate) (D.items as any).legendplate = { n: '레전드플레이트', d: '삼라만상의 힘이 깃든 석판. 아르세우스에게 지니게 하면 심판의뭉치가 상대에게 가장 효과적인 타입으로 바뀌고, 공격하기 전에 아르세우스도 그 타입이 된다.', gens: [9], zu: ['Arceus'], sp: 610, av: '' };
 
 export function toID(text: any): string {
 	if (text?.id) text = text.id;
@@ -53,7 +56,9 @@ export function typeKo(t: string) { return D.types[t] || t; }
 let ERA = '', LS_MODE: 'all' | 'champ' | 'era' = 'all', ITEM_AV = '';
 export function setDataSpec(era: string, lsMode: 'all' | 'champ' | 'era', itemAv: string) { ERA = era; LS_MODE = lsMode; ITEM_AV = itemAv; }
 /** 지금 풀에 있는 도구인가 */
-export function itemInPool(id: string) { if (!ITEM_AV) return true; const it = D.items[toID(id)]; return !!it?.av?.includes(ITEM_AV); }
+/** 레전드플레이트는 무제한 규칙에서만 (치트 팀은 규칙과 관계없이 — 고르는 쪽에서 따로 넣음) */
+export const LEGEND_ONLY = 'legendplate';
+export function itemInPool(id: string) { if (toID(id) === LEGEND_ONLY) return ERA === 'max'; if (!ITEM_AV) return true; const it = D.items[toID(id)]; return !!it?.av?.includes(ITEM_AV); }
 
 /** 무제한(너프 없음): 세대 중 가장 강한 사양 — 종족값은 합계가 가장 높은 세대, 특성은 모든 세대의 특성, 타입은 최신 */
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
@@ -287,8 +292,8 @@ function sketchable(gen: Gen): string[] {
 	sketchCache.set(key, out);
 	return out;
 }
-export function allItems(gen: Gen) {
-	return Object.entries(D.items).filter(([id, it]) => it.gens.includes(gen) && !it.ball && (itemInPool(id) || !!it.mega || !!it.zt))   // 메가스톤·Z크리스탈은 기믹 규칙이 정함
+export function allItems(gen: Gen, cheat = false) {
+	return Object.entries(D.items).filter(([id, it]) => it.gens.includes(gen) && !it.ball && (itemInPool(id) || !!it.mega || !!it.zt || (cheat && id === LEGEND_ONLY)))   // 메가스톤·Z크리스탈은 기믹 규칙이 정함
 		.map(([id, it]) => ({ id, ...it }));
 }
 /** 몬스터볼 종류 (겉모습용) */
@@ -386,7 +391,35 @@ export function zCrystalsFor(speciesId: string): string[] {
 export function exclusiveItemsFor(speciesId: string): string[] {
 	const en = D.species[toID(speciesId)]?.en;
 	if (!en) return [];
-	return Object.entries(D.items).filter(([, it]: [string, any]) => it.zu?.includes(en) && !it.zf && !it.mega).map(([k]) => k);
+	const id = toID(speciesId), base = (D.species as any)[id]?.base || id;
+	const out = new Set(Object.entries(D.items).filter(([, it]: [string, any]) => it.zu?.includes(en) && !it.zf && !it.mega).map(([k]) => k));
+	// 지니면 모습이 바뀌는 도구: 같은 포켓몬의 다른 모습이 필요로 하는 도구 (자시안의 녹슨검, 아르세우스의 플레이트, 실버디의 메모리, 게노세크트의 카세트, 오거폰의 가면, 큰금강옥 등)
+	for (const f of formItemForms(base)) out.add(f.req);
+	return [...out];
+}
+/** 도구로 모습이 정해지는 모습들: [{ id, req }] (메가진화·원시회귀·울트라버스트는 제외) */
+function formItemForms(baseId: string): { id: string; req: string }[] {
+	const out: { id: string; req: string }[] = [];
+	for (const [k, sp] of Object.entries(D.species) as [string, any][]) {
+		if (sp.base !== baseId) continue;
+		const req = sp.g?.[9]?.req;
+		if (!req || (D.items as any)[req]?.mega || /mega|primal|ultra/.test(k.slice(baseId.length))) continue;
+		out.push({ id: k, req });
+	}
+	return out;
+}
+/** 지닌 도구에 맞는 모습의 이름: 그 도구가 필요한 모습이면 그 모습(자시안+녹슨검 → 검왕, 아르세우스+플레이트 → 그 타입), 도구가 없는데 도구가 필요한 모습이면 원래 모습.
+ *  바뀔 것이 없으면 그대로. battleOnly 로 엔진이 배틀 시작 때 바꾸는 모습(검왕·방패왕)은 inBattle 일 때 건드리지 않음 */
+export function formForItem(species: string, item: string, inBattle = false, revert = true): string {
+	const id = toID(species), sp: any = (D.species as any)[id];
+	if (!sp) return species;
+	const base = sp.base || id, forms = formItemForms(base), it = toID(item);
+	const want = forms.find(f => f.req === it);
+	const bo = (x: string) => !!(D.species as any)[x]?.g?.[9]?.bo;
+	if (want) return inBattle && bo(want.id) ? (D.species as any)[base].en : (D.species as any)[want.id].en;
+	// 도구가 맞지 않으면 원래 모습으로 — 단 아르세우스는 타입 Z크리스탈로도 그 타입 모습이 되고, 기라티나는 8세대까지 백금옥이 오리진폼의 도구였으므로 그대로 둠
+	if (revert && forms.some(f => f.id === id) && base !== 'arceus' && !(id === 'giratinaorigin' && it === 'griseousorb')) return (D.species as any)[base].en;
+	return species;
 }
 export function megaStonesFor(speciesId: string): string[] {
 	const en = D.species[toID(speciesId)]?.en;

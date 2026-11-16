@@ -3,7 +3,7 @@ import { Battle } from '../../sim/battle';
 import type { PokemonSet } from '../../sim/teams';
 import { chooseAI } from './ai';
 import { loadSettings } from './store';
-import { toID, snowMove, hiddenPowerAllowed } from './data';
+import { toID, snowMove, hiddenPowerAllowed, formForItem, speciesData } from './data';
 import { ruleById, megaStoneAllowed, megaFormAllowed, type BattleRule, type GimmickKind } from './rules';
 
 export interface SideConfig { name: string; team: PokemonSet[] }
@@ -16,6 +16,8 @@ export interface SessionConfig {
 	seed?: [number, number, number, number];
 	/** 배틀 규칙 id (없으면 설정값) */
 	ruleId?: string;
+	/** 치트 배틀: 규칙에 묶인 도구(레전드플레이트)도 그대로 씀 */
+	cheat?: boolean;
 	/** 거꾸로 배틀 */
 	inverse?: boolean;
 	/** 리플레이 재생: 기록된 상대(AI) 선택을 순서대로 씀 */
@@ -60,6 +62,14 @@ export class Session {
 		this.rule = ruleById(cfg.ruleId || loadSettings().battleRule);
 		// 눈 날씨 기술을 규칙의 세대에 맞춤 (예전에 저장한 팀·상대 팀의 싸라기눈 ↔ 설경)
 		for (const sd of [cfg.p1, cfg.p2]) for (const st of (sd?.team || []) as any[]) if (Array.isArray(st.moves)) st.moves = [...new Set(st.moves.map((m: string) => { const id = toID(m), n = snowMove(id, this.rule.era); return n === id ? m : n; }))];
+		// 레전드플레이트는 무제한 규칙에서만 (치트 배틀은 규칙과 관계없이): 다른 규칙에서는 뺌
+		if (this.rule.era !== 'max' && !cfg.cheat) for (const sd of [cfg.p1, cfg.p2]) for (const st of (sd?.team || []) as any[]) if (toID(st.item || '') === 'legendplate') st.item = '';
+		// 도구로 모습이 정해지는 포켓몬(아르세우스+플레이트, 실버디+메모리, 기라티나+큰백금옥, 오거폰+가면 등)은 지닌 도구에 맞는 모습으로.
+		// 쇼다운은 팀 검사 때 바꾸지만 이 앱은 검사를 거치지 않으므로 여기서 맞춤 (자시안·자마젠타의 검왕·방패왕은 엔진이 배틀 시작 때 바꿈)
+		for (const sd of [cfg.p1, cfg.p2]) for (const st of (sd?.team || []) as any[]) {
+			const to = formForItem(st.species, st.item || '', true);
+			if (toID(to) !== toID(st.species)) { st.species = to; const ab = (speciesData(toID(to), 9) as any)?.ab as string[] | undefined; if (ab?.length && !ab.includes(toID(st.ability))) st.ability = ab[0]; }
+		}
 		// 잠재파워는 8세대부터 없는 기술: 소드실드·스칼렛바이올렛·챔피언스 풀에서는 뺌 (기술이 하나도 안 남으면 몸통박치기)
 		if (!hiddenPowerAllowed(this.rule.era, this.rule.lsMode)) for (const sd of [cfg.p1, cfg.p2]) for (const st of (sd?.team || []) as any[]) if (Array.isArray(st.moves) && st.moves.some((m: string) => toID(m).startsWith('hiddenpower'))) { st.moves = st.moves.filter((m: string) => !toID(m).startsWith('hiddenpower')); if (!st.moves.length) st.moves = ['tackle']; }
 		// 포켓몬 풀에 맞는 데이터 모드 (종족값·특성·기술 수치·챔피언스 사양)
