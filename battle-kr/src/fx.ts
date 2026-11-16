@@ -317,6 +317,29 @@ export function pillar(layer: HTMLElement, at: Pt, color: string, s: number) {
 	sparkle(layer, at, 'Normal', s);
 }
 
+/** 배틀 중 모습 바꾸기(킬가르도·따라큐·메로엣타·아르세우스 등)의 공통 연출: 빛 조각이 몸으로 모였다가 그 타입 색의 고리와 함께 퍼짐 (약 0.6초).
+ *  포켓몬 그림은 CSS 의 .slot.morph 가 하얀 실루엣으로 번쩍이게 하고, 그 사이에 그림을 바꿈 */
+export function formChange(layer: HTMLElement, at: Pt, color: string, s: number) {
+	const c = { x: at.x, y: at.y - 16 * s };
+	for (let i = 0; i < 10; i++) {
+		const a = (i / 10) * Math.PI * 2 + 0.3, d = 44 * s, sz = Math.max(2, Math.round(4 * s / 2) * 2);
+		const el = px(layer, c.x, c.y, sz, sz, i % 2 ? color : '#ffffff');
+		anim(el, [{ transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d}px)`, opacity: 0 }, { opacity: 1, offset: 0.3 }, { transform: 'translate(0,0)', opacity: 1 }], { duration: 240, delay: i * 8, easing: 'steps(5)' });
+	}
+	later(() => {
+		if (!layer.isConnected) return;
+		[color, '#ffffff'].forEach((col, i) => {
+			const r = px(layer, c.x, c.y, 22 * s, 22 * s, 'transparent', `border:${Math.max(2, Math.round(3 * s))}px solid ${col};border-radius:50%`);
+			anim(r, [{ transform: 'scale(.4)', opacity: 1 }, { transform: `scale(${3.2 + i})`, opacity: 0 }], { duration: 360, delay: i * 70, easing: 'steps(6)' });
+		});
+		for (let i = 0; i < 12; i++) {
+			const a = (i / 12) * Math.PI * 2, d = rnd(30, 56) * s, sz = Math.max(2, Math.round(rnd(3, 5) * s / 2) * 2);
+			const el = px(layer, c.x, c.y, sz, sz, i % 3 ? color : '#ffffff');
+			anim(el, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d}px)`, opacity: 0 }], { duration: rnd(300, 420), easing: 'steps(6)' });
+		}
+	}, 260);
+}
+
 /** 울트라버스트: 사방의 빛이 몸으로 빨려 들어 빛덩이가 커지고 → 화면이 하얗게 터지며 빛줄기·무지개 고리·빛 조각이 퍼짐 (약 1.5초, 흐림 없이 steps) */
 export function ultraBurst(layer: HTMLElement, arena: HTMLElement, at: Pt, s: number) {
 	const c = { x: at.x, y: at.y - 16 * s };

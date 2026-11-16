@@ -194,6 +194,7 @@ function sfxRaw(name: string, type: string) {
 	case 'heal': [0, 7, 12, 19, 24].forEach((d, i) => tone(N(76 + d), 0.14, { type: 'sine', vol: 0.18, at: i * 0.06 })); break;
 	case 'status': tone(N(60), 0.35, { type: 'square', vol: 0.14, vib: 18 }); tone(N(55), 0.35, { type: 'square', vol: 0.1, vib: 12, at: 0.05 }); break;
 	case 'mega': tone(200, 0.9, { type: 'sawtooth', slide: 1600, vol: 0.12 }); [0, 4, 7, 12].forEach((d, i) => tone(N(72 + d), 0.4, { type: 'triangle', vol: 0.15, at: 0.8 + i * 0.03 })); break;
+	case 'formchange': tone(N(72), 0.12, { type: 'square', slide: N(84), vol: 0.1 }); [0, 7].forEach((d, i) => tone(N(84 + d), 0.1, { type: 'triangle', vol: 0.14, at: 0.24 + i * 0.06 })); break;
 	case 'tera': [0, 7, 12, 16, 19, 24].forEach((d, i) => tone(N(84 + d), 0.25, { type: 'sine', vol: 0.14, at: i * 0.05 })); noise(0.4, { type: 'highpass', freq: 6000, vol: 0.12 }); break;
 	case 'zmove': tone(80, 1, { type: 'sawtooth', slide: 900, vol: 0.14 }); noise(0.9, { freq: 400, sweep: 5000, vol: 0.18 }); break;
 	case 'dynamax': tone(60, 1.1, { type: 'square', slide: 30, vol: 0.2 }); tone(90, 1.1, { type: 'sawtooth', slide: 45, vol: 0.12 }); noise(1, { freq: 300, vol: 0.2 }); break;

@@ -690,6 +690,9 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .trainer-spr { transition-duration: calc(.45s / var(--spd)); }
 /* 메가진화 직전: 하얗게 빛남 */
 .slot.evolve .sprite { animation: evolveGlow .25s steps(2) infinite; }
+/* 배틀 중 모습 바꾸기: 하얀 실루엣으로 번쩍이는 사이에 그림이 바뀜 (흐림 없이 단계로) */
+.slot.morph .sprite { animation: morphFlash .56s steps(1) both; }
+@keyframes morphFlash { 0% { filter: none; } 12% { filter: brightness(1.8); } 24%, 62% { filter: brightness(0) invert(1); } 74% { filter: brightness(1.8); } 86%, 100% { filter: none; } }
 @keyframes evolveGlow { 50% { filter: brightness(3) saturate(0) drop-shadow(0 0 6px #fff); } }
 .battle-menu { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }
 .menu-btn { color: #fff; cursor: pointer; }
@@ -1310,7 +1313,7 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .slot.float { --fy: calc(var(--s) * 16px); }
 .slot.foe.float { --fy: calc(var(--s) * 13px); }
 .slot.float .sprite, .slot.float .sprite-fallback { bottom: var(--fy); }
-.slot.float:not(.enter):not(.leave):not(.faint):not(.hit):not(.evolve) .sprite { animation: floatBob 1.2s steps(2) infinite alternate; }
+.slot.float:not(.enter):not(.leave):not(.faint):not(.hit):not(.evolve):not(.morph) .sprite { animation: floatBob 1.2s steps(2) infinite alternate; }
 /* 움직이는 도트는 그림이 스스로 오르내리므로 따로 흔들지 않음 */
 .slot.float .sprite.anidot { animation-name: none !important; }
 @keyframes floatBob { to { bottom: calc(var(--fy) + var(--s) * 3px); } }

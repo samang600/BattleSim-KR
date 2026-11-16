@@ -771,7 +771,19 @@ function typeTint(type: string) {
 				setTimeout(() => { m.species = d.species; m.anim = 'enter'; rerender(); cry(toID(d.species)); setTimeout(() => { if (m.anim === 'enter') { m.anim = ''; rerender(); } }, 600 / FX.fxSpeed()); }, (ultra ? 760 : 750) / FX.fxSpeed());
 				return ultra ? 1900 : 1300;
 			}
-			if (cmd === 'detailschange') m.species = d.species; else m.transformed = d.species;
+			// 배틀 중 모습 바꾸기(킬가르도의 배틀스위치, 따라큐의 탈, 메로엣타, 레전드플레이트의 아르세우스 등)의 공통 연출:
+			// 하얗게 번쩍이는 사이에 그림을 바꾸고 그 포켓몬 타입 색의 빛이 퍼짐. 보이지 않거나 같은 그림이면 그냥 바꿈
+			const shown = m.transformed || m.species, swap = () => { if (cmd === 'detailschange') m.species = d.species; else m.transformed = d.species; };
+			const pt2 = slotPoint(args[1]);
+			if (!p.kw.silent && !m.fainted && !m.away && d.species !== shown && settings.effects !== false && pt2 && fxRef.current) {
+				const col = TYPE_COLOR[(speciesData(toID(d.species), 9) as any)?.t?.[0] || 'Normal'] || '#ffffff';
+				sfx('formchange'); FX.formChange(fxRef.current, pt2, col, scale);
+				m.anim = 'morph'; rerender();
+				setTimeout(() => { swap(); rerender(); }, 260 / FX.fxSpeed());
+				setTimeout(() => { if (m.anim === 'morph') { m.anim = ''; rerender(); } }, 560 / FX.fxSpeed());
+				return 640;
+			}
+			swap();
 			return 300;
 		}
 		case '-terastallize': {

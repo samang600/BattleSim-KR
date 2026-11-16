@@ -9860,6 +9860,11 @@ export const Moves: import('../sim/dex-moves').MoveDataTable = {
 			if (source.getItem().id === 'legendplate' && !source.ignoringItem() && source.baseSpecies.num === 493 && !source.transformed) {
 				if (source.m.legendType !== move.type) {
 					source.m.legendType = move.type;
+					// 모습도 그 타입의 아르세우스로 (배틀 중의 일시적인 모습 변화 — 교체하면 원래대로)
+					const forme = move.type === 'Normal' ? 'Arceus' : 'Arceus-' + move.type;
+					if (source.species.name !== forme && this.dex.species.get(forme).exists) {
+						source.formeChange(forme, this.dex.items.get('legendplate'), false);
+					}
 					this.add('-start', source, 'typechange', move.type, '[from] item: Legend Plate');
 				}
 			}

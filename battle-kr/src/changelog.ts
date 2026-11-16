@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.85.14', date: '2026-11-16', title: '모습이 바뀌는 연출', items: [
+		['new', '킬가르도·따라큐처럼 배틀 중에 모습이 바뀔 때 연출이 나와요. 레전드플레이트의 아르세우스는 심판의뭉치를 쓸 때 모습도 그 타입으로 바뀝니다.'],
+	] },
 	{ ver: '2.85.13', date: '2026-11-16', title: '계산기', items: [
 		['up', '배틀 계산기에서 메가진화 같은 배틀 중 모습을 바로 고를 수 있고, 포켓몬이 배우지 않는 기술로도 데미지를 계산할 수 있어요.'],
 	] },
