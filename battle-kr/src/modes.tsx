@@ -95,6 +95,8 @@ export function BgmRow() {
 export function battle(setup: BattleSetup): Promise<BattleResult> {
 	// 이름 정리: 닉네임이 없으면 종 이름 (예전 저장의 '워시로토무' 같은 기본 이름도 '로토무'로)
 	for (const sd of [setup.p1, setup.p2, (setup as any).partner]) for (const st of (sd?.team || []) as PSet[]) st.name = shownName(st);
+	// 상대(AI)의 포켓몬도 원작처럼 1/4096 확률로 색이 다른 포켓몬 (온라인 상대·리플레이는 그대로)
+	if (!(setup as any).online && !(setup as any).replay) for (const st of (setup.p2?.team || []) as PSet[]) if (!st.shiny && Math.random() < 1 / 4096) st.shiny = true;
 	return ask<BattleResult>(resolve => <BattleView key={Math.random()} setup={setup} onEnd={r => { if (r.quit) abortMode(); resolve(r); }} />);
 }
 /** 프런티어 심볼 획득 화면 */

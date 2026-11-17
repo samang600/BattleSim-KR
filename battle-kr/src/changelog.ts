@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.86.3', date: '2026-11-17', title: '색이 다른 상대', items: [
+		['new', '상대의 포켓몬도 아주 드물게(1/4096) 색이 다른 포켓몬으로 나와요.'],
+	] },
 	{ ver: '2.86.2', date: '2026-11-17', title: '색이 다른 포켓몬 표시', items: [
 		['up', '챔피언스 로스터에서 색이 다른 포켓몬은 칸 왼쪽 위의 작은 별로 표시해요 (아이콘은 다른 포켓몬과 같은 그림).'],
 	] },
