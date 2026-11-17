@@ -1314,6 +1314,11 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .slot.foe.float { --fy: calc(var(--s) * 13px); }
 .slot.float .sprite, .slot.float .sprite-fallback { bottom: var(--fy); }
 .slot.float:not(.enter):not(.leave):not(.faint):not(.hit):not(.evolve):not(.morph) .sprite { animation: floatBob 1.2s steps(2) infinite alternate; }
+/* 상태 이상이면 움직임이 느려지고(2배 느리게), 얼어붙으면 멈춤 */
+.slot.float[class*=" st-"]:not(.enter):not(.leave):not(.faint):not(.hit):not(.evolve):not(.morph) .sprite { animation-duration: 2.4s; }
+.slot.float.st-frz:not(.enter):not(.leave):not(.faint):not(.hit):not(.evolve):not(.morph) .sprite { animation-play-state: paused; }
+.slot.st-frz .sprite { filter: saturate(.6) brightness(1.15) hue-rotate(-12deg); }
+.fx-zzz { position: absolute; font-weight: bold; color: #ffffff; text-shadow: 1px 1px 0 #2a3a6a, -1px 0 0 #2a3a6a, 0 -1px 0 #2a3a6a; pointer-events: none; }
 /* 움직이는 도트는 그림이 스스로 오르내리므로 따로 흔들지 않음 */
 .slot.float .sprite.anidot { animation-name: none !important; }
 @keyframes floatBob { to { bottom: calc(var(--fy) + var(--s) * 3px); } }
@@ -1573,6 +1578,8 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 	.sp-mon .hpbar { width: 52px; }
 	.sp-mon.act { box-shadow: 0 0 0 2px #0a0f18, 0 0 0 4px var(--yellow); }
 	.sp-mon.fnt { filter: grayscale(1) brightness(.55); }
+	.sp-mon.dim { cursor: default; } .sp-mon.dim .poke-icon, .sp-mon.dim img { filter: grayscale(1) brightness(.5); } .sp-nohp { display: block; width: 52px; height: 6px; }
+	.mi-base { font-size: 11px; color: #b8c8e8; font-weight: normal; }
 	.sp-mon.unk { height: 52px; justify-content: center; cursor: default; }
 	.sp-mon:hover:not(.unk) { background: rgba(60, 80, 130, .8); }
 	/* 마우스 정보 상자 */
@@ -2507,6 +2514,8 @@ html { image-rendering: pixelated; }
 
 /* ═════ v2.56.1: 교체 칸 — 1줄 작은 도트 아이콘 + 이름, 2줄 HP 바(칸 폭 가득), 3줄 숫자 ═════ */
 .poke-icon { display: inline-block; flex: none; width: 40px; height: 30px; background: url(pokeicons.png) no-repeat; image-rendering: pixelated; }
+/* 색이 다른 포켓몬의 작은 아이콘: 묶음 그림 대신 색이 다른 도트 그림을 같은 칸에 */
+.poke-icon.shiny { background: none; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; } .poke-icon.shiny .crop { flex: none; } .poke-icon.shiny .sprite { width: auto !important; height: auto !important; object-fit: none; }
 .controls .switch-list .switch-btn { flex-direction: column; align-items: stretch; justify-content: center; }
 .controls .switch-list .switch-btn .sw-info { width: 100%; gap: 2px; }
 .sw-top { display: flex; align-items: center; gap: 2px; min-width: 0; margin: -6px 0 -4px -6px; }
@@ -2817,6 +2826,9 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 
 /* 잠재파워 타입 고르기 */
 .hp-types { margin: 4px 0 8px; } .hp-types .cp-opts.grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .hp-types .cp-opt { min-height: 32px; cursor: pointer; } .hp-types p { margin: 0 0 4px; }
+
+/* 스카우트: 이번 소개에서 이미 데려왔으면 나머지는 흐리게 */
+.cp-grid.picked .cp-card { filter: grayscale(.7) brightness(.75); }
 
 /* ═════ FX:BEGIN — scripts/gen-fx-css.py 가 만든 부분 (손으로 고치지 말 것) ═════ */
 /* HP 창 테마: 띠 + 도트 무늬 + 은은한 움직임 (::before, 글자 아래) */

@@ -74,7 +74,7 @@ function Card({ st, rec, set, mode }: any) {
 }
 
 function Achievements({ st: st0 }: any) {
-	const cats: AchCat[] = ['배틀', '기믹', '타입', '시설', '네임드', '랭크', '도전', '수집', ...(CHAMP_ON ? ['챔피언스' as AchCat] : [])];
+	const cats: AchCat[] = ['배틀', '기믹', '타입', '시설', '네임드', '랭크', '도전', '수집', ...(CHAMP_ON ? ['챔피언스' as AchCat] : []), '플래티넘', '숨김'];
 	const [cat, setCat] = useState<AchCat>('배틀');
 	const w = useWallet();   // 보상을 받으면 다시 그림
 	const st = loadStats();
@@ -87,15 +87,17 @@ function Achievements({ st: st0 }: any) {
 			<button class="btn small primary" onClick={() => { const n = claimAch(ACHIEVEMENTS.map(a => a.id)); if (n) sfx('select'); }}>모두 받기</button></div>}
 		<div class="seg wrap ach-cats">{cats.map(c => { const n = ACHIEVEMENTS.filter(a => a.cat === c); const d = n.filter(a => (st.ach[a.id] || 0) >= a.steps.length).length;
 			return <button class={(cat === c ? 'on' : '') + (catPending(c) ? ' has-claim' : '')} onClick={() => setCat(c)}>{c} <small>{d}/{n.length}</small></button>; })}</div>
+		{cat === '플래티넘' && <p class="muted small">이루기가 거의 불가능에 가까운 업적입니다. 하나하나가 플래티넘 등급입니다.</p>}
+		{cat === '숨김' && <p class="muted small">조건이 감춰진 업적입니다. 얻으면 이름과 조건이 드러납니다.</p>}
 		<div class="ach-list">{list.map(a => {
 			const v = a.value(st), l = achLevel(a, v), next = a.steps[Math.min(l, a.steps.length - 1)], done = l >= a.steps.length;
 			const p = achPending(a, st, w);
 			return <div class={'ach-row' + (l ? ' got' : '') + (p ? ' claim' : '')}>
 				<Medal tier={achTier(a, l)} size={28} />
 				<div class="ach-body">
-					<b>{a.name}{l > 0 && a.steps.length > 1 && <small class="ach-tier" style={{ color: TIER_COL[achTier(a, l)] }}> {TIER_NAME[achTier(a, l)]}</small>}</b>
-					<small>{achDesc(a, done ? a.steps.length - 1 : l)}</small>
-					<div class="ach-bar"><i style={{ width: Math.min(100, v / next * 100) + '%' }} /><span>{done ? (next >= 10 ? `완료 · ${v.toLocaleString()}` : '완료') : `${v > next ? next : v} / ${next}`}</span></div>
+					<b>{a.hidden && !l ? '？？？' : a.name}{l > 0 && (a.steps.length > 1 || a.plat) && <small class="ach-tier" style={{ color: TIER_COL[achTier(a, l)] }}> {TIER_NAME[achTier(a, l)]}</small>}</b>
+					<small>{a.hidden && !l ? '숨겨진 업적 — 배틀을 하다 보면 우연히 만나게 됩니다' : achDesc(a, done ? a.steps.length - 1 : l)}</small>
+					<div class="ach-bar"><i style={{ width: (a.hidden && !l ? 0 : Math.min(100, v / next * 100)) + '%' }} /><span>{done ? (next >= 10 ? `완료 · ${v.toLocaleString()}` : '완료') : a.hidden ? '？' : `${v > next ? next : v} / ${next}`}</span></div>
 				</div>
 				{p > 0 ? <button class="ach-claim" onClick={() => { if (claimAch([a.id])) sfx('select'); }}><span><BpCoin size={12} /><b>+{p}</b></span><small>받기</small></button>
 					: <span class="ach-pips">{a.steps.map((_, i) => <i class={i < l ? 'on' : ''} />)}</span>}

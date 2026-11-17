@@ -528,6 +528,16 @@ function typeTint(type: string) {
 		const { cmd, args, kw } = p;
 		try { showPopup(p); } catch { /* 표시용이라 무시 */ }
 		if (cmd === 'cant') comeBack(args[1]);   // 잠듦·마비 등으로 2턴째를 못 쓰면 모습이 돌아옴
+		// 상태 이상의 연출: 걸렸을 때, 그 때문에 데미지를 받거나 움직이지 못할 때 (독·화상·마비·잠듦·얼음·혼란·헤롱헤롱·소금절이)
+		if (settings.effects !== false && !kw.silent && fxRef.current) {
+			const from = toID((kw.from || '').replace(/^(move|ability|item): /, '')), eff = toID((args[2] || '').replace(/^(move|ability|item): /, ''));
+			const sk = cmd === '-status' ? args[2]
+				: cmd === '-damage' && from ? ({ psn: 'psn', tox: 'psn', brn: 'brn', saltcure: 'salt', confusion: 'confusion' } as any)[from]
+				: cmd === 'cant' ? ({ par: 'par', slp: 'slp', frz: 'frz', attract: 'attract' } as any)[eff]
+				: cmd === '-start' || cmd === '-activate' ? ({ confusion: 'confusion', attract: 'attract', saltcure: 'salt' } as any)[eff] : '';
+			const spt = sk && /^p[12][a-d]?: /.test(args[1] || '') ? slotPoint(args[1]) : null;
+			if (sk && spt) FX.statusFx(fxRef.current, spt, sk, scale);
+		}
 		switch (cmd) {
 		case 'switch': case 'drag': case 'replace': {
 			const ident = args[1];
@@ -551,6 +561,14 @@ function typeTint(type: string) {
 					prev.boosts = {}; prev.vol = new Set(); (prev as any).pre = undefined;
 				} else mon.tera = prevSnap.tera;
 				side.active[slot] = mon;
+				// 일루전이 풀리는 연출: 둔갑이 유리처럼 깨지며 진짜 모습이 드러남
+				const ipt = slotPoint(ident);
+				if (settings.effects !== false && ipt && fxRef.current && prev !== mon) {
+					sfx('formchange'); FX.illusionBreak(fxRef.current, ipt, scale);
+					mon.anim = 'morph'; rerender();
+					setTimeout(() => { if (mon.anim === 'morph') { mon.anim = ''; rerender(); } }, 560 / FX.fxSpeed());
+					return 620;
+				}
 				return 0;
 			}
 			const hp = parseHP(args[3]);
@@ -1441,6 +1459,82 @@ function typeTint(type: string) {
 		default: return base;
 		}
 	};
+	/** Z기술·다이맥스 기술의 정보: 변환된 기술의 위력·명중(필중)·효과 설명 (길게 누른 창과 마우스 정보 상자가 함께 씀). 해당 없으면 null */
+	const gmInfoOf = (m: any, i: number, fi: any): { kind: string; power: string; acc: string; desc: string; cat: string } | null => {
+		const md = fi.md;
+		// Z기술·다이맥스 기술: 변환된 기술의 위력(원래 기술 위력에서 계산)·명중(필중)·효과
+		const simBase = sessionRef.current?.battle.dex.moves.get(m.id);
+		const dmaxed = activeReq?.maxMoves && !activeReq?.canDynamax;
+		let gmInfo: { kind: string; power: string; acc: string; desc: string; cat: string } | null = null;
+		if (gimmick === 'zmove' && activeReq.canZMove?.[i]) {
+			const z = activeReq.canZMove[i];
+			const zd = moveData(toID(z.move), gen);
+			const zmv = simBase?.zMove || {};
+			const eff = zmv.boost ? `Z파워 효과: ${Object.entries(zmv.boost).map(([k, v]) => `${STAT_KO[k] || k} +${v}`).join(', ')}` :
+				zmv.effect ? `Z파워 효과: ${({ heal: 'HP 모두 회복', healreplacement: '교체해 나오는 포켓몬 HP 회복', clearnegativeboost: '내려간 능력 원래대로', redirect: '상대 기술을 자신에게', crit2: '급소율 2단계 상승', curse: '저주 중이면 HP 모두 회복' } as any)[zmv.effect] || zmv.effect}` : '';
+			const zId = toID(z.move);
+			// 전용 Z기술(바다의심포니 195 등)은 그 기술의 위력, 타입 Z기술은 원래 기술의 위력에서 정해진 값
+			const zSim: any = sessionRef.current?.battle.dex.moves.get(zId);
+			const own = zSim?.exists && zSim.isZ && zSim.isZ !== true && (zSim.basePower > 1 || zSim.damageCallback || zSim.category === 'Status');
+			const status = (own ? zSim.category : simBase?.category) === 'Status';
+			const dataDesc = zd?.desc && !/사용할 수 없는 기술/.test(zd.desc) ? zd.desc : '';
+			const zDesc = [dataDesc, Z_SIG_KO[zId] ? `효과: ${Z_SIG_KO[zId]}` : ''].filter(Boolean).join('\n') ||
+				(status ? `${md?.name}의 Z파워 버전. 원래 효과에 더해 Z파워 효과가 발동한다.` : `${md?.name}을(를) Z파워로 강화한 기술. 반드시 명중하고, 방어로 막혀도 1/4 데미지를 준다.`);
+			const zPow = own ? (zSim.basePower > 1 ? zSim.basePower : 0) : (zmv.basePower || 0);
+			gmInfo = { kind: own ? '전용 Z기술' : 'Z기술', power: status || !zPow ? '—' : String(zPow), acc: '필중',
+				desc: [zDesc, eff, md?.desc ? `원래 기술(${md.name}): ${md.desc}` : ''].filter(Boolean).join('\n'), cat: (own ? zSim.category : simBase?.category) || md?.category || 'Physical' };
+		} else if ((gimmick === 'dynamax' || dmaxed) && activeReq.maxMoves?.maxMoves?.[i]) {
+			const mx = activeReq.maxMoves.maxMoves[i];
+			const xd = moveData(toID(mx.move), gen);
+			const mxId = toID(mx.move), isGuard = mxId === 'maxguard';
+			// 위력이 정해진 거다이맥스 기술(거다이난타·화염구·저격 160)은 그 값, 나머지는 원래 기술의 위력에서 정해진 값
+			const mxSim: any = sessionRef.current?.battle.dex.moves.get(mxId);
+			const fixed = mxSim?.exists && mxSim.basePower > 10 ? mxSim.basePower : 0;
+			const gm = mxId.startsWith('gmax');
+			gmInfo = { kind: gm ? '거다이맥스 기술' : '다이맥스 기술', power: isGuard ? '—' : String(fixed || simBase?.maxMove?.basePower || xd?.basePower || '—'), acc: '필중',
+				desc: [GMAX_KO[mxId] ? `거다이맥스한 포켓몬이 날리는 ${typeKo(fi.type)}타입의 공격. ${GMAX_KO[mxId]}` : xd?.desc, md?.desc && !isGuard ? `원래 기술(${md.name}): ${md.desc}` : ''].filter(Boolean).join('\n'), cat: isGuard ? 'Status' : (simBase?.category || md?.category || 'Physical') };
+		}
+		return gmInfo;
+	};
+	/** 지금 상황에서의 실제 위력: 배틀을 복제해 고른 기믹을 적용하고, 기술의 위력 계산(웨더볼·객기·병상첨병·자이로볼처럼 상황에 따라 바뀌는 것)과
+	 *  위력 보정(테크니션·타입 강화 도구·필드 등)을 엔진 그대로 거친 값. 변화기이거나 못 구하면 0 */
+	const movePower = (moveId: string, moveIdx: number): number => {
+		const b = sessionRef.current?.battle; if (!b) return 0;
+		const key = `${b.turn}|${b.p1.activeRequest?.rqid ?? ''}|${slotIdx}|${gimmick}`;
+		const cache = dmgCacheRef.current;
+		if (cache.key !== key) { cache.key = key; cache.res = new Map(); try { cache.ser = State.serializeBattle(b); } catch { cache.ser = null; } }
+		const k2 = `bp|${moveId}|${moveIdx}`;
+		if (cache.res.has(k2)) return +cache.res.get(k2)! || 0;
+		if (!cache.ser) return 0;
+		let out = 0;
+		try {
+			const c: any = State.deserializeBattle(cache.ser);
+			c.send = () => {}; c.add = () => {}; c.hint = () => {};
+			const cu = c.p1.active[slotIdx], ct = c.p2.active.find((x: any) => x && !x.fainted);
+			if (cu && ct) {
+				if (gimmick === 'megax' && cu.canMegaEvoX) cu.canMegaEvo = cu.canMegaEvoX;
+				if (gimmick === 'megay' && cu.canMegaEvoY) cu.canMegaEvo = cu.canMegaEvoY;
+				if (['mega', 'megax', 'megay', 'ultra'].includes(gimmick) && (cu.canMegaEvo || cu.canUltraBurst)) c.actions.runMegaEvo(cu);
+				if (gimmick === 'terastallize' && cu.canTerastallize) c.actions.terastallize(cu);
+				if (gimmick === 'dynamax' && !cu.volatiles['dynamax']) cu.addVolatile('dynamax');
+				let am: any = c.dex.getActiveMove(moveId);
+				if (cu.volatiles['dynamax']) am = c.actions.getActiveMaxMove(am, cu);
+				else if (gimmick === 'zmove' && activeReq?.canZMove?.[moveIdx]) am = c.actions.getActiveZMove(am, cu) || am;
+				c.activeMove = am; c.activePokemon = cu; c.activeTarget = ct;
+				c.singleEvent('ModifyType', am, null, cu, ct, am, am);
+				c.singleEvent('ModifyMove', am, null, cu, ct, am, am);
+				am = c.runEvent('ModifyType', cu, ct, am, am) || am;
+				am = c.runEvent('ModifyMove', cu, ct, am, am) || am;
+				if (am.category !== 'Status' && !am.damage && !am.damageCallback && !am.ohko) {
+					let bp = am.basePower;
+					if (am.basePowerCallback) bp = am.basePowerCallback.call(c, cu, ct, am);
+					if (bp) out = Math.max(1, Math.floor(c.runEvent('BasePower', cu, ct, am, bp, true) || 0));
+				}
+			}
+		} catch { out = 0; }
+		cache.res.set(k2, String(out));
+		return out;
+	};
 	const renderMoves = () => {
 		if (!activeReq) return null;
 		return <div class="move-panel">
@@ -1455,10 +1549,11 @@ function typeTint(type: string) {
 						onPointerDown={() => { pressRef.current.long = false; clearTimeout(pressRef.current.t); pressRef.current.t = setTimeout(() => { pressRef.current.long = true; setInfoMove(i); }, 450); }}
 						onPointerUp={() => clearTimeout(pressRef.current.t)} onPointerLeave={() => clearTimeout(pressRef.current.t)}
 						onContextMenu={e => e.preventDefault()}
-						{...hov(() => md ? <div><b>{name}</b> <span class="tip-types"><TypeBadge type={type} small /><CatIcon cat={md.category} /></span>
-							<div>위력 <b>{md.basePower || '-'}</b> · 명중 <b>{md.accuracy || '필중'}</b>{md.priority ? ` · 우선도 ${md.priority > 0 ? '+' : ''}${md.priority}` : ''}{md.contact ? ' · 접촉' : ''}</div>
-							{eff && <div>{eff}</div>}
-							<div class="muted">{md.desc}</div></div> : null)}
+						{...hov(() => { if (!md) return null; const g = gmInfoOf(m, i, { md, type, name, eff }), pw = movePower(m.id, i);
+							return <div><b>{name}</b> <span class="tip-types"><TypeBadge type={type} small /><CatIcon cat={g ? g.cat : md.category} />{g && <span class="tag">{g.kind}</span>}</span>
+								<div>위력 <b>{md.category === 'Status' && !g ? '-' : pw || (g ? g.power : md.basePower) || '-'}</b>{!g && pw > 0 && md.basePower && pw !== md.basePower ? ` (기본 ${md.basePower})` : ''} · 명중 <b>{g ? g.acc : md.accuracy || '필중'}</b>{md.priority && !g ? ` · 우선도 ${md.priority > 0 ? '+' : ''}${md.priority}` : ''}{md.contact ? ' · 접촉' : ''}</div>
+								{eff && <div>{eff}</div>}
+								<div class={'muted' + (g ? ' pre' : '')}>{g ? g.desc : md.desc}</div></div>; })}
 						onClick={() => { if (pressRef.current.long) { pressRef.current.long = false; return; } if (disabled) { setInfoMove(i); return; } onMove(i + 1, m); }}>
 						<span class="mvb-top"><TypeBadge type={type} small />{md && <CatIcon cat={md.category} />}
 							<span class={'mvb-pp' + (low ? ' low' : '')}>{m.maxpp ? <><i class="pp-l">PP </i><b>{m.pp}</b>/{m.maxpp}</> : ''}</span></span>
@@ -1475,42 +1570,11 @@ function typeTint(type: string) {
 				const m = activeReq.moves[infoMove];
 				const fi = moveInfo(m, infoMove);
 				const md = fi.md;
-				// Z기술·다이맥스 기술: 변환된 기술의 위력(원래 기술 위력에서 계산)·명중(필중)·효과
-				const simBase = sessionRef.current?.battle.dex.moves.get(m.id);
-				const dmaxed = activeReq?.maxMoves && !activeReq?.canDynamax;
-				let gmInfo: { kind: string; power: string; acc: string; desc: string; cat: string } | null = null;
-				if (gimmick === 'zmove' && activeReq.canZMove?.[infoMove]) {
-					const z = activeReq.canZMove[infoMove];
-					const zd = moveData(toID(z.move), gen);
-					const zmv = simBase?.zMove || {};
-					const eff = zmv.boost ? `Z파워 효과: ${Object.entries(zmv.boost).map(([k, v]) => `${STAT_KO[k] || k} +${v}`).join(', ')}` :
-						zmv.effect ? `Z파워 효과: ${({ heal: 'HP 모두 회복', healreplacement: '교체해 나오는 포켓몬 HP 회복', clearnegativeboost: '내려간 능력 원래대로', redirect: '상대 기술을 자신에게', crit2: '급소율 2단계 상승', curse: '저주 중이면 HP 모두 회복' } as any)[zmv.effect] || zmv.effect}` : '';
-					const zId = toID(z.move);
-					// 전용 Z기술(바다의심포니 195 등)은 그 기술의 위력, 타입 Z기술은 원래 기술의 위력에서 정해진 값
-					const zSim: any = sessionRef.current?.battle.dex.moves.get(zId);
-					const own = zSim?.exists && zSim.isZ && zSim.isZ !== true && (zSim.basePower > 1 || zSim.damageCallback || zSim.category === 'Status');
-					const status = (own ? zSim.category : simBase?.category) === 'Status';
-					const dataDesc = zd?.desc && !/사용할 수 없는 기술/.test(zd.desc) ? zd.desc : '';
-					const zDesc = [dataDesc, Z_SIG_KO[zId] ? `효과: ${Z_SIG_KO[zId]}` : ''].filter(Boolean).join('\n') ||
-						(status ? `${md?.name}의 Z파워 버전. 원래 효과에 더해 Z파워 효과가 발동한다.` : `${md?.name}을(를) Z파워로 강화한 기술. 반드시 명중하고, 방어로 막혀도 1/4 데미지를 준다.`);
-					const zPow = own ? (zSim.basePower > 1 ? zSim.basePower : 0) : (zmv.basePower || 0);
-					gmInfo = { kind: own ? '전용 Z기술' : 'Z기술', power: status || !zPow ? '—' : String(zPow), acc: '필중',
-						desc: [zDesc, eff, md?.desc ? `원래 기술(${md.name}): ${md.desc}` : ''].filter(Boolean).join('\n'), cat: (own ? zSim.category : simBase?.category) || md?.category || 'Physical' };
-				} else if ((gimmick === 'dynamax' || dmaxed) && activeReq.maxMoves?.maxMoves?.[infoMove]) {
-					const mx = activeReq.maxMoves.maxMoves[infoMove];
-					const xd = moveData(toID(mx.move), gen);
-					const mxId = toID(mx.move), isGuard = mxId === 'maxguard';
-					// 위력이 정해진 거다이맥스 기술(거다이난타·화염구·저격 160)은 그 값, 나머지는 원래 기술의 위력에서 정해진 값
-					const mxSim: any = sessionRef.current?.battle.dex.moves.get(mxId);
-					const fixed = mxSim?.exists && mxSim.basePower > 10 ? mxSim.basePower : 0;
-					const gm = mxId.startsWith('gmax');
-					gmInfo = { kind: gm ? '거다이맥스 기술' : '다이맥스 기술', power: isGuard ? '—' : String(fixed || simBase?.maxMove?.basePower || xd?.basePower || '—'), acc: '필중',
-						desc: [GMAX_KO[mxId] ? `거다이맥스한 포켓몬이 날리는 ${typeKo(fi.type)}타입의 공격. ${GMAX_KO[mxId]}` : xd?.desc, md?.desc && !isGuard ? `원래 기술(${md.name}): ${md.desc}` : ''].filter(Boolean).join('\n'), cat: isGuard ? 'Status' : (simBase?.category || md?.category || 'Physical') };
-				}
+				const gmInfo = gmInfoOf(m, infoMove, fi), pw = movePower(m.id, infoMove);
 				return <Modal title={fi.name} onClose={() => setInfoMove(null)}>
 					<div class="mi-head"><TypeBadge type={fi.type} />{(gmInfo || md) && <CatIcon cat={gmInfo ? gmInfo.cat : md!.category} />}{gmInfo && <span class="tag">{gmInfo.kind}</span>}</div>
 					<div class="mi-table">
-						<div><span>위력</span><b>{gmInfo ? gmInfo.power : md?.category === 'Status' ? '—' : md?.basePower || '—'}</b></div>
+						<div><span>위력</span><b>{md?.category === 'Status' && !gmInfo ? '—' : pw ? pw : gmInfo ? gmInfo.power : md?.basePower || '—'}{!gmInfo && pw > 0 && md?.basePower && pw !== md.basePower ? <small class="mi-base"> (기본 {md.basePower})</small> : null}</b></div>
 						<div><span>명중</span><b>{gmInfo ? gmInfo.acc : md?.accuracy || '—'}</b></div>
 						<div><span>PP</span><b>{m.maxpp ? `${m.pp}/${m.maxpp}` : '—'}</b></div>
 						<div><span>우선도</span><b>{md?.priority ? (md.priority > 0 ? '+' : '') + md.priority : '0'}</b></div>
@@ -1630,7 +1694,7 @@ function typeTint(type: string) {
 				return <button key={i} class={'switch-btn' + (isActive ? ' active' : '') + (disabled ? ' off' : '')}
 					{...hov(() => ownTip(i))} onClick={() => setSheet({ idx: i, canSwitch: !disabled })}>
 					<span class="sw-info">
-						<span class="sw-top"><PokeIcon species={species} /><b>{nick}</b></span>
+						<span class="sw-top"><PokeIcon species={species} shiny={/, shiny/.test(p.details)} /><b>{nick}</b></span>
 						<HPBar hp={hp.hp} maxhp={hp.maxhp || 1} />
 						<small>{fainted ? '기절' : `${hp.hp}/${hp.maxhp}`} {hp.status && hp.status !== 'fnt' && <StatusBadge status={hp.status} />}{isActive && !fainted && ' · 배틀 중'}{theirs && ` · ${setup.partner!.name}의 포켓몬`}</small>
 					</span>
@@ -1767,10 +1831,11 @@ function typeTint(type: string) {
 		const pos = (own ? 'own' : 'foe') + ' s' + i;
 		if (!mon || (mon.fainted && !mon.anim) || mon.hidden) return <div class={'slot ' + pos} key={i} />;
 		const fl = !mon.vol.has('substitute') && floats(toID(mon.transformed || mon.species));
-		return <div class={'slot ' + pos + ' ' + (mon.anim || '') + (mon.away ? ' away' : '') + (mon.vol.has('dynamax') ? ' dmax' : '') + (mon.tera ? ' tera' : '') + (fl ? ' float' : '')} key={i}
+		return <div class={'slot ' + pos + ' ' + (mon.anim || '') + (mon.away ? ' away' : '') + (mon.vol.has('dynamax') ? ' dmax' : '') + (mon.tera ? ' tera' : '') + (fl ? ' float' : '') + (mon.status ? ' st-' + mon.status : '')} key={i}
 			style={mon.tera ? { '--tera': TYPE_COLOR[mon.tera] } as any : undefined} onClick={() => setDetail({ mon, own })}>
 			{mon.vol.has('substitute') ? <Sprite species="substitute" back={own} gen={gen} size={400} cls={own ? 'back' : 'front'} /> :
-				<Sprite species={mon.transformed || mon.species} back={own} shiny={mon.shiny} gen={gen} size={400} cls={own ? 'back' : 'front'} tera={mon.tera || undefined} />}
+				<Sprite species={mon.transformed || mon.species} back={own} shiny={mon.shiny} gen={gen} size={400} cls={own ? 'back' : 'front'} tera={mon.tera || undefined}
+					rate={mon.status === 'frz' ? 0 : mon.status ? 0.5 : 1} />}
 		</div>;
 	};
 
@@ -1834,6 +1899,20 @@ function typeTint(type: string) {
 	}
 	const nickOf = (set: PSet) => set.name || speciesKo(set.species);
 	/** 필드 양옆: 트레이너 그림·이름과 파티 현황 (쇼다운처럼) — 넓은 화면에서만 */
+	/** 상대의 엔트리(선출 전 6마리)와 지금까지 배틀에 나온 포켓몬을 짝지음: hit[i] 가 있으면 그 포켓몬이 나온 것.
+	 *  엔트리 정보가 없으면 null. 실제로 몇 마리·누가 선출됐는지는 나오기 전까지 알 수 없음 */
+	const foePreview = (): { pv: PSet[]; hit: (Mon | undefined)[] } | null => {
+		const sp2 = scene.p2, pv = setup.p2.preview;
+		if (!pv || pv.length < sp2.teamSize) return null;
+		const baseOf = (x: string) => { const d = speciesData(toID(x), gen) as any; return toID(d?.base || x); };
+		const hit: (Mon | undefined)[] = pv.map(() => undefined);
+		for (const exact of [true, false]) for (const m of sp2.team) {
+			if (hit.includes(m)) continue;
+			const k = pv.findIndex((x, i) => !hit[i] && (exact ? toID(x.species) === toID(m.species) : baseOf(x.species) === baseOf(m.species)));
+			if (k >= 0) hit[k] = m;
+		}
+		return { pv, hit };
+	};
 	const sidePanel = (own: boolean) => {
 		const sd = own ? scene.p1 : scene.p2;
 		const sprite = own ? setup.p1.sprite : setup.p2.sprite;
@@ -1846,17 +1925,21 @@ function typeTint(type: string) {
 				if (!d) return;
 				const fnt = d.live.hp <= 0;
 				cells.push(<div class={'sp-mon' + (fnt ? ' fnt' : '') + (pm.isActive ? ' act' : '')} {...hov(() => ownTip(i))} onClick={() => setSheet({ idx: i, canSwitch: false })}>
-					<PokeIcon species={d.set.species} cls="sp-pic" />
+					<PokeIcon species={d.set.species} cls="sp-pic" shiny={d.set.shiny} />
 					<HPBar hp={d.live.hp} maxhp={d.live.maxhp || 1} />
 				</div>);
 			});
 		} else {
-			for (let i = 0; i < sd.teamSize; i++) {
+			const fcell = (m: Mon) => <div class={'sp-mon' + (m.fainted ? ' fnt' : '') + (sd.active.includes(m) ? ' act' : '')} {...hov(() => foeTip(m))} onClick={() => setDetail({ mon: m, own: false })}>
+				<PokeIcon species={m.species} cls="sp-pic" shiny={m.shiny} />
+				<HPBar hp={m.fainted ? 0 : m.hp} maxhp={m.maxhp || 1} />
+			</div>;
+			// 엔트리(6마리)를 알면 모두 보여 주되, 아직 안 나온 포켓몬은 어둡게 (누가 선출됐는지는 알 수 없음)
+			const fp = foePreview();
+			if (fp) fp.pv.forEach((x, i) => cells.push(fp.hit[i] ? fcell(fp.hit[i]!) : <div class="sp-mon dim" {...hov(() => <div><b>{speciesKo(x.species)}</b><div class="muted">아직 나오지 않음 — 선출됐는지는 알 수 없어요</div></div>)}><PokeIcon species={x.species} cls="sp-pic" /><i class="sp-nohp" /></div>));
+			else for (let i = 0; i < sd.teamSize; i++) {
 				const m = sd.team[i];
-				cells.push(m ? <div class={'sp-mon' + (m.fainted ? ' fnt' : '') + (sd.active.includes(m) ? ' act' : '')} {...hov(() => foeTip(m))} onClick={() => setDetail({ mon: m, own: false })}>
-					<PokeIcon species={m.species} cls="sp-pic" />
-					<HPBar hp={m.fainted ? 0 : m.hp} maxhp={m.maxhp || 1} />
-				</div> : <div class="sp-mon unk"><span class="ball unk" /></div>);
+				cells.push(m ? fcell(m) : <div class="sp-mon unk"><span class="ball unk" /></div>);
 			}
 		}
 		return <div class={'side-info ' + (own ? 'own' : 'foe')}>
@@ -1971,19 +2054,13 @@ function typeTint(type: string) {
 				// 3마리씩 2줄: 아이콘 + HP 만. 배틀에 나온 포켓몬만 밝게(누르면 자세히), 확인 안 된 포켓몬은 어둡게
 				const sp2 = scene.p2, pv = setup.p2.preview;
 				const cell = (m: Mon) => <button class={'foe-cell' + (m.fainted ? ' fnt' : '') + (sp2.active.includes(m) ? ' act' : '')} onClick={() => setDetail({ mon: m, own: false })} aria-label={m.nick}>
-					<PokeIcon species={m.species} cls="foe-pic" />
+					<PokeIcon species={m.species} cls="foe-pic" shiny={m.shiny} />
 					<HPBar hp={m.fainted ? 0 : m.hp} maxhp={m.maxhp || 1} />
 				</button>;
 				if (!pv || pv.length < sp2.teamSize) return <div class="foe-grid">
 					{Array.from({ length: sp2.teamSize }, (_, i) => sp2.team[i] ? cell(sp2.team[i]) : <div class="foe-cell dim"><span class="ball unk" /><i class="foe-nohp" /></div>)}
 				</div>;
-				const baseOf = (x: string) => { const d = speciesData(toID(x), gen) as any; return toID(d?.base || x); };
-				const hit: (Mon | undefined)[] = pv.map(() => undefined);
-				for (const exact of [true, false]) for (const m of sp2.team) {
-					if (hit.includes(m)) continue;
-					const k = pv.findIndex((x, i) => !hit[i] && (exact ? toID(x.species) === toID(m.species) : baseOf(x.species) === baseOf(m.species)));
-					if (k >= 0) hit[k] = m;
-				}
+				const hit = foePreview()!.hit;
 				return <div class="foe-grid">{pv.map((x, i) => hit[i] ? cell(hit[i]!) : <div class="foe-cell dim" aria-label={speciesKo(x.species)}><PokeIcon species={x.species} cls="foe-pic" /><i class="foe-nohp" /></div>)}</div>;
 			})()}
 		</Modal>}

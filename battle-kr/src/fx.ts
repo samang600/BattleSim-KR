@@ -317,6 +317,96 @@ export function pillar(layer: HTMLElement, at: Pt, color: string, s: number) {
 	sparkle(layer, at, 'Normal', s);
 }
 
+/** 상태 이상의 연출 (원작처럼 포켓몬 몸 위·둘레에 짧게): 독 = 보랏빛 방울이 솟음, 화상 = 작은 불꽃이 일렁임, 마비 = 노란 전기가 지직거림,
+ *  잠듦 = Z 가 떠오름, 얼음 = 얼음 조각이 몸을 덮음, 혼란 = 머리 위를 도는 별, 헤롱헤롱 = 떠오르는 하트, 소금절이 = 쏟아지는 소금 알갱이 */
+const HEART = 'clip-path:polygon(50% 100%,0 45%,0 20%,20% 0,40% 0,50% 15%,60% 0,80% 0,100% 20%,100% 45%)';
+const STAR4 = 'clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%)';
+export function statusFx(layer: HTMLElement, at: Pt, kind: string, s: number) {
+	const c = { x: at.x, y: at.y - 16 * s }, u = (n: number) => Math.max(2, Math.round(n * s / 2) * 2);
+	switch (kind) {
+	case 'psn': case 'tox':
+		for (let i = 0; i < 9; i++) {
+			const sz = u(rnd(4, 8)), el = px(layer, c.x + rnd(-22, 22) * s, c.y + rnd(0, 22) * s, sz, sz, i % 3 ? '#b050d8' : '#e0a0ff', 'border-radius:50%;box-shadow:inset -2px -2px 0 #70208a');
+			anim(el, [{ transform: 'translateY(0) scale(.4)', opacity: 0 }, { opacity: 1, offset: 0.25 }, { transform: `translateY(${-rnd(26, 44) * s}px) scale(1)`, opacity: 1, offset: 0.8 }, { transform: `translateY(${-48 * s}px) scale(1.4)`, opacity: 0 }], { duration: rnd(520, 700), delay: i * 45, easing: 'steps(8)' });
+		}
+		break;
+	case 'brn':
+		for (let i = 0; i < 8; i++) {
+			const w = u(rnd(6, 9)), el = px(layer, c.x + rnd(-22, 22) * s, c.y + rnd(4, 24) * s, w, w * 1.6, 'linear-gradient(0deg,#ffe060 0 30%,#ff9020 30% 65%,#e03010 65%)', 'clip-path:polygon(50% 0,85% 45%,100% 75%,75% 100%,25% 100%,0 75%,15% 45%)');
+			anim(el, [{ transform: 'translateY(0) scale(.5)', opacity: 0 }, { transform: `translateY(${-10 * s}px) scale(1.1)`, opacity: 1, offset: 0.3 }, { transform: `translateY(${-18 * s}px) scale(.9)`, opacity: 1, offset: 0.7 }, { transform: `translateY(${-30 * s}px) scale(.4)`, opacity: 0 }], { duration: rnd(480, 640), delay: i * 50, easing: 'steps(7)' });
+		}
+		break;
+	case 'par':
+		for (let i = 0; i < 6; i++) {
+			const el = px(layer, c.x + rnd(-24, 24) * s, c.y + rnd(-18, 18) * s, u(14), u(8), '#ffe040', 'clip-path:polygon(0 40%,35% 40%,25% 0,60% 55%,45% 55%,100% 100%,40% 70%,55% 70%)');
+			el.style.rotate = `${rnd(-50, 50)}deg`;
+			anim(el, [{ opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 0, offset: 0.3 }, { opacity: 1, offset: 0.45 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }], { duration: 420, delay: i * 70, easing: 'steps(1)' });
+		}
+		break;
+	case 'slp':
+		for (let i = 0; i < 3; i++) {
+			const el = document.createElement('div'); el.className = 'fxp fx-zzz'; el.textContent = 'Z';
+			el.style.cssText = `left:${c.x + (6 + i * 8) * s}px;top:${c.y - (20 + i * 4) * s}px;font-size:${(10 + i * 4) * s}px;line-height:1;`;
+			layer.appendChild(el);
+			anim(el, [{ transform: 'translate(0,0)', opacity: 0 }, { opacity: 1, offset: 0.2 }, { transform: `translate(${14 * s}px,${-26 * s}px)`, opacity: 1, offset: 0.8 }, { transform: `translate(${18 * s}px,${-34 * s}px)`, opacity: 0 }], { duration: 900, delay: i * 260, easing: 'steps(9)' });
+		}
+		break;
+	case 'frz': {
+		for (let i = 0; i < 7; i++) {
+			const w = u(rnd(10, 18)), el = px(layer, c.x + rnd(-20, 20) * s, c.y + rnd(-18, 20) * s, w, w * 1.3, 'linear-gradient(135deg,#ffffff 0 30%,#a8e8ff 30% 65%,#58b8e8 65%)', 'clip-path:polygon(50% 0,100% 30%,85% 100%,15% 100%,0 30%)');
+			anim(el, [{ transform: 'scale(.2)', opacity: 0 }, { transform: 'scale(1.1)', opacity: .95, offset: 0.3 }, { transform: 'scale(1)', opacity: .95, offset: 0.75 }, { transform: 'scale(1)', opacity: 0 }], { duration: 700, delay: i * 35, easing: 'steps(7)' });
+		}
+		break;
+	}
+	case 'confusion': {
+		// 머리 위에서 도는 별 (타원 궤도)
+		const top = { x: c.x, y: c.y - 30 * s };
+		for (let i = 0; i < 4; i++) {
+			const el = px(layer, top.x, top.y, u(9), u(9), i % 2 ? '#ffe040' : '#ffffff', STAR4 + ';filter:drop-shadow(1px 1px 0 rgba(10,12,28,.6))');
+			const fr: Keyframe[] = [];
+			for (let k = 0; k <= 12; k++) { const a = (k / 12) * Math.PI * 2 * 2 + (i / 4) * Math.PI * 2; fr.push({ transform: `translate(${Math.cos(a) * 20 * s}px,${Math.sin(a) * 7 * s}px)`, opacity: k === 0 || k === 12 ? 0 : 1 }); }
+			anim(el, fr, { duration: 1000, easing: 'linear' });
+		}
+		break;
+	}
+	case 'attract':
+		for (let i = 0; i < 6; i++) {
+			const sz = u(rnd(8, 12)), el = px(layer, c.x + rnd(-22, 22) * s, c.y + rnd(-6, 16) * s, sz, sz, i % 2 ? '#ff6aa8' : '#ffb0d0', HEART + ';filter:drop-shadow(1px 1px 0 rgba(90,10,50,.7))');
+			anim(el, [{ transform: 'translateY(0) scale(.3)', opacity: 0 }, { transform: `translateY(${-10 * s}px) scale(1.2)`, opacity: 1, offset: 0.3 }, { transform: `translateY(${-30 * s}px) scale(1)`, opacity: 1, offset: 0.8 }, { transform: `translateY(${-40 * s}px) scale(1)`, opacity: 0 }], { duration: rnd(700, 900), delay: i * 80, easing: 'steps(9)' });
+		}
+		break;
+	case 'salt':
+		for (let i = 0; i < 14; i++) {
+			const sz = u(rnd(3, 5)), el = px(layer, c.x + rnd(-24, 24) * s, c.y - rnd(36, 50) * s, sz, sz, i % 3 ? '#ffffff' : '#d8e0e8', 'box-shadow:1px 1px 0 #8a96a8');
+			anim(el, [{ transform: 'translateY(0)', opacity: 0 }, { opacity: 1, offset: 0.15 }, { transform: `translateY(${rnd(44, 62) * s}px)`, opacity: 1, offset: 0.85 }, { transform: `translateY(${64 * s}px)`, opacity: 0 }], { duration: rnd(420, 560), delay: i * 28, easing: 'steps(8)' });
+		}
+		break;
+	}
+}
+
+/** 일루전이 풀림: 둔갑이 유리처럼 금이 가며 조각나 흩어지고 보랏빛 잔상이 남음 (약 0.6초) */
+export function illusionBreak(layer: HTMLElement, at: Pt, s: number) {
+	const c = { x: at.x, y: at.y - 16 * s };
+	const COL = ['#c8a8ff', '#ff9ad8', '#ffffff', '#7a5ab8'];
+	// 금: 가운데에서 뻗는 가는 선
+	for (let i = 0; i < 6; i++) {
+		const deg = i * 60 + 15, L = (26 + (i % 2) * 12) * s;
+		const el = px(layer, c.x, c.y - L / 2, Math.max(2, Math.round(s)), L, '#ffffff', 'transform-origin:50% 100%');
+		anim(el, [{ transform: `rotate(${deg}deg) scaleY(.1)`, opacity: 1 }, { transform: `rotate(${deg}deg) scaleY(1)`, opacity: 1, offset: 0.5 }, { transform: `rotate(${deg}deg) scaleY(1)`, opacity: 0 }], { duration: 260, easing: 'steps(5)' });
+	}
+	// 조각: 세모·마름모가 사방으로 흩어지며 떨어짐
+	later(() => {
+		if (!layer.isConnected) return;
+		for (let i = 0; i < 16; i++) {
+			const a = (i / 16) * Math.PI * 2 + rnd(-0.2, 0.2), d = rnd(28, 60) * s, sz = Math.max(4, Math.round(rnd(5, 9) * s / 2) * 2);
+			const el = px(layer, c.x + rnd(-10, 10) * s, c.y + rnd(-14, 14) * s, sz, sz, COL[i % COL.length], i % 2 ? 'clip-path:polygon(50% 0,100% 100%,0 100%)' : 'clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)');
+			anim(el, [{ transform: 'translate(0,0) rotate(0deg)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d * 0.7 + 22 * s}px) rotate(${rnd(-160, 160)}deg)`, opacity: 0 }], { duration: rnd(380, 520), easing: 'steps(7)' });
+		}
+		const ring = px(layer, c.x, c.y, 26 * s, 26 * s, 'transparent', `border:${Math.max(2, Math.round(3 * s))}px solid #c8a8ff;border-radius:50%`);
+		anim(ring, [{ transform: 'scale(.4)', opacity: 1 }, { transform: 'scale(3)', opacity: 0 }], { duration: 340, easing: 'steps(6)' });
+	}, 200);
+}
+
 /** 배틀 중 모습 바꾸기(킬가르도·따라큐·메로엣타·아르세우스 등)의 공통 연출: 빛 조각이 몸으로 모였다가 그 타입 색의 고리와 함께 퍼짐 (약 0.6초).
  *  포켓몬 그림은 CSS 의 .slot.morph 가 하얀 실루엣으로 번쩍이게 하고, 그 사이에 그림을 바꿈 */
 export function formChange(layer: HTMLElement, at: Pt, color: string, s: number) {

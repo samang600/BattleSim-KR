@@ -70,6 +70,8 @@ export function analyze(setup: any, battle: any, win: boolean): BattleFacts & { 
 	let lastMover = '', turn = 0, faintTurn = -1, faintsThisTurn = 0, dko = false, comeback = false;
 	let myAlive = battle.p1?.pokemon?.length || 0, oppAlive = battle.p2?.pokemon?.length || 0;
 	let crits = 0, se = 0, ohko = 0, endure = 0;
+	// 숨겨진 업적용: 내 빗나감·맞은 급소·풀죽음 횟수, 발버둥으로 쓰러뜨림, 튀어오르기, 혼란 자해로 쓰러짐, 스스로 녹음, 잉어킹에게 쓰러짐, 색이 다른 상대, 마지막끼리 함께 쓰러짐
+	let hMiss = 0, hCritTaken = 0, hFlinch = 0, hStruggle = false, hSplash = false, hSelfKo = false, hThaw = false, hKarp = false, hShinyFoe = false, hDouble = false, lastMove = '', selfHit = '';
 	for (let i = 0; i < log.length; i++) {
 		let line = log[i];
 		if (line.startsWith('|split|')) { i++; line = log[i + 1] ?? ''; i++; }   // 비공개 줄은 건너뛰고 공개 줄만
@@ -81,11 +83,16 @@ export function analyze(setup: any, battle: any, win: boolean): BattleFacts & { 
 			if (!who[id]) who[id] = sp;
 			if (id.startsWith('p2')) oppSeen.add(who[id]);
 			const m = /(\d+)\/(\d+)/.exec(p[4] || ''); if (m) hp[id] = +m[1] / +m[2];
+			if (id.startsWith('p2') && /, shiny/.test(p[3] || '')) hShinyFoe = true;
 			continue;
 		}
-		if (cmd === 'move') { lastMover = nameOf(p[2]); continue; }
+		if (cmd === 'move') { lastMover = nameOf(p[2]); lastMove = toID(p[3] || ''); selfHit = ''; if (mineId(lastMover) && lastMove === 'splash') hSplash = true; continue; }
+		if (cmd === '-miss' && mineId(p[2] || '')) { hMiss++; continue; }
+		if (cmd === '-crit' && p[2]?.startsWith('p1') && mineId(p[2])) { hCritTaken++; continue; }
+		if (cmd === 'cant' && mineId(p[2] || '') && p[3] === 'flinch') { hFlinch++; continue; }
+		if (cmd === '-curestatus' && mineId(p[2] || '') && p[3] === 'frz' && /\[msg\]/.test(line)) { hThaw = true; continue; }
 		if (cmd === '-damage') { const id = nameOf(p[2]); const m = /^(\d+)\/(\d+)/.exec(p[3] || ''); const before = hp[id] ?? 1; const after = p[3]?.startsWith('0') ? 0 : m ? +m[1] / +m[2] : before;
-			void before; hp[id] = after; continue; }
+			void before; hp[id] = after; if (/\[from\] confusion/.test(line) && mineId(p[2] || '')) selfHit = id; continue; }
 		if (cmd === '-heal') { const id = nameOf(p[2]); const m = /^(\d+)\/(\d+)/.exec(p[3] || ''); if (m) hp[id] = +m[1] / +m[2]; continue; }
 		if (cmd === '-crit' && p[2]?.startsWith('p2') && mineId(lastMover)) { crits++; continue; }
 		if (cmd === '-supereffective' && p[2]?.startsWith('p2') && mineId(lastMover)) { se++; continue; }
@@ -104,8 +111,11 @@ export function analyze(setup: any, battle: any, win: boolean): BattleFacts & { 
 			if (turn !== faintTurn) { faintTurn = turn; faintsThisTurn = 0; }
 			if (id.startsWith('p2')) {
 				oppAlive--; oppFainted.push(sp); faintsThisTurn++; if (faintsThisTurn >= 2) dko = true;
-				if (mineId(lastMover)) { const ms = who[lastMover] || ''; if (ms) (mine[ms] ||= { ko: 0, f: 0 }).ko++; }
-			} else { myAlive--; if (sp && mineId(id)) (mine[sp] ||= { ko: 0, f: 0 }).f++; }
+				if (mineId(lastMover)) { const ms = who[lastMover] || ''; if (ms) (mine[ms] ||= { ko: 0, f: 0 }).ko++; if (lastMove === 'struggle') hStruggle = true; }
+			} else { myAlive--; if (sp && mineId(id)) (mine[sp] ||= { ko: 0, f: 0 }).f++;
+				if (mineId(id) && selfHit === id) hSelfKo = true;
+				if (mineId(id) && lastMover.startsWith('p2') && who[lastMover] === 'magikarp') hKarp = true; }
+			if (myAlive <= 0 && oppAlive <= 0) hDouble = true;
 			if (myAlive === 1 && oppAlive >= 3) comeback = true;
 		}
 	}
@@ -118,7 +128,8 @@ export function analyze(setup: any, battle: any, win: boolean): BattleFacts & { 
 	const kos = Object.values(mine).reduce((a, b) => a + b.ko, 0);
 	const sweep6 = win && Object.values(mine).some(m => m.ko >= 6);
 	let mvp: string | undefined; let best = 0; for (const [k, v] of Object.entries(mine)) if (v.ko > best) { best = v.ko; mvp = k; }
-	return { win, turns: battle.turn || 0, kos, myFaint, crits, se, perfect: win && myFaint === 0, oneHp, comeback: win && comeback, dko, sweep6, mvp, mine, oppSeen: [...oppSeen], oppFainted, gim, weathers, terrains, ohko, endure };
+	return { win, turns: battle.turn || 0, kos, myFaint, crits, se, perfect: win && myFaint === 0, oneHp, comeback: win && comeback, dko, sweep6, mvp, mine, oppSeen: [...oppSeen], oppFainted, gim, weathers, terrains, ohko, endure,
+		hidden: { miss3: hMiss >= 3, crit3: win && hCritTaken >= 3, flinch3: hFlinch >= 3, struggle: hStruggle, splash: win && hSplash, selfko: hSelfKo, thaw: hThaw, karp: hKarp, shinyfoe: hShinyFoe, double: hDouble } };
 }
 
 onBattleEnd((setup, battle, win) => {
@@ -142,6 +153,13 @@ onBattleEnd((setup, battle, win) => {
 		if (f.sweep6) bump(s, 'sweep6');
 		if (win && n1 >= 6 && n2 >= 6 && f.turns <= 8) bump(s, 'quick');
 		if (win && f.turns >= 50) bump(s, 'marathon');
+		if (win && f.turns >= 100) bump(s, 'marathon100');
+		// 숨겨진 업적
+		for (const [k, v] of Object.entries((f as any).hidden || {})) if (v) bump(s, 'h:' + k);
+		if (win && n1 >= 3 && n2 >= 3 && f.turns <= 3) bump(s, 'h:turn3');
+		const myTeam = (setup.p1?.team || []) as any[];
+		if (win && myTeam.length >= 3 && myTeam.every(x => !x.item)) bump(s, 'h:bare');
+		if (win && myTeam.length >= 3) { const ts = myTeam.map(x => (speciesData(toID(x.species), 9)?.t || []) as string[]); if (ts[0]?.some(t => ts.every(y => y.includes(t)))) bump(s, 'h:mono'); }
 		for (const g of f.gim) bump(s, 'gim:' + g);
 		if (win) for (const g of new Set(f.gim)) s.flags['gimWin:' + g] = 1;
 		for (const w of f.weathers) s.flags['weather:' + w] = 1;
@@ -150,13 +168,15 @@ onBattleEnd((setup, battle, win) => {
 });
 
 // ───────── 업적 ─────────
-export type AchCat = '배틀' | '기믹' | '타입' | '시설' | '네임드' | '랭크' | '도전' | '수집' | '챔피언스';
+export type AchCat = '배틀' | '기믹' | '타입' | '시설' | '네임드' | '랭크' | '도전' | '수집' | '챔피언스' | '플래티넘' | '숨김';
 /** 챔피언스 모드의 업적·칭호·꾸미기를 보여 줌 */
 export const CHAMP_ON = true;   // v2.84 부터 정식 공개
 /** 챔피언스 모드의 저장 (업적·칭호 조건용, 읽기만) */
 export const champSave = (): any => load<any>('champions', {});
 const cupSum = () => Object.values(champSave().cups || {}).reduce((a: number, b: any) => a + (b || 0), 0) as number;
-export interface Ach { id: string; name: string; desc: string; cat: AchCat; steps: number[]; value: (s: Stats) => number }
+export interface Ach { id: string; name: string; desc: string; cat: AchCat; steps: number[]; value: (s: Stats) => number;
+	/** 플래티넘 업적: 이루기가 거의 불가능에 가까운 것 (단계 하나, 플래티넘 등급) */ plat?: boolean;
+	/** 숨겨진 업적: 얻기 전에는 이름·조건이 보이지 않음 (우연히 만나게 되는 것) */ hidden?: boolean }
 const rec = () => loadRecords();
 const bestOf = (prefix: string) => Math.max(0, ...Object.entries(rec().best).filter(([k]) => k.startsWith(prefix)).map(([, v]) => v));
 const cnt = (k: string) => (s: Stats) => s.c[k] || 0;
@@ -220,6 +240,33 @@ export const ACHIEVEMENTS: Ach[] = [
 	{ id: 'used', name: '백 가지 동료', desc: '서로 다른 포켓몬 {n}종으로 배틀', cat: '수집', steps: [30, 100, 300], value: s => Object.keys(s.used).length },
 	{ id: 'beaten', name: '도감 사냥꾼', desc: '서로 다른 상대 포켓몬 {n}종을 쓰러뜨림', cat: '수집', steps: [50, 300, 700], value: s => Object.keys(s.beaten).length },
 	{ id: 'partner', name: '단짝', desc: '한 포켓몬으로 {n}승 (포켓몬별 업적)', cat: '수집', steps: [10, 50, 100], value: s => Math.max(0, ...Object.values(s.mons).map(m => m.w)) },
+	// 플래티넘: 이루기가 거의 불가능에 가까운 것
+	{ id: 'pTower', name: '끝없는 탑', desc: '배틀타워 200연승', cat: '플래티넘', steps: [200], plat: true, value: () => bestOf('tower-') },
+	{ id: 'pFactory', name: '빌린 힘의 정점', desc: '배틀팩토리 100연승', cat: '플래티넘', steps: [100], plat: true, value: () => bestOf('factory-') },
+	{ id: 'pPalace', name: '말 없는 신뢰', desc: '배틀팰리스 100연승', cat: '플래티넘', steps: [100], plat: true, value: () => bestOf('palace-') },
+	{ id: 'pPerfect', name: '흠 없는 천 번', desc: '내 포켓몬이 하나도 쓰러지지 않고 1000승', cat: '플래티넘', steps: [1000], plat: true, value: cnt('perfect') },
+	{ id: 'pSweep', name: '일기당천', desc: '한 마리로 상대 6마리를 모두 쓰러뜨리고 30번 승리', cat: '플래티넘', steps: [30], plat: true, value: cnt('sweep6') },
+	{ id: 'pOneHp', name: '벼랑 끝의 달인', desc: '마지막 남은 포켓몬이 HP 1인 채로 10번 승리', cat: '플래티넘', steps: [10], plat: true, value: cnt('oneHp') },
+	{ id: 'pMarathon', name: '백 턴의 사투', desc: '100턴 넘게 이어진 배틀에서 승리', cat: '플래티넘', steps: [1], plat: true, value: cnt('marathon100') },
+	{ id: 'pUsed', name: '모두가 동료', desc: '서로 다른 포켓몬 800종으로 배틀', cat: '플래티넘', steps: [800], plat: true, value: s => Object.keys(s.used).length },
+	{ id: 'pBeaten', name: '도감 완전 정복', desc: '서로 다른 상대 포켓몬 1000종을 쓰러뜨림', cat: '플래티넘', steps: [1000], plat: true, value: s => Object.keys(s.beaten).length },
+	{ id: 'pNamed', name: '모든 이름을 넘어', desc: `네임드 트레이너 ${NAMED.length}명을 모두 격파`, cat: '플래티넘', steps: [NAMED.length], plat: true, value: () => NAMED.filter(t => rec().named[t.id]).length },
+	{ id: 'pOhko', name: '필살의 손', desc: '일격필살 기술로 100번 쓰러뜨림', cat: '플래티넘', steps: [100], plat: true, value: cnt('ohko') },
+	...(CHAMP_ON ? [{ id: 'pShiny', name: '빛나는 여섯… 아니 열', desc: '챔피언스 로스터에 색이 다른 포켓몬 10마리', cat: '플래티넘' as AchCat, steps: [10], plat: true, value: () => ((champSave().roster || []) as any[]).filter(m => m?.set?.shiny).length }] as Ach[] : []),
+	// 숨겨진 업적: 우연히 만나게 되는 것 (얻기 전에는 이름·조건이 보이지 않음)
+	{ id: 'hMiss', name: '운수 나쁜 날', desc: '한 배틀에서 내 기술이 3번 빗나감', cat: '숨김', steps: [1], hidden: true, value: cnt('h:miss3') },
+	{ id: 'hCrit', name: '급소의 표적', desc: '한 배틀에서 급소를 3번 맞고도 승리', cat: '숨김', steps: [1], hidden: true, value: cnt('h:crit3') },
+	{ id: 'hStruggle', name: '최후의 발버둥', desc: '발버둥으로 상대를 쓰러뜨림', cat: '숨김', steps: [1], hidden: true, value: cnt('h:struggle') },
+	{ id: 'hSplash', name: '아무 일도 일어나지 않았다', desc: '튀어오르기를 쓰고도 그 배틀에서 승리', cat: '숨김', steps: [1], hidden: true, value: cnt('h:splash') },
+	{ id: 'hSelf', name: '제 발등 찍기', desc: '내 포켓몬이 혼란으로 자신을 공격해 쓰러짐', cat: '숨김', steps: [1], hidden: true, value: cnt('h:selfko') },
+	{ id: 'hThaw', name: '얼음 땡', desc: '얼어붙은 내 포켓몬이 스스로 녹아 움직임', cat: '숨김', steps: [1], hidden: true, value: cnt('h:thaw') },
+	{ id: 'hFlinch', name: '기죽은 하루', desc: '한 배틀에서 풀이 죽어 3번 움직이지 못함', cat: '숨김', steps: [1], hidden: true, value: cnt('h:flinch3') },
+	{ id: 'hTurn1', name: '눈 깜짝할 사이', desc: '3마리 이상끼리 싸워 3턴 안에 승리', cat: '숨김', steps: [1], hidden: true, value: cnt('h:turn3') },
+	{ id: 'hKarp', name: '잉어킹의 반란', desc: '잉어킹에게 내 포켓몬이 쓰러짐', cat: '숨김', steps: [1], hidden: true, value: cnt('h:karp') },
+	{ id: 'hShiny', name: '빛나는 만남', desc: '색이 다른 상대 포켓몬을 만남', cat: '숨김', steps: [1], hidden: true, value: cnt('h:shinyfoe') },
+	{ id: 'hBare', name: '맨손의 승부', desc: '내 포켓몬 모두가 도구 없이 싸워 승리 (3마리 이상)', cat: '숨김', steps: [1], hidden: true, value: cnt('h:bare') },
+	{ id: 'hMono', name: '한 우물', desc: '모두 같은 타입을 가진 팀으로 승리 (3마리 이상)', cat: '숨김', steps: [1], hidden: true, value: cnt('h:mono') },
+	{ id: 'hDouble', name: '함께 쓰러지다', desc: '마지막 포켓몬끼리 함께 쓰러짐', cat: '숨김', steps: [1], hidden: true, value: cnt('h:double') },
 	// 챔피언스 모드 전용 (그 모드가 있는 빌드에서만)
 	...(CHAMP_ON ? [
 		{ id: 'chRoster', name: '스카우트의 눈', desc: '챔피언스 로스터에 포켓몬 {n}마리', cat: '챔피언스', steps: [10, 20, 40], value: () => (champSave().roster || []).length },
@@ -234,7 +281,7 @@ export const BOSS_LEN: { [course: string]: number } = {};
 export const TIER_NAME = ['', '브론즈', '실버', '골드', '플래티넘'];
 export function achLevel(a: Ach, v: number) { let l = 0; for (const st of a.steps) if (v >= st) l++; return l; }
 /** 단계 색: 단계가 하나뿐이면 골드, 마지막 단계는 높게 */
-export function achTier(a: Ach, l: number) { if (!l) return 0; if (a.steps.length === 1) return 3; return Math.min(4, l + (a.steps.length <= 2 ? 1 : 0)); }
+export function achTier(a: Ach, l: number) { if (!l) return 0; if (a.plat) return 4; if (a.steps.length === 1) return 3; return Math.min(4, l + (a.steps.length <= 2 ? 1 : 0)); }
 export function achDesc(a: Ach, l: number) { const n = a.steps[Math.min(l, a.steps.length - 1)]; return a.desc.replace('{n}', String(n)); }
 
 let checking = false;

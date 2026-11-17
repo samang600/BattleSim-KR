@@ -4,7 +4,7 @@
 
 /** 값 (BP). 준전설은 스카우트 값이 2배, 초전설·환상은 4배 */
 export const PRICE = {
-	/** 레귤러 스카우트 · 지명 스카우트 · 소개 새로 받기 · 다음 소개에 타입 지정 */ scout: 8, pick: 20, refresh: 3, typeTicket: 3,
+	/** 레귤러 스카우트 · 지명 스카우트 · 소개 새로 받기 · 다음 소개에 타입 지정 */ scout: 8, pick: 20, refresh: 8, typeTicket: 3,
 	/** 도구 · 열매 · 메가스톤 · Z크리스탈 */ item: 6, berry: 3, mega: 15, z: 6,
 	/** 트레이닝: 기술 하나 · 능력 보정(성격) · 특성 · 능력 포인트 다시 나누기 · 테라스탈 타입 */ move: 1, nature: 2, ability: 3, sp: 1, tera: 2,
 	/** 모습 바꾸기 · 거다이맥스 켜고 끄기 */ form: 3, gmax: 5,

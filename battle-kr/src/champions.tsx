@@ -32,7 +32,7 @@ interface CSave {
 	/** 편성해 둔 팀들 (10개까지) · 지금 고른 팀 번호 */ teams?: number[][]; cur?: number;
 	items: { [id: string]: 1 }; tk: { regular: number; pick: number };
 	/** 오늘의 소개 · 받은 날 · 다음 무료 스카우트 시각(ms) · 찜(3마리) · 찜이 안 나온 횟수 · 다음 소개에 많이 나올 타입 */
-	lineup: PSet[]; lineDay: string; freeAt: number; wish: string[]; wishMiss: number; typeNext?: string;
+	lineup: PSet[]; lineDay: string; freeAt: number; /** 지금 소개를 받은 시각(ms) · 이번 소개에서 이미 한 마리를 데려왔는가 */ lineAt?: number; linePick?: boolean; wish: string[]; wishMiss: number; typeNext?: string;
 	/** PWT 대회별 우승 수 · 이미 본 컷씬 */ cups?: { [id: string]: number }; seen?: { [id: string]: 1 };
 	/** 챔피언스 전용 심볼 (1 은 · 2 금) · 타워 최고 연승 */ sym?: { [id: string]: number }; towerBest?: number;
 	tower: number; factory?: number; /** 첫 파티 후보 (고르기 전까지) */ starts?: PSet[][];
@@ -52,8 +52,13 @@ const T = (S: CSave) => TIERS[Math.min(S.tier, TIERS.length - 1)];
 const teamOf = (S: CSave) => S.team.map(id => S.roster.find(m => m.id === id)).filter(Boolean) as CMon[];
 const dayOf = (S: CSave) => { if (S.day.id !== today()) S.day = { id: today(), win: 0, scout: 0, modes: {}, got: {} }; return S.day; };
 /** 무료 스카우트: 12시간마다 한 마리 (일반 포켓몬). 남은 시간(시간 단위, 0 = 지금 가능) */
-const FREE_MS = 12 * 36e5;
-const freeLeft = (S: CSave) => Math.max(0, Math.ceil(((S.freeAt || 0) - Date.now()) / 36e5));
+/** 스카우트 소개는 2시간마다 새로 오고, 한 번의 소개(10마리)에서는 한 마리만 데려올 수 있음 */
+const LINE_MS = 2 * 36e5;
+const lineExpired = (S: CSave) => !S.lineAt || Date.now() >= S.lineAt + LINE_MS;
+/** 다음 소개까지 남은 시간 글자 ('1시간 23분') */
+const lineLeft = (S: CSave) => { const m = Math.max(0, Math.ceil(((S.lineAt || 0) + LINE_MS - Date.now()) / 6e4)); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`; };
+/** 이번 소개에서 아직 데려올 수 있는가 */
+const canPick = (S: CSave) => !S.linePick;
 const BASE_RULE = 'm_one.natdex.no.no.no';
 /** 희귀도: 0 일반 · 1 준전설 · 2 초전설·환상 (스카우트 값 1·2·4배, 등급이 올라야 소개됨) */
 const R_SUB = ruleById('m_one.natdex.no.no'), R_NONE = ruleById(BASE_RULE);
@@ -229,11 +234,11 @@ function StartPick({ S, done }: { S: CSave; done: (i: number) => void }) {
 	const [view, setView] = useState<number | null>(null), ps = S.starts || [];
 	return <Screen title="첫 파티" cls="cp-scr" top><Top title="첫 파티 고르기" sub="여섯 마리가 한 팀으로 들어옵니다" S={S} />
 		{ps.map((p, i) => <div class="cp-pn cp-start"><h3>파티 {'ABC'[i]}<small>{[...new Set(p.flatMap(s => types(s.species)))].slice(0, 6).map(typeKo).join(' · ')}</small></h3>
-			<div class="cp-start-mons">{p.map(s => <span><PokeIcon species={s.species} />{s.item && <span class="cp-held"><ItemIcon item={s.item} size={16} /></span>}<small class={slotCls(monKo(s))}>{monKo(s)}</small></span>)}</div>
+			<div class="cp-start-mons">{p.map(s => <span><PokeIcon species={s.species} shiny={s.shiny} />{s.item && <span class="cp-held"><ItemIcon item={s.item} size={16} /></span>}<small class={slotCls(monKo(s))}>{monKo(s)}</small></span>)}</div>
 			<div class="cp-fmt"><button class="btn" onClick={() => setView(i)}>살펴보기</button><button class="btn primary" onClick={() => done(i)}>이 파티로 시작</button></div></div>)}
 		<p class="cp-note">여섯 마리 모두 어울리는 도구를 지니고 옵니다. 기술·성격·능력 포인트는 로스터에서 다듬을 수 있어요. 다른 포켓몬은 스카우트로 데려옵니다.</p>
 		{view !== null && <Modal title={`파티 ${'ABC'[view]}`} onClose={() => setView(null)}>
-			<div class="cp-opts">{ps[view].map(s => <div class="cp-opt"><PokeIcon species={s.species} /><div><b>{speciesKo(s.species)} {types(s.species).map(t => <TypeBadge type={t} small />)}</b>
+			<div class="cp-opts">{ps[view].map(s => <div class="cp-opt"><PokeIcon species={s.species} shiny={s.shiny} /><div><b>{speciesKo(s.species)} {types(s.species).map(t => <TypeBadge type={t} small />)}</b>
 				<small>{abilityKo(s.ability)} · {natureKo(s.nature)}{s.item ? ` · ${itemKo(s.item)}` : ''}</small><small>{s.moves.map(moveKo).join(' · ')}</small></div>{s.item && <ItemIcon item={s.item} size={24} />}</div>)}</div>
 			<button class="btn big primary" onClick={() => done(view)}>이 파티로 시작</button></Modal>}
 	</Screen>;
@@ -267,24 +272,24 @@ function newLineup(S: CSave) {
 	for (const id of pool) { if (pickN.length >= 10) break; if (!pickN.includes(id)) pickN.push(id); }
 	S.lineup = noItems(pickN.map(id => randomSetFor(id, 9, 50, false, 0.65)));
 	for (const x of S.lineup) { x.pokeball = randomBall(); x.shiny = Math.random() < SHINY_RATE; }   // 담긴 볼은 무작위, 가끔 색이 다른 포켓몬
-	S.lineDay = today(); persist(S);
+	S.lineDay = today(); S.lineAt = Date.now(); S.linePick = false; persist(S);
 }
 const addMon = (S: CSave, set: PSet) => { const m: CMon = { id: S.seq++, set: cloneSet(set) }; if (!m.set.pokeball) m.set.pokeball = randomBall(); dayOf(S).scout++; S.roster.push(m); if (S.team.length < 6) S.team.push(m.id); persist(S); return m; };
 type ScoutAct = { k: 'back' } | { k: 'mon'; i: number } | { k: 'refresh' } | { k: 'type' } | { k: 'pick' } | { k: 'wish' };
 function ScoutScreen({ S, top, done }: { S: CSave; top?: boolean; done: (a: ScoutAct) => void }) {
-	const fl = freeLeft(S), [view, setView] = useState<number | null>(null), v = view !== null ? S.lineup[view] : null;
-	return <Screen title="스카우트" onBack={() => done({ k: 'back' })} cls="cp-scr" top={top}><Top title="스카우트" sub={`오늘의 소개 ${S.lineup.length}마리 · 내일 새로 옵니다`} S={S} onBack={() => done({ k: 'back' })} />
-		<div class={'cp-free' + (fl ? '' : ' on')}><b>무료 스카우트</b><span>{fl ? `${fl}시간 뒤에 다시` : '지금 1마리 무료!'}</span>{S.tk.regular > 0 && <em>티켓 {S.tk.regular}장</em>}</div>
-		<div class="cp-grid">{S.lineup.map((s, i) => <MonCard set={s} cls={S.wish.includes(toID(s.species)) ? 'rare' : ''} mark={<i class="cp-price">{scoutLabel(S, toID(s.species))}</i>} onClick={() => setView(i)} />)}</div>
-		{!S.lineup.length && <p class="cp-note">오늘 소개받은 포켓몬을 모두 데려갔어요.</p>}
+	const [view, setView] = useState<number | null>(null), v = view !== null ? S.lineup[view] : null;
+	return <Screen title="스카우트" onBack={() => done({ k: 'back' })} cls="cp-scr" top={top}><Top title="스카우트" sub={`소개 ${S.lineup.length}마리 · 새 소개까지 ${lineLeft(S)}`} S={S} onBack={() => done({ k: 'back' })} />
+		<div class={'cp-free' + (canPick(S) ? ' on' : '')}><b>{canPick(S) ? '한 마리를 골라 데려오세요' : '이번 소개에서는 데려왔어요'}</b><span>{canPick(S) ? '10마리 중 1마리' : `${lineLeft(S)} 뒤 새 소개`}</span>{S.tk.regular > 0 && <em>티켓 {S.tk.regular}장</em>}</div>
+		<div class={'cp-grid' + (canPick(S) || S.tk.regular > 0 ? '' : ' picked')}>{S.lineup.map((s, i) => <MonCard set={s} cls={S.wish.includes(toID(s.species)) ? 'rare' : ''} mark={<i class="cp-price">{scoutLabel(S, toID(s.species))}</i>} onClick={() => setView(i)} />)}</div>
+		{!S.lineup.length && <p class="cp-note">소개받은 포켓몬이 없어요.</p>}
 		<div class="cp-pn"><h3>원하는 포켓몬을 데려오려면</h3>
 			<button class="cp-line" onClick={() => done({ k: 'pick' })}><div><b>지명 스카우트</b><small>도감에서 직접 골라 영입</small></div><span class="cp-cost">{S.tk.pick > 0 ? `지명 티켓 ${S.tk.pick}` : `${PRICE.pick} BP`}</span></button>
 			<button class="cp-line" onClick={() => done({ k: 'wish' })}><div><b>찜 ({S.wish.length} / 3)</b><small>{S.wish.length ? S.wish.map(speciesKo).join(' · ') : '찜한 포켓몬은 소개 3번 안에 반드시 등장'}</small></div><span class="cp-cost">무료</span></button>
 			<button class="cp-line" onClick={() => done({ k: 'type' })}><div><b>타입 지정{S.typeNext ? ` — 다음 소개: ${typeKo(S.typeNext)}` : ''}</b><small>다음 소개의 절반이 그 타입</small></div><span class="cp-cost">{PRICE.typeTicket} BP</span></button>
-			<button class="cp-line" onClick={() => done({ k: 'refresh' })}><div><b>지금 새 소개 받기</b><small>내일을 기다리지 않고 10마리를 새로</small></div><span class="cp-cost">{PRICE.refresh} BP</span></button></div>
-		<p class="cp-note">스카우트한 포켓몬은 도구 없이 옵니다 (도구는 상점). 값은 {PRICE.scout} BP, 준전설 ×2 · 전설 ×4. 일반 포켓몬은 12시간마다 한 마리 무료.</p>
+			<button class="cp-line" onClick={() => done({ k: 'refresh' })}><div><b>지금 새 소개 받기</b><small>기다리지 않고 10마리를 새로 — 한 마리를 다시 고를 수 있음</small></div><span class="cp-cost">{PRICE.refresh} BP</span></button></div>
+		<p class="cp-note">소개는 2시간마다 새로 오고, 한 번의 소개에서는 한 마리만 데려올 수 있어요. 일반 포켓몬은 무료, 준전설은 {PRICE.scout * 2} BP · 전설은 {PRICE.scout * 4} BP. 스카우트 티켓이 있으면 같은 소개에서 한 마리를 더 데려옵니다. 포켓몬은 도구 없이 옵니다 (도구는 상점).</p>
 		{v && <Modal title={speciesKo(v.species)} onClose={() => setView(null)}><p class="cp-ballline"><ItemIcon item={ballOf(v)} size={16} />{itemKo(ballOf(v))}에 담겨 있음</p><MonDetail set={v} gen={9} />
-			<button class="btn big primary" onClick={() => done({ k: 'mon', i: view! })}>스카우트 ({scoutLabel(S, toID(v.species))})</button></Modal>}
+			<button class="btn big primary" disabled={!canPick(S) && !S.tk.regular} onClick={() => done({ k: 'mon', i: view! })}>{canPick(S) || S.tk.regular ? `스카우트 (${scoutLabel(S, toID(v.species))})` : `이번 소개에서는 이미 데려왔어요 (${lineLeft(S)} 뒤)`}</button></Modal>}
 	</Screen>;
 }
 /** 도감에서 포켓몬 고르기 (지명·찜) */
@@ -300,23 +305,29 @@ function SpeciesPick({ title, pool, hint, done }: { title: string; pool: string[
 }
 const pickable = (S: CSave) => { const lg = legendOf(S), rule = ruleById(CR()); return speciesPool({ gen: 9, minBst: 300, noBan: true, ...lg } as any).filter(id => speciesAllowed(rule, id)).sort((a, b) => speciesKo(a).localeCompare(speciesKo(b), 'ko')); };
 const full = (S: CSave) => { if (S.roster.length >= T(S).cap) { toast(`로스터가 가득 찼어요 (${T(S).cap}마리). 로스터에서 내보내거나 등급을 올리세요`); return true; } return false; };
-/** 스카우트 값 치르기: 일반 포켓몬은 무료(12시간마다) → 티켓 → BP 순서. 준전설·전설은 BP 로만. 지명은 지명 티켓 → BP */
+/** 스카우트 값 치르기. 소개(regular): 이번 소개의 한 마리 몫이 남았으면 그것을 쓰고, 없으면 스카우트 티켓으로 한 마리 더 — 일반 포켓몬은 무료, 준전설·전설은 BP.
+ *  지명(pick): 지명 티켓 → BP (준전설·전설은 BP 로만) */
 function payScout(S: CSave, kind: 'regular' | 'pick', name: string, id = '') {
-	if (!rarity(id)) {
-		if (kind === 'regular' && !freeLeft(S)) { S.freeAt = Date.now() + FREE_MS; persist(S); return true; }
-		if (S.tk[kind] > 0) { S.tk[kind]--; persist(S); return true; }
+	if (kind === 'pick') {
+		if (!rarity(id) && S.tk.pick > 0) { S.tk.pick--; persist(S); return true; }
+		return pay(scoutCost(id, true), `챔피언스 · ${name} 스카우트`);
 	}
-	return pay(scoutCost(id, kind === 'pick'), `챔피언스 · ${name} 스카우트`);
+	const byTicket = !canPick(S);
+	if (byTicket && S.tk.regular <= 0) { toast(`이번 소개에서는 이미 한 마리를 데려왔어요 — ${lineLeft(S)} 뒤에 새 소개가 옵니다`); return false; }
+	if (rarity(id) && !pay(scoutCost(id), `챔피언스 · ${name} 스카우트`)) return false;
+	if (byTicket) S.tk.regular--; else S.linePick = true;
+	persist(S); return true;
 }
 /** 그 포켓몬을 지금 스카우트하면 드는 값 (표시용) */
-const scoutLabel = (S: CSave, id: string) => rarity(id) ? scoutCost(id) + ' BP' : !freeLeft(S) ? '무료' : S.tk.regular > 0 ? '티켓' : PRICE.scout + ' BP';
+const scoutLabel = (S: CSave, id: string) => rarity(id) ? scoutCost(id) + ' BP' : canPick(S) ? '무료' : S.tk.regular > 0 ? '티켓' : '—';
 async function scoutFlow(S: CSave) {
-	if (S.lineDay !== today()) newLineup(S);
+	if (lineExpired(S) || !S.lineup.length) newLineup(S);
 	let first = true;
 	while (true) {
 		const a = await ask<ScoutAct>(r => <ScoutScreen key={K()} S={S} top={first} done={r} />);
 		first = false;
 		if (a.k === 'back') return;
+		if (lineExpired(S)) { newLineup(S); toast('새 소개가 도착했습니다'); continue; }   // 화면을 보는 사이 2시간이 지남
 		if (a.k === 'mon') {
 			const s = S.lineup[a.i], name = speciesKo(s.species);
 			if (full(S) || !payScout(S, 'regular', name, toID(s.species))) continue;
@@ -375,12 +386,12 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 	const pages = Math.max(1, Math.ceil(T(S).cap / BOX)), team = teamOf(S);
 	const box = S.roster.slice(page * BOX, page * BOX + BOX), cap = Math.min(BOX, T(S).cap - page * BOX);
 	const cell = (m: CMon | undefined, k: number) => <button class={'cp-cell' + (m ? '' : ' empty') + (m && S.team.includes(m.id) ? ' in' : '')} disabled={!m} onClick={() => m && setSel(m)} key={k}>
-		{m && <PokeIcon species={m.set.species} />}{m && m.set.item && <span class="cp-held"><ItemIcon item={m.set.item} size={16} /></span>}{m && S.team.includes(m.id) && <i>{S.team.indexOf(m.id) + 1}</i>}</button>;
+		{m && <PokeIcon species={m.set.species} shiny={m.set.shiny} />}{m && m.set.item && <span class="cp-held"><ItemIcon item={m.set.item} size={16} /></span>}{m && S.team.includes(m.id) && <i>{S.team.indexOf(m.id) + 1}</i>}</button>;
 	return <Screen title="로스터" onBack={done} cls="cp-scr" top><Top title="로스터" sub={`${S.roster.length} / ${T(S).cap}마리 · 팀 ${S.team.length} / 6`} S={S} onBack={done} />
 		<div class="cp-pc"><div class="cp-party"><b class="cp-teamsel"><button class="cp-arw prev" disabled={(S.cur || 0) <= 0} onClick={() => { useTeam(S, (S.cur || 0) - 1); tick(x => x + 1); }} aria-label="앞 팀" />
 			<span>팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 팀 {S.teams?.length || 1} / {TEAM_MAX}</small></span>
 			<button class="cp-arw" disabled={(S.cur || 0) >= TEAM_MAX - 1} onClick={() => { useTeam(S, (S.cur || 0) + 1); tick(x => x + 1); }} aria-label="다음 팀" /></b><div>{[0, 1, 2, 3, 4, 5].map(k => <button class={'cp-slot' + (team[k] ? '' : ' empty')} disabled={!team[k]} onClick={() => team[k] && setSel(team[k])}>
-			{team[k] ? <><PokeIcon species={team[k].set.species} />{team[k].set.item && <span class="cp-held"><ItemIcon item={team[k].set.item} size={16} /></span>}<small class={slotCls(monKo(team[k].set))}>{monKo(team[k].set)}</small></> : null}</button>)}</div></div>
+			{team[k] ? <><PokeIcon species={team[k].set.species} shiny={team[k].set.shiny} />{team[k].set.item && <span class="cp-held"><ItemIcon item={team[k].set.item} size={16} /></span>}<small class={slotCls(monKo(team[k].set))}>{monKo(team[k].set)}</small></> : null}</button>)}</div></div>
 		<div class="cp-box">
 			<div class="cp-box-head"><button disabled={page <= 0} onClick={() => setPage(page - 1)} aria-label="앞 박스" class="prev" /><b>박스 {page + 1}{pages > 1 && <small>/ {pages}</small>}</b><button disabled={page >= pages - 1} onClick={() => setPage(page + 1)} aria-label="다음 박스" /></div>
 			<div class="cp-box-grid">{Array.from({ length: cap }, (_, k) => cell(box[k], k))}</div>
@@ -602,7 +613,7 @@ function StoryScreen({ S, done }: { S: CSave; done: (a: boolean | Replay) => voi
 type HubAct = 'exit' | 'story' | 'scout' | 'roster' | 'shop' | 'mission' | 'settings' | 'calc' | 'book' | 'rank' | 'pwt' | { k: BattleKind; doubles: boolean };
 function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 	useEffect(() => { playMusic(HUB_BGM); }, []);
-	const t = T(S), c = CHAPTERS[S.ch], ready = promoReady(S), mr = missionReady(S), newLine = S.lineDay !== today(), team = teamOf(S);
+	const t = T(S), c = CHAPTERS[S.ch], ready = promoReady(S), mr = missionReady(S), newLine = lineExpired(S), team = teamOf(S);
 	const wal = loadWallet();   // 카드 배경·테두리·칭호 꾸미기 (수첩의 카드와 같은 것)
 	const rp = champRp(), st = loadStats(), achDone = ACHIEVEMENTS.filter(a => (st.ach[a.id] || 0) > 0).length, cups = S.cups || {};
 	const pwtNext = !pwtOpen() ? '랭크 매치 마스터볼급부터 참가' : !cups.open ? '먼저 오픈 대회 우승' : cupLock(S, 'world') ? `지방 리더스 ${REGION_CUPS.filter(x => cups[x]).length} / ${REGION_CUPS.length}` : cupLock(S, 'elite') ? `월드 리더스 ${cups.world || 0} / ${CUP_NEED}` : cupLock(S, 'champions') ? `사천왕 대회 ${cups.elite || 0} / ${CUP_NEED}` : `챔피언스 우승 ${cups.champions || 0}회`;
@@ -623,8 +634,8 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 			{towerOpen() ? brow('tower', '배틀타워', `${S.tower}연승 · 7연승마다 지명 티켓 (${S.tower % 7} / 7)`) : erow({ k: 'tower', doubles: false }, '배틀타워', '랭크 매치 하이퍼볼급부터 도전', true)}
 			{erow('pwt', 'PWT', pwtOpen() ? `8명 토너먼트 · ${pwtNext}` : pwtNext, !pwtOpen())}</div>
 		<button class="cp-pn cp-myteam" onClick={() => done('roster')}><h3>내 팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
-			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => <span class={team[i] ? '' : 'empty'}>{team[i] && <PokeIcon species={team[i].set.species} />}{team[i]?.set.item && <span class="cp-held"><ItemIcon item={team[i].set.item} size={16} /></span>}</span>)}</div></button>
-		<div class="cp-tiles four">{tile('scout', '스카우트', 'c2', 'pikachu', !freeLeft(S) ? '무료' : newLine ? '새 소개' : undefined)}{tile('roster', '로스터', 'c3', 'gardevoir')}
+			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => <span class={team[i] ? '' : 'empty'}>{team[i] && <PokeIcon species={team[i].set.species} shiny={team[i].set.shiny} />}{team[i]?.set.item && <span class="cp-held"><ItemIcon item={team[i].set.item} size={16} /></span>}</span>)}</div></button>
+		<div class="cp-tiles four">{tile('scout', '스카우트', 'c2', 'pikachu', newLine ? '새 소개' : canPick(S) ? '1마리' : undefined)}{tile('roster', '로스터', 'c3', 'gardevoir')}
 			{tile('shop', '상점', 'c5', 'rotomwash')}{tile('mission', '미션', 'c6', 'togekiss', mr ? String(mr) : undefined)}</div>
 		<div class="cp-nav"><button onClick={() => done('book')}>수첩</button><button onClick={() => done('calc')}>계산기</button><button onClick={() => done('settings')}>설정</button><button onClick={() => done('exit')}>타이틀</button></div>
 	</div>;

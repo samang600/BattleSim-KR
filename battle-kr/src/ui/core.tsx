@@ -103,9 +103,51 @@ export function preloadSprite(species: string, back: boolean, shiny?: boolean) {
 }
 
 /** 포켓몬 그림 (인터넷 연결 시 쇼다운 스프라이트, 실패하면 이름 카드) */
-export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, tera }: {
+/** 움직이는 그림(GIF·WebP)을 속도를 바꿔 그리는 캔버스: rate 0.5 = 절반 속도, 0 = 첫 장면에서 멈춤.
+ *  브라우저의 ImageDecoder 로 장면을 하나씩 꺼내 그림 — 못 쓰는 환경이거나 그림을 못 받으면 onFail 로 보통 그림(<img>)으로 돌아감 */
+function AnimCanvas({ src, rate, cls, st, alt, onFail }: { src: string; rate: number; cls: string; st: any; alt: string; onFail: () => void }) {
+	const ref = useRef<HTMLCanvasElement>(null);
+	useEffect(() => {
+		let dead = false, timer = 0, dec: any = null;
+		(async () => {
+			try {
+				const r = await fetch(src); if (!r.ok) throw new Error('fetch');
+				const type = /webp/.test(src.slice(0, 40)) || /\.webp(\?|$)/.test(src) ? 'image/webp' : 'image/gif';
+				dec = new (window as any).ImageDecoder({ data: await r.arrayBuffer(), type });
+				await dec.tracks.ready; await dec.completed;
+				const n = dec.tracks.selectedTrack?.frameCount || 1;
+				let i = 0;
+				const step = async () => {
+					if (dead) return;
+					const { image } = await dec.decode({ frameIndex: i });
+					const cv = ref.current;
+					if (dead || !cv) { image.close(); return; }
+					if (cv.width !== image.displayWidth || cv.height !== image.displayHeight) { cv.width = image.displayWidth; cv.height = image.displayHeight; }
+					const g = cv.getContext('2d'); if (g) { g.clearRect(0, 0, cv.width, cv.height); g.drawImage(image, 0, 0); }
+					cv.style.visibility = 'visible';
+					const dur = Math.max(20, (image.duration || 80000) / 1000); image.close();
+					if (rate > 0 && n > 1) { i = (i + 1) % n; timer = window.setTimeout(step, dur / rate); }
+				};
+				await step();
+			} catch {
+				if (dead) return;
+				// 그림을 직접 읽을 수 없는 곳(다른 사이트의 그림): 멈춤만은 첫 장면을 그려서 해 줌, 느리게는 보통 그림으로
+				if (rate > 0) { onFail(); return; }
+				const im = new Image();
+				im.onload = () => { const cv = ref.current; if (dead || !cv) return; cv.width = im.naturalWidth; cv.height = im.naturalHeight; cv.getContext('2d')?.drawImage(im, 0, 0); cv.style.visibility = 'visible'; };
+				im.onerror = () => { if (!dead) onFail(); };
+				im.src = src;
+			}
+		})();
+		return () => { dead = true; clearTimeout(timer); try { dec?.close(); } catch { /* 이미 닫힘 */ } };
+	}, [src, rate]);
+	return <canvas ref={ref} width={1} height={1} class={cls} style={{ ...st, visibility: 'hidden' }} aria-label={alt} />;
+}
+export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, tera, rate = 1 }: {
 	species: string; back?: boolean; shiny?: boolean; gen?: Gen; size?: number; anim?: boolean; cls?: string; /** 테라스탈 타입: 그림 모양대로 반투명 보석 결을 겹침 */ tera?: string;
+	/** 움직이는 그림의 속도 (상태 이상: 0.5 = 느리게, 0 = 멈춤). 1 이면 보통 그림 그대로 */ rate?: number;
 }) {
+	const [noCanvas, setNoCanvas] = useState(false);
 	const settings = loadSettings();
 	const id = species === 'substitute' ? 'substitute' : spriteId(species);
 	const useAnim = (anim ?? settings.animatedSprites);
@@ -140,7 +182,10 @@ export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, te
 	const st = { maxWidth: size, maxHeight: size, objectFit: 'contain', ...(pad !== undefined ? { '--pad': (fit ? 0 : pad) + 'px' } : {}), ...(ks !== 1 ? { '--ks': ks } : {}),
 		...(gap ? { '--fy': `calc(var(--s) * ${Math.max(0, 16 - gap)}px)` } : {}) } as any;
 	// 테라스탈: 그림 모양대로 반투명 보석 결을 겹치는 SVG 필터 (TeraFilters) — 다른 사이트 그림에도 쓸 수 있음
-	return <img class={'sprite ' + (cls || '') + (isDot ? ' anidot' : '')} src={cur} alt={species} loading="lazy" style={tera ? { ...st, filter: `url(#tera-${tera})` } : st} onError={() => setIdx(idx + 1)} draggable={false} />;
+	const st2 = tera ? { ...st, filter: `url(#tera-${tera})` } : st, cn = 'sprite ' + (cls || '') + (isDot ? ' anidot' : '');
+	// 상태 이상: 움직이는 그림이면 속도를 늦추거나 멈춰서 그림 (못 하면 보통 그림)
+	if (rate !== 1 && (isAni || isDot) && !noCanvas && typeof (window as any).ImageDecoder === 'function') return <AnimCanvas key={cur + rate} src={cur} rate={rate} cls={cn} st={st2} alt={species} onFail={() => setNoCanvas(true)} />;
+	return <img class={cn} src={cur} alt={species} loading="lazy" style={st2} onError={() => setIdx(idx + 1)} draggable={false} />;
 }
 
 /** 그림 후보 순서: 온라인이면 움직이는 그림 → 앱 안의 정지 그림 → 서버 정지 그림, 오프라인이면 앱 안의 그림부터 */
@@ -227,7 +272,8 @@ export function pokeIconNum(species: string): number {
 	const num = sp?.num || 0;
 	return num > 0 && num <= 1025 ? num : 0;
 }
-export function PokeIcon({ species, cls }: { species: string; cls?: string }) {
+export function PokeIcon({ species, cls, shiny }: { species: string; cls?: string; /** 색이 다른 포켓몬: 작은 아이콘 묶음에는 색이 다른 그림이 없어, 색이 다른 도트 그림을 같은 칸 크기로 줄여서 보여 줌 */ shiny?: boolean }) {
+	if (shiny) return <span class={'poke-icon shiny' + (cls ? ' ' + cls : '')} aria-hidden="true"><CropSprite species={species} gen={5} size={30} shiny cls="mini" /></span>;
 	const n = pokeIconNum(species);
 	return <span class={'poke-icon' + (cls ? ' ' + cls : '')} style={{ backgroundPosition: `-${(n % 12) * 40}px -${Math.floor(n / 12) * 30}px` }} aria-hidden="true" />;
 }
