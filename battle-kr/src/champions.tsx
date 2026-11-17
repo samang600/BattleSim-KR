@@ -234,11 +234,11 @@ function StartPick({ S, done }: { S: CSave; done: (i: number) => void }) {
 	const [view, setView] = useState<number | null>(null), ps = S.starts || [];
 	return <Screen title="첫 파티" cls="cp-scr" top><Top title="첫 파티 고르기" sub="여섯 마리가 한 팀으로 들어옵니다" S={S} />
 		{ps.map((p, i) => <div class="cp-pn cp-start"><h3>파티 {'ABC'[i]}<small>{[...new Set(p.flatMap(s => types(s.species)))].slice(0, 6).map(typeKo).join(' · ')}</small></h3>
-			<div class="cp-start-mons">{p.map(s => <span><PokeIcon species={s.species} shiny={s.shiny} />{s.item && <span class="cp-held"><ItemIcon item={s.item} size={16} /></span>}<small class={slotCls(monKo(s))}>{monKo(s)}</small></span>)}</div>
+			<div class="cp-start-mons">{p.map(s => <span><PokeIcon species={s.species} />{s.item && <span class="cp-held"><ItemIcon item={s.item} size={16} /></span>}<small class={slotCls(monKo(s))}>{monKo(s)}</small></span>)}</div>
 			<div class="cp-fmt"><button class="btn" onClick={() => setView(i)}>살펴보기</button><button class="btn primary" onClick={() => done(i)}>이 파티로 시작</button></div></div>)}
 		<p class="cp-note">여섯 마리 모두 어울리는 도구를 지니고 옵니다. 기술·성격·능력 포인트는 로스터에서 다듬을 수 있어요. 다른 포켓몬은 스카우트로 데려옵니다.</p>
 		{view !== null && <Modal title={`파티 ${'ABC'[view]}`} onClose={() => setView(null)}>
-			<div class="cp-opts">{ps[view].map(s => <div class="cp-opt"><PokeIcon species={s.species} shiny={s.shiny} /><div><b>{speciesKo(s.species)} {types(s.species).map(t => <TypeBadge type={t} small />)}</b>
+			<div class="cp-opts">{ps[view].map(s => <div class="cp-opt"><PokeIcon species={s.species} /><div><b>{speciesKo(s.species)} {types(s.species).map(t => <TypeBadge type={t} small />)}</b>
 				<small>{abilityKo(s.ability)} · {natureKo(s.nature)}{s.item ? ` · ${itemKo(s.item)}` : ''}</small><small>{s.moves.map(moveKo).join(' · ')}</small></div>{s.item && <ItemIcon item={s.item} size={24} />}</div>)}</div>
 			<button class="btn big primary" onClick={() => done(view)}>이 파티로 시작</button></Modal>}
 	</Screen>;
@@ -386,12 +386,12 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 	const pages = Math.max(1, Math.ceil(T(S).cap / BOX)), team = teamOf(S);
 	const box = S.roster.slice(page * BOX, page * BOX + BOX), cap = Math.min(BOX, T(S).cap - page * BOX);
 	const cell = (m: CMon | undefined, k: number) => <button class={'cp-cell' + (m ? '' : ' empty') + (m && S.team.includes(m.id) ? ' in' : '')} disabled={!m} onClick={() => m && setSel(m)} key={k}>
-		{m && <PokeIcon species={m.set.species} shiny={m.set.shiny} />}{m && m.set.item && <span class="cp-held"><ItemIcon item={m.set.item} size={16} /></span>}{m && S.team.includes(m.id) && <i>{S.team.indexOf(m.id) + 1}</i>}</button>;
+		{m && <PokeIcon species={m.set.species} />}{m && m.set.shiny && <b class="cp-shmark" aria-label="색이 다른 포켓몬" />}{m && m.set.item && <span class="cp-held"><ItemIcon item={m.set.item} size={16} /></span>}{m && S.team.includes(m.id) && <i>{S.team.indexOf(m.id) + 1}</i>}</button>;
 	return <Screen title="로스터" onBack={done} cls="cp-scr" top><Top title="로스터" sub={`${S.roster.length} / ${T(S).cap}마리 · 팀 ${S.team.length} / 6`} S={S} onBack={done} />
 		<div class="cp-pc"><div class="cp-party"><b class="cp-teamsel"><button class="cp-arw prev" disabled={(S.cur || 0) <= 0} onClick={() => { useTeam(S, (S.cur || 0) - 1); tick(x => x + 1); }} aria-label="앞 팀" />
 			<span>팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 팀 {S.teams?.length || 1} / {TEAM_MAX}</small></span>
 			<button class="cp-arw" disabled={(S.cur || 0) >= TEAM_MAX - 1} onClick={() => { useTeam(S, (S.cur || 0) + 1); tick(x => x + 1); }} aria-label="다음 팀" /></b><div>{[0, 1, 2, 3, 4, 5].map(k => <button class={'cp-slot' + (team[k] ? '' : ' empty')} disabled={!team[k]} onClick={() => team[k] && setSel(team[k])}>
-			{team[k] ? <><PokeIcon species={team[k].set.species} shiny={team[k].set.shiny} />{team[k].set.item && <span class="cp-held"><ItemIcon item={team[k].set.item} size={16} /></span>}<small class={slotCls(monKo(team[k].set))}>{monKo(team[k].set)}</small></> : null}</button>)}</div></div>
+			{team[k] ? <><PokeIcon species={team[k].set.species} />{team[k].set.shiny && <b class="cp-shmark" aria-label="색이 다른 포켓몬" />}{team[k].set.item && <span class="cp-held"><ItemIcon item={team[k].set.item} size={16} /></span>}<small class={slotCls(monKo(team[k].set))}>{monKo(team[k].set)}</small></> : null}</button>)}</div></div>
 		<div class="cp-box">
 			<div class="cp-box-head"><button disabled={page <= 0} onClick={() => setPage(page - 1)} aria-label="앞 박스" class="prev" /><b>박스 {page + 1}{pages > 1 && <small>/ {pages}</small>}</b><button disabled={page >= pages - 1} onClick={() => setPage(page + 1)} aria-label="다음 박스" /></div>
 			<div class="cp-box-grid">{Array.from({ length: cap }, (_, k) => cell(box[k], k))}</div>
@@ -634,7 +634,7 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 			{towerOpen() ? brow('tower', '배틀타워', `${S.tower}연승 · 7연승마다 지명 티켓 (${S.tower % 7} / 7)`) : erow({ k: 'tower', doubles: false }, '배틀타워', '랭크 매치 하이퍼볼급부터 도전', true)}
 			{erow('pwt', 'PWT', pwtOpen() ? `8명 토너먼트 · ${pwtNext}` : pwtNext, !pwtOpen())}</div>
 		<button class="cp-pn cp-myteam" onClick={() => done('roster')}><h3>내 팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
-			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => <span class={team[i] ? '' : 'empty'}>{team[i] && <PokeIcon species={team[i].set.species} shiny={team[i].set.shiny} />}{team[i]?.set.item && <span class="cp-held"><ItemIcon item={team[i].set.item} size={16} /></span>}</span>)}</div></button>
+			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => <span class={team[i] ? '' : 'empty'}>{team[i] && <PokeIcon species={team[i].set.species} />}{team[i]?.set.item && <span class="cp-held"><ItemIcon item={team[i].set.item} size={16} /></span>}</span>)}</div></button>
 		<div class="cp-tiles four">{tile('scout', '스카우트', 'c2', 'pikachu', newLine ? '새 소개' : canPick(S) ? '1마리' : undefined)}{tile('roster', '로스터', 'c3', 'gardevoir')}
 			{tile('shop', '상점', 'c5', 'rotomwash')}{tile('mission', '미션', 'c6', 'togekiss', mr ? String(mr) : undefined)}</div>
 		<div class="cp-nav"><button onClick={() => done('book')}>수첩</button><button onClick={() => done('calc')}>계산기</button><button onClick={() => done('settings')}>설정</button><button onClick={() => done('exit')}>타이틀</button></div>

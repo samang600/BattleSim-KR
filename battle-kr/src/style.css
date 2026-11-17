@@ -2514,8 +2514,6 @@ html { image-rendering: pixelated; }
 
 /* ═════ v2.56.1: 교체 칸 — 1줄 작은 도트 아이콘 + 이름, 2줄 HP 바(칸 폭 가득), 3줄 숫자 ═════ */
 .poke-icon { display: inline-block; flex: none; width: 40px; height: 30px; background: url(pokeicons.png) no-repeat; image-rendering: pixelated; }
-/* 색이 다른 포켓몬의 작은 아이콘: 묶음 그림 대신 색이 다른 도트 그림을 같은 칸에 */
-.poke-icon.shiny { background: none; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; } .poke-icon.shiny .crop { flex: none; } .poke-icon.shiny .sprite { width: auto !important; height: auto !important; object-fit: none; }
 .controls .switch-list .switch-btn { flex-direction: column; align-items: stretch; justify-content: center; }
 .controls .switch-list .switch-btn .sw-info { width: 100%; gap: 2px; }
 .sw-top { display: flex; align-items: center; gap: 2px; min-width: 0; margin: -6px 0 -4px -6px; }
@@ -2809,6 +2807,8 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 /* 챔피언스: 팀 칸 이름은 길수록 작게 · 도구 창의 알림 줄 · 담긴 볼 · 닉네임 창 */
 .cp-slot small.n4 { font-size: 9px; letter-spacing: -.5px; } .cp-slot small.n5 { font-size: 8px; letter-spacing: -.5px; padding: 0; } .cp-slot small.n6 { font-size: 7px; letter-spacing: -.5px; padding: 0; }
 .cp-start-mons small.n4 { font-size: 10px; letter-spacing: 0; } .cp-start-mons small.n5 { font-size: 9px; } .cp-start-mons small.n6 { font-size: 8px; letter-spacing: -.5px; }
+/* 색이 다른 포켓몬 표시: 칸 왼쪽 위의 작은 도트 별 (팀 번호가 있으면 그 오른쪽) */
+.cp-shmark { position: absolute; left: 1px; top: 1px; width: 10px; height: 10px; filter: drop-shadow(1px 0 0 #3a2400) drop-shadow(-1px 0 0 #3a2400) drop-shadow(0 1px 0 #3a2400) drop-shadow(0 -1px 0 #3a2400); pointer-events: none; } .cp-shmark::before { content: ''; position: absolute; inset: 0; background: #ffe24a; clip-path: polygon(50% 0, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0 50%, 35% 35%); } .cp-cell.in .cp-shmark { left: 14px; }
 .cp-shiny { margin-left: 4px; font-style: normal; font-size: 10px; color: #ffe870; white-space: nowrap; } .cp-ballgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; } .cp-ballgrid .ball-cell { border-radius: 0; clip-path: var(--clip1); font: inherit; font-size: 10px; cursor: pointer; border: 0; padding: 6px 0; min-width: 0; } .cp-ballgrid .ball-cell span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cp-opt b em { margin-left: 4px; } .cp-opt em.ln { display: block; white-space: normal; line-height: 1.35; }
 .cp-mp-head small.cp-ball, .cp-ballline { display: flex; align-items: center; gap: 4px; } .cp-ballline { margin: 4px 0; font-size: 12px; color: #b8c8e8; } .cp-ball .item-icon, .cp-ballline .item-icon { flex: none; }

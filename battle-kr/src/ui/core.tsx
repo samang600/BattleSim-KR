@@ -272,8 +272,7 @@ export function pokeIconNum(species: string): number {
 	const num = sp?.num || 0;
 	return num > 0 && num <= 1025 ? num : 0;
 }
-export function PokeIcon({ species, cls, shiny }: { species: string; cls?: string; /** 색이 다른 포켓몬: 작은 아이콘 묶음에는 색이 다른 그림이 없어, 색이 다른 도트 그림을 같은 칸 크기로 줄여서 보여 줌 */ shiny?: boolean }) {
-	if (shiny) return <span class={'poke-icon shiny' + (cls ? ' ' + cls : '')} aria-hidden="true"><CropSprite species={species} gen={5} size={30} shiny cls="mini" /></span>;
+export function PokeIcon({ species, cls }: { species: string; cls?: string }) {
 	const n = pokeIconNum(species);
 	return <span class={'poke-icon' + (cls ? ' ' + cls : '')} style={{ backgroundPosition: `-${(n % 12) * 40}px -${Math.floor(n / 12) * 30}px` }} aria-hidden="true" />;
 }

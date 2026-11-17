@@ -1699,7 +1699,7 @@ function typeTint(type: string) {
 				return <button key={i} class={'switch-btn' + (isActive ? ' active' : '') + (disabled ? ' off' : '')}
 					{...hov(() => ownTip(i))} onClick={() => setSheet({ idx: i, canSwitch: !disabled })}>
 					<span class="sw-info">
-						<span class="sw-top"><PokeIcon species={species} shiny={/, shiny/.test(p.details)} /><b>{nick}</b></span>
+						<span class="sw-top"><PokeIcon species={species} /><b>{nick}</b></span>
 						<HPBar hp={hp.hp} maxhp={hp.maxhp || 1} />
 						<small>{fainted ? '기절' : `${hp.hp}/${hp.maxhp}`} {hp.status && hp.status !== 'fnt' && <StatusBadge status={hp.status} />}{isActive && !fainted && ' · 배틀 중'}{theirs && ` · ${setup.partner!.name}의 포켓몬`}</small>
 					</span>
@@ -1930,13 +1930,13 @@ function typeTint(type: string) {
 				if (!d) return;
 				const fnt = d.live.hp <= 0;
 				cells.push(<div class={'sp-mon' + (fnt ? ' fnt' : '') + (pm.isActive ? ' act' : '')} {...hov(() => ownTip(i))} onClick={() => setSheet({ idx: i, canSwitch: false })}>
-					<PokeIcon species={d.set.species} cls="sp-pic" shiny={d.set.shiny} />
+					<PokeIcon species={d.set.species} cls="sp-pic" />
 					<HPBar hp={d.live.hp} maxhp={d.live.maxhp || 1} />
 				</div>);
 			});
 		} else {
 			const fcell = (m: Mon) => <div class={'sp-mon' + (m.fainted ? ' fnt' : '') + (sd.active.includes(m) ? ' act' : '')} {...hov(() => foeTip(m))} onClick={() => setDetail({ mon: m, own: false })}>
-				<PokeIcon species={m.species} cls="sp-pic" shiny={m.shiny} />
+				<PokeIcon species={m.species} cls="sp-pic" />
 				<HPBar hp={m.fainted ? 0 : m.hp} maxhp={m.maxhp || 1} />
 			</div>;
 			// 엔트리(6마리)를 알면 모두 보여 주되, 아직 안 나온 포켓몬은 어둡게 (누가 선출됐는지는 알 수 없음)
@@ -2059,7 +2059,7 @@ function typeTint(type: string) {
 				// 3마리씩 2줄: 아이콘 + HP 만. 배틀에 나온 포켓몬만 밝게(누르면 자세히), 확인 안 된 포켓몬은 어둡게
 				const sp2 = scene.p2, pv = setup.p2.preview;
 				const cell = (m: Mon) => <button class={'foe-cell' + (m.fainted ? ' fnt' : '') + (sp2.active.includes(m) ? ' act' : '')} onClick={() => setDetail({ mon: m, own: false })} aria-label={m.nick}>
-					<PokeIcon species={m.species} cls="foe-pic" shiny={m.shiny} />
+					<PokeIcon species={m.species} cls="foe-pic" />
 					<HPBar hp={m.fainted ? 0 : m.hp} maxhp={m.maxhp || 1} />
 				</button>;
 				if (!pv || pv.length < sp2.teamSize) return <div class="foe-grid">
