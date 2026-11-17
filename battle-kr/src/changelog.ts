@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.86.1', date: '2026-11-17', title: '코트체인지', items: [
+		['fix', '코트체인지를 쓰면 스텔스록 같은 필드 상태 표시도 상대 쪽으로 넘어가요.'],
+	] },
 	{ ver: '2.86.0', date: '2026-11-17', title: '상태 이상 연출 · 새 업적', items: [
 		['new', '독·화상·마비·잠듦·얼음·혼란·헤롱헤롱·소금절이에 연출이 생겼어요. 상태 이상이면 움직임이 느려지고, 얼어붙으면 멈춥니다.'],
 		['new', '플래티넘 업적 12개와 숨겨진 업적 13개가 생겼어요. 색이 다른 포켓몬은 작은 아이콘에도 그 색으로 나옵니다.'],

@@ -732,6 +732,11 @@ function typeTint(type: string) {
 			side.cond[id] = (side.cond[id] || 0) + 1;
 			return 0;
 		}
+		case '-swapsideconditions': {
+			// 코트체인지: 양쪽 필드의 상태(스텔스록·압정·벽·순풍 등)가 서로 바뀜 — 표시도 함께 바꿈
+			const a = scene.p1.cond; scene.p1.cond = scene.p2.cond; scene.p2.cond = a;
+			return 0;
+		}
 		case '-sideend': {
 			const side = scene[args[1].slice(0, 2) as 'p1' | 'p2'];
 			delete side.cond[effectInfo(args[2]).id];
