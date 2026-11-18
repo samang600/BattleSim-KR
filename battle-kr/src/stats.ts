@@ -216,7 +216,7 @@ export const ACHIEVEMENTS: Ach[] = [
 	// 시설
 	{ id: 'tower', name: '탑을 오르는 자', desc: '배틀타워 {n}연승', cat: '시설', steps: [7, 21, 49, 100], value: () => bestOf('tower-') },
 	{ id: 'factory', name: '렌탈의 귀재', desc: '배틀팩토리 {n}연승', cat: '시설', steps: [7, 21, 49], value: () => bestOf('factory-') },
-	{ id: 'palace', name: '마음을 믿는 자', desc: '배틀팰리스 {n}연승', cat: '시설', steps: [7, 21, 49], value: () => bestOf('palace-') },
+	{ id: 'palace', name: '마음을 믿는 자', desc: '배틀팰리스 {n}연승', cat: '시설', steps: [7, 21, 42], value: () => bestOf('palace-') },
 	{ id: 'symbols', name: '심볼 수집가', desc: '타워·팩토리·챔피언 심볼 {n}개 (은·금 각각 셈)', cat: '시설', steps: [1, 3, 6], value: s => Object.values(s.sym).reduce((a: number, b) => a + (b || 0), 0) },
 	{ id: 'pwt', name: '월드 토너먼트', desc: 'PWT 우승 {n}회', cat: '시설', steps: [1, 10, 50], value: () => Object.values(rec().cups).reduce((a, b) => a + b, 0) },
 	{ id: 'pwtAll', name: '세계 최강 트레이너', desc: `모든 PWT 대회 우승 ({n}/${CUPS.length})`, cat: '시설', steps: [CUPS.length], value: () => Object.keys(rec().cups).filter(k => rec().cups[k] > 0).length },

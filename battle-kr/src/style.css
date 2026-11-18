@@ -2833,6 +2833,25 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 /* 클라우드 자동 저장 줄 */
 .cloud-auto { display: flex; align-items: center; gap: 8px; margin: 6px 0; } .cloud-auto .btn { flex: none; } .cloud-auto span { flex: 1; min-width: 0; line-height: 1.4; }
 
+/* 꾹 눌러 끌어서 순서 바꾸기 (ui/core.tsx dragSort) */
+[data-dg] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+body.dragging { -webkit-user-select: none; user-select: none; cursor: grabbing; }
+.drag-src { opacity: .35; }
+.drag-over { outline: 2px dashed #ffd84a; outline-offset: -2px; filter: brightness(1.25); }
+.drag-ghost { position: fixed !important; left: 0 !important; top: 0 !important; z-index: 9999 !important; pointer-events: none; margin: 0 !important; opacity: .92; box-shadow: 4px 4px 0 rgba(0, 0, 0, .45); }
+.drag-hint { font-size: 11px; color: #9fb0d8; margin: 4px 0 0; }
+.cp-sortbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; padding: 0 10px; }
+.cp-sortbar > span { font-size: 12px; color: #eaf6e4; margin-right: 2px; }
+.cp-wins { color: #ffd84a; }
+.pick-row.bo-only { opacity: .78; }
+.pick-row.bo-only .bo-tag { font-size: 10px; color: #1a1408; background: #ffd84a; padding: 0 4px; margin-left: 4px; }
+.bo-view { display: flex; flex-direction: column; gap: 8px; }
+.bo-view .bo-head { display: flex; gap: 10px; align-items: center; }
+.bo-view table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bo-view th, .bo-view td { padding: 3px 4px; text-align: right; border-bottom: 2px solid rgba(255, 255, 255, .08); }
+.bo-view th:first-child, .bo-view td:first-child { text-align: left; }
+.bo-view td.up { color: #ff8a7a; } .bo-view td.dn { color: #8ab8ff; }
+
 /* ═════ FX:BEGIN — scripts/gen-fx-css.py 가 만든 부분 (손으로 고치지 말 것) ═════ */
 /* HP 창 테마: 띠 + 도트 무늬 + 은은한 움직임 (::before, 글자 아래) */
 [class*="hpt-"] .info { isolation: isolate; }

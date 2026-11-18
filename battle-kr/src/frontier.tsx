@@ -85,7 +85,7 @@ export async function runPalace() {
 	// 치트 팀 허용: 전적·연승·BP·심볼에 반영하지 않고, 도전도 따로 저장
 	const opts: BattleOpts = { cheat: false, level100: false, inverse: false };
 	const fmt = await ask<Fmt | typeof BACK>(r => <ChoiceScreen title="배틀팰리스" onBack={() => r(BACK)} footer={<OptsBox opts={opts} show={['cheat']} />}
-		intro={<p class="hint">포켓몬이 <b>성격</b>대로 스스로 기술을 고릅니다. 트레이너는 지켜볼 뿐! HP가 절반 이하가 되면 성격에 따라 싸우는 방식이 바뀝니다. 21·49번째에는 팰리스 메이븐이 나옵니다. (레벨 50 · 기믹 없음)</p>}
+		intro={<p class="hint">포켓몬이 <b>성격</b>대로 스스로 기술을 고릅니다. 트레이너는 지켜볼 뿐! HP가 절반 이하가 되면 성격에 따라 싸우는 방식이 바뀝니다. 21·42번째에는 팰리스 메이븐이 나옵니다. (레벨 50 · 기믹 없음)</p>}
 		options={[{ value: 'singles' as Fmt, label: '싱글 3vs3', desc: '1대1 · 3마리', icon: '①' }, { value: 'doubles' as Fmt, label: '더블 4vs4', desc: '2마리씩 · 4마리', icon: '②' }]} onPick={r} />);
 	if (fmt === BACK) return;
 	const cheat = opts.cheat;
@@ -109,9 +109,9 @@ export async function runPalace() {
 	const ruleId = noGimmickRule();
 	while (true) {
 		const no = state.streak + 1;
-		const maven = no === 21 || no === 49;
+		const maven = no === 21 || no === 42;
 		const base: any = towerOpponent(state.streak, fmt, state.team, false, 'normal');
-		const opp = maven ? { ...base, name: '팰리스 메이븐', title: '', sprite: 'spenser', line: no === 49 ? '포켓몬과 마음이 통했는가? 전력으로 확인하겠다!' : '포켓몬을 믿는 마음, 보여 주게!',
+		const opp = maven ? { ...base, name: '팰리스 메이븐', title: '', sprite: 'spenser', line: no === 42 ? '포켓몬과 마음이 통했는가? 전력으로 확인하겠다!' : '포켓몬을 믿는 마음, 보여 주게!',
 			lines: { ace: '내 포켓몬은 스스로 답을 찾는다!', lose: '훌륭하다… 그대와 포켓몬의 마음은 하나로군.', win: '포켓몬을 더 믿어 보게.' }, skill: 0.97 } : base;
 		opp.team = palaceItems(withLevel(opp.team, 50));
 		const go = await confirmQuit(() => ask<'go' | 'rest' | 'quit'>(r => <InfoScreen title={`배틀팰리스 · ${fmt === 'doubles' ? '더블' : '싱글'}`} banner={`${no}번째 승부`} prep={<BgmRow />}
@@ -135,8 +135,8 @@ export async function runPalace() {
 		const s = state.streak;
 		if (!cheat) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 		save(key, state);
-		if (maven && !cheat) earnBP(no === 49 ? BRAIN_BP.gold : BRAIN_BP.silver, '팰리스 메이븐 격파');
-		if (maven && !cheat && awardSymbol('palace', no === 49)) await symbolScreen('palace', no === 49);
+		if (maven && !cheat) earnBP(no === 42 ? BRAIN_BP.gold : BRAIN_BP.silver, '팰리스 메이븐 격파');
+		if (maven && !cheat && awardSymbol('palace', no === 42)) await symbolScreen('palace', no === 42);
 		if (s % 7 === 0 && !cheat) earnBP(setClearBP(s), '세트 클리어');
 		if (s % 7 === 0) {
 			const v = await ask<'go' | 'rest'>(r => <InfoScreen title="배틀팰리스" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`} lines={['포켓몬들의 체력이 회복되었다.']}
@@ -146,7 +146,7 @@ export async function runPalace() {
 	}
 }
 
-// ═════════ 일필도: 포켓몬 한 마리로 1:1 연승 도전. 49번째는 무한다이맥스 무한다이노(내 포켓몬에게 불리한 타입으로 테라스탈) ═════════
+// ═════════ 일필도: 포켓몬 한 마리로 1:1 연승 도전. 42번째는 무한다이맥스 무한다이노(내 포켓몬에게 불리한 타입으로 테라스탈) ═════════
 const IPPITSU_KEY = () => `ippitsu${rt()}`;
 interface IppitsuState { mon: PSet; streak: number }
 /** 무한다이노가 테라스탈할 타입: 플레이어에게 불리한 타입 (예: 물 포켓몬 → 풀).
@@ -178,14 +178,14 @@ export async function runIppitsu() {
 		const team = await chooseTeam(9, '일필도 · 팀 선택', true, false, 50);
 		if (team === BACK) return;
 		const picked = team.length > 1 ? await ask<PSet[] | typeof BACK>(r => <PickScreen title="일필도 · 포켓몬 한 마리" team={team} gen={9} count={1}
-			hint="한 마리로 끝까지 싸웁니다. 배틀마다 HP·PP는 회복돼요. 21번째에 타워 타이쿤, 49번째에는 무한다이노가 기다립니다." onBack={() => r(BACK)} onDone={r} />) : team;
+			hint="한 마리로 끝까지 싸웁니다. 배틀마다 HP·PP는 회복돼요. 21번째에 타워 타이쿤, 42번째에는 무한다이노가 기다립니다." onBack={() => r(BACK)} onDone={r} />) : team;
 		if (picked === BACK || !picked.length) return;
 		state = { mon: cloneSet(picked[0]), streak: 0 };
 		save(key, state);
 	}
 	while (true) {
 		const no = state.streak + 1;
-		const final = no === 49;
+		const final = no === 42;
 		const base: any = towerOpponent(state.streak, 'singles', [state.mon], false, 'normal');
 		let opp: any;
 		if (final) {
@@ -237,7 +237,7 @@ export async function runIppitsu() {
 		else if (s % 7 === 0) earnBP(setClearBP(s), '세트 클리어');
 		if (final) {
 			await ask<void>(r => <InfoScreen title="일필도" banner="🏆 일필도 달성!" heading="무한다이노를 쓰러뜨렸다!" sprites={[state!.mon.species]} sets={[state!.mon]} gen={9}
-				lines={[`${speciesKo(toID(state!.mon.species))} 한 마리로 49연승!`, '이후로도 계속 도전할 수 있어요.']} actions={[{ label: '계속', onClick: () => r() }]} />);
+				lines={[`${speciesKo(toID(state!.mon.species))} 한 마리로 42연승!`, '이후로도 계속 도전할 수 있어요.']} actions={[{ label: '계속', onClick: () => r() }]} />);
 		} else if (s % 7 === 0) {
 			const v = await ask<'go' | 'rest'>(r => <InfoScreen title="일필도" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`} lines={['다음 세트로!']}
 				actions={[{ label: '계속', onClick: () => r('go') }, { label: '여기서 쉬기', kind: 'ghost', onClick: () => r('rest') }]} />);

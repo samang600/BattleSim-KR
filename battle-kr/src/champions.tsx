@@ -3,7 +3,8 @@
  *  화면은 '무엇을 눌렀는지'만 돌려주고, 진행은 아래의 흐름 함수(…Flow)가 맡는다. */
 import { h, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
-import { ask, Screen, Sprite, PokeIcon, ItemIcon, TypeBadge, Modal, toast, confirmBox } from './ui/core';
+import { ask, Screen, Sprite, PokeIcon, ItemIcon, TypeBadge, Modal, toast, confirmBox, dragSort, moved } from './ui/core';
+import { onBattleEnd } from './battle-hooks';
 import { PickScreen, ChoiceScreen, MonDetail } from './ui/screens';
 import { NatureTable, matches, HpTypeGrid } from './ui/teambuilder';
 import { battle, playerName, playerSprite, towerOpponent, BACK, runRank, runPWT, rankTier, rankLabel, CH_TAG, type ArenaCtx } from './modes';
@@ -25,7 +26,9 @@ import { playMusic, sfx } from './sound';
 import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, START_ITEMS, SHOP, NATURES, EVENTS, TOWER_EVENTS, CSYM, REGION_CUPS, CUP_NEED } from './champions-data';
 
 // ───────── 저장 ─────────
-interface CMon { id: number; set: PSet; /** 거다이맥스를 한 번 켠 적이 있음 — 그 뒤로는 켜고 끄기가 무료 */ gx?: 1 }
+interface CMon { id: number; set: PSet; /** 거다이맥스를 한 번 켠 적이 있음 — 그 뒤로는 켜고 끄기가 무료 */ gx?: 1; /** 이 포켓몬이 엔트리에 들어가 이긴 판 수 (볼 바꾸기는 BALL_WINS 승부터) */ w?: number }
+/** 볼을 바꿀 수 있게 되는 승수 */
+const BALL_WINS = 10;
 interface CSave {
 	v: 1; /** 다음에 볼 장 (0 = 등록 전) */ ch: number; tier: number; pts: number;
 	roster: CMon[]; /** 지금 고른 팀에 넣은 포켓몬 id (6마리까지) — teams[cur] 과 같은 것 */ team: number[]; seq: number;
@@ -43,6 +46,18 @@ const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMo
 const fresh = (): CSave => ({ v: 1, ch: 0, tier: 0, pts: 0, roster: [], team: [], seq: 1, items: Object.fromEntries(START_ITEMS.map(i => [i, 1])), tk: { regular: 0, pick: 0 },
 	lineup: [], lineDay: '', freeAt: 0, wish: [], wishMiss: 0, tower: 0, factory: 0, day: { id: '', win: 0, scout: 0, modes: {}, got: {} } });
 const TEAM_MAX = 10;
+/** 지금 열려 있는 챔피언스 저장 (모드 밖에서는 null) — 배틀이 끝날 때 엔트리 포켓몬의 승수를 올림 */
+let LIVE: (() => CSave) | null = null;
+onBattleEnd((setup: any, _b: any, win: boolean) => {
+	if (!LIVE || !win) return;
+	const S = LIVE(), pool = S.team.map(id => S.roster.find(m => m.id === id)).filter(Boolean) as CMon[];
+	for (const e of (setup?.p1?.team || []) as PSet[]) {
+		let k = pool.findIndex(m => toID(m.set.species) === toID(e.species) && shownName(m.set) === shownName(e));
+		if (k < 0) k = pool.findIndex(m => toID(m.set.species) === toID(e.species));
+		if (k >= 0) { pool[k].w = (pool[k].w || 0) + 1; pool.splice(k, 1); }
+	}
+	save(KEY, S);
+});
 /** 팀 목록을 맞춤: 지금 팀(S.team)을 teams[cur] 에 되적음 */
 const syncTeams = (S: CSave) => { S.teams ||= [S.team]; S.cur = Math.min(S.cur || 0, S.teams.length - 1); S.teams[S.cur] = S.team; };
 const persist = (S: CSave) => { syncTeams(S); save(KEY, S); };
@@ -385,18 +400,32 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 	const re = () => { persist(S); tick(x => x + 1); };
 	const pages = Math.max(1, Math.ceil(T(S).cap / BOX)), team = teamOf(S);
 	const box = S.roster.slice(page * BOX, page * BOX + BOX), cap = Math.min(BOX, T(S).cap - page * BOX);
-	const cell = (m: CMon | undefined, k: number) => <button class={'cp-cell' + (m ? '' : ' empty') + (m && S.team.includes(m.id) ? ' in' : '')} disabled={!m} onClick={() => m && setSel(m)} key={k}>
+	/** 박스 정렬: 로스터의 순서 자체를 바꿈 (그 뒤 꾹 눌러 끌어서 손볼 수 있음) */
+	const [sortOpen, setSortOpen] = useState(false);
+	const bst = (m: CMon) => ((speciesData(m.set.species, 9) as any)?.bs || []).reduce((a: number, b: number) => a + b, 0), num = (m: CMon) => (speciesData(m.set.species, 9) as any)?.num || 0;
+	const SORTS: [string, string, (a: CMon, b: CMon) => number][] = [
+		['최신 순', '나중에 데려온 포켓몬부터', (a, b) => b.id - a.id], ['오래된 순', '먼저 데려온 포켓몬부터', (a, b) => a.id - b.id],
+		['도감 번호', '전국도감 번호 순', (a, b) => num(a) - num(b) || a.id - b.id], ['이름', '가나다 순', (a, b) => monKo(a.set).localeCompare(monKo(b.set), 'ko') || a.id - b.id],
+		['종족값', '종족값 합계가 높은 순', (a, b) => bst(b) - bst(a) || a.id - b.id], ['타입', '첫 번째 타입끼리 모음', (a, b) => ALL_TYPES.indexOf(types(a.set.species)[0]) - ALL_TYPES.indexOf(types(b.set.species)[0]) || num(a) - num(b)],
+		['승수', '많이 이긴 순', (a, b) => (b.w || 0) - (a.w || 0) || a.id - b.id], ['지금 팀 먼저', '팀에 넣은 포켓몬을 앞으로', (a, b) => (S.team.includes(a.id) ? S.team.indexOf(a.id) : 99) - (S.team.includes(b.id) ? S.team.indexOf(b.id) : 99) || a.id - b.id],
+		['색이 다른 포켓몬 먼저', '색이 다른 포켓몬을 앞으로', (a, b) => (b.set.shiny ? 1 : 0) - (a.set.shiny ? 1 : 0) || a.id - b.id]];
+	const boxMove = (from: number, to: number) => { const a = page * BOX + from, b = Math.min(page * BOX + to, S.roster.length - 1); if (a >= S.roster.length || a === b) return; S.roster = moved(S.roster, a, b); re(); };
+	const teamMove = (from: number, to: number) => { if (from >= S.team.length) return; S.team = moved(S.team, from, Math.min(to, S.team.length - 1)); syncTeams(S); re(); };
+	const cell = (m: CMon | undefined, k: number) => <button class={'cp-cell' + (m ? '' : ' empty') + (m && S.team.includes(m.id) ? ' in' : '')} disabled={!m} onClick={() => m && setSel(m)} key={m ? 'm' + m.id : 'e' + k} {...dragSort('cpbox', k, boxMove, !!m)}>
 		{m && <PokeIcon species={m.set.species} />}{m && m.set.shiny && <b class="cp-shmark" aria-label="색이 다른 포켓몬" />}{m && m.set.item && <span class="cp-held"><ItemIcon item={m.set.item} size={16} /></span>}{m && S.team.includes(m.id) && <i>{S.team.indexOf(m.id) + 1}</i>}</button>;
 	return <Screen title="로스터" onBack={done} cls="cp-scr" top><Top title="로스터" sub={`${S.roster.length} / ${T(S).cap}마리 · 팀 ${S.team.length} / 6`} S={S} onBack={done} />
 		<div class="cp-pc"><div class="cp-party"><b class="cp-teamsel"><button class="cp-arw prev" disabled={(S.cur || 0) <= 0} onClick={() => { useTeam(S, (S.cur || 0) - 1); tick(x => x + 1); }} aria-label="앞 팀" />
 			<span>팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 팀 {S.teams?.length || 1} / {TEAM_MAX}</small></span>
-			<button class="cp-arw" disabled={(S.cur || 0) >= TEAM_MAX - 1} onClick={() => { useTeam(S, (S.cur || 0) + 1); tick(x => x + 1); }} aria-label="다음 팀" /></b><div>{[0, 1, 2, 3, 4, 5].map(k => <button class={'cp-slot' + (team[k] ? '' : ' empty')} disabled={!team[k]} onClick={() => team[k] && setSel(team[k])}>
+			<button class="cp-arw" disabled={(S.cur || 0) >= TEAM_MAX - 1} onClick={() => { useTeam(S, (S.cur || 0) + 1); tick(x => x + 1); }} aria-label="다음 팀" /></b><div>{[0, 1, 2, 3, 4, 5].map(k => <button class={'cp-slot' + (team[k] ? '' : ' empty')} disabled={!team[k]} onClick={() => team[k] && setSel(team[k])} key={team[k] ? 't' + team[k].id : 'e' + k} {...dragSort('cpteam', k, teamMove, !!team[k])}>
 			{team[k] ? <><PokeIcon species={team[k].set.species} />{team[k].set.shiny && <b class="cp-shmark" aria-label="색이 다른 포켓몬" />}{team[k].set.item && <span class="cp-held"><ItemIcon item={team[k].set.item} size={16} /></span>}<small class={slotCls(monKo(team[k].set))}>{monKo(team[k].set)}</small></> : null}</button>)}</div></div>
 		<div class="cp-box">
 			<div class="cp-box-head"><button disabled={page <= 0} onClick={() => setPage(page - 1)} aria-label="앞 박스" class="prev" /><b>박스 {page + 1}{pages > 1 && <small>/ {pages}</small>}</b><button disabled={page >= pages - 1} onClick={() => setPage(page + 1)} aria-label="다음 박스" /></div>
+			<div class="cp-sortbar"><span>박스 정렬</span><button class="btn small" onClick={() => setSortOpen(true)}>기준 고르기</button></div>
 			<div class="cp-box-grid">{Array.from({ length: cap }, (_, k) => cell(box[k], k))}</div>
 		</div></div>
-		<p class="cp-note">포켓몬을 누르면 팀에 넣고 빼기·도구·트레이닝 창이 열립니다. 숫자가 붙은 포켓몬이 지금 팀입니다. 팀은 화살표로 넘겨 {TEAM_MAX}개까지 따로 짤 수 있고, 지금 보이는 팀으로 배틀에 나갑니다.</p>
+		<p class="cp-note">포켓몬을 누르면 팀에 넣고 빼기·도구·트레이닝 창이 열립니다. 숫자가 붙은 포켓몬이 지금 팀입니다. 팀 칸·박스 칸을 <b>꾹 눌러 끌면</b> 순서를 바꿀 수 있어요. 팀은 화살표로 넘겨 {TEAM_MAX}개까지 따로 짤 수 있고, 지금 보이는 팀으로 배틀에 나갑니다.</p>
+		{sortOpen && <Modal title="박스 정렬" onClose={() => setSortOpen(false)}><div class="cp-opts">{SORTS.map(([label, desc, fn]) => <button class="cp-opt" onClick={() => { S.roster = S.roster.slice().sort(fn); setPage(0); setSortOpen(false); re(); toast(`${label}으로 정렬했습니다`); }}><div><b>{label}</b><small>{desc}</small></div></button>)}</div>
+			<p class="cp-note">정렬하면 박스의 순서가 그대로 바뀝니다. 팀 순서는 바뀌지 않아요.</p></Modal>}
 		{sel && draft && !sub && <MonPop S={S} m={sel} d={draft} open={setSub} close={() => setSel(null)} re={re} />}
 		{sel && draft && sub && <SubPop S={S} m={sel} d={draft} sub={sub} open={setSub} back={() => { setSub(null); tick(x => x + 1); }} />}
 	</Screen>;
@@ -425,8 +454,6 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 	const c = trainCost(o, d, !!m.gx), ch = (label: string) => c.parts.some(x => x[0] === label);
 	const row = (k: Sub, label: string, val: any, cost?: number, changed = false) => <button class={'cp-mrow' + (changed ? ' ch' : '')} onClick={() => open(k)}><small>{label}</small><b>{val}</b><em class={cost === undefined ? 'free' : ''}>{cost === undefined ? '무료' : (changed ? '+' : '') + cost + ' BP'}</em></button>;
 	const toggle = () => { if (inTeam) S.team = S.team.filter(i => i !== m.id); else if (S.team.length >= 6) { toast('팀은 6마리까지예요. 먼저 한 마리를 빼 주세요'); return; } else S.team.push(m.id); re(); };
-	/** 팀 안에서의 순서 바꾸기 (바로 저장, 무료) */
-	const shift = (dlt: number) => { const i = S.team.indexOf(m.id), j = i + dlt; if (i < 0 || j < 0 || j >= S.team.length) return; [S.team[i], S.team[j]] = [S.team[j], S.team[i]]; syncTeams(S); re(); };
 	const release = async () => { if (await confirmBox('내보내기', `${josa(name, '을', '를')} 내보낼까요? 되돌릴 수 없어요.`, '내보낸다', '그만두기')) { S.roster = S.roster.filter(x => x !== m); S.team = S.team.filter(i => i !== m.id); syncTeams(S); S.teams = S.teams!.map(t => t.filter(i => i !== m.id)); S.team = S.teams[S.cur!]; re(); close(); } };
 	const saveAll = () => {
 		if (c.total && !pay(c.total, `챔피언스 · ${name} 트레이닝 (${c.parts.map(x => x[0]).join('·')})`)) return;
@@ -437,13 +464,13 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 	const spText = STAT_KEYS.map((k, i) => sp[k] ? `${STAT_NAME[i]} ${sp[k]}` : '').filter(Boolean).join(' · ') || '나누지 않음';
 	return <Modal title={name} onClose={tryClose}><div class="cp-mp">
 		<div class="cp-mp-head"><span class="cp-mp-spr"><Sprite species={d.species} gen={9} size={64} anim={false} cls="front" shiny={o.shiny} /></span>
-			<div><span>{types(d.species).map(t => <TypeBadge type={t} small />)}{rarity(toID(o.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(o.species))]}</i>}</span><small class="cp-ball"><ItemIcon item={ballOf(d)} size={16} />{itemKo(ballOf(d))}{o.shiny && <i class="cp-shiny">★색이 다른</i>}</small><small>{speciesKo(d.species)} · {inTeam ? `팀 ${S.team.indexOf(m.id) + 1}번째` : '박스에 있음'}</small></div>
+			<div><span>{types(d.species).map(t => <TypeBadge type={t} small />)}{rarity(toID(o.species)) > 0 && <i class="cp-rare">{RARE[rarity(toID(o.species))]}</i>}</span><small class="cp-ball"><ItemIcon item={ballOf(d)} size={16} />{itemKo(ballOf(d))}{o.shiny && <i class="cp-shiny">★색이 다른</i>}</small><small>{speciesKo(d.species)} · {inTeam ? `팀 ${S.team.indexOf(m.id) + 1}번째` : '박스에 있음'} · <i class="cp-wins">{m.w || 0}승</i></small></div>
 			<button class={'btn small' + (inTeam ? '' : ' primary')} onClick={toggle}>{inTeam ? '팀에서 빼기' : '팀에 넣기'}</button></div>
-		{inTeam && S.team.length > 1 && <div class="cp-ord"><span>팀 순서 {S.team.indexOf(m.id) + 1} / {S.team.length}</span><button class="btn small" disabled={S.team.indexOf(m.id) === 0} onClick={() => shift(-1)}>앞으로</button><button class="btn small" disabled={S.team.indexOf(m.id) >= S.team.length - 1} onClick={() => shift(1)}>뒤로</button></div>}
 		<div class="cp-mrows">
 			{row('nick', '닉네임', isNick(d.name, d.species) ? d.name : <small>없음 ({nickKo(d.species)})</small>, undefined, (isNick(o.name, o.species) ? o.name : '') !== (isNick(d.name, d.species) ? d.name : ''))}
 			{formsOf(o.species).length > 1 && row('form', '모습', speciesKo(d.species), PRICE.form, ch('모습'))}
-			{row('ball', '볼', <><ItemIcon item={ballOf(d)} size={24} />{itemKo(ballOf(d))}</>, undefined, ballOf(o) !== ballOf(d))}
+			{(m.w || 0) >= BALL_WINS ? row('ball', '볼', <><ItemIcon item={ballOf(d)} size={24} />{itemKo(ballOf(d))}</>, undefined, ballOf(o) !== ballOf(d))
+				: <button class="cp-mrow" onClick={() => toast(`볼은 이 포켓몬으로 ${BALL_WINS}승을 하면 바꿀 수 있어요 (지금 ${m.w || 0}승)`)}><small>볼</small><b><ItemIcon item={ballOf(d)} size={24} />{itemKo(ballOf(d))}</b><em class="free">{m.w || 0} / {BALL_WINS}승</em></button>}
 			{row('item', '도구', d.item ? <><ItemIcon item={d.item} size={24} />{itemKo(d.item)}</> : '없음', undefined, toID(o.item) !== toID(d.item))}
 			{row('ability', '특성', abilityKo(d.ability), PRICE.ability, ch('특성'))}
 			<p class="cp-mdesc">{abilityDesc(d.ability)}</p>
@@ -452,8 +479,9 @@ function MonPop({ S, m, d, open, close, re }: { S: CSave; m: CMon; d: PSet; open
 			{row('sp', '능력 포인트', <small>{spText}</small>, PRICE.sp, ch('능력 포인트'))}
 			{canGmax(d.species) && <button class={'cp-mrow' + (!!o.gigantamax !== !!d.gigantamax ? ' ch' : '')} onClick={() => { d.gigantamax = !d.gigantamax; re2(); }}><small>거다이맥스</small><b>{d.gigantamax ? '켬' : '끔'}</b><em class={m.gx ? 'free' : ''}>{m.gx ? '무료' : (ch('거다이맥스') ? '+' : '') + PRICE.gmax + ' BP'}</em></button>}
 		</div>
-		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = !!d.moves[k] && !o.moves.some(y => hpBase(toID(y)) === hpBase(toID(d.moves[k]))); return <button class={changed ? 'ch' : ''} onClick={() => open({ move: k })}>
+		<div class="cp-mmoves">{[0, 1, 2, 3].map(k => { const md = d.moves[k] ? moveData(d.moves[k], 9) : null, changed = !!d.moves[k] && !o.moves.some(y => hpBase(toID(y)) === hpBase(toID(d.moves[k]))); return <button class={changed ? 'ch' : ''} onClick={() => open({ move: k })} {...dragSort('cpmv', k, (a, b) => { if (!d.moves[a]) return; d.moves = moved(d.moves, a, Math.min(b, d.moves.length - 1)); re2(); }, !!d.moves[k])}>
 			{md && <TypeBadge type={md.type} small />}<b>{d.moves[k] ? moveKo(d.moves[k]) : '(빈 칸)'}</b><em>{changed ? '+' : ''}{PRICE.move} BP</em></button>; })}</div>
+		<p class="drag-hint">기술을 꾹 눌러 끌면 순서를 바꿀 수 있어요 (무료)</p>
 		<div class="cp-msave"><span>{c.parts.length ? c.parts.map(x => `${x[0]} ${x[1]}`).join(' · ') : c.dirty ? '무료 항목만 바꿈' : '고친 항목이 없습니다'}</span>
 			<button class="btn primary" disabled={!c.dirty} onClick={saveAll}>저장{c.total ? ` (총 ${c.total} BP)` : ''}</button></div>
 		<div class="cp-mfoot"><button class="btn small" onClick={() => open('detail')}>능력치 자세히</button><button class="btn small ghost" onClick={release}>내보내기</button></div>
@@ -475,7 +503,6 @@ type Grid = '' | 'grid' | 'grid two';
 function SubPop({ S, m, d, sub, back, open }: { S: CSave; m: CMon; d: PSet; sub: Exclude<Sub, null>; back: () => void; open: (s: Sub) => void }) {
 	const s = d, name = monKo(s), [q, setQ] = useState(''), [nick, setNick] = useState(isNick(d.name, d.species) ? d.name : '');
 	const apply = (_cost: number, _why: string, f: () => void) => { f(); back(); };
-	const mvSwap = (a: number, b: number) => { [s.moves[a], s.moves[b]] = [s.moves[b], s.moves[a]]; open({ move: b }); };
 	if (sub === 'nick') return <Modal title="닉네임" onClose={back}><div class="cp-nick">
 		<input class="cp-search" maxLength={12} placeholder={nickKo(s.species)} value={nick} onInput={e => setNick((e.target as HTMLInputElement).value.replace(/[,|[\]]/g, ''))} />
 		<p class="cp-note">12자까지. 비워 두면 종 이름({nickKo(s.species)})으로 나옵니다. 닉네임은 무료예요.</p>
@@ -518,8 +545,6 @@ function SubPop({ S, m, d, sub, back, open }: { S: CSave; m: CMon; d: PSet; sub:
 	}
 	const list = opts.filter(o => matches(q, o.label));
 	return <Modal title={`${title}${cost ? ` · ${cost} BP` : ''}`} onClose={back}>
-		{typeof sub === 'object' && s.moves[sub.move] && <div class="set-mvacts"><button class="btn small" disabled={sub.move === 0} onClick={() => mvSwap(sub.move, sub.move - 1)}>앞으로</button>
-			<button class="btn small" disabled={sub.move >= s.moves.length - 1} onClick={() => mvSwap(sub.move, sub.move + 1)}>뒤로</button><span class="cp-note">순서 바꾸기는 무료</span></div>}
 		{typeof sub === 'object' && s.moves[sub.move] && hpBase(toID(s.moves[sub.move])) === 'hiddenpower' && <HpTypeGrid value={toID(s.moves[sub.move]).slice(11)} onPick={t => { s.moves[sub.move] = 'hiddenpower' + t.toLowerCase(); back(); }} />}
 		{search && <input class="cp-search" placeholder="이름으로 찾기 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value.trim())} />}
 		<div class={'cp-opts ' + grid}>{list.slice(0, 120).map(o => <button class={'cp-opt' + (grid && o.off ? ' cur' : '')} disabled={o.off} onClick={() => apply(cost, why, o.run)}>{o.icon}<div><b>{o.label}{o.note === '지금' && <em>지금</em>}</b>{o.note && o.note !== '지금' && <em class="ln">{o.note}</em>}{o.desc && <small>{o.desc}</small>}</div></button>)}
@@ -644,6 +669,7 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 export interface Tools { settings: (onBack: () => void, onTitle?: () => void, extra?: { label: string; note?: string; run: () => void }) => any; calc: (onBack: () => void) => any; book: (onBack: () => void, mode?: string) => any; shop: (onBack: () => void) => any }
 export async function runChampions(tools?: Tools) {
 	let S: CSave = { ...fresh(), ...load<Partial<CSave>>(KEY, {}) } as CSave;
+	LIVE = () => S;
 	if (S.teams) S.team = S.teams[Math.min(S.cur || 0, S.teams.length - 1)] || S.team;
 	syncTeams(S);
 	for (const m of S.roster) delete (m as any).trial;   // 예전 저장의 트라이얼 포켓몬은 그대로 남김 (기한 없음)
@@ -654,7 +680,7 @@ export async function runChampions(tools?: Tools) {
 		// 등록은 했는데 첫 파티를 아직 안 받았으면 (고르다 나간 경우) 이어서
 		if (S.ch >= 1 && !S.roster.length && S.seq === 1) { await startFlow(S); if (!S.lineup.length) newLineup(S); }
 		const a = await ask<HubAct>(r => <Hub key={K()} S={S} done={r} />);
-		if (a === 'exit') { persist(S); if (await confirmBox('타이틀로', '타이틀로 돌아가나요?\n지금까지의 진행은 저장돼 있어요.', '돌아간다', '계속하기')) return; continue; }
+		if (a === 'exit') { persist(S); if (await confirmBox('타이틀로', '타이틀로 돌아가나요?\n지금까지의 진행은 저장돼 있어요.', '돌아간다', '계속하기')) { LIVE = null; return; } continue; }
 		if (S.ch === 0) { await chapterFlow(S); continue; }
 		if (a === 'story') {
 			while (true) {

@@ -155,7 +155,7 @@ export const SLOT_INFO: { [k in Slot]: { name: string; desc: string } } = {
 	buddy: { name: '대표 포켓몬', desc: '메인 트레이너 카드 옆에 서 있는 포켓몬' },
 };
 const symGold = (s: Stats) => s.sym.tower === 2 || s.sym.factory === 2 || s.sym.rank === 2;
-const ippitsu49 = () => Object.entries(loadRecords().best).some(([k, v]) => k.startsWith('ippitsu') && (v as number) >= 49);
+const ippitsu49 = () => Object.entries(loadRecords().best).some(([k, v]) => k.startsWith('ippitsu') && (v as number) >= 42);
 const regionsAll = (s: Stats) => REGIONS.filter(r => r !== '애니메이션').every(r => s.conquest[r]);
 const dexTotal = () => new Set(Object.values(RAW.species as any).map((x: any) => x.num).filter((n: number) => n > 0)).size || 1025;
 export const dexPct = (s: Stats) => Object.keys(s.used).length / dexTotal() * 100;
@@ -218,7 +218,7 @@ export const ITEMS: Item[] = [
 	TX('rankS', '랭크 강자', '랭크 은 심볼', s => !!s.sym.rank, '#c8d0e0', '프런티어'),
 	TX('champion', '시즌 챔피언', '랭크 시즌을 챔피언급으로 마감', s => s.sym.rank === 2, '#b8283a', '프런티어'),
 	TX('brain', '프런티어 브레인', '금 심볼 3개', s => s.sym.tower === 2 && s.sym.factory === 2 && s.sym.rank === 2, '#ffd84a', '프런티어'),
-	TX('ippitsu', '한 마리의 전설', '일필도 49연승', () => ippitsu49(), '#c82a4a', '프런티어'),
+	TX('ippitsu', '한 마리의 전설', '일필도 42연승', () => ippitsu49(), '#c82a4a', '프런티어'),
 	...REGIONS.filter(r => r !== '애니메이션').map(r => TX('reg:' + r, `${r} 챔피언`, `${r} 지방 클리어`, s => !!s.conquest[r], 'reg:' + r, '지방 챔피언')),
 	TX('conqueror', '올클리어 트레이너', '모든 지방 클리어', regionsAll, '#ffd84a', '지방 챔피언'),
 	...TYPE_TITLES,
@@ -243,7 +243,7 @@ export const ITEMS: Item[] = [
 	{ id: 'cb:yume', slot: 'cardBg', name: '솜사탕 꿈나라', price: 50, v: '#d4bcf6,#f0c8ee,#fcd2e4,#d8f0e8' },
 	{ id: 'cb:yami', slot: 'cardBg', name: '한밤의 하트', price: 50, v: '#3e1450,#2a103e,#1a0c2a,#681a68' },
 	{ id: 'cb:menhera', slot: 'cardBg', name: '분홍 처방전', price: 50, v: '#ffe4ee,#ffcce2,#f8b4d6,#fff8fc' },
-	{ id: 'cb:eternamax', slot: 'cardBg', name: '무한다이맥스', cond: () => ippitsu49(), condText: '일필도 49연승', v: '#c82a4a,#8a1a3a,#4a0e2a,#1a0614' },
+	{ id: 'cb:eternamax', slot: 'cardBg', name: '무한다이맥스', cond: () => ippitsu49(), condText: '일필도 42연승', v: '#c82a4a,#8a1a3a,#4a0e2a,#1a0614' },
 	{ id: 'cb:gold', slot: 'cardBg', name: '황금', cond: s => s.sym.tower === 2 && s.sym.factory === 2 && s.sym.rank === 2, condText: '금 심볼 3개', v: '#f8d84a,#e0b030,#b8862a,#7a5418' },
 	// 컨셉 묶음 (배경 + 테두리가 한 벌): 레트로 게임기 · 네온 아케이드 · 한여름 바다 · 단풍 가을
 	{ id: 'cb:retro', slot: 'cardBg', name: '레트로 게임기', price: 45, v: '#c4cf8a,#8bac0f,#306230,#0f380f' },

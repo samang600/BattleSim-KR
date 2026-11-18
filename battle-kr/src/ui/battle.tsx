@@ -443,7 +443,8 @@ function typeTint(type: string) {
 		const b = sessionRef.current?.battle;
 		const simUser: any = b?.[user.slice(0, 2) as 'p1' | 'p2']?.active[slotOf(user)];
 		const terrainType = ({ electricterrain: 'Electric', grassyterrain: 'Grass', mistyterrain: 'Fairy', psychicterrain: 'Psychic' } as any)[b?.field.terrain || ''] || 'Normal';
-		const tintType = mid === 'terablast' ? (simUser?.terastallized || 'Normal') : (mid === 'secretpower' || mid === 'naturepower') ? terrainType : '';
+		// 테라스탈 타입은 화면에 재생 중인 상태(scene)에서 — 엔진은 그 턴을 이미 끝까지 계산해서, 쓴 포켓몬이 같은 턴에 쓰러지거나 바뀌면 다른 포켓몬을 보게 됨
+		const tintType = mid === 'terablast' ? (activeMon(user)?.tera || simUser?.terastallized || 'Normal') : (mid === 'secretpower' || mid === 'naturepower') ? terrainType : '';
 		await playAnim(anim, {
 			filter: tintType && tintType !== 'Normal' ? typeTint(tintType) : '',
 			front: frontRef.current, back: backRef.current, bgLayer: animBgRef.current,

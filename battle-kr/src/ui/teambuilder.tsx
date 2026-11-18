@@ -8,7 +8,7 @@ import { randomSetFor, applySpread, randomTeam, normalizeSP, fillSP, cheatSP, sp
 import { ruleById, teamRuleWarnings } from '../rules';
 import { loadSettings } from '../store';
 import { loadTeams, saveTeams, upsertTeam, deleteTeam, newId, load, save, type SavedTeam } from '../store';
-import { Screen, Sprite, MiniSprite, TypeBadge, Modal, toast, confirmBox, ItemIcon, CatIcon } from './core';
+import { Screen, Sprite, MiniSprite, TypeBadge, Modal, toast, confirmBox, ItemIcon, CatIcon, dragSort, moved } from './core';
 import { SetCard } from './screens';
 
 // 초성 검색
@@ -50,7 +50,6 @@ export function TeamList({ onBack, onEdit }: { onBack: () => void; onEdit: (t: S
 	};
 	/** 팀 순서: 저장된 순서를 바꿈 (위로·아래로, 이름순·최근 고친 순) */
 	const reorder = (list: SavedTeam[]) => { saveTeams(list); setTeams(loadTeams()); };
-	const move = (i: number, d: number) => { const l = teams.slice(); [l[i], l[i + d]] = [l[i + d], l[i]]; reorder(l); };
 	return <Screen title="팀 편집" onBack={onBack}>
 		<div class="row wrap">
 			<button class="btn primary" onClick={() => create(9, false)}>+ 새 팀</button>
@@ -62,12 +61,11 @@ export function TeamList({ onBack, onEdit }: { onBack: () => void; onEdit: (t: S
 		{!teams.length && <p class="empty-msg">아직 팀이 없습니다. 새 팀을 만들거나 추천팀을 받아 보세요.</p>}
 		{teams.length > 1 && <div class="team-sort"><span>순서</span>
 			<button class="btn small ghost" onClick={() => reorder(teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true })))}>이름순</button>
-			<button class="btn small ghost" onClick={() => reorder(teams.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0)))}>최근 고친 순</button></div>}
+			<button class="btn small ghost" onClick={() => reorder(teams.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0)))}>최근 고친 순</button><small class="drag-hint">팀을 꾹 눌러 끌면 순서를 바꿀 수 있어요</small></div>}
 		<div class="card-list">
-			{teams.map((t, ti) => <div class="team-row clickable" onClick={() => onEdit(t)}>
+			{teams.map((t, ti) => <div class="team-row clickable" key={t.id} onClick={() => onEdit(t)} {...dragSort('teams', ti, (a, b) => reorder(moved(teams, a, b)))}>
 				<div class="team-row-head"><b>{t.name}</b>{t.cheat && <span class="cheat-tag">치트</span>}<span class="muted">{t.sets.length}/6</span>
-					<button class="btn small" onClick={e => { e.stopPropagation(); upsertTeam({ ...JSON.parse(JSON.stringify(t)), id: newId(), name: t.name + ' 복사본' }); setTeams(loadTeams()); toast('팀을 복제했습니다'); }}>복제</button>
-					<span class="team-ord" onClick={e => e.stopPropagation()}><button class="icon-btn up" disabled={ti === 0} onClick={() => move(ti, -1)} aria-label="위로"><i /></button><button class="icon-btn down" disabled={ti >= teams.length - 1} onClick={() => move(ti, 1)} aria-label="아래로"><i /></button></span></div>
+					<button class="btn small" onClick={e => { e.stopPropagation(); upsertTeam({ ...JSON.parse(JSON.stringify(t)), id: newId(), name: t.name + ' 복사본' }); setTeams(loadTeams()); toast('팀을 복제했습니다'); }}>복제</button></div>
 				<div class="preview-row">{t.sets.map(s => <MiniSprite species={s.species} gen={t.gen} size={40} shiny={s.shiny} />)}</div>
 			</div>)}
 		</div>
@@ -198,12 +196,9 @@ export function TeamEditor({ team: initial, onBack }: { team: SavedTeam; onBack:
 		{team.cheat ? <p class="cheat-note">🃏 치트 팀 — 같은 포켓몬 여러 마리 가능, 기술·특성 제한 없음, 능력 포인트 능력마다 최대 32(합계 제한 없음), 레벨 자유. 배틀 모드에서 ‘치트 팀 허용’을 켜야 쓸 수 있고 전적에 남지 않습니다.</p>
 			: <><p class="muted">내셔널 도감 · 레벨 50 · 같은 포켓몬은 1마리씩 · 메가스톤·Z크리스탈 사용 가능</p><TeamWarnings sets={team.sets} /></>}
 		<div class="card-list">
-			{team.sets.map((s, i) => <SetCard set={s} gen={g} onClick={() => setEditing(i)}>
-				<div class="reorder" onClick={e => e.stopPropagation()}>
-					<button class="icon-btn" disabled={i === 0} onClick={() => { const sets = team.sets.slice(); [sets[i - 1], sets[i]] = [sets[i], sets[i - 1]]; commit({ ...team, sets }); }}>▲</button>
-				</div>
-			</SetCard>)}
+			{team.sets.map((s, i) => <div class="drag-wrap" {...dragSort('tsets', i, (a, b) => commit({ ...team, sets: moved(team.sets, a, b) }))}><SetCard set={s} gen={g} onClick={() => setEditing(i)} /></div>)}
 		</div>
+		{team.sets.length > 1 && <p class="drag-hint">포켓몬을 꾹 눌러 끌면 순서를 바꿀 수 있어요</p>}
 		{team.sets.length < 6 && <button class="btn primary big" onClick={() => setAdding(true)}>+ 포켓몬 추가</button>}
 		<div class="row wrap">
 			<button class="btn ghost" onClick={() => setExportOpen(true)}>텍스트로 내보내기</button>
@@ -232,7 +227,9 @@ export function TeamEditor({ team: initial, onBack }: { team: SavedTeam; onBack:
 
 function SpeciesPicker({ gen, exclude, onPick, onBack }: { gen: Gen; exclude: string[]; onPick: (id: string) => void; onBack: () => void }) {
 	const [q, setQ] = useState('');
-	const list = useMemo(() => allSpecies(gen).filter(s => s && !s.bo && s.ls !== undefined || (s && s.base && !s.bo)), [gen]);
+	// 메가진화·원시회귀 같은 배틀 전용 모습(bo)도 목록에 보이지만 고를 수는 없고, 누르면 능력치 창이 열림
+	const list = useMemo(() => allSpecies(gen).filter(s => s && (s.ls !== undefined || s.base)), [gen]);
+	const [view, setView] = useState<string | null>(null);
 	const [type, setType] = useState('');
 	const [sort, setSort] = useState<'num' | 'bst' | 'name' | 'spe' | 'atk'>('num');
 	const tot = (x: any) => x.bs.reduce((p: number, c: number) => p + c, 0);
@@ -247,14 +244,36 @@ function SpeciesPicker({ gen, exclude, onPick, onBack }: { gen: Gen; exclude: st
 		<div class="type-filter"><button class={!type ? 'on' : ''} onClick={() => setType('')}>전체</button>
 			{ALL_TYPES.filter(t => t !== 'Stellar').map(t => <button class={type === t ? 'on' : ''} onClick={() => setType(type === t ? '' : t)}><TypeBadge type={t} small /></button>)}</div>
 		<div class="pick-list">
-			{shown.map(s => s && <button class="pick-row" disabled={exclude.includes(s.id)} onClick={() => onPick(s.id)}>
+			{shown.map(s => s && <button class={'pick-row' + (s.bo ? ' bo-only' : '')} disabled={!s.bo && exclude.includes(s.id)} onClick={() => s.bo ? setView(s.id) : onPick(s.id)}>
 				<MiniSprite species={s.id} gen={gen} size={40} />
-				<span class="pick-name">{s.n}<small class="muted"> #{s.num}</small></span>
+				<span class="pick-name">{s.n}<small class="muted"> #{s.num}</small>{s.bo && <i class="bo-tag">배틀 중 모습 · 보기만</i>}</span>
 				<span class="pick-types">{s.t.map(t => <TypeBadge type={t} small />)}</span>
 				<small class="muted bst">{sort === 'spe' ? `스피드 ${s.bs[5]}` : sort === 'atk' ? `공 ${s.bs[1]}/특 ${s.bs[3]}` : `합계 ${tot(s)}`}</small>
 			</button>)}
 		</div>
+		{view && <Modal title={speciesData(view, gen)?.n || ''} onClose={() => setView(null)}><FormView id={view} gen={gen} /></Modal>}
 	</Screen>;
+}
+/** 배틀 중에만 되는 모습(메가진화·원시회귀 등)의 능력치 보기: 종족값과 레벨 50 실수치 (고를 수는 없음) */
+export function FormView({ id, gen }: { id: string; gen: Gen }) {
+	const f: any = speciesData(id, gen), b: any = f?.base ? speciesData(f.base, gen) : null;
+	if (!f) return null;
+	const req = f.req ? itemKo(f.req) : '';
+	const val = (i: number, sp: number, nat: number) => statValue(f.bs[i], spToEv(sp), 31, 50, nat, i === 0);
+	const tot = (x: any) => x.bs.reduce((p: number, c: number) => p + c, 0);
+	return <div class="bo-view">
+		<div class="bo-head"><Sprite species={id} gen={gen} size={96} />
+			<div><div>{f.t.map((t: string) => <TypeBadge type={t} />)}</div>
+				<p class="muted small">{b ? `${b.n}의 배틀 중 모습` : '배틀 중 모습'}{req ? ` · ${req} 필요` : ''}<br />팀에 직접 넣을 수는 없어요 — 능력치 확인용입니다.</p>
+				<p class="small">특성: {f.ab.map((a: string) => abilityKo(a)).join(' · ')}</p></div></div>
+		<table><thead><tr><th>능력</th><th>종족값</th>{b && <th>변화</th>}<th>최소</th><th>무보정</th><th>최대</th></tr></thead><tbody>
+			{STATS.map((k, i) => { const d = b ? f.bs[i] - b.bs[i] : 0; return <tr><td>{STAT_SHORT[k]}</td><td><b>{f.bs[i]}</b></td>{b && <td class={d > 0 ? 'up' : d < 0 ? 'dn' : ''}>{d > 0 ? '+' + d : d || '—'}</td>}
+				<td>{val(i, 0, i === 0 ? 1 : 0.9)}</td><td>{val(i, 0, 1)}</td><td>{val(i, SP_MAX, i === 0 ? 1 : 1.1)}</td></tr>; })}
+			<tr><td>합계</td><td><b>{tot(f)}</b></td>{b && <td class={tot(f) > tot(b) ? 'up' : ''}>{tot(f) - tot(b) > 0 ? '+' + (tot(f) - tot(b)) : tot(f) - tot(b) || '—'}</td>}<td /><td /><td /></tr>
+		</tbody></table>
+		<p class="muted small">실수치는 레벨 50 기준 — 최소: 능력 포인트 0·성격 하락 / 무보정: 포인트 0·보정 없음 / 최대: 포인트 {SP_MAX}·성격 상승 (HP는 성격 영향 없음)</p>
+		<p class="small">{abilityDesc(f.ab[0])}</p>
+	</div>;
 }
 
 function statValue(base: number, ev: number, iv: number, level: number, nat: number, hp: boolean) {
@@ -310,7 +329,7 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 	const row = (kind: NonNullable<typeof picker>['kind'], label: string, val: any, dis = false) => <button class="cp-mrow" disabled={dis} onClick={() => openPicker({ kind } as any)}><small>{label}</small><b>{val}</b><em>{dis ? '' : '바꾸기'}</em></button>;
 	const tera = fixedTera(s.species) || s.teraType || sd.t[0];
 	const spText = STATS.map(k => sp[k] ? `${STAT_SHORT[k]} ${fmtSP(sp[k])}` : '').filter(Boolean).join(' · ') || '나누지 않음';
-	const mvIdx = picker?.kind === 'move' ? picker.idx : -1, swap = (a: number, b: number) => { const mv = s.moves.slice(); [mv[a], mv[b]] = [mv[b], mv[a]]; up({ moves: mv }); setPicker({ kind: 'move', idx: b }); };
+	const mvIdx = picker?.kind === 'move' ? picker.idx : -1;
 
 	return <Screen title={sd.n} onBack={onBack} right={<button class="icon-btn" onClick={onDelete} aria-label="삭제">🗑</button>}>
 		<div class="cp-mp set-mp">
@@ -333,12 +352,12 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 				{row('sp', evDisplay() ? '노력치' : '능력 포인트', <small class={spTotal > SP_TOTAL ? 'bad' : ''}>{spText} ({cheat ? spTotal : `${spTotal}/${SP_TOTAL}`})</small>)}
 			</div></div>
 			<div class="cp-mmoves set-moves">{[0, 1, 2, 3].map(i => { const m = s.moves[i], md = m ? moveData(m, gen) : null;
-				return <button onClick={() => openPicker({ kind: 'move', idx: Math.min(i, s.moves.length) })}>
+				return <button onClick={() => openPicker({ kind: 'move', idx: Math.min(i, s.moves.length) })} {...dragSort('setmv', i, (a, b) => { if (s.moves[a]) up({ moves: moved(s.moves, a, Math.min(b, s.moves.length - 1)) }); }, !!m)}>
 					{md ? <><span class="pm-icons"><TypeBadge type={md.type} small /><CatIcon cat={md.category} /></span><b>{md.name}</b>
 						<em>{md.category === 'Status' ? '변화' : `위력 ${md.basePower || '-'}`} · 명중 {md.accuracy || '-'} · PP {md.pp}</em></> : <b class="muted">+ 기술 선택</b>}</button>; })}</div>
 			<div class="set-stats">{STATS.map((k, i) => <span class={natMulOf(k) > 1 ? 'up' : natMulOf(k) < 1 ? 'down' : ''}><small>{STAT_SHORT[k]}</small><b>{statOf(k, i)}</b></span>)}</div>
 			{cheat ? <div class="set-row"><span>레벨 {s.level}</span><input type="range" min={1} max={100} value={s.level} onInput={e => up({ level: parseInt((e.target as HTMLInputElement).value, 10) })} /></div>
-				: <p class="muted small">레벨 {s.level} (모드에 따라 50/100으로 맞춰짐) · 줄이나 기술을 누르면 바꾸는 창이 열립니다</p>}
+				: <p class="muted small">레벨 {s.level} (모드에 따라 50/100으로 맞춰짐) · 줄이나 기술을 누르면 바꾸는 창이 열립니다 · 기술을 꾹 눌러 끌면 순서가 바뀝니다</p>}
 		</div>
 		{txt !== null && <Modal title="텍스트 내보내기 · 불러오기" onClose={() => setTxt(null)}><div class="set-txt">
 			<p class="muted small">이 포켓몬의 세트입니다. 복사해 두거나, 다른 세트를 붙여 넣고 「불러오기」를 누르면 이 칸의 포켓몬이 그 세트로 바뀝니다. (쇼다운 형식 · 한국어 이름 모두 가능)</p>
@@ -348,9 +367,7 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 					if (!got.length) { toast('포켓몬을 찾지 못했습니다'); return; }
 					const n = (cheat ? cheatSP : normalizeSP)(got[0]); setS(n); onChange(n); setTxt(null); toast(`${speciesKo(n.species)} 세트를 불러왔습니다${got.length > 1 ? ' (첫 번째 포켓몬만)' : ''}`); }}>불러오기</button></div></div></Modal>}
 		{picker?.kind === 'move' && <Modal title={s.moves[mvIdx] ? `${moveData(s.moves[mvIdx], gen)?.name || ''} 바꾸기` : '기술 고르기'} onClose={close}>
-			{s.moves[mvIdx] && <div class="set-mvacts"><button class="btn small" disabled={mvIdx === 0} onClick={() => swap(mvIdx, mvIdx - 1)}>앞으로</button>
-				<button class="btn small" disabled={mvIdx >= s.moves.length - 1} onClick={() => swap(mvIdx, mvIdx + 1)}>뒤로</button>
-				<button class="btn small ghost" disabled={s.moves.length <= 1} onClick={() => { up({ moves: s.moves.filter((_, k) => k !== mvIdx) }); close(); }}>빼기</button></div>}
+			{s.moves[mvIdx] && <div class="set-mvacts"><button class="btn small ghost" disabled={s.moves.length <= 1} onClick={() => { up({ moves: s.moves.filter((_, k) => k !== mvIdx) }); close(); }}>빼기</button></div>}
 			{s.moves[mvIdx] && hpBase(toID(s.moves[mvIdx])) === 'hiddenpower' && <HpTypeGrid value={toID(s.moves[mvIdx]).slice(11)} onPick={t => { const moves = s.moves.slice(); moves[mvIdx] = 'hiddenpower' + t.toLowerCase(); up({ moves }); close(); }} />}
 			<MovePicker gen={gen} species={toID(s.species)} current={s.moves} all={cheat}
 				onPick={mid => { const moves = s.moves.slice(); if (mvIdx < moves.length) moves[mvIdx] = mid; else moves.push(mid);

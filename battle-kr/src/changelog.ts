@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.86.7', date: '2026-11-18', title: '꾹 눌러 끌기', items: [
+		['new', '팀·박스·기술 순서를 꾹 눌러 끌어서 바꿀 수 있어요. 챔피언스 로스터에는 박스 정렬이 생겼습니다.'],
+		['new', '포켓몬 고르기에서 메가진화 같은 배틀 중 모습의 능력치를 볼 수 있어요.'],
+		['up', '배틀팰리스·일필도의 마지막 상대가 42번째에 나옵니다. 챔피언스의 볼 바꾸기는 그 포켓몬으로 10승부터.'],
+	] },
 	{ ver: '2.86.6', date: '2026-11-18', title: '챔피언스 M-D', items: [
 		['new', '배틀 규칙에 「챔피언스 M-D」가 생겼어요. 12월 조정(명중률·새로 배우는 기술·타오르는불꽃·굳건한신념)은 전국도감·무제한 룰에도 들어갑니다.'],
 	] },

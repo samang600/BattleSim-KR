@@ -73,6 +73,8 @@ export function CatIcon({ cat }: { cat: string }) {
 // 웹: GitHub Pages 의 /ani/ 에서 그때그때 받음. 앱: 설정에서 묶음(zip)을 받아 두면 그곳(files/offline/ani…)에서, 아니면 인터넷에서
 export const ANI_BASE = 'https://samang600.github.io/BattleSim-KR/ani/';
 const ANI_IDS = new Set((ANI_INDEX as any).ids as string[]);
+// 묶음의 그림이 잘못된 것(가라르 불비달마: 달마모드 그림이 들어 있음)은 정지 도트 그림을 씀
+for (const bad of ['darmanitan-galar']) ANI_IDS.delete(bad);
 const ANI_NO = { back: new Set((ANI_INDEX as any).noBack as string[]), shiny: new Set(((ANI_INDEX as any).noShiny || []) as string[]), backShiny: new Set(((ANI_INDEX as any).noBackShiny || []) as string[]) };
 const NONE = new Set<string>();
 declare const __ANI_FIX__: Record<string, string>;
@@ -449,3 +451,58 @@ function glowFilter(id: string, color: string, r1: number, r2: number, values: s
 		<feMerge>{!single && <feMergeNode in="ring2" />}<feMergeNode in="ring1" /><feMergeNode in="SourceGraphic" /></feMerge>
 	</filter>;
 }
+
+// ── 꾹 눌러 끌어서 순서 바꾸기 ──
+// 같은 group 의 칸끼리: 0.35초 누르고 있으면 칸이 들리고, 끌어다 놓은 칸의 자리로 옮겨짐 (onMove(from, to)).
+// 누르자마자 움직이면(스크롤) 끌기가 시작되지 않고, 끌고 난 뒤의 클릭은 한 번 무시함.
+let dragOn = false;
+export function dragSort(group: string, idx: number, onMove: (from: number, to: number) => void, canDrag = true) {
+	const over = (x: number, y: number) => (document.elementFromPoint(x, y) as HTMLElement | null)?.closest<HTMLElement>(`[data-dg="${group}"]`) || null;
+	return {
+		'data-dg': group, 'data-di': idx,
+		onContextMenu: (e: Event) => e.preventDefault(),
+		onTouchMove: (e: TouchEvent) => { if (dragOn && e.cancelable) e.preventDefault(); },
+		onPointerDown: (e: PointerEvent) => {
+			if (!canDrag || dragOn || (e.pointerType === 'mouse' && e.button !== 0)) return;
+			const el = e.currentTarget as HTMLElement, x0 = e.clientX, y0 = e.clientY;
+			let ghost: HTMLElement | null = null, cur: HTMLElement | null = null, lx = x0, ly = y0;
+			const place = () => { if (ghost) ghost.style.transform = `translate(${Math.round(lx - ghost.offsetWidth / 2)}px, ${Math.round(ly - ghost.offsetHeight * 0.7)}px)`; };
+			const begin = () => {
+				dragOn = true; timer = 0;
+				const r = el.getBoundingClientRect();
+				ghost = el.cloneNode(true) as HTMLElement; ghost.removeAttribute('data-dg');
+				// 칸의 모양은 부모 선택자에 걸린 스타일일 수 있어, 화면에 보이던 모양을 그대로 옮겨 줌
+				const cs = getComputedStyle(el);
+				for (const k of ['background', 'borderStyle', 'borderWidth', 'borderImage', 'borderColor', 'clipPath', 'color', 'font', 'display', 'alignItems', 'justifyContent', 'flexDirection', 'gap', 'padding', 'textAlign'] as const) (ghost.style as any)[k] = (cs as any)[k];
+				ghost.classList.add('drag-ghost'); ghost.style.width = r.width + 'px'; ghost.style.height = r.height + 'px';
+				document.body.appendChild(ghost); place();
+				el.classList.add('drag-src'); document.body.classList.add('dragging');
+				try { navigator.vibrate?.(12); } catch {}
+			};
+			let timer: any = setTimeout(begin, 350);
+			const mark = (t: HTMLElement | null) => { if (t === cur) return; cur?.classList.remove('drag-over'); cur = t && t !== el ? t : null; cur?.classList.add('drag-over'); };
+			const move = (ev: PointerEvent) => {
+				lx = ev.clientX; ly = ev.clientY;
+				if (!dragOn) { if (Math.hypot(lx - x0, ly - y0) > 8) end(null); return; }
+				place(); mark(over(lx, ly));
+			};
+			const end = (ev: PointerEvent | null) => {
+				clearTimeout(timer);
+				window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end as any); window.removeEventListener('pointercancel', cancel);
+				if (!dragOn) return;
+				const to = ev ? over(ev.clientX, ev.clientY) : null;
+				cur?.classList.remove('drag-over'); el.classList.remove('drag-src'); document.body.classList.remove('dragging'); ghost?.remove();
+				// 끌고 난 뒤 따라오는 클릭(칸이 눌리는 것)을 한 번 막음
+				const eat = (c: Event) => { c.stopPropagation(); c.preventDefault(); };
+				window.addEventListener('click', eat, { capture: true, once: true }); setTimeout(() => window.removeEventListener('click', eat, { capture: true } as any), 80);
+				setTimeout(() => { dragOn = false; }, 0);
+				const ti = to && to !== el ? Number(to.dataset.di) : NaN;
+				if (!Number.isNaN(ti) && ti !== idx) onMove(idx, ti);
+			};
+			const cancel = () => end(null);
+			window.addEventListener('pointermove', move); window.addEventListener('pointerup', end as any); window.addEventListener('pointercancel', cancel);
+		},
+	};
+}
+/** 배열에서 from 칸을 to 자리로 옮긴 새 배열 */
+export function moved<T>(list: T[], from: number, to: number): T[] { const l = list.slice(); const [x] = l.splice(from, 1); l.splice(Math.min(to, l.length), 0, x); return l; }
