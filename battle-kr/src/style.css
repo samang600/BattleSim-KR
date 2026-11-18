@@ -2830,6 +2830,9 @@ p, .hint, .pre, small, .opt-body small, .msgbox p, .muted { text-wrap: pretty; }
 /* 스카우트: 이번 소개에서 이미 데려왔으면 나머지는 흐리게 */
 .cp-grid.picked .cp-card { filter: grayscale(.7) brightness(.75); }
 
+/* 클라우드 자동 저장 줄 */
+.cloud-auto { display: flex; align-items: center; gap: 8px; margin: 6px 0; } .cloud-auto .btn { flex: none; } .cloud-auto span { flex: 1; min-width: 0; line-height: 1.4; }
+
 /* ═════ FX:BEGIN — scripts/gen-fx-css.py 가 만든 부분 (손으로 고치지 말 것) ═════ */
 /* HP 창 테마: 띠 + 도트 무늬 + 은은한 움직임 (::before, 글자 아래) */
 [class*="hpt-"] .info { isolation: isolate; }

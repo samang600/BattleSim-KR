@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.86.5', date: '2026-11-18', title: '클라우드 자동 저장', items: [
+		['new', '설정 › 클라우드 백업에서 「자동 저장」을 켜면 세이브를 알아서 올려요. 다른 기기에서 올린 더 새로운 세이브가 있으면 불러올지 물어봅니다.'],
+	] },
 	{ ver: '2.86.4', date: '2026-11-18', title: '메테노', items: [
 		['fix', '빠져 있던 메테노를 팀에 넣을 수 있어요.'],
 	] },

@@ -11,7 +11,8 @@ import { runScenario } from './scenario';
 import { loadTeams as loadTeamsHome, updateRecords } from './store';
 import { runChampions } from './champions';
 import { replaySession } from './online';
-import { cloudInfo, cloudUpload, cloudFetch, cloudApply, fmtCode, cleanCode, DEVICE_ONLY } from './cloud';
+import { cloudInfo, cloudUpload, cloudFetch, cloudApply, fmtCode, cleanCode, DEVICE_ONLY, cloudAutoInit, cloudAutoSave, setCloudAuto } from './cloud';
+import { onBattleEnd } from './battle-hooks';
 import { runTower, runFactory, runPWT, runNamed, runFree, runRank, rankLabel, settleRankPending, settleSeason, seasonOf } from './modes';
 import { runPalace, runIppitsu, runDaily, runBossRush, todayDaily } from './frontier';
 import { loadStats, ACHIEVEMENTS, checkAchievements, symBest, type SymbolKind } from './stats';
@@ -449,6 +450,8 @@ function CloudBackup() {
 			<button disabled={!!busy} onClick={upload}>{busy === 'up' ? '올리는 중…' : info ? '지금 세이브로 덮어쓰기' : '클라우드에 올리기'}</button>
 			{info && <button disabled={!!busy} onClick={() => download(info.code)}>{busy === 'down' ? '받는 중…' : '내 코드에서 불러오기'}</button>}
 		</div>
+		{info && <div class="cloud-auto"><button class={'btn small' + (info.auto ? ' primary' : '')} onClick={() => { setCloudAuto(!info.auto); setInfo(cloudInfo()); toast(!info.auto ? '자동 저장을 켰습니다.' : '자동 저장을 껐습니다.'); }} aria-pressed={!!info.auto}>자동 저장 {info.auto ? '켬' : '끔'}</button>
+			<span class="muted small">{info.auto ? '배틀이 끝난 뒤와 몇 분마다 알아서 올리고, 앱을 켤 때 클라우드에 더 새로운 세이브가 있으면 불러올지 묻습니다.' : '켜면 세이브가 바뀔 때 알아서 클라우드에 올립니다.'}</span></div>}
 		<div class="cloud-in">
 			<input type="text" value={code} placeholder="다른 기기의 백업 코드" maxLength={20} autocapitalize="characters" autocomplete="off" spellcheck={false} onInput={e => setCode((e.target as HTMLInputElement).value)} />
 			<button class="btn small" disabled={!!busy || cleanCode(code).length !== 12} onClick={() => download(code)}>이 코드로 불러오기</button>
@@ -757,6 +760,9 @@ applyRuleData(ruleById(loadSettings().battleRule));
 settleRankPending();   // 랭크 매치 도중 앱이 꺼졌으면 패배로
 settleSeason();        // 1주 시즌이 바뀌었으면 마감
 checkAchievements(true);
+// 클라우드 자동 저장: 켤 때 새 세이브 확인 · 배틀 뒤와 몇 분마다 올림 (설정 › 클라우드 백업에서 켬)
+cloudAutoInit({ ask: (t, m, ok, cancel) => confirmBox(t, m, ok, cancel), toast, idle: () => !document.querySelector('.battle') && !document.querySelector('.modal-bg') });
+onBattleEnd(() => { setTimeout(() => void cloudAutoSave(), 4000); });
 render(<App />, document.getElementById('app')!);
 
 // ── 앱 화면 자동 업데이트 (안드로이드 MainActivity·OtaCore) ──
