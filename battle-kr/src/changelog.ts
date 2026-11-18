@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.86.4', date: '2026-11-18', title: '메테노', items: [
+		['fix', '빠져 있던 메테노를 팀에 넣을 수 있어요.'],
+	] },
 	{ ver: '2.86.3', date: '2026-11-17', title: '색이 다른 상대', items: [
 		['new', '상대의 포켓몬도 아주 드물게(1/4096) 색이 다른 포켓몬으로 나와요.'],
 	] },

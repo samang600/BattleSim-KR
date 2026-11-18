@@ -309,7 +309,7 @@ for (const s of dex9.species.all()) {
 	if (s.forme && /Gmax|Totem|Starter|Artisan|Masterpiece/.test(s.forme)) continue;
 	if (s.baseSpecies === 'Pikachu' && s.forme) continue; // 모자·옷 피카츄 제외
 	if (s.forme && ['Vivillon', 'Alcremie', 'Pichu'].includes(s.baseSpecies)) continue; // 겉모습만 다른 폼
-	if (s.baseSpecies === 'Minior' && s.forme !== 'Meteor') continue;
+	if (s.baseSpecies === 'Minior' && s.forme && s.forme !== 'Meteor') continue; // 색만 다른 코어는 제외 (원래 모습 '메테노'와 유성의 모습만)
 	const isBattleOnly = !!s.battleOnly || (s.forme && BATTLE_ONLY.has(s.baseSpecies) && !s.forme.startsWith('Galar') && s.forme !== 'Galar') ||
 		/^Mega|^Primal/.test(s.forme) || s.name === 'Necrozma-Ultra' || s.forme === 'Crowned' && false;
 	result.species[s.id] = {
