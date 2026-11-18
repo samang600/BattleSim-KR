@@ -20,6 +20,7 @@ import * as rb_gen9 from '../../../data/random-battles/gen9/teams';
 import * as formats from './formats';
 import { RAW, maxSpecies, maxMove } from '../data';
 import CHAMP from './champions-moves.json';
+import { MD_ACC, MD_CHANCE, MD_ABILITIES } from './champions-md';
 import { Conditions as CHAMP_CONDITIONS } from '../../../data/mods/champions/conditions';
 import { Moves as CHAMP_MOD_MOVES } from '../../../data/mods/champions/moves';
 import { Abilities as CHAMP_MOD_ABILITIES } from '../../../data/mods/champions/abilities';
@@ -91,9 +92,15 @@ export function applyChampionsConditions(Conditions: { [id: string]: any }) {
 // 기본(gen9) = 스칼렛·바이올렛 사양 그대로. krchamp = 포켓몬 챔피언스 사양(전국도감 '최신'·챔피언스 풀),
 // kr8·kr7·kr6 = 그 세대의 종족값·타입·특성·기술 수치, krmax = 무제한(세대 중 가장 강한 사양) (배틀 처리 방식은 9세대 그대로)
 const cloneTable = (t: { [id: string]: any }) => Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v && typeof v === 'object' ? { ...v, ...(v.condition ? { condition: { ...v.condition } } : {}) } : v]));
-const champMoves = cloneTable((base_moves as any).Moves); applyChampionsMoves(champMoves);
+// krchampc = 레귤레이션 M-C 까지의 사양(챔피언스 M-A/B/C 룰), krchamp = M-D 조정(champions-md.ts)을 얹은 최신 사양(전국도감·챔피언스 M-D)
+const champMovesC = cloneTable((base_moves as any).Moves); applyChampionsMoves(champMovesC);
+const champMoves = cloneTable(champMovesC);
+for (const [id, acc] of Object.entries(MD_ACC)) if (champMoves[id]) champMoves[id].accuracy = acc;
+for (const [id, ch] of Object.entries(MD_CHANCE)) if (champMoves[id]?.secondary) champMoves[id].secondary = { ...champMoves[id].secondary, chance: ch };
 const champConditions = cloneTable((base_conditions as any).Conditions); applyChampionsConditions(champConditions);
-const champAbilities = cloneTable((base_abilities as any).Abilities); applyChampionsMod(champAbilities, CHAMP_MOD_ABILITIES as any);
+const champAbilitiesC = cloneTable((base_abilities as any).Abilities); applyChampionsMod(champAbilitiesC, CHAMP_MOD_ABILITIES as any);
+const champAbilities = cloneTable(champAbilitiesC);
+for (const [id, patch] of Object.entries(MD_ABILITIES)) if (champAbilities[id]) Object.assign(champAbilities[id], patch);
 
 const ABIL = (base_abilities as any).Abilities as { [id: string]: { name: string } };
 /** 세대마다 배틀 성능이 다른 특성: 쇼다운의 gen8·gen7·gen6 모드에서 동작(이벤트 함수)을 바꾼 특성을 모두 가져와
@@ -159,15 +166,25 @@ function eraMod(era: '8' | '7' | '6' | 'max') {
 	if (era === '8') Moves.maxhailstorm = { ...(Moves.maxhailstorm || { inherit: true }), self: { onHit(this: any, source: any) { if (!source.volatiles['dynamax']) return; this.field.setWeather('hail'); } } };
 	// 무제한: 상태이상(마비 1/8·잠듦 2~3턴·얼음 최대 3턴)·날씨·필드는 챔피언스 방식 (날씨·필드는 9세대와 같음)
 	const extra = era === 'max' ? { conditions: { Conditions: champConditions } } : {};
-	return { scripts: { Scripts: { inherit: 'gen9', gen: 9 } }, pokedex: { Pokedex }, moves: { Moves }, abilities: { Abilities: eraAbilities(era) }, ...extra };
+	const Abilities = eraAbilities(era);
+	if (era === 'max') {
+		// 무제한: 챔피언스 M-D 의 명중률 상향과 특성 조정도 적용 (스톤샤워 풀죽음 30%는 낮추지 않음 — 너프 없음)
+		for (const [id, acc] of Object.entries(MD_ACC)) { const cur = Moves[id]?.accuracy ?? (base_moves as any).Moves[id]?.accuracy; if (cur !== true) Moves[id] = { ...(Moves[id] || { inherit: true }), accuracy: Math.max(cur || 0, acc) }; }
+		for (const [id, patch] of Object.entries(MD_ABILITIES)) Abilities[id] = { ...(Abilities[id] || {}), inherit: true, ...patch };
+	}
+	return { scripts: { Scripts: { inherit: 'gen9', gen: 9 } }, pokedex: { Pokedex }, moves: { Moves }, abilities: { Abilities }, ...extra };
 }
 const ERA_MODS = { kr8: eraMod('8'), kr7: eraMod('7'), kr6: eraMod('6'), krmax: eraMod('max') };
-export const MODS: string[] = ['krchamp', ...Object.keys(ERA_MODS)];
+export const MODS: string[] = ['krchamp', 'krchampc', ...Object.keys(ERA_MODS)];
 const MOD_FILES: { [path: string]: any } = {
 	'/ps/data/mods/krchamp/scripts': { Scripts: { inherit: 'gen9', gen: 9 } },
 	'/ps/data/mods/krchamp/moves': { Moves: champMoves },
 	'/ps/data/mods/krchamp/conditions': { Conditions: champConditions },
 	'/ps/data/mods/krchamp/abilities': { Abilities: champAbilities },
+	'/ps/data/mods/krchampc/scripts': { Scripts: { inherit: 'gen9', gen: 9 } },
+	'/ps/data/mods/krchampc/moves': { Moves: champMovesC },
+	'/ps/data/mods/krchampc/conditions': { Conditions: champConditions },
+	'/ps/data/mods/krchampc/abilities': { Abilities: champAbilitiesC },
 	...Object.fromEntries(Object.entries(ERA_MODS).flatMap(([m, files]) => Object.entries(files).map(([f, v]) => [`/ps/data/mods/${m}/${f}`, v]))),
 };
 

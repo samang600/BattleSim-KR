@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.86.6', date: '2026-11-18', title: '챔피언스 M-D', items: [
+		['new', '배틀 규칙에 「챔피언스 M-D」가 생겼어요. 12월 조정(명중률·새로 배우는 기술·타오르는불꽃·굳건한신념)은 전국도감·무제한 룰에도 들어갑니다.'],
+	] },
 	{ ver: '2.86.5', date: '2026-11-18', title: '클라우드 자동 저장', items: [
 		['new', '설정 › 클라우드 백업에서 「자동 저장」을 켜면 세이브를 알아서 올려요. 다른 기기에서 올린 더 새로운 세이브가 있으면 불러올지 물어봅니다.'],
 	] },

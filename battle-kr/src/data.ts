@@ -1,5 +1,6 @@
 /** 빌드 시 만든 dex.json 을 감싸는 도우미 */
 import DEX from './gen/dex.json';
+import { MD_ACC, MD_LEARN_BY, MD_ABIL_DESC } from './ps/champions-md';
 
 /** 배틀 규칙 세대 — 9세대 내셔널 도감 고정 */
 export type Gen = 9;
@@ -53,8 +54,9 @@ export function typeKo(t: string) { return D.types[t] || t; }
  *  era: '' 최신(챔피언스 사양) / '9' 스칼렛·바이올렛 / '8'·'7'·'6' 그 세대 / 'max' 무제한(세대 중 가장 강한 사양) — 종족값·타입·특성·기술 수치
  *  lsMode: 'all' 전 세대+챔피언스 기술 / 'champ' 챔피언스 목록 / 'era' 그 세대에 배울 수 있는 기술
  *  itemAv: 도구 등장 글자 ('' = 전부) */
-let ERA = '', LS_MODE: 'all' | 'champ' | 'era' = 'all', ITEM_AV = '';
-export function setDataSpec(era: string, lsMode: 'all' | 'champ' | 'era', itemAv: string) { ERA = era; LS_MODE = lsMode; ITEM_AV = itemAv; }
+let ERA = '', LS_MODE: 'all' | 'champ' | 'era' = 'all', ITEM_AV = '', MD = true;
+/** md: 챔피언스 레귤레이션 M-D 조정(ps/champions-md.ts — 명중률·새로 배우는 기술·특성)을 쓰는 풀인가 */
+export function setDataSpec(era: string, lsMode: 'all' | 'champ' | 'era', itemAv: string, md = false) { ERA = era; LS_MODE = lsMode; ITEM_AV = itemAv; MD = md; }
 /** 지금 풀에 있는 도구인가 */
 /** 레전드플레이트는 무제한 규칙에서만 (치트 팀은 규칙과 관계없이 — 고르는 쪽에서 따로 넣음) */
 export const LEGEND_ONLY = 'legendplate';
@@ -151,7 +153,7 @@ export function moveData(id: string, gen: Gen) {
 		id, name: m.n, desc: eraText(ERA === '' && MOVE_CHAMP_DESC[id] || m.d), type: g[0], category: g[1] as 'Physical' | 'Special' | 'Status', basePower: g[2],
 		// PP 는 배틀에서 실제로 쓰는 최대값: 챔피언스 사양(전국도감·챔피언스 풀, ERA '')은 포인트업이 없어 그대로(방어 8 등),
 		// 본가 사양 룰은 포인트업 3개를 쓴 값(1.6배 — 방어 16)
-		accuracy: g[3], pp: ERA === '' ? g[4] : Math.floor(g[4] * 8 / 5), priority: g[5], target: g[6], contact: !!g[7],
+		accuracy: MD && MD_ACC[id] && g[3] !== 0 ? Math.max(g[3], MD_ACC[id]) : g[3], pp: ERA === '' ? g[4] : Math.floor(g[4] * 8 / 5), priority: g[5], target: g[6], contact: !!g[7],
 	};
 }
 export function abilityKo(nameOrId: string) { const id = toID(nameOrId); return id === 'asone' ? '혼연일체' : D.abilities[id]?.n || nameOrId; }
@@ -188,6 +190,7 @@ const ABIL_ERA_DESC: { [id: string]: { [k: string]: string } } = {
 const MAX_ABIL_DESC = ['intrepidsword', 'dauntlessshield', 'protean', 'libero', 'transistor', 'disguise', 'galewings', 'aerilate', 'pixilate', 'refrigerate', 'parentalbond', 'prankster'];
 export function abilityDesc(id: string) {
 	const k = toID(id), e = ABIL_ERA_DESC[k];
+	if (MD && MD_ABIL_DESC[k]) return MD_ABIL_DESC[k];
 	if (e) {
 		if (ERA === 'max') { if (MAX_ABIL_DESC.includes(k)) return Object.values(e)[0]; }
 		else if (ERA === '') { if (e.c) return e.c; }
@@ -250,6 +253,8 @@ export const HP_TYPES = ['Fighting', 'Flying', 'Poison', 'Ground', 'Rock', 'Bug'
 export const hpBase = (id: string) => /^hiddenpower/.test(id) ? 'hiddenpower' : id;
 export function learnset(id: string, gen: Gen): string[] {
 	let out = [...new Set(learnsetRaw(id, gen).map(m => snowMove(m)))];
+	// 챔피언스 M-D 에서 새로 배우는 기술 (메가진화한 모습은 원래 모습 것)
+	if (MD) { const sid = toID(id), sp: any = D.species[sid]; const add = MD_LEARN_BY[sid] || (sp?.base && /mega/.test(sid) ? MD_LEARN_BY[toID(sp.base)] : undefined); if (add) for (const m of add) if (!out.includes(m)) out.push(m); }
 	if (!hiddenPowerAllowed()) out = out.filter(m => !m.startsWith('hiddenpower'));
 	else if (LS_MODE === 'all' && (ERA === '' || ERA === 'max') && !out.includes('hiddenpower') && out.includes('terablast')) out.push('hiddenpower');
 	return out;
@@ -283,7 +288,7 @@ function learnsetRaw(id: string, gen: Gen): string[] {
 const NO_SKETCH = new Set(['chatter', 'struggle']);
 const sketchCache = new Map<string, string[]>();
 function sketchable(gen: Gen): string[] {
-	const key = `${LS_MODE}|${ERA}|${gen}`;
+	const key = `${LS_MODE}|${ERA}|${gen}|${MD}`;
 	let out = sketchCache.get(key);
 	if (out) return out;
 	const set = new Set<string>(['sketch']);
