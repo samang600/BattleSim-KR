@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.86.8', date: '2026-11-18', title: '더 넓은 로스터', items: [
+		['new', '챔피언스: 챔피언급의 로스터 한도가 90마리로 늘고, 로스터 화면에서 BP 로 추가 박스(30마리씩)를 살 수 있어요.'],
+	] },
 	{ ver: '2.86.7', date: '2026-11-18', title: '꾹 눌러 끌기', items: [
 		['new', '팀·박스·기술 순서를 꾹 눌러 끌어서 바꿀 수 있어요. 챔피언스 로스터에는 박스 정렬이 생겼습니다.'],
 		['new', '포켓몬 고르기에서 메가진화 같은 배틀 중 모습의 능력치를 볼 수 있어요.'],

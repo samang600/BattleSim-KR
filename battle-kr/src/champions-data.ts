@@ -11,6 +11,8 @@ export const PRICE = {
 };
 /** 얻는 BP: 1승 · 7연승 세트 · 승급전 */
 export const EARN = { win: 2, set: 5, promo: 10 };
+/** 추가 박스: BP 로 사는 로스터 자리 (한 박스 30마리). 값은 살수록 오름 — n번째(0부터) 박스 = base + step × n, 최대 max 개 */
+export const XBOX = { size: 30, base: 30, step: 10, max: 10 };
 
 /** 등급: 승점을 채우면 승급전(스토리)이 열림. cap = 로스터 한도 */
 export const TIERS = [
@@ -19,7 +21,7 @@ export const TIERS = [
 	{ name: '슈퍼볼급', need: 4, cap: 35, bst: [460, 580], q: 0.6, skill: 0.72 },
 	{ name: '하이퍼볼급', need: 5, cap: 40, bst: [480, 600], q: 0.7, skill: 0.82 },
 	{ name: '마스터볼급', need: 6, cap: 50, bst: [500, 640], q: 0.8, skill: 0.9 },
-	{ name: '챔피언급', need: 0, cap: 60, bst: [520, 680], q: 0.9, skill: 0.95 },
+	{ name: '챔피언급', need: 0, cap: 90, bst: [520, 680], q: 0.9, skill: 0.95 },
 ];
 
 /** 가지고 시작하는 도구 */

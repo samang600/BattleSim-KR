@@ -23,7 +23,7 @@ import { loadWallet, earnBP, spendBP, onWallet } from './rewards';
 import { ruleById, applyRuleData, teamRuleIssues, speciesAllowed, itemAllowed } from './rules';
 import { speciesKo, speciesData, moveData, moveKo, abilityDesc, abilityKo, itemKo, itemDesc, natureKo, typeKo, learnset, megaStonesFor, zCrystalsFor, exclusiveItemsFor, RAW, hpBase, toID, ALL_TYPES, shownName, isNick, nickKo, allBalls } from './data';
 import { playMusic, sfx } from './sound';
-import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, START_ITEMS, SHOP, NATURES, EVENTS, TOWER_EVENTS, CSYM, REGION_CUPS, CUP_NEED } from './champions-data';
+import { PRICE, EARN, TIERS, CHAPTERS, CWHO, RENTAL, START_ITEMS, SHOP, NATURES, EVENTS, TOWER_EVENTS, CSYM, REGION_CUPS, CUP_NEED, XBOX } from './champions-data';
 
 // ───────── 저장 ─────────
 interface CMon { id: number; set: PSet; /** 거다이맥스를 한 번 켠 적이 있음 — 그 뒤로는 켜고 끄기가 무료 */ gx?: 1; /** 이 포켓몬이 엔트리에 들어가 이긴 판 수 (볼 바꾸기는 BALL_WINS 승부터) */ w?: number }
@@ -38,7 +38,7 @@ interface CSave {
 	lineup: PSet[]; lineDay: string; freeAt: number; /** 지금 소개를 받은 시각(ms) · 이번 소개에서 이미 한 마리를 데려왔는가 */ lineAt?: number; linePick?: boolean; wish: string[]; wishMiss: number; typeNext?: string;
 	/** PWT 대회별 우승 수 · 이미 본 컷씬 */ cups?: { [id: string]: number }; seen?: { [id: string]: 1 };
 	/** 챔피언스 전용 심볼 (1 은 · 2 금) · 타워 최고 연승 */ sym?: { [id: string]: number }; towerBest?: number;
-	tower: number; factory?: number; /** 첫 파티 후보 (고르기 전까지) */ starts?: PSet[][];
+	tower: number; factory?: number; /** BP 로 산 추가 박스 수 */ xbox?: number; /** 첫 파티 후보 (고르기 전까지) */ starts?: PSet[][];
 	day: { id: string; win: number; scout: number; modes: { [k: string]: 1 }; got: { [k: string]: 1 } };
 }
 const KEY = 'champions';
@@ -64,6 +64,9 @@ const persist = (S: CSave) => { syncTeams(S); save(KEY, S); };
 /** 다른 팀으로 바꿈 (없는 번호면 빈 팀을 새로) */
 const useTeam = (S: CSave, i: number) => { syncTeams(S); while (S.teams!.length <= i && S.teams!.length < TEAM_MAX) S.teams!.push([]); S.cur = Math.max(0, Math.min(i, S.teams!.length - 1)); S.team = S.teams![S.cur]; persist(S); };
 const T = (S: CSave) => TIERS[Math.min(S.tier, TIERS.length - 1)];
+/** 로스터 한도: 등급의 한도 + 산 추가 박스 */
+const capOf = (S: CSave) => T(S).cap + (S.xbox || 0) * XBOX.size;
+const xboxPrice = (S: CSave) => XBOX.base + XBOX.step * (S.xbox || 0);
 const teamOf = (S: CSave) => S.team.map(id => S.roster.find(m => m.id === id)).filter(Boolean) as CMon[];
 const dayOf = (S: CSave) => { if (S.day.id !== today()) S.day = { id: today(), win: 0, scout: 0, modes: {}, got: {} }; return S.day; };
 /** 무료 스카우트: 12시간마다 한 마리 (일반 포켓몬). 남은 시간(시간 단위, 0 = 지금 가능) */
@@ -319,7 +322,7 @@ function SpeciesPick({ title, pool, hint, done }: { title: string; pool: string[
 	</Screen>;
 }
 const pickable = (S: CSave) => { const lg = legendOf(S), rule = ruleById(CR()); return speciesPool({ gen: 9, minBst: 300, noBan: true, ...lg } as any).filter(id => speciesAllowed(rule, id)).sort((a, b) => speciesKo(a).localeCompare(speciesKo(b), 'ko')); };
-const full = (S: CSave) => { if (S.roster.length >= T(S).cap) { toast(`로스터가 가득 찼어요 (${T(S).cap}마리). 로스터에서 내보내거나 등급을 올리세요`); return true; } return false; };
+const full = (S: CSave) => { if (S.roster.length >= capOf(S)) { toast(`로스터가 가득 찼어요 (${capOf(S)}마리). 로스터에서 추가 박스를 사거나, 내보내거나, 등급을 올리세요`); return true; } return false; };
 /** 스카우트 값 치르기. 소개(regular): 이번 소개의 한 마리 몫이 남았으면 그것을 쓰고, 없으면 스카우트 티켓으로 한 마리 더 — 일반 포켓몬은 무료, 준전설·전설은 BP.
  *  지명(pick): 지명 티켓 → BP (준전설·전설은 BP 로만) */
 function payScout(S: CSave, kind: 'regular' | 'pick', name: string, id = '') {
@@ -398,8 +401,8 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 	const [draft, setDraft] = useState<PSet | null>(null);
 	const setSel = (m: CMon | null) => { setSel0(m); setDraft(m ? cloneSet(m.set) : null); setSub(null); };
 	const re = () => { persist(S); tick(x => x + 1); };
-	const pages = Math.max(1, Math.ceil(T(S).cap / BOX)), team = teamOf(S);
-	const box = S.roster.slice(page * BOX, page * BOX + BOX), cap = Math.min(BOX, T(S).cap - page * BOX);
+	const pages = Math.max(1, Math.ceil(capOf(S) / BOX)), team = teamOf(S);
+	const box = S.roster.slice(page * BOX, page * BOX + BOX), cap = Math.min(BOX, capOf(S) - page * BOX);
 	/** 박스 정렬: 로스터의 순서 자체를 바꿈 (그 뒤 꾹 눌러 끌어서 손볼 수 있음) */
 	const [sortOpen, setSortOpen] = useState(false);
 	const bst = (m: CMon) => ((speciesData(m.set.species, 9) as any)?.bs || []).reduce((a: number, b: number) => a + b, 0), num = (m: CMon) => (speciesData(m.set.species, 9) as any)?.num || 0;
@@ -409,18 +412,25 @@ function RosterScreen({ S, done }: { S: CSave; done: () => void }) {
 		['종족값', '종족값 합계가 높은 순', (a, b) => bst(b) - bst(a) || a.id - b.id], ['타입', '첫 번째 타입끼리 모음', (a, b) => ALL_TYPES.indexOf(types(a.set.species)[0]) - ALL_TYPES.indexOf(types(b.set.species)[0]) || num(a) - num(b)],
 		['승수', '많이 이긴 순', (a, b) => (b.w || 0) - (a.w || 0) || a.id - b.id], ['지금 팀 먼저', '팀에 넣은 포켓몬을 앞으로', (a, b) => (S.team.includes(a.id) ? S.team.indexOf(a.id) : 99) - (S.team.includes(b.id) ? S.team.indexOf(b.id) : 99) || a.id - b.id],
 		['색이 다른 포켓몬 먼저', '색이 다른 포켓몬을 앞으로', (a, b) => (b.set.shiny ? 1 : 0) - (a.set.shiny ? 1 : 0) || a.id - b.id]];
+	const buyBox = async () => {
+		const n = S.xbox || 0, price = xboxPrice(S);
+		if (!(await confirmBox('추가 박스', `${price} BP 로 박스를 하나 더 살까요?\n로스터 한도가 ${capOf(S)} → ${capOf(S) + XBOX.size}마리가 됩니다. (산 박스 ${n} / ${XBOX.max} · 다음 박스는 ${price + XBOX.step} BP)`, '산다', '그만두기'))) return;
+		if (!pay(price, '챔피언스 · 추가 박스')) return;
+		S.xbox = n + 1; sfx('statUp'); re(); toast(`박스가 늘었습니다 — 로스터 한도 ${capOf(S)}마리`);
+	};
 	const boxMove = (from: number, to: number) => { const a = page * BOX + from, b = Math.min(page * BOX + to, S.roster.length - 1); if (a >= S.roster.length || a === b) return; S.roster = moved(S.roster, a, b); re(); };
 	const teamMove = (from: number, to: number) => { if (from >= S.team.length) return; S.team = moved(S.team, from, Math.min(to, S.team.length - 1)); syncTeams(S); re(); };
 	const cell = (m: CMon | undefined, k: number) => <button class={'cp-cell' + (m ? '' : ' empty') + (m && S.team.includes(m.id) ? ' in' : '')} disabled={!m} onClick={() => m && setSel(m)} key={m ? 'm' + m.id : 'e' + k} {...dragSort('cpbox', k, boxMove, !!m)}>
 		{m && <PokeIcon species={m.set.species} />}{m && m.set.shiny && <b class="cp-shmark" aria-label="색이 다른 포켓몬" />}{m && m.set.item && <span class="cp-held"><ItemIcon item={m.set.item} size={16} /></span>}{m && S.team.includes(m.id) && <i>{S.team.indexOf(m.id) + 1}</i>}</button>;
-	return <Screen title="로스터" onBack={done} cls="cp-scr" top><Top title="로스터" sub={`${S.roster.length} / ${T(S).cap}마리 · 팀 ${S.team.length} / 6`} S={S} onBack={done} />
+	return <Screen title="로스터" onBack={done} cls="cp-scr" top><Top title="로스터" sub={`${S.roster.length} / ${capOf(S)}마리 · 팀 ${S.team.length} / 6`} S={S} onBack={done} />
 		<div class="cp-pc"><div class="cp-party"><b class="cp-teamsel"><button class="cp-arw prev" disabled={(S.cur || 0) <= 0} onClick={() => { useTeam(S, (S.cur || 0) - 1); tick(x => x + 1); }} aria-label="앞 팀" />
 			<span>팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 팀 {S.teams?.length || 1} / {TEAM_MAX}</small></span>
 			<button class="cp-arw" disabled={(S.cur || 0) >= TEAM_MAX - 1} onClick={() => { useTeam(S, (S.cur || 0) + 1); tick(x => x + 1); }} aria-label="다음 팀" /></b><div>{[0, 1, 2, 3, 4, 5].map(k => <button class={'cp-slot' + (team[k] ? '' : ' empty')} disabled={!team[k]} onClick={() => team[k] && setSel(team[k])} key={team[k] ? 't' + team[k].id : 'e' + k} {...dragSort('cpteam', k, teamMove, !!team[k])}>
 			{team[k] ? <><PokeIcon species={team[k].set.species} />{team[k].set.shiny && <b class="cp-shmark" aria-label="색이 다른 포켓몬" />}{team[k].set.item && <span class="cp-held"><ItemIcon item={team[k].set.item} size={16} /></span>}<small class={slotCls(monKo(team[k].set))}>{monKo(team[k].set)}</small></> : null}</button>)}</div></div>
 		<div class="cp-box">
 			<div class="cp-box-head"><button disabled={page <= 0} onClick={() => setPage(page - 1)} aria-label="앞 박스" class="prev" /><b>박스 {page + 1}{pages > 1 && <small>/ {pages}</small>}</b><button disabled={page >= pages - 1} onClick={() => setPage(page + 1)} aria-label="다음 박스" /></div>
-			<div class="cp-sortbar"><span>박스 정렬</span><button class="btn small" onClick={() => setSortOpen(true)}>기준 고르기</button></div>
+			<div class="cp-sortbar"><span>박스 정렬</span><button class="btn small" onClick={() => setSortOpen(true)}>기준 고르기</button>
+				<button class="btn small cp-xbox" disabled={(S.xbox || 0) >= XBOX.max} onClick={buyBox}>{(S.xbox || 0) >= XBOX.max ? '추가 박스 최대' : `추가 박스 ${xboxPrice(S)} BP`}</button></div>
 			<div class="cp-box-grid">{Array.from({ length: cap }, (_, k) => cell(box[k], k))}</div>
 		</div></div>
 		<p class="cp-note">포켓몬을 누르면 팀에 넣고 빼기·도구·트레이닝 창이 열립니다. 숫자가 붙은 포켓몬이 지금 팀입니다. 팀 칸·박스 칸을 <b>꾹 눌러 끌면</b> 순서를 바꿀 수 있어요. 팀은 화살표로 넘겨 {TEAM_MAX}개까지 따로 짤 수 있고, 지금 보이는 팀으로 배틀에 나갑니다.</p>
@@ -614,7 +624,7 @@ async function chapterFlow(S: CSave) {
 	await fx('fade');
 	if (S.ch === 0) { S.ch = 1; persist(S); await startFlow(S); newLineup(S); return; }
 	S.ch++; S.tier = Math.min(TIERS.length - 1, S.tier + 1); S.pts = 0; persist(S); earnBP(EARN.promo, '챔피언스 승급');
-	await result('승급!', `${T(S).name}으로 올라갔다!`, [`+${EARN.promo} BP`, `로스터 한도 ${T(S).cap}마리`, S.tier >= TIERS.length - 1 ? '챔피언스 아레나의 정점입니다. 축하합니다!' : '스카우트에 더 강한 포켓몬이 소개됩니다']);
+	await result('승급!', `${T(S).name}으로 올라갔다!`, [`+${EARN.promo} BP`, `로스터 한도 ${capOf(S)}마리`, S.tier >= TIERS.length - 1 ? '챔피언스 아레나의 정점입니다. 축하합니다!' : '스카우트에 더 강한 포켓몬이 소개됩니다']);
 }
 type Replay = { title: string; bg: string; lines: [string, string][] };
 /** 스토리: 장(승급전)과 이벤트(PWT·배틀타워). 이미 본 것은 누르면 다시 볼 수 있음 */
@@ -658,7 +668,7 @@ function Hub({ S, done }: { S: CSave; done: (a: HubAct) => void }) {
 			{erow('rank', '랭크 매치', `${rankLabel(rp, true)} · ${rp} RP`)}
 			{towerOpen() ? brow('tower', '배틀타워', `${S.tower}연승 · 7연승마다 지명 티켓 (${S.tower % 7} / 7)`) : erow({ k: 'tower', doubles: false }, '배틀타워', '랭크 매치 하이퍼볼급부터 도전', true)}
 			{erow('pwt', 'PWT', pwtOpen() ? `8명 토너먼트 · ${pwtNext}` : pwtNext, !pwtOpen())}</div>
-		<button class="cp-pn cp-myteam" onClick={() => done('roster')}><h3>내 팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {t.cap}</small></h3>
+		<button class="cp-pn cp-myteam" onClick={() => done('roster')}><h3>내 팀 {(S.cur || 0) + 1}<small>{S.team.length} / 6 · 로스터 {S.roster.length} / {capOf(S)}</small></h3>
 			<div class="cp-team">{[0, 1, 2, 3, 4, 5].map(i => <span class={team[i] ? '' : 'empty'}>{team[i] && <PokeIcon species={team[i].set.species} />}{team[i]?.set.item && <span class="cp-held"><ItemIcon item={team[i].set.item} size={16} /></span>}</span>)}</div></button>
 		<div class="cp-tiles four">{tile('scout', '스카우트', 'c2', 'pikachu', newLine ? '새 소개' : canPick(S) ? '1마리' : undefined)}{tile('roster', '로스터', 'c3', 'gardevoir')}
 			{tile('shop', '상점', 'c5', 'rotomwash')}{tile('mission', '미션', 'c6', 'togekiss', mr ? String(mr) : undefined)}</div>
