@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.86.10', date: '2026-11-19', title: '팀 찾기', items: [
+		['new', '팀 목록과 배틀 전 팀 고르기에서 팀 이름·포켓몬 이름으로 찾을 수 있어요. 끌어서 순서를 바꿀 때 화면 끝으로 가면 저절로 스크롤됩니다.'],
+	] },
 	{ ver: '2.86.9', date: '2026-11-19', title: '그림·불러오기 수정', items: [
 		['fix', '이름에 괄호가 든 포켓몬(불비달마(가라르) 등)도 텍스트로 불러올 수 있어요.'],
 		['fix', '움직이는 도트: 제르네아스·가라르 불비달마·비비용·메테노의 그림을 바로잡았습니다. 메테노의 리밋실드도 제대로 발동합니다.'],

@@ -42,6 +42,9 @@ export function newSet(species: string, gen: Gen): PSet {
 /** 팀 목록 */
 export function TeamList({ onBack, onEdit }: { onBack: () => void; onEdit: (t: SavedTeam) => void }) {
 	const [teams, setTeams] = useState(loadTeams());
+	/** 팀 이름·포켓몬 이름으로 찾기 (찾는 동안에는 순서 끌기를 쉼 — 보이는 순서와 저장 순서가 달라서) */
+	const [q, setQ] = useState('');
+	const hit = (t: SavedTeam) => matches(q, t.name, ...t.sets.map(x => speciesKo(x.species)));
 	const create = (gen: Gen, random: boolean, cheat = false) => {
 		const t: SavedTeam = { id: newId(), name: cheat ? `치트 팀 ${teams.filter(x => x.cheat).length + 1}` : `팀 ${teams.length + 1}`, gen,
 			sets: random ? randomTeam({ gen, size: 6, minBst: 470 }) : [], updated: Date.now(), ...(cheat ? { cheat: true } : {}) };
@@ -59,11 +62,13 @@ export function TeamList({ onBack, onEdit }: { onBack: () => void; onEdit: (t: S
 		<p class="muted small">치트 팀: 아무 기술·특성이나 넣고 능력 포인트 제한(합계 66) 없이 만들 수 있어요. 각 배틀 모드의 형식 선택 화면에서 ‘치트 팀 허용’을 켜면 쓸 수 있고, 전적에 남지 않습니다.</p>
 		<ImportBox onImported={() => setTeams(loadTeams())} />
 		{!teams.length && <p class="empty-msg">아직 팀이 없습니다. 새 팀을 만들거나 추천팀을 받아 보세요.</p>}
+		{teams.length > 1 && <input class="search" placeholder="팀 이름·포켓몬으로 찾기 (초성 가능)" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} />}
+		{teams.length > 1 && q.trim() && !teams.some(hit) && <p class="empty-msg">맞는 팀이 없습니다.</p>}
 		{teams.length > 1 && <div class="team-sort"><span>순서</span>
 			<button class="btn small ghost" onClick={() => reorder(teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true })))}>이름순</button>
 			<button class="btn small ghost" onClick={() => reorder(teams.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0)))}>최근 고친 순</button><small class="drag-hint">팀을 꾹 눌러 끌면 순서를 바꿀 수 있어요</small></div>}
 		<div class="card-list">
-			{teams.map((t, ti) => <div class="team-row clickable" key={t.id} onClick={() => onEdit(t)} {...dragSort('teams', ti, (a, b) => reorder(moved(teams, a, b)))}>
+			{teams.map((t, ti) => !hit(t) ? null : <div class="team-row clickable" key={t.id} onClick={() => onEdit(t)} {...dragSort('teams', ti, (a, b) => reorder(moved(teams, a, b)), !q.trim())}>
 				<div class="team-row-head"><b>{t.name}</b>{t.cheat && <span class="cheat-tag">치트</span>}<span class="muted">{t.sets.length}/6</span>
 					<button class="btn small" onClick={e => { e.stopPropagation(); upsertTeam({ ...JSON.parse(JSON.stringify(t)), id: newId(), name: t.name + ' 복사본' }); setTeams(loadTeams()); toast('팀을 복제했습니다'); }}>복제</button></div>
 				<div class="preview-row">{t.sets.map(s => <MiniSprite species={s.species} gen={t.gen} size={40} shiny={s.shiny} />)}</div>

@@ -461,7 +461,18 @@ function glowFilter(id: string, color: string, r1: number, r2: number, values: s
 // 누르자마자 움직이면(스크롤) 끌기가 시작되지 않고, 끌고 난 뒤의 클릭은 한 번 무시함.
 let dragOn = false;
 export function dragSort(group: string, idx: number, onMove: (from: number, to: number) => void, canDrag = true) {
-	const over = (x: number, y: number) => (document.elementFromPoint(x, y) as HTMLElement | null)?.closest<HTMLElement>(`[data-dg="${group}"]`) || null;
+	// 손가락 아래의 칸. 칸 사이 틈이나 목록 끝의 빈 곳에 놓아도 되게, 바로 아래에 없으면 가장 가까운 칸(48px 안)
+	const over = (x: number, y: number) => {
+		const hit = (document.elementFromPoint(x, y) as HTMLElement | null)?.closest<HTMLElement>(`[data-dg="${group}"]`);
+		if (hit) return hit;
+		const all = [...document.querySelectorAll<HTMLElement>(`[data-dg="${group}"]`)];
+		let best: HTMLElement | null = null, bd = 48, top = Infinity, bot = -Infinity, l = Infinity, r2 = -Infinity;
+		for (const e of all) { const r = e.getBoundingClientRect(); const dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom), d = Math.hypot(dx, dy); if (d < bd) { bd = d; best = e; }
+			top = Math.min(top, r.top); bot = Math.max(bot, r.bottom); l = Math.min(l, r.left); r2 = Math.max(r2, r.right); }
+		// 목록의 맨 아래보다 더 아래(또는 맨 위보다 더 위)에 놓으면 맨 끝(맨 앞) 칸으로
+		if (!best && all.length && x >= l && x <= r2) best = y > bot ? all[all.length - 1] : y < top ? all[0] : null;
+		return best;
+	};
 	return {
 		'data-dg': group, 'data-di': idx,
 		onContextMenu: (e: Event) => e.preventDefault(),
@@ -469,7 +480,20 @@ export function dragSort(group: string, idx: number, onMove: (from: number, to: 
 		onPointerDown: (e: PointerEvent) => {
 			if (!canDrag || dragOn || (e.pointerType === 'mouse' && e.button !== 0)) return;
 			const el = e.currentTarget as HTMLElement, x0 = e.clientX, y0 = e.clientY;
-			let ghost: HTMLElement | null = null, cur: HTMLElement | null = null, lx = x0, ly = y0;
+			let ghost: HTMLElement | null = null, cur: HTMLElement | null = null, lx = x0, ly = y0, raf = 0;
+			// 끌다가 화면(또는 스크롤되는 창)의 위·아래 끝에 가까이 가면 그쪽으로 저절로 스크롤 — 끝에 가까울수록 빠르게
+			let sc: HTMLElement | null = el.parentElement;
+			while (sc && !(/(auto|scroll)/.test(getComputedStyle(sc).overflowY) && sc.scrollHeight > sc.clientHeight + 4)) sc = sc.parentElement;
+			const EDGE = 72;
+			const auto = () => {
+				raf = requestAnimationFrame(auto);
+				const r = sc ? sc.getBoundingClientRect() : null, top = Math.max(0, r ? r.top : 0), bot = Math.min(window.innerHeight, r ? r.bottom : window.innerHeight);
+				const d = ly < top + EDGE ? -(top + EDGE - ly) : ly > bot - EDGE ? ly - (bot - EDGE) : 0;
+				if (!d) return;
+				const v = Math.sign(d) * Math.min(18, 3 + Math.abs(d) / 5);
+				if (sc) sc.scrollTop += v; else window.scrollBy(0, v);
+				mark(over(lx, ly));
+			};
 			const place = () => { if (ghost) ghost.style.transform = `translate(${Math.round(lx - ghost.offsetWidth / 2)}px, ${Math.round(ly - ghost.offsetHeight * 0.7)}px)`; };
 			const begin = () => {
 				dragOn = true; timer = 0;
@@ -482,6 +506,7 @@ export function dragSort(group: string, idx: number, onMove: (from: number, to: 
 				document.body.appendChild(ghost); place();
 				el.classList.add('drag-src'); document.body.classList.add('dragging');
 				try { navigator.vibrate?.(12); } catch {}
+				raf = requestAnimationFrame(auto);
 			};
 			let timer: any = setTimeout(begin, 350);
 			const mark = (t: HTMLElement | null) => { if (t === cur) return; cur?.classList.remove('drag-over'); cur = t && t !== el ? t : null; cur?.classList.add('drag-over'); };
@@ -491,7 +516,7 @@ export function dragSort(group: string, idx: number, onMove: (from: number, to: 
 				place(); mark(over(lx, ly));
 			};
 			const end = (ev: PointerEvent | null) => {
-				clearTimeout(timer);
+				clearTimeout(timer); cancelAnimationFrame(raf);
 				window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end as any); window.removeEventListener('pointercancel', cancel);
 				if (!dragOn) return;
 				const to = ev ? over(ev.clientX, ev.clientY) : null;

@@ -131,14 +131,14 @@ export async function chooseTeam(gen: Gen, title: string, allowRental = true, ch
 	const banned = (t: SavedTeam) => t.cheat ? [] : t.sets.filter(x => !speciesAllowed(rule, toID(x.species))).map(x => speciesKo(x.species));
 	// 치트 팀은 '치트 팀 허용'을 켰을 때만
 	const teams = loadTeams().filter(t => (cheat || !t.cheat) && t.sets.length >= (t.cheat ? 1 : 3)).sort((a, b) => (b.id === lastId ? 1 : 0) - (a.id === lastId ? 1 : 0));
-	const opts: { value: SavedTeam | 'rental'; label: string; desc?: string; icon?: any; badge?: string }[] = teams.map(t => ({
+	const opts: { value: SavedTeam | 'rental'; label: string; desc?: string; icon?: any; badge?: string; fixed?: boolean }[] = teams.map(t => ({
 		value: t, label: t.name, desc: banned(t).length ? `출전 불가: ${banned(t).join(' · ')}` : t.sets.map(s => speciesKo(s.species)).join(' · '), badge: t.cheat ? '🃏 치트' : banned(t).length ? '규칙 불가' : t.id === lastId ? '최근 사용' : undefined,
 		icon: <span class="mini"><img class="sprite" src={gen5Icon(spriteId(t.sets[0].species))} /></span>,
 	}));
-	if (allowRental) opts.push({ value: 'rental', label: '추천 렌탈 팀', desc: '무작위로 6마리를 빌립니다', icon: '🎲' });
+	if (allowRental) opts.push({ value: 'rental', label: '추천 렌탈 팀', desc: '무작위로 6마리를 빌립니다', icon: '🎲', fixed: true });
 	const v = await ask<SavedTeam | 'rental' | typeof BACK>(r => <ChoiceScreen title={title} onBack={() => r(BACK)}
 		intro={!teams.length ? <p class="hint">{cheat ? '저장된 팀이 없습니다. 메인 메뉴 → 팀 편집에서 만들 수 있어요.' : '저장된 팀(3마리 이상)이 없습니다. 메인 메뉴 → 팀 편집에서 만들 수 있어요. (치트 팀은 형식 선택 화면에서 ‘치트 팀 허용’을 켜면 쓸 수 있어요)'}</p> : undefined}
-		options={opts} onPick={r} />);
+		options={opts} onPick={r} search="팀 이름·포켓몬으로 찾기 (초성 가능)" />);
 	if (v === BACK) return BACK;
 	if (v === 'rental') return withLevel(randomTeam({ gen, size: 6, minBst: 480 }), level);
 	if (banned(v).length) {
@@ -977,12 +977,12 @@ export async function runFree() {
 	const teams = loadTeams().filter(t => t.sets.length >= 1 && (cheat || !t.cheat));
 	const oppPick = await ask<SavedTeam | 'random' | 'strong' | 'ranker' | typeof BACK>(r => <ChoiceScreen title="상대 팀" onBack={() => r(BACK)}
 		options={[
-			{ value: 'random' as const, label: '무작위 팀', desc: '일반 트레이너의 무작위 6마리', icon: '🎲' },
-			{ value: 'strong' as const, label: '강한 무작위 팀', desc: '준전설 포함 · 메가·Z 소지', icon: '🔥' },
-			{ value: 'ranker' as const, label: '상위 랭커 팀', desc: `랭크배틀·대회 상위 구축 · 지금 룰에서 ${rankerCount(isDoubles(fmt))}팀 (${rankerSources(isDoubles(fmt)).join(', ') || '없음'})`, icon: '🏆', disabled: !rankerCount(isDoubles(fmt)) },
+			{ value: 'random' as const, label: '무작위 팀', desc: '일반 트레이너의 무작위 6마리', icon: '🎲', fixed: true },
+			{ value: 'strong' as const, label: '강한 무작위 팀', desc: '준전설 포함 · 메가·Z 소지', icon: '🔥', fixed: true },
+			{ value: 'ranker' as const, label: '상위 랭커 팀', desc: `랭크배틀·대회 상위 구축 · 지금 룰에서 ${rankerCount(isDoubles(fmt))}팀 (${rankerSources(isDoubles(fmt)).join(', ') || '없음'})`, icon: '🏆', disabled: !rankerCount(isDoubles(fmt)), fixed: true },
 			...teams.map(t => ({ value: t, label: t.name, desc: t.sets.map(s => speciesKo(s.species)).join(' · '),
 				icon: <span class="mini"><img class="sprite" src={gen5Icon(spriteId(t.sets[0].species))} /></span> })),
-		]} onPick={r} />);
+		]} onPick={r} search="팀 이름·포켓몬으로 찾기 (초성 가능)" />);
 	if (oppPick === BACK) return;
 	const level = await ask<'s' | 'n' | 'h' | typeof BACK>(r => <ChoiceScreen title="상대 AI 실력" onBack={() => r(BACK)} options={[
 		{ value: 'n' as const, label: '보통', desc: '체육관 관장 수준', icon: '●' },

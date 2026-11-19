@@ -4,6 +4,7 @@ import { useState } from 'preact/hooks';
 import { fixedTera, speciesData, toID, moveKo, itemKo, abilityKo, natureKo, typeKo, STAT_SHORT, STAT_KO, STATS, moveData, natureData, abilityDesc, itemDesc, calcStat, type Gen } from '../data';
 import { evToSp, spToEv, evDisplay, type PSet } from '../sets';
 import { SPRITE_URL, trainerImgError } from '../trainer-lines';
+import { matches } from './teambuilder';
 import { Screen, Sprite, MiniSprite, CropSprite, TypeBadge, Modal, HPBar, StatusBadge, TYPE_COLOR } from './core';
 import { OnlinePick, useWide } from './online-pick';
 import { loadSettings } from '../store';
@@ -129,13 +130,18 @@ export function SwapScreen({ mine, theirs, gen, onDone }: {
 }
 
 /** 선택지 목록 */
-export function ChoiceScreen<T>({ title, intro, footer, options, onPick, onBack, top }: {
+export function ChoiceScreen<T>({ title, intro, footer, options: all, onPick, onBack, top, search }: {
 	title: string; intro?: ComponentChildren; footer?: ComponentChildren; onBack?: () => void; /** 열릴 때 맨 위부터 */ top?: boolean;
-	options: { value: T; label: string; desc?: string; badge?: string; disabled?: boolean; icon?: ComponentChildren; /** 묶음 제목 (바뀔 때마다 머리글) */ group?: string; /** 왼쪽 색 띠 */ color?: string }[];
+	/** 검색 칸의 안내 글: 주면 이름(label)·설명(desc)으로 거름 (초성 가능). fixed 인 선택지는 늘 보임 */ search?: string;
+	options: { value: T; label: string; desc?: string; badge?: string; disabled?: boolean; icon?: ComponentChildren; /** 묶음 제목 (바뀔 때마다 머리글) */ group?: string; /** 왼쪽 색 띠 */ color?: string; /** 검색해도 늘 보이는 선택지 */ fixed?: boolean }[];
 	onPick: (v: T) => void;
 }) {
+	const [q, setQ] = useState('');
+	const options = search && q.trim() ? all.filter(o => o.fixed || matches(q, o.label, ...(o.desc ? o.desc.split(' · ') : []))) : all;
 	return <Screen title={title} onBack={onBack} cls="choice-scr" top={top}>
 		{intro}
+		{search && all.filter(o => !o.fixed).length > 1 && <input class="search choice-search" placeholder={search} value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} />}
+		{search && q.trim() && !options.some(o => !o.fixed) && <p class="empty-msg">맞는 팀이 없습니다.</p>}
 		<div class="option-list">
 			{options.map((o, i) => [o.group && o.group !== options[i - 1]?.group ? <h3 class="sec opt-group">{o.group}</h3> : null,
 				<button class={'option' + (o.color ? ' opt-color' : '')} style={o.color ? { '--oc': o.color } as any : undefined} disabled={o.disabled} onClick={() => onPick(o.value)}>
