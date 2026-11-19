@@ -1840,7 +1840,7 @@ function typeTint(type: string) {
 		return <div class={'slot ' + pos + ' ' + (mon.anim || '') + (mon.away ? ' away' : '') + (mon.vol.has('dynamax') ? ' dmax' : '') + (mon.tera ? ' tera' : '') + (fl ? ' float' : '') + (mon.status ? ' st-' + mon.status : '')} key={i}
 			style={mon.tera ? { '--tera': TYPE_COLOR[mon.tera] } as any : undefined} onClick={() => setDetail({ mon, own })}>
 			{mon.vol.has('substitute') ? <Sprite species="substitute" back={own} gen={gen} size={400} cls={own ? 'back' : 'front'} /> :
-				<Sprite species={mon.transformed || mon.species} back={own} shiny={mon.shiny} gen={gen} size={400} cls={own ? 'back' : 'front'} tera={mon.tera || undefined}
+				<Sprite live species={mon.transformed || mon.species} back={own} shiny={mon.shiny} gen={gen} size={400} cls={own ? 'back' : 'front'} tera={mon.tera || undefined}
 					rate={mon.status === 'frz' ? 0 : mon.status ? 0.5 : 1} />}
 		</div>;
 	};

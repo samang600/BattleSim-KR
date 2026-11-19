@@ -89,14 +89,21 @@ export function importText(text: string, gen: Gen): PSet[] {
 		const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
 		if (!lines.length) continue;
 		let [first, item] = lines[0].split('@').map(s => s.trim());
-		first = first.replace(/\((M|F)\)\s*$/, '').trim();
 		let species = first;
 		let gender = '';
 		const gm = /^(.*?)\s*\(([MF])\)$/.exec(first);
-		if (gm) { first = gm[1].trim(); gender = gm[2]; }
-		const paren = /^(.*)\(([^)]+)\)$/.exec(first);
+		if (gm) { first = gm[1].trim(); gender = gm[2]; species = first; }
+		// 이름에 괄호가 들어간 포켓몬(불비달마(가라르), 로토무(워시로토무) 등): 줄 전체가 포켓몬 이름이면 그대로,
+		// 아니면 「닉네임 (포켓몬)」 — 포켓몬 이름 안의 괄호 때문에 '(' 마다 나눠 보며 뒤쪽이 포켓몬 이름인 곳을 찾음
 		let nick = '';
-		if (paren) { species = paren[2]; nick = paren[1].trim(); }
+		const isSp = (x: string) => !!speciesData(koLookup(x), gen);
+		if (!isSp(first) && first.endsWith(')')) {
+			for (let i = first.indexOf('('); i >= 0; i = first.indexOf('(', i + 1)) {
+				// 안쪽 괄호에서 자르면 닫는 괄호가 하나 남으므로 그것도 떼어 봄
+				const inner = [first.slice(i + 1, -1).trim(), first.slice(i + 1, -1).replace(/\)\s*$/, '').trim()].find(isSp);
+				if (inner) { species = inner; nick = first.slice(0, i).replace(/\([^()]*$/, '').trim(); break; }
+			}
+		}
 		const sid = koLookup(species);
 		const sd = speciesData(sid, gen);
 		if (!sd) continue;

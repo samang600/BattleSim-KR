@@ -73,13 +73,16 @@ export function CatIcon({ cat }: { cat: string }) {
 // 웹: GitHub Pages 의 /ani/ 에서 그때그때 받음. 앱: 설정에서 묶음(zip)을 받아 두면 그곳(files/offline/ani…)에서, 아니면 인터넷에서
 export const ANI_BASE = 'https://samang600.github.io/BattleSim-KR/ani/';
 const ANI_IDS = new Set((ANI_INDEX as any).ids as string[]);
-// 묶음의 그림이 잘못된 것(가라르 불비달마: 달마모드 그림이 들어 있음)은 정지 도트 그림을 씀
-for (const bad of ['darmanitan-galar']) ANI_IDS.delete(bad);
 const ANI_NO = { back: new Set((ANI_INDEX as any).noBack as string[]), shiny: new Set(((ANI_INDEX as any).noShiny || []) as string[]), backShiny: new Set(((ANI_INDEX as any).noBackShiny || []) as string[]) };
 const NONE = new Set<string>();
 declare const __ANI_FIX__: Record<string, string>;
 /** 손질한 움직이는 도트 (묶음 원본이 통통 튀어 보이는 그림 — scripts/calm-ani.py) */
 const ANI_FIX: Record<string, string> = typeof __ANI_FIX__ === 'object' ? __ANI_FIX__ : {};
+// 손질한 그림이 있으면 묶음에 없던 그림(메테노 코어)도 움직이는 도트로, 묶음에 없다고 적힌 뒷모습·이로치도 있는 것으로
+for (const k of Object.keys(ANI_FIX)) { const m = /^(.*?)(-back)?(-shiny)?$/.exec(k)!; ANI_IDS.add(m[1]); (m[3] ? (m[2] ? ANI_NO.backShiny : ANI_NO.shiny) : m[2] ? ANI_NO.back : NONE).delete(m[1]); }
+/** 배틀 밖에서 보이는 모습: 메테노는 배틀에 나오면 바로 유성의 모습이 되므로(리밋실드) 목록·팀 화면에서는 유성의 모습으로 보여 줌.
+ *  쇼다운 데이터의 'Minior' 는 껍질이 벗겨진 코어라서, 배틀 화면(live)에서만 그 그림을 씀 */
+export function shownSpecies(species: string): string { return toID(species) === 'minior' ? 'Minior-Meteor' : species; }
 /** 이 그림의 움직이는 도트 주소 (설정이 꺼져 있거나 없는 그림이면 '') */
 export function aniDotUrl(id: string, back: boolean, shiny: boolean, settings = loadSettings()): string {
 	if (!settings.aniDot || settings.animatedSprites) return '';
@@ -145,10 +148,11 @@ function AnimCanvas({ src, rate, cls, st, alt, onFail }: { src: string; rate: nu
 	}, [src, rate]);
 	return <canvas ref={ref} width={1} height={1} class={cls} style={{ ...st, visibility: 'hidden' }} aria-label={alt} />;
 }
-export function Sprite({ species, back, shiny, gen = 5, size = 96, anim, cls, tera, rate = 1 }: {
-	species: string; back?: boolean; shiny?: boolean; gen?: Gen; size?: number; anim?: boolean; cls?: string; /** 테라스탈 타입: 그림 모양대로 반투명 보석 결을 겹침 */ tera?: string;
+export function Sprite({ species: species0, back, shiny, gen = 5, size = 96, anim, cls, tera, rate = 1, live }: {
+	species: string; /** 배틀 화면의 포켓몬: 지금 모습 그대로 (메테노 코어) */ live?: boolean; back?: boolean; shiny?: boolean; gen?: Gen; size?: number; anim?: boolean; cls?: string; /** 테라스탈 타입: 그림 모양대로 반투명 보석 결을 겹침 */ tera?: string;
 	/** 움직이는 그림의 속도 (상태 이상: 0.5 = 느리게, 0 = 멈춤). 1 이면 보통 그림 그대로 */ rate?: number;
 }) {
+	const species = live ? species0 : shownSpecies(species0);
 	const [noCanvas, setNoCanvas] = useState(false);
 	const settings = loadSettings();
 	const id = species === 'substitute' ? 'substitute' : spriteId(species);
@@ -227,8 +231,8 @@ function spriteCandidates(species: string, id: string, back: boolean, shiny: boo
 
 /** 목록·카드용 썸네일: 96px 도트 그림에서 그림이 있는 영역만 잘라 가능하면 1:1(축소 없이)로 보여 뭉개지지 않게 */
 /** snap: 배율을 1 또는 1/2 로만 (어중간한 배율로 줄이면 도트 굵기가 들쭉날쭉해짐) */
-export function CropSprite({ species, gen = 5, size = 64, shiny, cls, snap }: { species: string; gen?: Gen; size?: number; shiny?: boolean; cls?: string; snap?: boolean }) {
-	const id = spriteId(species);
+export function CropSprite({ species: species0, gen = 5, size = 64, shiny, cls, snap }: { species: string; gen?: Gen; size?: number; shiny?: boolean; cls?: string; snap?: boolean }) {
+	const species = shownSpecies(species0), id = spriteId(species);
 	const e = PAD[id] || PAD[spriteId(speciesData(toID(species), 9 as Gen)?.base || '')];
 	const ub = getUserSprite(userSpriteKey(id, false, !!shiny))?.bb;   // 목록 썸네일은 늘 정지 그림 → 사용자 그림이면 그 영역
 	const [x, y, w, h] = ub || (e && e.length >= 6 ? e.slice(2) : [0, 0, 96, 96]);
@@ -266,7 +270,7 @@ export function Screen({ title, onBack, right, children, cls, top }: {
 
 /** 작은 도트 아이콘 (쇼다운 박스 아이콘 40×30, public/pokeicons.png · scripts/fetch-icons.py) */
 export function pokeIconNum(species: string): number {
-	const id = toID(species), idx = (ICON_INDEX as any).idx as { [k: string]: number };
+	const id = toID(shownSpecies(species)), idx = (ICON_INDEX as any).idx as { [k: string]: number };
 	if (idx[id]) return idx[id];
 	const sp = RAW.species[id];
 	const base = sp?.base ? toID(sp.base) : '';

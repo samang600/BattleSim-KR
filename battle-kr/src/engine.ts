@@ -64,6 +64,8 @@ export class Session {
 		for (const sd of [cfg.p1, cfg.p2]) for (const st of (sd?.team || []) as any[]) if (Array.isArray(st.moves)) st.moves = [...new Set(st.moves.map((m: string) => { const id = toID(m), n = snowMove(id, this.rule.era); return n === id ? m : n; }))];
 		// 레전드플레이트는 무제한 규칙에서만 (치트 배틀은 규칙과 관계없이): 다른 규칙에서는 뺌
 		if (this.rule.era !== 'max' && !cfg.cheat) for (const sd of [cfg.p1, cfg.p2]) for (const st of (sd?.team || []) as any[]) if (toID(st.item || '') === 'legendplate') st.item = '';
+		// 메테노: 「유성의 모습」으로 저장된 세트도 엔진에는 메테노로 넘김 — 리밋실드는 원래 모습(코어)으로 돌아가므로, 유성의 모습 그대로면 껍질이 벗겨지지 않음
+		for (const sd of [cfg.p1, cfg.p2]) for (const st of (sd?.team || []) as any[]) if (toID(st.species) === 'miniormeteor') { st.species = 'Minior'; if (toID(st.name) === 'miniormeteor' || /유성의 모습/.test(st.name || '')) st.name = '메테노'; }
 		// 도구로 모습이 정해지는 포켓몬(아르세우스+플레이트, 실버디+메모리, 기라티나+큰백금옥, 오거폰+가면 등)은 지닌 도구에 맞는 모습으로.
 		// 쇼다운은 팀 검사 때 바꾸지만 이 앱은 검사를 거치지 않으므로 여기서 맞춤 (자시안·자마젠타의 검왕·방패왕은 엔진이 배틀 시작 때 바꿈)
 		for (const sd of [cfg.p1, cfg.p2]) for (const st of (sd?.team || []) as any[]) {

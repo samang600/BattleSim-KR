@@ -6,6 +6,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.86.9', date: '2026-11-19', title: '그림·불러오기 수정', items: [
+		['fix', '이름에 괄호가 든 포켓몬(불비달마(가라르) 등)도 텍스트로 불러올 수 있어요.'],
+		['fix', '움직이는 도트: 제르네아스·가라르 불비달마·비비용·메테노의 그림을 바로잡았습니다. 메테노의 리밋실드도 제대로 발동합니다.'],
+	] },
 	{ ver: '2.86.8', date: '2026-11-18', title: '더 넓은 로스터', items: [
 		['new', '챔피언스: 챔피언급의 로스터 한도가 90마리로 늘고, 로스터 화면에서 BP 로 추가 박스(30마리씩)를 살 수 있어요.'],
 	] },

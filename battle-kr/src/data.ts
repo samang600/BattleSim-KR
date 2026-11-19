@@ -188,6 +188,10 @@ const ABIL_ERA_DESC: { [id: string]: { [k: string]: string } } = {
 };
 /** 무제한(너프 없음)에서 쓰는 쪽 (registry.ts MAX_ABIL 과 같음) */
 const MAX_ABIL_DESC = ['intrepidsword', 'dauntlessshield', 'protean', 'libero', 'transistor', 'disguise', 'galewings', 'aerilate', 'pixilate', 'refrigerate', 'parentalbond', 'prankster'];
+/** 게임 문구가 아직 없는 특성의 설명 (배틀 동작 기준) */
+const ABIL_DESC_EXTRA: { [id: string]: string } = {
+	eelevate: '땅에서 떠올라 땅타입 기술을 받지 않는다. 기술로 상대를 쓰러뜨리면 자신의 가장 높은 능력이 1랭크 올라간다.',
+};
 export function abilityDesc(id: string) {
 	const k = toID(id), e = ABIL_ERA_DESC[k];
 	if (MD && MD_ABIL_DESC[k]) return MD_ABIL_DESC[k];
@@ -196,7 +200,7 @@ export function abilityDesc(id: string) {
 		else if (ERA === '') { if (e.c) return e.c; }
 		else if (+ERA <= 8) { const g = Object.keys(e).filter(x => x !== 'c' && +ERA <= +x).sort()[0]; if (g) return e[g]; }
 	}
-	return eraText(D.abilities[k]?.d || '');
+	return eraText(D.abilities[k]?.d || ABIL_DESC_EXTRA[k] || '');
 }
 export function itemKo(nameOrId: string) { return D.items[toID(nameOrId)]?.n || nameOrId; }
 export function itemDesc(id: string) { return eraText(D.items[toID(id)]?.d || ITEM_DESC[toID(id)] || ''); }
