@@ -5,7 +5,8 @@ import { filterGimmicks, gimmickOfLine, Session } from '../src/engine';
 import { loadSettings } from '../src/store';
 import { ruleById, applyRuleData, speciesAllowed, POOLS } from '../src/rules';
 import { randomTeam, toSimTeam, randomSetFor, factoryTeam, cloneSet } from '../src/sets';
-import { factoryPool, FACTORY_GRADES } from '../src/modes';
+import { factoryPool, FACTORY_GRADES, towerOpponent } from '../src/modes';
+(window as any).__tower = towerOpponent;   // scripts/gen-tower-sheet.cjs (배틀타워 상대 표)
 import { setSmogon, aiPickEntry } from '../src/smogon';
 import { rankerTeam, rankerCount, rankerSources } from '../src/pokedb';
 import { teamPlan, planText } from '../src/plan';

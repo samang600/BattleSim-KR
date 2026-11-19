@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>배틀타워 상대 포켓몬 표</title>
+<style>
+:root{--bg:#f4f5f8;--card:#fff;--ink:#1c2233;--mut:#667089;--line:#dde1ea;--acc:#2c5cc5;--head:#eef1f7;--up:#c0392b;--dn:#2c6fbf;--bar:#c9d6f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#11141c;--card:#1a1f2b;--ink:#e8ecf5;--mut:#98a2b8;--line:#2c3447;--acc:#7fa6ff;--head:#222838;--up:#ff8a7a;--dn:#8ab8ff;--bar:#31416b}}
+:root[data-theme=dark]{--bg:#11141c;--card:#1a1f2b;--ink:#e8ecf5;--mut:#98a2b8;--line:#2c3447;--acc:#7fa6ff;--head:#222838;--up:#ff8a7a;--dn:#8ab8ff;--bar:#31416b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+header{padding:16px 16px 8px;max-width:1500px;margin:0 auto}h1{font-size:20px;margin:0 0 4px}header p{margin:2px 0;color:var(--mut);font-size:13px}
+.ctl{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 16px;border-bottom:1px solid var(--line)}.ctl>div{max-width:1500px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:flex;flex-wrap:wrap;gap:4px}.seg button,select,input{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.seg button{cursor:pointer}.seg button.on{background:var(--acc);border-color:var(--acc);color:#fff}input[type=search]{flex:1;min-width:150px}
+main{max-width:1500px;margin:0 auto;padding:10px 16px 40px}.info{color:var(--mut);font-size:13px;margin:6px 0 10px}.info b{color:var(--ink)}
+.wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:1420px}td.mvc{min-width:330px}td.itc{min-width:170px}td.abc{min-width:120px}th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+thead th{position:sticky;top:0;background:var(--head);font-size:12px;white-space:nowrap;cursor:pointer;user-select:none}thead th.num,td.num{text-align:right}
+th.sorted::after{content:" ▼";font-size:10px}th.sorted.asc::after{content:" ▲"}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}tr:hover td{background:color-mix(in srgb,var(--acc) 6%,transparent)}
+.mon{display:flex;gap:8px;align-items:center;min-width:170px}.mon img{width:40px;height:40px;object-fit:contain;image-rendering:pixelated;flex:none}.mon b{display:block}.mon small{color:var(--mut)}
+.ty{display:inline-block;color:#fff;font-size:11px;padding:0 6px;border-radius:4px;margin-right:3px;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.pct{min-width:72px}.pct i{display:block;height:5px;margin:3px 0 0 auto;background:var(--acc);border-radius:3px;opacity:.55}
+.bs{display:grid;grid-template-columns:repeat(6,34px);gap:0 2px;font-variant-numeric:tabular-nums;text-align:right}.bs small{color:var(--mut);font-size:10px;text-align:right}
+.bs .up{color:var(--up);font-weight:600}.bs .dn{color:var(--dn)}.sub{color:var(--mut);font-size:12px}
+.chips span{display:inline-block;margin:0 6px 2px 0;white-space:nowrap}.chips em{font-style:normal;color:var(--mut);font-size:11px}
+.mv span{border-left:3px solid var(--line);padding-left:4px}
+details{margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px}summary{cursor:pointer;font-weight:600}details li{margin:3px 0}
+.empty{padding:30px;text-align:center;color:var(--mut)}
+@media (max-width:600px){header{padding:12px 12px 6px}.ctl,main{padding-left:10px;padding-right:10px}}
+</style></head><body>
+<header><h1>배틀타워 상대 포켓몬 표 <small style="font-weight:400;color:var(--mut);font-size:13px">배틀시뮬 KR</small></h1>
+<p id="meta"></p></header>
+<div class="ctl"><div>
+<div class="seg" id="fmt"><button data-v="singles" class="on">싱글</button><button data-v="doubles">더블</button></div>
+<select id="stage" aria-label="연승 구간"></select>
+<select id="type" aria-label="타입"><option value="">모든 타입</option></select>
+<input type="search" id="q" placeholder="포켓몬·도구·특성·기술 이름으로 찾기">
+</div></div>
+<main>
+<p class="info" id="info"></p>
+<div class="wrap"><table><thead><tr>
+<th data-k="n">포켓몬</th><th data-k="pct" class="num">등장률</th><th data-k="bst" class="num">종족값 합</th><th>종족값 (HP·공·방·특공·특방·스피드)</th>
+<th>가장 흔한 배분의 실수치 (Lv.50)</th><th data-k="spe" class="num">스피드 범위</th><th>도구</th><th>특성</th><th>기술</th></tr></thead><tbody id="tb"></tbody></table></div>
+<details open><summary>읽는 법 · 이 표가 만들어진 방식</summary><ul>
+<li>이 앱의 배틀타워는 본가처럼 고정된 세트 목록이 아닙니다. 연승 구간마다 정해진 <b>종족값 범위</b> 안에서 포켓몬을 뽑고, 세트(도구·특성·성격·능력 포인트·기술)는 사용률 통계에서 확률로 만듭니다. 이 표는 그 생성기를 구간마다 <b id="nn"></b>번 돌려 집계한 것이라, 숫자는 근삿값입니다.</li>
+<li><b>등장률</b>: 그 구간의 상대 한 팀에 이 포켓몬이 들어 있을 확률. <b>도구·특성·기술의 %</b>: 그 포켓몬이 나왔을 때 그것을 갖고 있던 비율.</li>
+<li><b>실수치</b>: 가장 자주 나온 성격·능력 포인트 배분으로 계산한 레벨 50 수치입니다(빨강 = 성격 상승, 파랑 = 하락, 아래 작은 숫자 = 능력 포인트를 노력치로 환산한 값). 초반 구간은 능력 포인트를 덜 주므로 같은 포켓몬이라도 구간이 오를수록 높아집니다. <b>스피드 범위</b>는 집계된 모든 배분의 최소~최대(도구·특성 보정 전).</li>
+<li>기준: 배틀 규칙 「전국도감 · 초전설·환상 불가」, 난이도 「보통」. <b>쉬움</b>은 두 세트 늦게(1~14번째는 진화 전·중간 진화만), <b>어려움</b>은 세 세트 앞서서 시작합니다 — 예: 어려움 1~6번째 ≒ 이 표의 22~27번째.</li>
+<li>표에 없는 상대: <b>7의 배수 번째</b>는 네임드 트레이너(관장 → 사천왕·라이벌 → 챔피언·보스), <b>21번째·49번째</b>는 타워 타이쿤입니다.
+ 타이쿤 21번째: 거대코뿌리·밀로틱·망나뇽·토게키스·글라이온·마기라스 / 49번째: 히드런·크레세리아·레지기가스·메타그로스·한카리아스·루카리오 (형식의 마릿수만큼 앞에서부터).</li>
+<li>29번째부터는 실제 랭크배틀·대회 상위 팀이 섞여 나옵니다(구간 설명의 「랭커 팀」 비율). 그 포켓몬들도 이 표에 포함돼 있습니다.</li>
+<li>타입 구애 도전·멀티배틀·치트 팀 허용은 따로 집계하지 않았습니다.</li></ul></details>
+</main>
+<script>
+const D = /*__DATA__*/;
+const TC = {Normal:'#9fa19f',Fire:'#e62829',Water:'#2980ef',Electric:'#d9b400',Grass:'#3fa129',Ice:'#3dcef3',Fighting:'#ff8000',Poison:'#9141cb',Ground:'#915121',Flying:'#81b9ef',Psychic:'#ef4179',Bug:'#91a119',Rock:'#afa981',Ghost:'#704170',Dragon:'#5060e1',Dark:'#624d4e',Steel:'#60a1b8',Fairy:'#ef70ef',Stellar:'#2b3a96'};
+const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let fmt = 'singles', stage = 0, sortK = 'pct', asc = false;
+$('#meta').textContent = `v${D.ver} 기준 · ${D.made} 집계 · 연승 구간별로 나오는 포켓몬과 자주 쓰는 세트`;
+$('#nn').textContent = D.n.toLocaleString();
+$('#stage').innerHTML = D.data.singles.map((s, i) => `<option value="${i}">${esc(s.name)}</option>`).join('');
+$('#type').innerHTML += Object.keys(TC).filter(t => t !== 'Stellar').map(t => `<option value="${t}">${D.types[t]}</option>`).join('');
+const SN = ['HP', '공격', '방어', '특공', '특방', '스피드'];
+function render() {
+  const st = D.data[fmt][stage], q = $('#q').value.trim().toLowerCase().replace(/\s/g, ''), ty = $('#type').value;
+  let rows = st.rows.filter(r => (!ty || r.t.includes(ty)) && (!q || [r.n, String(r.num), ...r.item.map(x => x[0]), ...r.abil.map(x => x[0]), ...r.move.map(x => x[0])].some(x => x.toLowerCase().replace(/\s/g, '').includes(q))));
+  const val = r => sortK === 'spe' ? r.hi[5] : r[sortK];
+  rows = rows.slice().sort((a, b) => sortK === 'n' ? (asc ? 1 : -1) * a.n.localeCompare(b.n, 'ko') : (asc ? 1 : -1) * (val(a) - val(b)) || b.pct - a.pct);
+  $('#info').innerHTML = `<b>${esc(st.name)}</b> — ${esc(st.desc)}${st.ranker ? ` (랭커 팀 약 ${st.ranker}%)` : ''} · 나오는 포켓몬 <b>${st.rows.length}</b>종${rows.length !== st.rows.length ? ` 중 ${rows.length}종 표시` : ''}`;
+  const mx = Math.max(...st.rows.map(r => r.pct), 1);
+  $('#tb').innerHTML = rows.length ? rows.map(r => {
+    const ev = r.ev.split('/').map(Number);
+    return `<tr><td><div class="mon"><img loading="lazy" alt="" src="https://play.pokemonshowdown.com/sprites/gen5/${r.sid}.png" onerror="this.style.visibility='hidden'"><div><b>${esc(r.n)}</b><small>#${r.num}</small> ${r.t.map(t => `<span class="ty" style="background:${TC[t]}">${D.types[t]}</span>`).join('')}</div></div></td>
+<td class="num pct"><span>${r.pct.toFixed(r.pct < 1 ? 2 : 1)}%</span><i style="width:${Math.max(3, r.pct / mx * 100)}%"></i></td><td class="num">${r.bst}</td>
+<td><div class="bs">${r.bs.map(v => `<span>${v}</span>`).join('')}</div></td>
+<td><div class="bs">${r.st.map((v, i) => `<span class="${cls(r, i)}">${v}</span>`).join('')}${ev.map(v => `<small>${v ? '+' + v : ''}</small>`).join('')}</div><div class="sub">${esc(r.nat)} 성격 · 이 배분 ${r.natPct}%</div></td>
+<td class="num">${r.lo[5] === r.hi[5] ? r.hi[5] : r.lo[5] + '~' + r.hi[5]}</td>
+<td class="chips itc">${r.item.map(x => `<span>${esc(x[0])} <em>${x[1]}%</em></span>`).join('')}</td><td class="chips abc">${r.abil.map(x => `<span>${esc(x[0])} <em>${x[1]}%</em></span>`).join('')}</td>
+<td class="chips mv mvc">${r.move.map(x => `<span style="border-color:${TC[x[2]] || 'var(--line)'}">${esc(x[0])} <em>${x[1]}%</em></span>`).join('')}</td></tr>`; }).join('') : '<tr><td colspan="9" class="empty">맞는 포켓몬이 없습니다.</td></tr>';
+  document.querySelectorAll('thead th').forEach(th => { th.classList.toggle('sorted', th.dataset.k === sortK); th.classList.toggle('asc', th.dataset.k === sortK && asc); });
+}
+function cls(r, i) { return !i ? '' : r.up === i ? 'up' : r.dn === i ? 'dn' : ''; }
+document.querySelectorAll('#fmt button').forEach(b => b.onclick = () => { fmt = b.dataset.v; document.querySelectorAll('#fmt button').forEach(x => x.classList.toggle('on', x === b)); render(); });
+$('#stage').onchange = e => { stage = +e.target.value; render(); }; $('#type').onchange = render; $('#q').oninput = render;
+document.querySelectorAll('thead th[data-k]').forEach(th => th.onclick = () => { const k = th.dataset.k; if (sortK === k) asc = !asc; else { sortK = k; asc = k === 'n'; } render(); });
+render();
+</script></body></html>
