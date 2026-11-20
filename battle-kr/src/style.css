@@ -2269,6 +2269,8 @@ input:focus, textarea:focus { border-color: var(--p-hi); }
 .mon-tags { display: inline-flex; align-items: center; gap: 2px; flex: none; }
 .mon-tags .status, .mtag { font-size: 10px; line-height: 13px; padding: 0 3px; color: #fff; font-weight: normal; border-radius: 0; box-shadow: 0 0 0 1px rgba(0, 0, 0, .55); text-shadow: 1px 1px 0 rgba(0, 0, 0, .5); white-space: nowrap; }
 .mtag.dmax { background: #d0203a; }
+.mtag.vol.bad { background: #7a3aa8; }
+.mtag.vol.good { background: #2a8a4a; }
 .battle:not(.doubles) .info .mon-tags { display: none; }
 .doubles .info .info-top { display: flex; align-items: center; min-width: 0; }
 .doubles .info .info-top .info-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2852,6 +2854,24 @@ body.dragging { -webkit-user-select: none; user-select: none; cursor: grabbing; 
 .bo-view th, .bo-view td { padding: 3px 4px; text-align: right; border-bottom: 2px solid rgba(255, 255, 255, .08); }
 .bo-view th:first-child, .bo-view td:first-child { text-align: left; }
 .bo-view td.up { color: #ff8a7a; } .bo-view td.dn { color: #8ab8ff; }
+
+.av-cell { position: relative; }
+.av-del { position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; background: #c8302a; box-shadow: 0 0 0 2px #1a0a0a; cursor: pointer; }
+.av-del::before, .av-del::after { content: ''; position: absolute; left: 3px; top: 7px; width: 10px; height: 2px; background: #fff; transform: rotate(45deg); }
+.av-del::after { transform: rotate(-45deg); }
+.av-add { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; margin: 10px 0 4px; }
+
+.sym-fmt { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 4px; }
+.sym-fmt > em { font-style: normal; font-size: 10px; color: #ffe890; min-width: 22px; }
+.sym-fmt .sym-diffs { margin-top: 0; gap: 6px; }
+
+.rule-step { display: flex; align-items: center; justify-content: space-between; gap: 4px; flex: 1; min-height: 36px; padding: 0 4px; background: #0f1a33; box-shadow: inset 0 0 0 2px #f4f6fa, inset 0 0 0 4px #1a2a52; }
+.rule-step > b { flex: 1; text-align: center; font-weight: normal; color: #ffd84a; }
+.rule-step > b.off { color: #9fb0d8; }
+
+.bo-forms { margin: 8px 0 4px; }
+.bo-forms .chipbtn.on { background: #ffd84a; color: #1a1408; }
+.bo-forms .bo-view { margin-top: 8px; }
 
 /* ═════ FX:BEGIN — scripts/gen-fx-css.py 가 만든 부분 (손으로 고치지 말 것) ═════ */
 /* HP 창 테마: 띠 + 도트 무늬 + 은은한 움직임 (::before, 글자 아래) */

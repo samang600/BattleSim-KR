@@ -4,14 +4,14 @@ import { useState } from 'preact/hooks';
 import { ask, abortMode, gen5Icon, confirmBox, ArrowPicker, toast } from './ui/core';
 import { BattleView, type BattleSetup, type BattleResult } from './ui/battle';
 import { PickScreen, InfoScreen, SwapScreen, ChoiceScreen, BracketView } from './ui/screens';
-import { randomTeam, randomSetFor, cloneSet, dedupeItems, rng, factoryTeam, assignGimmicks, fitSetToMega, FACTORY_TIERS, type PSet } from './sets';
+import { randomTeam, randomSetFor, cloneSet, dedupeItems, rng, factoryTeam, assignGimmicks, fitSetToMega, FACTORY_TIERS, type PSet , capLegends } from './sets';
 import { NAMED, CUPS, REGIONS, REGION_COLOR, regionLabel, randomTrainer, namedById, namedSprite, namedLines, namedTitle, type NamedTrainer } from './trainers';
 import { SPRITE_URL, trainerImgError } from './trainer-lines';
 import { loadTeams, loadSettings, saveSettings, load, save, remove, updateRecords, loadRecords, type SavedTeam } from './store';
 import { BGM_CHOICES, playMusic, stopMusic } from './sound';
 import { awardSymbol, SYMBOL_INFO, updateStats, type SymbolKind } from './stats';
 import { earnBP, setClearBP, BRAIN_BP, SEASON_BP, ownedVals } from './rewards';
-import { ruleById, recTag, speciesAllowed } from './rules';
+import { ruleById, recTag, speciesAllowed, legendOver } from './rules';
 /** 지금 규칙의 기록 표시 (규칙마다 기록·도전을 따로) */
 const rt = () => recTag(loadSettings().battleRule);
 import { rosterForRule } from './legends';
@@ -97,11 +97,17 @@ export function battle(setup: BattleSetup): Promise<BattleResult> {
 	for (const sd of [setup.p1, setup.p2, (setup as any).partner]) for (const st of (sd?.team || []) as PSet[]) st.name = shownName(st);
 	// 상대(AI)의 포켓몬도 원작처럼 1/4096 확률로 색이 다른 포켓몬 (온라인 상대·리플레이는 그대로)
 	if (!(setup as any).online && !(setup as any).replay) for (const st of (setup.p2?.team || []) as PSet[]) if (!st.shiny && Math.random() < 1 / 4096) st.shiny = true;
+	// 초전설·환상 마릿수 제한(1마리까지·2마리까지): 상대(AI) 팀이 넘으면 넘친 자리를 다른 포켓몬으로 (네임드·랭커 팀 포함, 치트 허용·온라인·리플레이는 그대로)
+	if (!(setup as any).online && !(setup as any).replay && !(setup as any).cheat && setup.p2?.team) {
+		const rule = ruleById((setup as any).ruleId || loadSettings().battleRule), p2: any = setup.p2;
+		if (p2.preview?.length) { const sw = capLegends(p2.preview, rule); for (const [a, b] of sw) { const k = p2.team.indexOf(a); if (k >= 0) p2.team[k] = b; } }
+		capLegends(p2.team, rule);
+	}
 	return ask<BattleResult>(resolve => <BattleView key={Math.random()} setup={setup} onEnd={r => { if (r.quit) abortMode(); resolve(r); }} />);
 }
 /** 프런티어 심볼 획득 화면 */
-export function symbolScreen(kind: SymbolKind, gold: boolean, diff: string = 'normal') {
-	const info = SYMBOL_INFO[kind], dl = diff === 'hard' ? ' · 어려움' : diff === 'easy' ? ' · 쉬움' : '';
+export function symbolScreen(kind: SymbolKind, gold: boolean, diff: string = 'normal', doubles?: boolean) {
+	const info = SYMBOL_INFO[kind], dl = (doubles === undefined ? '' : doubles ? ' · 더블' : ' · 싱글') + (diff === 'hard' ? ' · 어려움' : diff === 'easy' ? ' · 쉬움' : '');
 	return ask<void>(r => <InfoScreen title={info.facility} banner={gold ? '🥇 금 심볼 획득!' : '🥈 은 심볼 획득!'} heading={`${info.name}(${gold ? '금' : '은'}${dl})을 손에 넣었다!`}
 		lines={[kind === 'rank' ? (gold ? '시즌을 챔피언급으로 마쳤습니다!' : '랭크 매치 챔피언급에 도달했습니다!') : kind === 'palace' ? '배틀팰리스의 팰리스 메이븐을 이겼습니다.' : `${info.facility}의 프런티어 브레인을 이겼습니다.`, '트레이너 수첩 › 카드에서 볼 수 있어요.']} actions={[{ label: '확인', onClick: () => r() }]} />);
 }
@@ -128,7 +134,7 @@ export async function chooseTeam(gen: Gen, title: string, allowRental = true, ch
 	const lastId = load<string>('lastTeam', '');
 	// 지금 규칙에서 못 나오는 포켓몬(초전설·환상 불가 등)이 든 팀은 고를 수 없음 (치트 팀은 예외)
 	const rule = ruleById(ruleIdIn || loadSettings().battleRule);
-	const banned = (t: SavedTeam) => t.cheat ? [] : t.sets.filter(x => !speciesAllowed(rule, toID(x.species))).map(x => speciesKo(x.species));
+	const banned = (t: SavedTeam) => t.cheat ? [] : [...t.sets.filter(x => !speciesAllowed(rule, toID(x.species))).map(x => speciesKo(x.species)), ...legendOver(rule, t.sets).map(x => `${speciesKo(x)}(마릿수 초과)`)];
 	// 치트 팀은 '치트 팀 허용'을 켰을 때만
 	const teams = loadTeams().filter(t => (cheat || !t.cheat) && t.sets.length >= (t.cheat ? 1 : 3)).sort((a, b) => (b.id === lastId ? 1 : 0) - (a.id === lastId ? 1 : 0));
 	const opts: { value: SavedTeam | 'rental'; label: string; desc?: string; icon?: any; badge?: string; fixed?: boolean }[] = teams.map(t => ({
@@ -351,7 +357,7 @@ export async function runTower() {
 			save(TOWER_KEY(fmt, opts), state);
 			if (opp.boss && !noRec(opts)) earnBP(opp.boss === '금' ? BRAIN_BP.gold : BRAIN_BP.silver, '타워 타이쿤 격파');
 			if (s % 7 === 0 && !noRec(opts)) earnBP(setClearBP(s), '세트 클리어');
-			if (opp.boss && !noRec(opts) && awardSymbol('tower', opp.boss === '금', opts.diff || 'normal')) await symbolScreen('tower', opp.boss === '금', opts.diff || 'normal');
+			if (opp.boss && !noRec(opts) && awardSymbol('tower', opp.boss === '금', opts.diff || 'normal', isDoubles(state.fmt))) await symbolScreen('tower', opp.boss === '금', opts.diff || 'normal', isDoubles(state.fmt));
 			if (s % 7 === 0) {
 				// 7연승(세트 클리어)마다 팀을 바꿀 수 있음 — 연승은 그대로 이어짐
 				const next = await ask<'keep' | 'change' | 'rest'>(r => <InfoScreen title="배틀타워" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`}
@@ -462,11 +468,11 @@ export async function runFactory() {
 		state = { fmt, level, team, streak: 0 };
 		save(FACTORY_KEY(fmt, level, opts), state);
 	}
-	const head = (no: number) => no === 21 || no === 49;
-	/** 팩토리 헤드: 그 세트 등급보다 한 단계(49번째는 두 단계) 위 — 어려움은 원래대로 OU / Uber */
+	const head = (no: number) => no === 21 || no === 42;
+	/** 팩토리 헤드: 그 세트 등급보다 한 단계(42번째는 두 단계) 위 — 어려움은 원래대로 OU / Uber */
 	const headGrade = (streak: number): FGrade => {
-		if (diff === 'hard') return streak + 1 === 49 ? 'Uber' : 'OU';
-		const up = gradeIdx(gradeAt(streak)) + (streak + 1 === 49 ? 2 : 1);
+		if (diff === 'hard') return streak + 1 === 42 ? 'Uber' : 'OU';
+		const up = gradeIdx(gradeAt(streak)) + (streak + 1 === 42 ? 2 : 1);
 		return FACTORY_GRADES[Math.min(up, FACTORY_GRADES.length - 1)];
 	};
 	/** 직원이 알려주는 상대 정보 (Pt/HGSS 방식: 0~6연승 전부 → 7~ 2마리 → 14~ 1마리+기술 → 21~ 선봉의 기술 → 28~ 주로 쓰는 타입) */
@@ -530,9 +536,9 @@ export async function runFactory() {
 		(state as any).needRental = s % 7 === 0;
 		save(FACTORY_KEY(fmt, level, opts), state);
 		if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
-		if (isHead && !noRec(opts)) earnBP(no === 49 ? BRAIN_BP.gold : BRAIN_BP.silver, '팩토리 헤드 격파');
+		if (isHead && !noRec(opts)) earnBP(no === 42 ? BRAIN_BP.gold : BRAIN_BP.silver, '팩토리 헤드 격파');
 		if (s % 7 === 0 && !noRec(opts)) earnBP(setClearBP(s), '세트 클리어');
-		if (isHead && !noRec(opts) && awardSymbol('factory', no === 49, opts.diff || 'normal')) await symbolScreen('factory', no === 49, opts.diff || 'normal');
+		if (isHead && !noRec(opts) && awardSymbol('factory', no === 42, opts.diff || 'normal', isDoubles(fmt))) await symbolScreen('factory', no === 42, opts.diff || 'normal', isDoubles(fmt));
 		if (s % 7 === 0) {
 			await ask<void>(r => <InfoScreen title="배틀팩토리" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`}
 				lines={['빌린 포켓몬을 모두 반납하고, 새 렌탈 포켓몬을 처음부터 다시 고릅니다.', `다음 세트 렌탈 등급: ${GRADE_LABEL[gradeAt(s)]}${gradeAt(s) !== gradeAt(s - 1) ? ' (등급 상승!)' : ''}`]} actions={[{ label: '새로 빌리기', onClick: () => r() }]} />);

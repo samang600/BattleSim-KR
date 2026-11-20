@@ -122,3 +122,6 @@ import { learnset as __ls, moveData } from '../src/data';
 (window as any).__ls = __ls;
 import { speciesPool } from '../src/sets';
 (window as any).__pool = speciesPool;
+
+import { RAW as __RAW } from '../src/data';
+(window as any).__tags = (sp: string) => { const s = (__RAW.species as any)[String(sp).toLowerCase().replace(/[^a-z0-9]/g, '')]; return (s?.tags || (s?.base ? (__RAW.species as any)[s.base]?.tags : []) || []) as string[]; };   // 시험용: 초전설·환상 표시

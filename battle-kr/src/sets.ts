@@ -1,6 +1,6 @@
 /** 포켓몬 세트(기술·도구·노력치) 만들기 */
 import { loadSettings } from './store';
-import { speciesAllowed, megaStoneAllowed, itemAllowed, dataRuleOr } from './rules';
+import { speciesAllowed, megaStoneAllowed, itemAllowed, dataRuleOr, legendCap, type BattleRule } from './rules';
 import { Teams } from '../../sim/teams';
 import { fixedTera, RAW, speciesData, learnset, moveData, toID, bst, speciesKo, nickKo, megaStonesFor, zCrystalForType, type Gen, type StatID } from './data';
 import FACTORY_SETS from '../../data/random-battles/gen9/factory-sets.json';
@@ -345,7 +345,7 @@ export function speciesPool(o: PoolOptions): string[] {
 		if ((o.stage === 'nfe' ? s.fe : !s.fe && (o.noStrongNfe || !strongNfe(id, o.gen))) || s.bo || (o.noBan ? id === 'eternatuseternamax' : BANNED_POOL.has(id)) || o.exclude?.has(id)) continue;
 		const isR = !!s.tags?.includes('Restricted Legendary'), isM = !!s.tags?.includes('Mythical'), legend = isR || isM;
 		// 상대 무작위 팀의 초전설·환상: 그 종류가 가능한 규칙에서만
-		const foeOk = (isR && rule.restricted === 'yes') || (isM && rule.mythical === 'yes');
+		const foeOk = (isR && rule.restricted !== 'no') || (isM && rule.mythical !== 'no');
 		if (o.legendOnly ? !(legend && (foeOk || o.allowLegend)) : (legend && !o.allowLegend && !foeOk)) continue;
 		if (!speciesAllowed(rule, id)) continue;
 		if (!o.allowSubLegend && s.tags?.includes('Sub-Legendary')) continue;
@@ -412,7 +412,27 @@ export function randomTeam(o: PoolOptions & { size: number; level?: number; ivs?
 	});
 	limitGimmickItems(team);
 	if (o.gimmicks !== false) assignGimmicks(team);
+	if (!o.legendOnly) capLegends(team);
 	return o.itemClause === false ? team : dedupeItems(team);
+}
+/** 초전설·환상 마릿수 제한(규칙의 1마리까지·2마리까지)을 넘는 팀: 넘친 자리를 강한 일반 포켓몬으로 바꿈 (상대·렌탈 팀용, 팀 배열을 그 자리에서 고침).
+ *  바꾼 자리의 [예전 세트, 새 세트] 를 돌려줌 */
+export function capLegends(team: PSet[], ruleIn?: BattleRule): [PSet, PSet][] {
+	const rule = ruleIn || dataRuleOr(loadSettings().battleRule), swaps: [PSet, PSet][] = [];
+	const capR = legendCap(rule.restricted), capM = legendCap(rule.mythical);
+	if (capR >= 99 && capM >= 99) return swaps;
+	const tags = (sp: string) => { const s = RAW.species[toID(sp)]; return (s?.tags || (s?.base ? RAW.species[toID(s.base)]?.tags : undefined) || []) as string[]; };
+	let r = 0, m = 0;
+	for (let i = 0; i < team.length; i++) {
+		const t = tags(team[i].species), isR = t.includes('Restricted Legendary'), isM = !isR && t.includes('Mythical');
+		if (!(isR ? ++r > capR : isM ? ++m > capM : false)) continue;
+		const used = new Set(team.map(x => toID(x.species)));
+		const pool = rng.shuffle(speciesPool({ gen: 9, minBst: 540, allowSubLegend: rule.sub === 'yes', exclude: used })).filter(id => !tags(id).some(x => x === 'Restricted Legendary' || x === 'Mythical'));
+		if (!pool.length) continue;
+		const n = randomSetFor(pool[0], 9, team[i].level || 50, false, 0.8);
+		swaps.push([team[i], n]); team[i] = n;
+	}
+	return swaps;
 }
 /** 통계 세트로 메가스톤·Z크리스탈이 여러 개 생기면 하나씩만 남김 */
 export function limitGimmickItems(team: PSet[]) {

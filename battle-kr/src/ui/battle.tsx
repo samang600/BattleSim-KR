@@ -89,7 +89,13 @@ const VOLATILE_KO: { [id: string]: string } = {
 	charge: '충전', stockpile1: '비축 1', stockpile2: '비축 2', stockpile3: '비축 3', typechange: '타입 변화', smackdown: '떨어뜨리기',
 	telekinesis: '텔레키네시스', dynamax: '다이맥스', autotomize: '바디퍼지', imprison: '봉인', uproar: '소란', partiallytrapped: '조이기',
 	trapped: '도망 불가', foresight: '꿰뚫어보기', miracleeye: '미라클아이', powertrick: '파워트릭', destinybond: '길동무',
+	saltcure: '소금절이', syrupbomb: '물엿폭탄', throatchop: '지옥찌르기', octolock: '문어굳히기', noretreat: '배수의진', tarshot: '타르숏',
+	glaiverush: '대검돌격', laserfocus: '집중', gastroacid: '위액', electrify: '플라스마샤워', powder: '분진', dragoncheer: '드래곤옐',
 };
+/** HP 창에 작은 칸으로 보이는 특수 상태 (대타·다이맥스는 그림·따로 표시, 타입 변화는 타입 표시로) — 해로운 것(bad)은 보라, 이로운 것은 초록 */
+const HP_VOL_SKIP = new Set(['substitute', 'dynamax', 'typechange', 'typeadd']);
+const HP_VOL_GOOD = new Set(['ingrain', 'aquaring', 'magnetrise', 'focusenergy', 'flashfire', 'charge', 'stockpile1', 'stockpile2', 'stockpile3', 'autotomize', 'powertrick', 'destinybond', 'laserfocus', 'dragoncheer', 'imprison', 'uproar']);
+const BIND_MOVES = new Set(['bind', 'wrap', 'firespin', 'whirlpool', 'sandtomb', 'clamp', 'infestation', 'magmastorm', 'thundercage', 'snaptrap']);
 const SIDE_KO: { [id: string]: string } = {
 	stealthrock: '스텔스록', spikes: '압정뿌리기', toxicspikes: '독압정', reflect: '리플렉터', lightscreen: '빛의장막',
 	tailwind: '순풍', safeguard: '신비의부적', mist: '흰안개', luckychant: '주술', wideguard: '와이드가드', quickguard: '패스트가드',
@@ -198,6 +204,7 @@ export function BattleView({ setup, onEnd: onEnd0 }: { setup: BattleSetup; onEnd
 	const skipRef = useRef<(() => void) | null>(null);
 	const wakeRelease = useRef<(() => void) | null>(null);
 	const logRef = useRef<string[]>([]);
+	const hpNoteRef = useRef<string[]>([]);
 	const wide = useWide();
 	const land = useWide(LAND_Q);
 	/** 마우스를 올리면 뜨는 정보 상자 (넓은 화면) */
@@ -528,6 +535,8 @@ function typeTint(type: string) {
 		const scene = sceneRef.current;
 		const { cmd, args, kw } = p;
 		try { showPopup(p); } catch { /* 표시용이라 무시 */ }
+		// 조이기 계열(김밥말이·회오리불꽃 등)에 묶임: HP 창의 「조이기」 표시용
+		if (cmd === '-activate' && BIND_MOVES.has(effectInfo(args[2] || '').id)) activeMon(args[1])?.vol.add('partiallytrapped');
 		if (cmd === 'cant') comeBack(args[1]);   // 잠듦·마비 등으로 2턴째를 못 쓰면 모습이 돌아옴
 		// 상태 이상의 연출: 걸렸을 때, 그 때문에 데미지를 받거나 움직이지 못할 때 (독·화상·마비·잠듦·얼음·혼란·헤롱헤롱·소금절이)
 		if (settings.effects !== false && !kw.silent && fxRef.current) {
@@ -633,6 +642,12 @@ function typeTint(type: string) {
 			if (hp.maxhp) mon.maxhp = hp.maxhp;
 			if (hp.status === 'fnt') { mon.hp = 0; }
 			else mon.status = hp.status;
+			// 배틀 기록에 HP 증감 한 줄 (상대는 % 로만 보이므로 % 로) — 메시지 뒤에 붙도록 잠시 들고 있다가 넣음
+			if (before !== mon.hp && !mon.away) {
+				const foe = !args[1].startsWith('p1'), pc = (v: number) => mon.maxhp ? Math.ceil(v / mon.maxhp * 100) : 0;
+				const a = foe ? pc(before) : before, b = foe ? pc(mon.hp) : mon.hp, d = b - a, u = foe ? '%' : '';
+				if (d) hpNoteRef.current.push(`    └ ${foe ? '상대 ' : ''}${mon.nick} HP ${a}${u} → ${b}${foe ? '%' : ` / ${mon.maxhp}`} (${d > 0 ? '+' : '−'}${Math.abs(d)}${u})`);
+			}
 			if (cmd === '-damage' && !kw.from) { animate(mon, 'hit', 450); if (pendingHitRef.current?.sound !== '') sfx(pendingHitRef.current?.sound || 'hit'); }
 			if (cmd === '-heal' && !('silent' in kw) && fxRef.current) { const pt = slotPoint(args[1]); if (pt) FX.sparkle(fxRef.current, pt, 'Grass', scale); sfx('heal'); }
 			return before !== mon.hp ? 550 : 0;
@@ -771,6 +786,7 @@ function typeTint(type: string) {
 				return 760;
 			}
 			m.vol.delete(id);
+			if (kw.partiallytrapped || BIND_MOVES.has(id)) m.vol.delete('partiallytrapped');
 			if (id === 'stockpile') for (const k of [...m.vol]) if (k.startsWith('stockpile')) m.vol.delete(k);
 			return 0;
 		}
@@ -858,6 +874,7 @@ function typeTint(type: string) {
 				if (p.cmd === 'move') noteSeen(activeMon(p.args[1]), p);
 				try { apply(p); } catch (e) { console.error(e, line); }
 				for (const m of text ? text.split('\n').filter(Boolean) : []) pushLog(m);
+				flushHp();
 			}
 		} finally { setTimeout(() => setQuiet(false), 1500); }   // 나오기 연출의 늦은 울음소리까지 지난 뒤
 		pendingHitRef.current = { at: 0, sound: '' };
@@ -999,11 +1016,12 @@ function typeTint(type: string) {
 			}
 			const delay = apply(p) / FX.fxSpeed();
 			rerender();
-			if (p.cmd === 'turn') { pushLog(text); continue; }
+			if (p.cmd === 'turn') { flushHp(); pushLog(text); continue; }
 			for (const m of msgs) {
 				showMsg(m);
 				await msgWait(m);
 			}
+			flushHp();
 			if (!msgs.length && delay) await wait(Math.min(delay, SPEED_MS[settings.speed]));
 		}
 		const s = sessionRef.current!;
@@ -1035,6 +1053,8 @@ function typeTint(type: string) {
 		logRef.current = [...logRef.current, m];
 		setLog(logRef.current);
 	}
+	/** 들고 있던 HP 증감 줄을 기록에 넣음 (그 줄의 메시지가 먼저 들어간 뒤에 부름) */
+	function flushHp() { const l = hpNoteRef.current; if (!l.length) return; hpNoteRef.current = []; logRef.current = [...logRef.current, ...l]; setLog(logRef.current); }
 
 	const replayIdx = useRef(0);
 	/** 리플레이: 기록된 내 선택을 순서대로 자동 입력 */
@@ -1790,11 +1810,13 @@ function typeTint(type: string) {
 	const BOOST_LB: { [k: string]: string } = { atk: '공격', def: '방어', spa: '특공', spd: '특방', spe: '스피드', accuracy: '명중', evasion: '회피' };
 	const monTags = (mon: Mon, cls = '', boosts = true) => {
 		const bs = boosts ? BOOST_ORD.filter(k => mon.boosts[k]) : [];
-		if (!(mon.status || mon.tera || mon.vol.has('dynamax') || bs.length)) return null;
+		const vols = [...mon.vol].filter(id => VOLATILE_KO[id] && !HP_VOL_SKIP.has(id));
+		if (!(mon.status || mon.tera || mon.vol.has('dynamax') || bs.length || vols.length)) return null;
 		return <span class={'mon-tags info-tags' + (cls ? ' ' + cls : '')}>
 			{mon.status && <StatusBadge status={mon.status} />}
 			{mon.tera && <span class="mtag tera" style={{ background: TYPE_COLOR[mon.tera] }}>{typeKo(mon.tera)}</span>}
 			{mon.vol.has('dynamax') && <span class="mtag dmax">다이맥스</span>}
+			{vols.map(id => <span class={'mtag vol ' + (HP_VOL_GOOD.has(id) ? 'good' : 'bad')}>{VOLATILE_KO[id]}</span>)}
 			{bs.map(k => <span class={'mtag boost ' + (mon.boosts[k] > 0 ? 'up' : 'down')}>{BOOST_LB[k]}{mon.boosts[k] > 0 ? '+' : ''}{mon.boosts[k]}</span>)}
 			<span class="mtag more" aria-label="더 보기 (필드 상황)">+</span>
 		</span>;

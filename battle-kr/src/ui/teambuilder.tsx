@@ -288,6 +288,17 @@ export function FormView({ id, gen }: { id: string; gen: Gen }) {
 	</div>;
 }
 
+/** 이 포켓몬의 배틀 중 모습(메가진화·원시회귀·폼체인지 등) 목록: 누르면 그 모습의 능력치가 펼쳐짐 (보기만 — 고를 수는 없음) */
+export function BattleForms({ species, gen }: { species: string; gen: Gen }) {
+	const baseId = RAW.species[toID(species)]?.base || toID(species);
+	const forms = useMemo(() => Object.keys(RAW.species).filter(id => RAW.species[id].base === baseId && id !== toID(species)).map(id => speciesData(id, gen) as any).filter(f => f && f.bo), [baseId, species, gen]);
+	const [v, setV] = useState<string | null>(null);
+	if (!forms.length) return null;
+	return <div class="bo-forms"><h3 class="sec">배틀 중 모습 <small class="muted">보기만 · 팀에 넣을 수는 없어요</small></h3>
+		<div class="chips-row">{forms.map(f => <button class={'chipbtn' + (v === f.id ? ' on' : '')} aria-pressed={v === f.id} onClick={() => setV(v === f.id ? null : f.id)}>{f.n}</button>)}</div>
+		{v && <FormView id={v} gen={gen} />}</div>;
+}
+
 function statValue(base: number, ev: number, iv: number, level: number, nat: number, hp: boolean) {
 	if (hp) return base === 1 ? 1 : Math.floor((2 * base + iv + Math.floor(ev / 4)) * level / 100) + level + 10;
 	return Math.floor((Math.floor((2 * base + iv + Math.floor(ev / 4)) * level / 100) + 5) * nat);
@@ -368,6 +379,7 @@ export function SetEditor({ set, gen, onChange, onDelete, onBack, cheat }: { set
 					{md ? <><span class="pm-icons"><TypeBadge type={md.type} small /><CatIcon cat={md.category} /></span><b>{md.name}</b>
 						<em>{md.category === 'Status' ? '변화' : `위력 ${md.basePower || '-'}`} · 명중 {md.accuracy || '-'} · PP {md.pp}</em></> : <b class="muted">+ 기술 선택</b>}</button>; })}</div>
 			<div class="set-stats">{STATS.map((k, i) => <span class={natMulOf(k) > 1 ? 'up' : natMulOf(k) < 1 ? 'down' : ''}><small>{STAT_SHORT[k]}</small><b>{statOf(k, i)}</b></span>)}</div>
+			<BattleForms species={s.species} gen={gen} />
 			{cheat ? <div class="set-row"><span>레벨 {s.level}</span><input type="range" min={1} max={100} value={s.level} onInput={e => up({ level: parseInt((e.target as HTMLInputElement).value, 10) })} /></div>
 				: <p class="muted small">레벨 {s.level} (모드에 따라 50/100으로 맞춰짐) · 줄이나 기술을 누르면 바꾸는 창이 열립니다 · 기술을 꾹 눌러 끌면 순서가 바뀝니다</p>}
 		</div>

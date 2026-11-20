@@ -379,6 +379,7 @@ export class KoreanText {
 			if ('silent' in kw) return '';
 			const it = effectInfo('item: ' + item);
 			const from = effectInfo(kw.from);
+			if (it.id === 'boosterenergy') return '';   // 바로 뒤의 「부스트에너지에 의해 ○○을 발동했다!」 한 줄로 충분
 			if (kw.eat || (it.id.endsWith('berry') && !from.id)) return F(T('eatItem', it.id), { POKEMON: pk(ident), ITEM: it.name });
 			if (kw.weaken) return F(T('activateWeaken'), { POKEMON: pk(ident), ITEM: it.name });
 			if (from.id === 'stealeat' || from.id === 'bugbite' || from.id === 'pluck') {
@@ -451,7 +452,8 @@ export class KoreanText {
 			}
 			if (eff.id === 'typeadd') { vals.TYPE = typeKo(arg3); return F(T('typeAdd'), vals); }
 			const qd = /^(quarkdrive|protosynthesis)(atk|def|spa|spd|spe)$/.exec(eff.id);
-			if (qd) return this.abilityLine(ident, 'ability: ' + (qd[1] === 'quarkdrive' ? 'Quark Drive' : 'Protosynthesis')) + '\n' + F('  {POKEMON}의 {STAT:subject} 강화되었다!', { POKEMON: pk(ident), STAT: STAT_KO[qd[2]] });
+			// 특성 이름 띠는 바로 앞의 발동 줄(-activate)에서 이미 나옴
+			if (qd) return F('  {POKEMON}의 {STAT:subject} 강화되었다!', { POKEMON: pk(ident), STAT: STAT_KO[qd[2]] });
 			if (/^perish\d$/.test(eff.id)) return F(T('activate', 'perishsong'), { POKEMON: pk(ident), NUMBER: eff.id.slice(6) });
 			if (/^stockpile\d$/.test(eff.id)) return F(T('start', 'stockpile'), { POKEMON: pk(ident), NUMBER: eff.id.slice(9) });
 			if (/^stockpile\d$/.test(effectInfo(eff.name).id)) return '';
@@ -498,6 +500,8 @@ export class KoreanText {
 			// 막아 냄: [block] 표시가 없어도 막는 메시지만 있는 효과(방어 계열, 필드가 선공기·상태이상을 막을 때 "~는 사이코필드가 지켜 주고 있다!")
 			if (kw.block || (!this.hasTemplate('activate', eff.id) && this.hasTemplate('block', eff.id))) id = 'block';
 			if (kw.upkeep) id = 'upkeep';
+			// 부스트에너지로 발동한 고대활성·쿼크차지: 날씨·필드 문구가 아니라 도구 문구
+			if (kw.fromitem && this.hasTemplate('activateFromItem', eff.id)) id = 'activateFromItem';
 			if (kw.damage && eff.id !== 'substitute') id = 'damage';
 			const pre = eff.kind === 'ability' ? this.abilityLine(ident, effect) + '\n' : '';
 			if (this.hasTemplate(id, eff.id)) return pre + F(T(id, eff.id), vals);
@@ -544,7 +548,9 @@ export class KoreanText {
 		case '-singleturn': case '-singlemove': {
 			const [, ident, effect] = args;
 			const eff = effectInfo(effect);
-			const vals = { POKEMON: pk(ident), SOURCE: pk(kw.of), EFFECT: eff.name };
+			const vals = { POKEMON: pk(ident), SOURCE: pk(kw.of), EFFECT: eff.name, TEAM: this.team(this.sideOf(ident)) };
+			// 편 전체를 지키는 기술을 쓴 순간: 아직 막은 것이 아니므로 「지키고 있다」 (막았을 때의 「지켜 줬다」와 구별)
+			if (['wideguard', 'quickguard', 'craftyshield'].includes(eff.id)) return F('  {TEAM} 주위를 {EFFECT:subject} 지키고 있다!', vals);
 			if (this.hasTemplate('start', eff.id)) return F(T('start', eff.id), vals);
 			return '';
 		}

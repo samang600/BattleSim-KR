@@ -6,7 +6,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { ask, Screen, Sprite, PokeIcon, ItemIcon, TypeBadge, Modal, toast, confirmBox, dragSort, moved } from './ui/core';
 import { onBattleEnd } from './battle-hooks';
 import { PickScreen, ChoiceScreen, MonDetail } from './ui/screens';
-import { NatureTable, matches, HpTypeGrid } from './ui/teambuilder';
+import { NatureTable, matches, HpTypeGrid, BattleForms } from './ui/teambuilder';
 import { battle, playerName, playerSprite, towerOpponent, BACK, runRank, runPWT, rankTier, rankLabel, CH_TAG, type ArenaCtx } from './modes';
 import { loadRecords, updateRecords } from './store';
 import { loadStats, ACHIEVEMENTS } from './stats';
@@ -143,7 +143,7 @@ type BattleKind = 'tower';
 const CR = () => loadSettings().battleRule;
 const rotOf = (doubles: boolean) => ({ rule: CR(), doubles, pick: doubles ? 4 : 3, name: ruleById(CR()).name });
 /** 상대 팀·소개에 준전설·전설이 섞이는 조건: 규칙이 허용하고 등급이 충분할 때 */
-const legendOf = (S: CSave) => { const r = ruleById(CR()); return { allowSubLegend: r.sub === 'yes' && S.tier >= 2, allowLegend: r.restricted === 'yes' && S.tier >= 4 }; };
+const legendOf = (S: CSave) => { const r = ruleById(CR()); return { allowSubLegend: r.sub === 'yes' && S.tier >= 2, allowLegend: r.restricted !== 'no' && S.tier >= 4 }; };
 /** 같은 도구를 둘이 지녔으면 그 도구 id (챔피언스 모드는 모든 규칙에서 한 팀 안의 도구 중복 불가 — 로스터 전체로는 여러 마리가 같은 도구를 지녀도 됨) */
 const dupItem = (team: PSet[]) => { const seen = new Set<string>(); for (const s of team) { const i = toID(s.item); if (!i) continue; if (seen.has(i)) return i; seen.add(i); } return ''; };
 const noItems = (team: PSet[]) => team.map(s => { s.item = ''; return s; });
@@ -532,7 +532,7 @@ function SubPop({ S, m, d, sub, back, open }: { S: CSave; m: CMon; d: PSet; sub:
 			if (dropped.length) toast(`${f.n} 모습이 배울 수 없는 기술을 바꿨어요: ${dropped.map(moveKo).join(', ')}`);
 			back(); }}><PokeIcon species={x} /><div><b>{f.n}{cur && <em>지금</em>}</b><small>{(f.t as string[]).map(typeKo).join(' · ')} · {(f.ab as string[]).map(abilityKo).join(' / ')}{f.req ? ` · ${itemKo(f.req)} 필요(함께 받음)` : ''}</small></div></button>; })}</div>
 		<p class="cp-note">모습을 바꾸면 그 모습이 배울 수 없는 기술은 다른 기술로 바뀝니다. 값은 저장할 때 한 번에 치릅니다.</p></Modal>;
-	if (sub === 'detail') return <Modal title={name} onClose={back}><MonDetail set={s} gen={9} /></Modal>;
+	if (sub === 'detail') return <Modal title={name} onClose={back}><MonDetail set={s} gen={9} /><BattleForms species={s.species} gen={9} /></Modal>;
 	void S; void m;
 	if (sub === 'sp') return <Modal title={`${name} · 능력 포인트`} onClose={back}><SpBody set={s} done={sp => apply(PRICE.sp, '능력 포인트', () => { for (const k of STAT_KEYS) s.evs[k] = spToEv(sp[k]); })} /></Modal>;
 	if (sub === 'nature') return <Modal title={`성격 · ${PRICE.nature} BP`} onClose={back}><NatureTable value={s.nature} onPick={id => { apply(PRICE.nature, '성격', () => { s.nature = id; }); }} /></Modal>;

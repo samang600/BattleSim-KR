@@ -20,7 +20,8 @@ export function keyOfPath(name: string): string | null {
 	const m = /^(.+?)(-back)?(-shiny)?$/.exec(stem)!;
 	return userSpriteKey(m[1], !!m[2], !!m[3]);
 }
-const known = (() => { let s: Set<string> | null = null; return () => (s ||= new Set(Object.keys(RAW.species).map(spriteId))); })();
+// 거다이맥스 모습은 포켓몬 목록에 따로 없고 배틀에서 '<그림 id>-gmax' 로 그리므로(거다이맥스할 수 있는 포켓몬), 그 이름도 받아 줌
+const known = (() => { let s: Set<string> | null = null; return () => (s ||= new Set(Object.keys(RAW.species).flatMap(id => { const sid = spriteId(id), sp: any = RAW.species[id]; return sp.gx || sp.g?.[9]?.gx ? [sid, sid + '-gmax'] : [sid]; }))); })();
 
 function dataUrlBytes(u: string): Uint8Array {
 	const b = atob(u.slice(u.indexOf(',') + 1)); const out = new Uint8Array(b.length);

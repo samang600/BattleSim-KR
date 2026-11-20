@@ -8,7 +8,8 @@
 import { RAW, toID, setDataSpec, learnset, speciesData, GEN } from './data';
 
 export type GimmickKind = 'mega' | 'zmove' | 'dynamax' | 'tera' | 'ultra';
-export type LegendMode = 'no' | 'yes';
+/** 초전설·환상: 금지 · 팀에 1마리까지 · 2마리까지 · 제한 없음 (준전설은 no/yes 만 씀) */
+export type LegendMode = 'no' | '1' | '2' | 'yes';
 export interface BattleRule {
 	id: string; name: string; desc: string;
 	gimmick: string; pool: string; restricted: LegendMode; mythical: LegendMode;
@@ -70,8 +71,10 @@ export const POOLS: (Choice & { gimmick: string; maxNum?: number; noFuture?: boo
 ];
 /** 3·4) 초전설·환상 */
 export const LEGEND_MODES: Choice[] = [
-	{ id: 'no', name: '불가', desc: '쓸 수 없음' },
-	{ id: 'yes', name: '가능', desc: '나도 쓰고 상대도 데려옴' },
+	{ id: 'no', name: '금지', desc: '쓸 수 없음' },
+	{ id: '1', name: '1마리까지', desc: '한 팀에 1마리까지 (상대도 같음)' },
+	{ id: '2', name: '2마리까지', desc: '한 팀에 2마리까지 (상대도 같음)' },
+	{ id: 'yes', name: '제한 없음', desc: '나도 쓰고 상대도 데려옴' },
 ];
 /** 챔피언스 풀의 메가: 그 레귤레이션에 나오는 메가 모습 */
 const champMegas = (flag: string) => new Set(Object.keys(RAW.species).filter(id => RAW.species[id].av?.includes(flag) && /mega/.test(id) && RAW.species[id].base));
@@ -106,15 +109,15 @@ export function ruleById(idIn: string): BattleRule {
 	const [g0, p, r0, m0, s0] = id0.split('.');
 	const gim = parseGimmick(g0), pool = POOLS.find(x => x.id === p);
 	// 예전 3단계(no/yes/foe) 값은 foe → 가능
-	const leg = (v: string): LegendMode | null => v === 'no' ? 'no' : v === 'yes' || v === 'foe' ? 'yes' : null;
+	const leg = (v: string): LegendMode | null => v === 'no' ? 'no' : v === '1' || v === '2' ? v : v === 'yes' || v === 'foe' ? 'yes' : null;
 	const restricted = leg(r0), mythical = leg(m0);
 	if (!gim || !pool || !restricted || !mythical) return ruleById(DEFAULT_RULE);
-	const sub = (s0 ? leg(s0) : null) ?? poolSub(p);
+	const sub0 = (s0 ? leg(s0) : null) ?? poolSub(p), sub: LegendMode = sub0 === 'no' ? 'no' : 'yes';
 	const g = gimmickId(gim.kinds, gim.mode), id = ruleId(g, p, restricted, mythical, sub);
 	const names = GIMMICK_KINDS.filter(x => gim.kinds.includes(x.k)).map(x => x.name);
 	const modeOn = gim.kinds.length > 1;
 	const gName = !names.length ? '기믹 없음' : names.join('·') + (modeOn ? ` (${GIMMICK_MODES.find(x => x.id === gim.mode)!.name})` : '');
-	const ok = (v: LegendMode) => v === 'yes' ? '가능' : '불가';
+	const ok = (v: LegendMode) => v === 'yes' ? '가능' : v === 'no' ? '불가' : `${v}마리까지`;
 	const legTxt = (restricted === mythical ? `초전설·환상 ${ok(restricted)}` : `초전설 ${ok(restricted)} · 환상 ${ok(mythical)}`)
 		+ ` · 준전설(패러독스·울트라비스트 포함) ${ok(sub)}`;
 	const rule: BattleRule = {
@@ -124,7 +127,7 @@ export function ruleById(idIn: string): BattleRule {
 		kinds: gim.kinds, oneKind: !modeOn || gim.mode === 'one', stack: modeOn && gim.mode === 'stack',
 		maxNum: pool.maxNum, noFuture: pool.noFuture, avail: pool.avail, megaOnly: pool.megaOnly, noSub: pool.noSub || sub === 'no',
 		era: pool.era, mod: pool.mod, lsMode: pool.lsMode, itemAv: pool.itemAv, md: pool.md,
-		legendTeams: restricted === 'yes' || mythical === 'yes',
+		legendTeams: restricted !== 'no' || mythical !== 'no',
 	};
 	cache.set(id0, rule); cache.set(id, rule);
 	return rule;
@@ -168,6 +171,17 @@ export function speciesAllowed(rule: BattleRule, speciesId: string): boolean {
 	if (rule.noSub && sub) return false;
 	return true;
 }
+/** 한 팀에 넣을 수 있는 마릿수 (제한 없음 = 99) */
+export const legendCap = (v: LegendMode) => v === 'no' ? 0 : v === 'yes' ? 99 : +v;
+const tagsOf = (species: string) => { const s = RAW.species[toID(species)]; return (s?.tags || (s?.base ? RAW.species[toID(s.base)]?.tags : undefined) || []) as string[]; };
+/** 마릿수 제한을 넘는 초전설·환상 (팀 순서대로 세어 넘친 것): 넘친 포켓몬의 종 이름들 */
+export function legendOver(rule: BattleRule, team: { species: string }[]): string[] {
+	const out: string[] = []; let r = 0, m = 0;
+	for (const p of team) { const t = tagsOf(p.species);
+		if (t.includes('Restricted Legendary') && ++r > legendCap(rule.restricted) && rule.restricted !== 'no') out.push(p.species);
+		else if (t.includes('Mythical') && ++m > legendCap(rule.mythical) && rule.mythical !== 'no') out.push(p.species); }
+	return out;
+}
 /** 팀에서 이 규칙에 안 맞는 것들 (온라인 방 입장 전 검사): [포켓몬 종 id, '포켓몬' | '도구', 도구 id] */
 export function teamRuleIssues(rule: BattleRule, team: { species: string; item?: string }[]): { species: string; kind: 'species' | 'item'; item?: string }[] {
 	const out: { species: string; kind: 'species' | 'item'; item?: string }[] = [];
@@ -175,6 +189,7 @@ export function teamRuleIssues(rule: BattleRule, team: { species: string; item?:
 		if (!speciesAllowed(rule, toID(p.species))) out.push({ species: p.species, kind: 'species' });
 		else if (p.item && !itemAllowed(rule, p.item)) out.push({ species: p.species, kind: 'item', item: p.item });
 	}
+	for (const sp of legendOver(rule, team)) if (!out.some(o => o.species === sp)) out.push({ species: sp, kind: 'species' });
 	return out;
 }
 /** 메가스톤 없이 메가진화하는 경우(레쿠쟈·화룡점정): 그 메가 모습이 규칙에서 허용되는가 */
@@ -199,6 +214,8 @@ export function teamRuleWarnings(rule: BattleRule, sets: { species: string; item
 	const w: string[] = [];
 	const bad = sets.filter(s => !speciesAllowed(rule, s.species)).map(s => RAW.species[toID(s.species)]?.n || s.species);
 	if (bad.length) w.push(`이 규칙(${rule.name})에서 쓸 수 없는 포켓몬: ${bad.join(', ')}`);
+	const over = legendOver(rule, sets).map(sp => RAW.species[toID(sp)]?.n || sp);
+	if (over.length) w.push(`초전설·환상 마릿수 제한(초전설 ${rule.restricted === 'yes' ? '제한 없음' : rule.restricted + '마리'} · 환상 ${rule.mythical === 'yes' ? '제한 없음' : rule.mythical + '마리'})을 넘었어요: ${over.join(', ')}`);
 	const badStone = sets.filter(s => RAW.items[toID(s.item)]?.mega && !megaStoneAllowed(rule, s.item)).map(s => RAW.items[toID(s.item)]!.n);
 	if (badStone.length) w.push(`이 규칙에서 쓸 수 없는 메가스톤: ${badStone.join(', ')}${rule.kinds.includes('mega') ? '' : ' (메가진화 불가 규칙)'}`);
 	const badZ = rule.kinds.includes('zmove') ? [] : sets.filter(s => RAW.items[toID(s.item)]?.zt).map(s => RAW.items[toID(s.item)]!.n);

@@ -29,7 +29,7 @@ import { PLAYER_SPRITES, SPRITE_URL, trainerImgError } from './trainer-lines';
 import { UserSpritesModal } from './ui/user-sprites';
 import { ShopScreen, cardSkin, cardSkinClass, TitleChip, useWallet } from './ui/shop';
 import { titleItem, loadWallet, ITEMS, pendingAchTotal } from './rewards';
-import { onUserSpritesChange } from './user-sprites';
+import { onUserSpritesChange, listMyTrainers, addMyTrainer, removeMyTrainer } from './user-sprites';
 
 const MODES = [
 	{ id: 'tower', name: '배틀타워', sub: '7연승 세트 · 타워 타이쿤', run: runTower, color: '#2f6fe8', mon: 'garchomp' },
@@ -465,6 +465,8 @@ function CloudBackup() {
 function avatarGroups(): [string, { id: string; name: string }[]][] {
 	const w = loadWallet();
 	const out: [string, { id: string; name: string }[]][] = [['기본 주인공', PLAYER_SPRITES]];
+	// 내가 넣은 트레이너 그림
+	const mine = listMyTrainers(); if (mine.length) out.push(['내 그림', mine.map((id, k) => ({ id, name: `내 그림 ${k + 1}` }))]);
 	for (const it of ITEMS) if (it.slot === 'trainer' && w.own[it.id]) {
 		const g = it.grp || '교환소'; let row = out.find(r => r[0] === g);
 		if (!row) { row = [g, []]; out.push(row); }
@@ -473,8 +475,13 @@ function avatarGroups(): [string, { id: string; name: string }[]][] {
 	return out;
 }
 function AvatarPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-	const [grid, setGrid] = useState(false);
+	const [grid, setGrid] = useState(false), [, force] = useState(0);
 	const groups = avatarGroups();
+	/** 내 트레이너 그림 추가: 그림 파일을 골라 넣고 바로 주인공 모습으로 */
+	const addMine = () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.style.cssText = 'position:fixed;left:-9999px;opacity:0'; document.body.appendChild(inp);
+		inp.onchange = async () => { const f = inp.files?.[0]; inp.remove(); if (!f) return; try { const id = await addMyTrainer(f); onChange(id); toast('내 그림을 주인공 모습으로 넣었습니다'); force(x => x + 1); } catch (e: any) { toast(e?.message || '그림을 읽지 못했습니다'); } };
+		inp.click(); };
+	const delMine = async (id: string) => { if (!(await confirmBox('내 그림 지우기', '이 트레이너 그림을 지울까요?', '지운다', '그만두기'))) return; await removeMyTrainer(id); if (value === id) onChange('lucas'); force(x => x + 1); };
 	const list = groups.flatMap(g => g[1]);
 	const n = list.length, i = Math.max(0, list.findIndex(p => p.id === value));
 	const at = (d: number) => list[(i + d + n) % n];
@@ -490,8 +497,10 @@ function AvatarPicker({ value, onChange }: { value: string; onChange: (id: strin
 				{groups.map(([g, items]) => <section>
 					<h4 class="shop-grp">{g} <small>{items.length}</small></h4>
 					<div class="av-grid">{items.map(p => <button class={'av-cell' + (p.id === value ? ' on' : '')} onClick={() => { onChange(p.id); setGrid(false); }}>
-						<img src={SPRITE_URL(p.id)} onError={trainerImgError} alt="" loading="lazy" /><span>{p.name}</span></button>)}</div>
+						<img src={SPRITE_URL(p.id)} onError={trainerImgError} alt="" loading="lazy" /><span>{p.name}</span>
+						{p.id.startsWith('my:') && <i class="av-del" role="button" aria-label="이 그림 지우기" onClick={e => { e.stopPropagation(); void delMine(p.id); }} />}</button>)}</div>
 				</section>)}
+				<div class="av-add"><button class="btn small" onClick={addMine}>+ 내 그림 넣기</button><small class="muted">그림 파일(PNG 등)을 트레이너 모습으로 씁니다. 배경이 투명한 도트 그림이 가장 잘 어울리고, 큰 그림은 96×96 칸에 맞춰 줄입니다. 이 기기에만 저장되며 온라인 상대에게는 기본 모습으로 보입니다.</small></div>
 				<p class="muted small av-more">BP 교환소에서 트레이너·네임드 트레이너·여러 인물의 모습을 더 얻을 수 있어요.</p>
 			</div>
 		</Modal>}
@@ -512,14 +521,20 @@ function RuleRows({ s, up }: { s: Settings; up: (p: Partial<Settings>) => void }
 	};
 	const toggle = (k: typeof gim.kinds[number]) => set({ gimmick: gimmickId(gim.kinds.includes(k) ? gim.kinds.filter(x => x !== k) : [...gim.kinds, k], gim.mode) });
 	const legRow = (label: string, v: LegendMode, key: 'restricted' | 'mythical' | 'sub') => <div class="set-row rule-row"><span>{label}</span><div class="seg">
-		{LEGEND_MODES.map(m => <button class={v === m.id ? 'on' : ''} onClick={() => set({ [key]: m.id as LegendMode })}>{m.name}</button>)}</div></div>;
+		{[['no', '불가'], ['yes', '가능']].map(([id, name]) => <button class={v === id ? 'on' : ''} onClick={() => set({ [key]: id as LegendMode })}>{name}</button>)}</div></div>;
+	/** 초전설·환상: ◀ 금지 · 1마리까지 · 2마리까지 · 제한 없음 ▶ 을 화살표로 넘김 */
+	const legStep = (label: string, v: LegendMode, key: 'restricted' | 'mythical') => { const i = Math.max(0, LEGEND_MODES.findIndex(m => m.id === v)), n = LEGEND_MODES.length, go = (d: number) => set({ [key]: LEGEND_MODES[(i + d + n) % n].id as LegendMode });
+		return <div class="set-row rule-row"><span>{label}</span><div class="rule-step">
+			<button class="pick-arrow" aria-label={`${label} 이전`} onClick={() => go(-1)}><i class="tri l" /></button>
+			<b class={v === 'no' ? 'off' : ''} title={LEGEND_MODES[i].desc}>{LEGEND_MODES[i].name}</b>
+			<button class="pick-arrow" aria-label={`${label} 다음`} onClick={() => go(1)}><i class="tri r" /></button></div></div>; };
 	return <>
 		<div class="set-row rule-row"><span>포켓몬</span><div class="seg wrap">{POOLS.map(p => <button class={cur.pool === p.id ? 'on' : ''}
 			onClick={() => { set({ pool: p.id, gimmick: p.gimmick, sub: poolSub(p.id), ...(p.legends ? { restricted: p.legends[0], mythical: p.legends[1] } : {}) }); }}>{p.name}</button>)}</div></div>
 		<div class="set-row rule-row"><span>기믹</span><div class="seg wrap">{GIMMICK_KINDS.map(g => <button class={gim.kinds.includes(g.k) ? 'on' : ''} aria-pressed={gim.kinds.includes(g.k)} onClick={() => toggle(g.k)}>{g.name}</button>)}</div></div>
 		{gim.kinds.length > 1 && <div class="set-row rule-row"><span>기믹 사용</span><div class="seg wrap">{GIMMICK_MODES.map(m => <button class={gim.mode === m.id ? 'on' : ''} onClick={() => set({ gimmick: gimmickId(gim.kinds, m.id) })}>{m.name}</button>)}</div></div>}
-		{legRow('초전설', cur.restricted, 'restricted')}
-		{legRow('환상', cur.mythical, 'mythical')}
+		{legStep('초전설', cur.restricted, 'restricted')}
+		{legStep('환상', cur.mythical, 'mythical')}
 		{legRow('준전설', cur.sub, 'sub')}
 		<p class="muted small"><b>{cur.name}</b> — {cur.desc}</p>
 		<p class="muted small">기믹은 여러 개를 함께 켤 수 있고, 하나도 안 켜면 기믹 없이 배틀합니다. 포켓몬을 고르면 그 게임의 기믹으로 맞춰지고 따로 바꿀 수 있어요. 준전설에는 패러독스·울트라비스트도 포함돼요. 초전설·환상·준전설은 포켓몬 풀과 상관없이 정하며, 가능이면 나도 쓰고 상대도 데려옵니다(포켓몬을 고르면 그 게임 기준으로 맞춰짐 — 챔피언스는 준전설 불가). 그 세대에 아직 없던 포켓몬(예: 소드·실드의 패러독스)은 가능이어도 나오지 않아요. 모든 모드의 나와 상대에게 적용됩니다.</p>

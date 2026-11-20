@@ -136,7 +136,7 @@ export async function runPalace() {
 		if (!cheat) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
 		save(key, state);
 		if (maven && !cheat) earnBP(no === 42 ? BRAIN_BP.gold : BRAIN_BP.silver, '팰리스 메이븐 격파');
-		if (maven && !cheat && awardSymbol('palace', no === 42)) await symbolScreen('palace', no === 42);
+		if (maven && !cheat && awardSymbol('palace', no === 42, 'normal', fmt === 'doubles')) await symbolScreen('palace', no === 42, 'normal', fmt === 'doubles');
 		if (s % 7 === 0 && !cheat) earnBP(setClearBP(s), '세트 클리어');
 		if (s % 7 === 0) {
 			const v = await ask<'go' | 'rest'>(r => <InfoScreen title="배틀팰리스" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`} lines={['포켓몬들의 체력이 회복되었다.']}

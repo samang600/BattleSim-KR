@@ -43,9 +43,17 @@ export const userSpritesReady: Promise<void> = (async () => {
 
 export const userSpriteKey = (id: string, back: boolean, shiny: boolean) => `${id}${back ? '-back' : ''}${shiny ? '-shiny' : ''}`;
 export function getUserSprite(key: string): UserSprite | null { return cache[key] || null; }
-export function listUserSprites(): string[] { return Object.keys(cache); }
+// ── 내 트레이너 그림 (설정 → 주인공 모습 → 내 그림): 같은 저장소에 'trainer:my:<번호>' 로 둠 ──
+const TRAINER = 'trainer:';
+/** 포켓몬 그림 키만 (내 트레이너 그림 'trainer:…' 은 따로) */
+export function listUserSprites(): string[] { return Object.keys(cache).filter(k => !k.startsWith(TRAINER)); }
+/** 내 트레이너 그림의 id 목록 ('my:…', 넣은 순서) */
+export function listMyTrainers(): string[] { return Object.keys(cache).filter(k => k.startsWith(TRAINER)).map(k => k.slice(TRAINER.length)).sort((a, b) => +a.slice(3) - +b.slice(3)); }
+export function myTrainerSrc(id: string): string | undefined { return cache[TRAINER + id]?.src; }
+export async function addMyTrainer(file: Blob): Promise<string> { const id = 'my:' + Date.now(); await putUserSprites({ [TRAINER + id]: await makeUserSprite(file) }); return id; }
+export async function removeMyTrainer(id: string) { await removeUserSprite(TRAINER + id); }
 export async function removeUserSprite(key: string) { delete cache[key]; changed(); try { await tx('readwrite', s => s.delete(key)); } catch {} }
-export async function clearUserSprites() { cache = {}; changed(); try { await tx('readwrite', s => s.clear()); } catch {} }
+export async function clearUserSprites() { const ks = listUserSprites(); for (const k of ks) delete cache[k]; changed(); try { await tx('readwrite', s => { for (const k of ks) s.delete(k); }); } catch {} }
 
 /** 그림 → 96×96 도트 그림 (정수배로 키운 그림은 원래 크기로, 큰 그림은 칸에 맞게 줄이고 아래 가운데 정렬) */
 export async function makeUserSprite(file: Blob): Promise<UserSprite> {

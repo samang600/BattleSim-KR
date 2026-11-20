@@ -144,7 +144,9 @@ export function genericLines() {
 
 /** 트레이너 그림: 앱 안에 들어 있음 (scripts/fetch-sprites.sh) */
 import { partBase } from './offline';
-export const SPRITE_URL = (id: string) => partBase('sprites') ? `${partBase('sprites')}trainers/${id}.png` : `https://play.pokemonshowdown.com/sprites/trainers/${id}.png`;
+import { myTrainerSrc } from './user-sprites';
+/** 트레이너 그림 주소. 'my:…' 는 사용자가 넣은 그림(없으면 기본 주인공) */
+export const SPRITE_URL = (id: string): string => id.startsWith('my:') ? myTrainerSrc(id) || SPRITE_URL('lucas') : partBase('sprites') ? `${partBase('sprites')}trainers/${id}.png` : `https://play.pokemonshowdown.com/sprites/trainers/${id}.png`;
 /** 앱 안에 그림이 없으면 서버에서, 그래도 없으면 숨김 */
 export function trainerImgError(e: Event) {
 	const img = e.target as HTMLImageElement;

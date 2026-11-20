@@ -39,7 +39,9 @@ export function UserSpritesModal({ onClose }: { onClose: () => void }) {
 		const out: { id: string; n: string; num: number }[] = [];
 		for (const [id, s] of Object.entries(RAW.species as any) as [string, any][]) {
 			if (!s.g?.['9'] && !s.g?.[9]) continue;
-			if (s.n?.includes(t) || id.includes(t.toLowerCase())) out.push({ id, n: s.n, num: s.num });
+			if (s.n?.includes(t) || id.includes(t.toLowerCase())) { out.push({ id, n: s.n, num: s.num });
+				// 거다이맥스 모습: 포켓몬 목록에는 없지만 배틀에서 '<그림>-gmax' 로 그림
+				if (s.gx) out.push({ id: id + 'gmax', n: s.n + ' (거다이맥스)', num: s.num }); }
 			if (out.length >= 40) break;
 		}
 		return out;
@@ -59,7 +61,8 @@ export function UserSpritesModal({ onClose }: { onClose: () => void }) {
 			};
 			inp.click();
 		};
-		return <Modal title={`${speciesKo(sel)} 그림`} onClose={onClose}>
+		const gm = /^(.*)gmax$/.exec(sel), title = gm && RAW.species[gm[1]] ? `${speciesKo(gm[1])} (거다이맥스)` : speciesKo(sel);
+		return <Modal title={`${title} 그림`} onClose={onClose}>
 			<p class="muted small">정지 도트 그림 설정에서는 이 그림이 먼저 나오고, 3D 그림 설정에서는 그림을 받을 수 없을 때(오프라인 등) 이름 카드 대신 나옵니다. 정수배로 키운 도트 그림은 원래 크기로, 큰 그림은 96×96 칸에 맞춰 넣습니다.</p>
 			<div class="us-grid">{SLOTS.map(([label, back, shiny]) => {
 				const key = userSpriteKey(sid, back, shiny), mine = !!getUserSprite(key);

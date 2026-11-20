@@ -6,6 +6,12 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.86.11', date: '2026-11-20', title: '규칙·기록·내 그림', items: [
+		['new', '배틀 규칙: 초전설·환상을 「1마리까지 / 2마리까지」로도 정할 수 있어요.'],
+		['new', '배틀 기록에 HP 증감이 남고, HP 창에 하품·조이기·소금절이 같은 상태가 보입니다.'],
+		['new', '주인공 모습에 내 그림을 넣을 수 있고, 포켓몬 편집 화면에서 메가진화 같은 배틀 중 모습의 능력치를 볼 수 있어요.'],
+		['up', '심볼을 싱글·더블 따로 모읍니다. 배틀팩토리 금 심볼은 42번째 승부로.'],
+	] },
 	{ ver: '2.86.10', date: '2026-11-19', title: '팀 찾기', items: [
 		['new', '팀 목록과 배틀 전 팀 고르기에서 팀 이름·포켓몬 이름으로 찾을 수 있어요. 끌어서 순서를 바꿀 때 화면 끝으로 가면 저절로 스크롤됩니다.'],
 	] },

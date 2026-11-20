@@ -32,18 +32,21 @@ export function updateStats(fn: (s: Stats) => void, check = true) { const s = lo
 export const bump = (s: Stats, k: string, n = 1) => { s.c[k] = (s.c[k] || 0) + n; };
 export const setMax = (s: Stats, k: string, v: number) => { s.c[k] = Math.max(s.c[k] || 0, v); };
 
-/** 프런티어 심볼: 은(1) → 금(2) */
-export function awardSymbol(kind: SymbolKind, gold: boolean, diff = 'normal') {
+/** 프런티어 심볼: 은(1) → 금(2). 싱글·더블을 따로 셈 — 저장 키는 난이도(싱글, 예전 기록 그대로) · '난이도+d'(더블) */
+export function awardSymbol(kind: SymbolKind, gold: boolean, diff = 'normal', doubles = false) {
 	let got = false;
-	updateStats(s => { const v = gold ? 2 : 1, d = (s.symD ||= {})[kind] ||= {};
-		if ((d[diff] || 0) < v) { d[diff] = v; got = true; }
+	updateStats(s => { const v = gold ? 2 : 1, d = (s.symD ||= {})[kind] ||= {}, key = diff + (doubles ? '+d' : '');
+		// 난이도·형식 구분 전에 얻은 심볼(sym 만 있음)은 싱글·보통 기록으로 옮겨 적어 둠 — 더블 심볼을 얻어도 예전 것이 사라져 보이지 않게
+		if (!Object.keys(d).length && s.sym[kind]) d.normal = s.sym[kind] as 1 | 2;
+		if ((d[key] || 0) < v) { d[key] = v; got = true; }
 		if (diff !== 'easy' && (s.sym[kind] || 0) < v) s.sym[kind] = v; });
 	return got;
 }
 /** 난이도별 심볼 단계 (예전 기록의 심볼은 보통으로 침) */
-export const symOf = (s: Stats, kind: SymbolKind, diff: string): number => s.symD?.[kind]?.[diff] || (diff === 'normal' && !s.symD?.[kind]?.hard ? s.sym[kind] || 0 : 0);
+export const symOf = (s: Stats, kind: SymbolKind, diff: string, doubles = false): number => doubles ? s.symD?.[kind]?.[diff + '+d'] || 0
+	: s.symD?.[kind]?.[diff] || (diff === 'normal' && !s.symD?.[kind]?.hard && !Object.keys(s.symD?.[kind] || {}).some(k => k.endsWith('+d')) ? s.sym[kind] || 0 : 0);
 /** 보여 줄 대표 심볼: 가장 높은 난이도의 것 */
-export const symBest = (s: Stats, kind: SymbolKind): { lv: number; diff: string } => { for (const d of ['hard', 'normal', 'easy']) { const lv = symOf(s, kind, d); if (lv) return { lv, diff: d }; } return { lv: 0, diff: 'normal' }; };
+export const symBest = (s: Stats, kind: SymbolKind): { lv: number; diff: string } => { for (const d of ['hard', 'normal', 'easy']) { const lv = Math.max(symOf(s, kind, d), symOf(s, kind, d, true)); if (lv) return { lv, diff: d }; } return { lv: 0, diff: 'normal' }; };
 export const SYMBOL_INFO: { [k in SymbolKind]: { name: string; facility: string; color: string } } = {
 	tower: { name: '택틱스 심볼', facility: '배틀타워', color: '#3a6df0' },
 	factory: { name: '날리지 심볼', facility: '배틀팩토리', color: '#e0812b' },
@@ -215,7 +218,7 @@ export const ACHIEVEMENTS: Ach[] = [
 	...TYPES.map(t => ({ id: 'type:' + t, name: `${TYPE_KO[t]} 타입 마스터`, desc: `${TYPE_KO[t]} 타입 포켓몬이 참가해 {n}승 (50승 관장 · 150승 사천왕 칭호)`, cat: '타입' as AchCat, steps: [10, 50, 150], value: cnt('typeWin:' + t) })),
 	// 시설
 	{ id: 'tower', name: '탑을 오르는 자', desc: '배틀타워 {n}연승', cat: '시설', steps: [7, 21, 49, 100], value: () => bestOf('tower-') },
-	{ id: 'factory', name: '렌탈의 귀재', desc: '배틀팩토리 {n}연승', cat: '시설', steps: [7, 21, 49], value: () => bestOf('factory-') },
+	{ id: 'factory', name: '렌탈의 귀재', desc: '배틀팩토리 {n}연승', cat: '시설', steps: [7, 21, 42], value: () => bestOf('factory-') },
 	{ id: 'palace', name: '마음을 믿는 자', desc: '배틀팰리스 {n}연승', cat: '시설', steps: [7, 21, 42], value: () => bestOf('palace-') },
 	{ id: 'symbols', name: '심볼 수집가', desc: '타워·팩토리·챔피언 심볼 {n}개 (은·금 각각 셈)', cat: '시설', steps: [1, 3, 6], value: s => Object.values(s.sym).reduce((a: number, b) => a + (b || 0), 0) },
 	{ id: 'pwt', name: '월드 토너먼트', desc: 'PWT 우승 {n}회', cat: '시설', steps: [1, 10, 50], value: () => Object.values(rec().cups).reduce((a, b) => a + b, 0) },
