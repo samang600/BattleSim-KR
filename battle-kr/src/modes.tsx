@@ -468,11 +468,11 @@ export async function runFactory() {
 		state = { fmt, level, team, streak: 0 };
 		save(FACTORY_KEY(fmt, level, opts), state);
 	}
-	const head = (no: number) => no === 21 || no === 42;
-	/** 팩토리 헤드: 그 세트 등급보다 한 단계(42번째는 두 단계) 위 — 어려움은 원래대로 OU / Uber */
+	const head = (no: number) => no === 21 || no === 49;
+	/** 팩토리 헤드: 그 세트 등급보다 한 단계(49번째는 두 단계) 위 — 어려움은 원래대로 OU / Uber */
 	const headGrade = (streak: number): FGrade => {
-		if (diff === 'hard') return streak + 1 === 42 ? 'Uber' : 'OU';
-		const up = gradeIdx(gradeAt(streak)) + (streak + 1 === 42 ? 2 : 1);
+		if (diff === 'hard') return streak + 1 === 49 ? 'Uber' : 'OU';
+		const up = gradeIdx(gradeAt(streak)) + (streak + 1 === 49 ? 2 : 1);
 		return FACTORY_GRADES[Math.min(up, FACTORY_GRADES.length - 1)];
 	};
 	/** 직원이 알려주는 상대 정보 (Pt/HGSS 방식: 0~6연승 전부 → 7~ 2마리 → 14~ 1마리+기술 → 21~ 선봉의 기술 → 28~ 주로 쓰는 타입) */
@@ -536,9 +536,9 @@ export async function runFactory() {
 		(state as any).needRental = s % 7 === 0;
 		save(FACTORY_KEY(fmt, level, opts), state);
 		if (!noRec(opts)) updateRecords(r => { r.current[key] = s; r.best[key] = Math.max(r.best[key] || 0, s); });
-		if (isHead && !noRec(opts)) earnBP(no === 42 ? BRAIN_BP.gold : BRAIN_BP.silver, '팩토리 헤드 격파');
+		if (isHead && !noRec(opts)) earnBP(no === 49 ? BRAIN_BP.gold : BRAIN_BP.silver, '팩토리 헤드 격파');
 		if (s % 7 === 0 && !noRec(opts)) earnBP(setClearBP(s), '세트 클리어');
-		if (isHead && !noRec(opts) && awardSymbol('factory', no === 42, opts.diff || 'normal', isDoubles(fmt))) await symbolScreen('factory', no === 42, opts.diff || 'normal', isDoubles(fmt));
+		if (isHead && !noRec(opts) && awardSymbol('factory', no === 49, opts.diff || 'normal', isDoubles(fmt))) await symbolScreen('factory', no === 49, opts.diff || 'normal', isDoubles(fmt));
 		if (s % 7 === 0) {
 			await ask<void>(r => <InfoScreen title="배틀팩토리" banner="🏆 세트 클리어!" heading={`${s}연승 달성!`}
 				lines={['빌린 포켓몬을 모두 반납하고, 새 렌탈 포켓몬을 처음부터 다시 고릅니다.', `다음 세트 렌탈 등급: ${GRADE_LABEL[gradeAt(s)]}${gradeAt(s) !== gradeAt(s - 1) ? ' (등급 상승!)' : ''}`]} actions={[{ label: '새로 빌리기', onClick: () => r() }]} />);
