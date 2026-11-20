@@ -51,6 +51,8 @@ jobs:
           DEV_BUILD: '1'
           PACK_BRANCH: main
       - run: mkdir -p battle-kr/dist/dev && cp -r dev-src/battle-kr/dist/. battle-kr/dist/dev/
+      # 배틀타워 상대 포켓몬 표 (main 의 battle-kr/docs/tower-sheet.html → /tower-sheet.html)
+      - run: cp dev-src/battle-kr/docs/tower-sheet.html battle-kr/dist/tower-sheet.html
       # 로비 시험판 (online-lobby 브랜치, 없으면 건너뜀)
       - id: lobby
         run: git ls-remote --exit-code --heads https://github.com/${{ github.repository }} online-lobby && echo ok=1 >> $GITHUB_OUTPUT || echo ok=0 >> $GITHUB_OUTPUT
