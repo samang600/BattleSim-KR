@@ -22,15 +22,17 @@ const wsUrl = (path: string) => { const o = serverOverride(); return o ? `${/^(l
 
 type Side = 'p1' | 'p2';
 /** 방 모드: 대전(없음) · 협력 타워(coop). 서버는 모드를 모르므로 규칙 칸 앞에 'coop~' 를 붙여 보내고, 받을 때 떼어 mode 로 옮김 */
-export type RoomMode = 'coop' | undefined;
-const MODE_RE = /^(coop)~/;
+export type RoomMode = 'coop' | 'multi' | undefined;
+const MODE_RE = /^(coop|multi)~/;
+/** 서버가 4자리 방(2vs2 멀티배틀)을 지원하는가 — 서버 상태 확인(GET /)의 seats4 로 봄 (예전 서버면 false) */
+export async function serverSeats4(): Promise<boolean> { try { const r = await fetch(httpUrl('/')); return !!(await r.json())?.seats4; } catch { return false; } }
 export const roomRule = (ruleId: string, mode?: RoomMode) => mode ? `${mode}~${ruleId}` : ruleId;
 const splitMode = (m: any) => { if (m && typeof m.ruleId === 'string') { const x = MODE_RE.exec(m.ruleId); if (x) { m.mode = x[1]; m.ruleId = m.ruleId.slice(x[0].length); } } return m; };
 /** 시간 (서버 기준, ms): 한 번 고르는 시간 · 내 시간 · 대전 시간 · 남은 내 시간(진영별) · 남은 대전 시간 */
 export interface Clock { turn: number; own: number; game: number; left: { p1: number; p2: number }; gameLeft: number }
-export interface StartInfo { t: 'start'; mode?: RoomMode; side: Side; seed: [number, number, number, number]; ruleId: string; doubles: boolean; clock?: Clock;
+export interface StartInfo { t: 'start'; mode?: RoomMode; /** 자리 수 (2vs2 멀티배틀 = 4: p1·p2 한 편, p3·p4 한 편) */ seats?: number; p3?: { name: string; team: PSet[] }; p4?: { name: string; team: PSet[] }; side: Side; seed: [number, number, number, number]; ruleId: string; doubles: boolean; clock?: Clock;
 	p1: { name: string; team: PSet[] }; p2: { name: string; team: PSet[] } }
-export interface RoomInfo { t: 'room'; mode?: RoomMode; code: string; side: Side | null; ruleId: string; doubles: boolean; pick: number; status: 'waiting' | 'battle' | 'ended';
+export interface RoomInfo { t: 'room'; mode?: RoomMode; seats?: number; code: string; side: Side | null; ruleId: string; doubles: boolean; pick: number; status: 'waiting' | 'battle' | 'ended';
 	players: { p1: string | null; p2: string | null }; online: { p1: boolean; p2: boolean }; picked: { p1: boolean; p2: boolean };
 	/** 연결이 끊긴 쪽: 이 시각까지 돌아오지 않으면 기권 처리 */ away: { p1?: number; p2?: number }; version?: string;
 	/** 로비식 방 */ lobby?: boolean; title?: string; locked?: boolean; closed?: boolean;
@@ -38,9 +40,9 @@ export interface RoomInfo { t: 'room'; mode?: RoomMode; code: string; side: Side
 /** 방 채팅 한 줄 (side '' = 알림) */
 export interface ChatMsg { side: Side | ''; name: string; text: string; at: number }
 /** 로비 목록의 방 */
-export interface RoomCard { mode?: RoomMode; code: string; title: string; host: string; sprite: string; ruleId: string; doubles: boolean; pick: number; locked: boolean; players: number; status: 'waiting' | 'battle'; version: string; at: number }
+export interface RoomCard { mode?: RoomMode; seats?: number; code: string; title: string; host: string; sprite: string; ruleId: string; doubles: boolean; pick: number; locked: boolean; players: number; status: 'waiting' | 'battle'; version: string; at: number }
 /** 둘 다 들어오면: 서로 전체 엔트리 (참가 포켓몬 고르기) */
-export interface PreviewInfo { t: 'preview'; mode?: RoomMode; side: Side; pick: number; doubles: boolean; ruleId: string; picked: boolean;
+export interface PreviewInfo { t: 'preview'; mode?: RoomMode; seats?: number; p3?: { name: string; team: PSet[]; sprite?: string }; p4?: { name: string; team: PSet[]; sprite?: string }; side: Side; pick: number; doubles: boolean; ruleId: string; picked: boolean;
 	p1: { name: string; team: PSet[]; sprite?: string }; p2: { name: string; team: PSet[]; sprite?: string } }
 
 /** 기기마다 하나 (재접속 때 같은 진영으로 돌아오는 열쇠) */
@@ -74,7 +76,7 @@ export class OnlineRoom {
 	private onVis = () => { if (document.visibilityState === 'visible' && !this.closed && !this.join?.peek && (!this.ws || this.ws.readyState > 1)) { this.retries = 0; this.open(); } };
 	constructor(public code: string) {}
 	connect(join: { name: string; team?: PSet[]; ruleId?: string; doubles?: boolean; pick?: number; peek?: boolean; sprite?: string; pw?: string;
-		create?: { title: string; pw?: string; ruleId: string; doubles: boolean; pick: number } }) {
+		create?: { title: string; pw?: string; ruleId: string; doubles: boolean; pick: number; seats?: number } }) {
 		this.join = join;
 		this.open();
 		// 하트비트: 10초마다 ping(서버 자동 응답), 20초마다 check(서버가 상대가 잠들었는지 확인 — 주기 알람 대신이라 무료 한도를 덜 씀).

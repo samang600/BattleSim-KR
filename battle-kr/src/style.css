@@ -2877,6 +2877,8 @@ body.dragging { -webkit-user-select: none; user-select: none; cursor: grabbing; 
 
 .lb-tags em.coop { background: #2a8a4a; color: #fff; }
 
+.lr-teams { display: flex; flex-direction: column; gap: 4px; } .lr-teams .lr-vs.big { align-self: center; font-size: 16px; color: #ffd84a; }
+
 /* ═════ FX:BEGIN — scripts/gen-fx-css.py 가 만든 부분 (손으로 고치지 말 것) ═════ */
 /* HP 창 테마: 띠 + 도트 무늬 + 은은한 움직임 (::before, 글자 아래) */
 [class*="hpt-"] .info { isolation: isolate; }

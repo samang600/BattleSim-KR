@@ -56,7 +56,7 @@ export interface BattleSetup {
 	music?: 'battle' | 'tower' | 'pwt' | 'boss' | 'evil' | 'champion';
 	/** 멀티배틀: p1.team 중 theirs[i] 가 true 인 포켓몬은 파트너(AI)의 것. 포켓몬 주인이 지시함 */
 	partner?: { name: string; theirs: boolean[]; skill?: number; /** 파트너 트레이너 그림 (내 트레이너 옆에 나옴) */ sprite?: string;
-		/** 온라인 협력: 파트너가 사람 — 파트너 자리는 AI 가 고르지 않고 '?' 로 비워 세션(online-coop.ts)에 넘김 */ remote?: boolean };
+		/** 온라인 협력: 파트너가 사람 — 파트너 자리는 AI 가 고르지 않고 '?' 로 비워 세션(online-coop.ts)에 넘김 */ remote?: boolean; /** 2vs2 멀티배틀: 고르는 시간을 재는 시계를 보임 */ timed?: boolean };
 	/** 배틀 규칙을 이 배틀만 바꿈 (배틀팰리스·스토리 등) */
 	ruleId?: string;
 	/** 내 선택·상대 선택을 대신 정함 (배틀팰리스: 포켓몬이 성격대로 스스로 싸움). null 이면 평소대로 */
@@ -1216,7 +1216,7 @@ function typeTint(type: string) {
 	function onlineTimeout() {
 		if (!setup.online?.timeout()) return;
 		setSheet(null); setParts([]); setPhase('playing');
-		setMessage(setup.online.timers().mine <= 0 ? '남은 시간이 0이 되었다…' : '시간이 다 되어 자동으로 골랐다!');
+		setMessage(!(setup.online as any).simpleClock && setup.online.timers().mine <= 0 ? '남은 시간이 0이 되었다…' : '시간이 다 되어 자동으로 골랐다!');
 	}
 
 	function cancelChoice() {
@@ -2006,7 +2006,7 @@ function typeTint(type: string) {
 	const tapAnywhere = (e: any) => { if (phase === 'input') return; if ((e.target as HTMLElement)?.closest?.('button, a, input, .modal, .modal-bg')) return; skipRef.current?.(); };
 	return <div class={'battle bg-' + arenaBg + (setup.doubles ? ' doubles' : ' singles') + (hpTheme ? ' hpt-' + hpTheme : '')} style={{ '--spd': FX.fxSpeed() } as any} onClick={tapAnywhere}>
 		<div class="hud-top">
-			{setup.online && !setup.partner?.remote ? <OnlineClock rs={setup.online} onTimeout={onlineTimeout} /> : <span class="badge">{setup.label || ''}</span>}
+			{setup.online && (!setup.partner?.remote || setup.partner.timed) ? <OnlineClock rs={setup.online} onTimeout={onlineTimeout} /> : <span class="badge">{setup.label || ''}</span>}
 			<span class="badge">{scene.turn ? `${scene.turn}턴` : ''}</span>
 			<button class="badge speed-btn" onClick={e => { e.stopPropagation(); cycleSpeed(); }}>{SPEED_LABEL[settings.speed]}</button>
 			<button class={'badge text-btn' + (settings.textManual ? ' manual' : '')} onClick={e => { e.stopPropagation(); toggleManual(); }} aria-label="메시지 진행">{settings.textManual ? '▶ 수동' : '▶ 자동'}</button>
@@ -2312,7 +2312,8 @@ function OnlineClock({ rs, onTimeout }: { rs: RemoteSession; onTimeout: () => vo
 	useEffect(() => { if (t.turn !== null && t.turn <= 0) onTimeout(); });
 	const mmss = (ms: number) => { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 	return <>
-		<span class={'badge oclock' + (t.game < 60000 ? ' low' : '')} title="남은 대전 시간 · 내 시간 · 상대 시간">⏱{mmss(t.game)} · 나 {mmss(t.mine)} · 상대 {mmss(t.opp)}</span>
+		{(rs as any).simpleClock ? <span class={'badge oclock' + (t.game < 60000 ? ' low' : '')} title="남은 대전 시간">⏱{mmss(t.game)}</span>
+			: <span class={'badge oclock' + (t.game < 60000 ? ' low' : '')} title="남은 대전 시간 · 내 시간 · 상대 시간">⏱{mmss(t.game)} · 나 {mmss(t.mine)} · 상대 {mmss(t.opp)}</span>}
 		{t.turn !== null && <span class={'badge oturn' + (t.turn <= 10000 ? ' low' : '')}>선택 {Math.ceil(t.turn / 1000)}</span>}
 	</>;
 }

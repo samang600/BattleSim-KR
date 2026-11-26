@@ -15,6 +15,7 @@
  *           {t:'start', side, seed, ruleId, doubles, p1:{name,team}, p2:{name,team}}  (둘 다 고르면: 고른 포켓몬만, 고른 순서)
  *           연결이 끊긴 채 GRACE 가 지나면 그쪽의 'forfeit disconnect' 를 대신 넣음 (배틀 전이면 {t:'error'} 로 취소)
  *           {t:'input', side, choice, n}  (n = 몇 번째 선택, 1부터)   {t:'inputs', list}  (재접속 때 지금까지 전부)   {t:'error', msg}
+ *  4인 방 (v2.87.1, 2vs2 멀티배틀): create.seats = 4 면 자리가 p1~p4 (p1·p2 대 p3·p4). 중계는 같고, 넷이 모두 준비·선택해야 시작. 방장이 나가면 방이 닫힘. GET / 가 seats4: true 를 알림
  *  GET /queue       랜덤 대전 매칭 (Lobby)
  *    앱 → {t:'queue', doubles, pick, version, token}   서버 → {t:'matched', code}
  *
@@ -46,7 +47,7 @@ export default {
 	async fetch(req: Request, env: Env): Promise<Response> {
 		const url = new URL(req.url);
 		if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
-		if (url.pathname === '/') return json({ ok: true, service: 'battlesim-kr', time: Date.now() });
+		if (url.pathname === '/') return json({ ok: true, service: 'battlesim-kr', time: Date.now(), seats4: true });
 		if (url.pathname === '/room' && req.method === 'POST') return json({ code: newCode() });
 		const ws = req.headers.get('Upgrade') === 'websocket';
 		if (url.pathname === '/ws') {
@@ -139,19 +140,21 @@ export class Backup extends DurableObject<Env> {
 	async alarm() { await this.ctx.storage.deleteAll(); }
 }
 
-type Side = 'p1' | 'p2';
+/** 자리: 보통 방은 p1(방장)·p2. 4자리 방(seats 4 — 2vs2 멀티배틀)은 p1·p2 가 한 편, p3·p4 가 한 편 */
+type Side = 'p1' | 'p2' | 'p3' | 'p4';
+const SIDES2: Side[] = ['p1', 'p2'], SIDES4: Side[] = ['p1', 'p2', 'p3', 'p4'];
 interface Player { name: string; token: string; team: any[]; version: string; sprite?: string; picked?: number[]; ready?: boolean }
 interface ChatMsg { side: Side | ''; name: string; text: string; at: number }
-interface RoomState { code: string; ruleId: string; doubles: boolean; pick: number; players: { p1?: Player; p2?: Player };
-	seed?: number[]; inputs: [Side, string][]; ended?: boolean; created: number; away?: { p1?: number; p2?: number };
-	startedAt?: number; spent?: { p1: number; p2: number };
+interface RoomState { code: string; ruleId: string; doubles: boolean; pick: number; players: { [sd in Side]?: Player }; /** 자리 수 (없으면 2) */ seats?: 2 | 4;
+	seed?: number[]; inputs: [Side, string][]; ended?: boolean; created: number; away?: { [sd in Side]?: number };
+	startedAt?: number; spent?: { [sd in Side]?: number };
 	/** 로비식 방: 제목 · 비밀번호(SHA-256) · 채팅 · 닫힘 · 로비에 마지막으로 알린 카드(같으면 다시 안 보냄) */ lobby?: boolean; title?: string; pw?: string; chat?: ChatMsg[]; closed?: boolean; cardKey?: string }
 /** 채팅: 한 사람당 이 간격에 1줄 · 저장은 이 간격에 한 번(그 사이 줄은 다음 저장 때 같이 — 방이 잠들면 마지막 몇 줄이 기록에서 빠질 수 있음) */
 const CHAT_GAP = 2000, CHAT_SAVE_GAP = 10 * 1000;
 const sha = async (t: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('bskr:' + t))), b => b.toString(16).padStart(2, '0')).join('');
 const CHAT_KEEP = 30;
 /** 로비 목록 한 줄 */
-interface RoomCard { code: string; title: string; host: string; sprite: string; ruleId: string; doubles: boolean; pick: number; locked: boolean; players: number; status: 'waiting' | 'battle'; version: string; at: number }
+interface RoomCard { code: string; title: string; host: string; sprite: string; ruleId: string; doubles: boolean; pick: number; locked: boolean; players: number; status: 'waiting' | 'battle'; version: string; at: number; seats?: number }
 
 export class Room extends DurableObject<Env> {
 	private st: RoomState | null = null;
@@ -167,10 +170,15 @@ export class Room extends DurableObject<Env> {
 		const r = this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() || 0;
 		return Math.max(a, r);
 	}
+	/** 이 방의 자리들 */
+	private sides(): Side[] { return this.st?.seats === 4 ? SIDES4 : SIDES2; }
+	private full() { return this.sides().every(sd => !!this.st!.players[sd]); }
+	private allReady() { return this.sides().every(sd => !!this.st!.players[sd]?.ready); }
+	private map<T>(f: (sd: Side) => T): { [sd: string]: T } { return Object.fromEntries(this.sides().map(sd => [sd, f(sd)])); }
 	private alive(side: Side, now = Date.now()) { return this.sockets(side).filter(w => w.readyState === 1 && now - this.lastSeen(w) < STALE); }
 	private clock() {
-		const s = this.st!, sp = s.spent || { p1: 0, p2: 0 };
-		return { turn: TURN, own: OWN, game: GAME, left: { p1: Math.max(0, OWN - sp.p1), p2: Math.max(0, OWN - sp.p2) },
+		const s = this.st!, sp = s.spent || {};
+		return { turn: TURN, own: OWN, game: GAME, left: this.map(sd => Math.max(0, OWN - (sp[sd] || 0))),
 			gameLeft: s.startedAt ? Math.max(0, s.startedAt + GAME - Date.now()) : GAME };
 	}
 	private async load(code = ''): Promise<RoomState> {
@@ -190,12 +198,12 @@ export class Room extends DurableObject<Env> {
 	private roomInfo(side: Side | null) {
 		const s = this.st!;
 		return { t: 'room', code: s.code, side, ruleId: s.ruleId, doubles: s.doubles, pick: s.pick || 6,
-			picked: { p1: !!s.players.p1?.picked, p2: !!s.players.p2?.picked }, status: s.ended ? 'ended' : s.seed ? 'battle' : 'waiting',
-			players: { p1: s.players.p1?.name || null, p2: s.players.p2?.name || null }, version: s.players.p1?.version,
-			online: { p1: this.alive('p1').length > 0, p2: this.alive('p2').length > 0 }, away: s.away || {},
-			lobby: !!s.lobby, title: s.title || '', locked: !!s.pw, closed: !!s.closed,
-			ready: { p1: !!s.players.p1?.ready, p2: !!s.players.p2?.ready }, hasTeam: { p1: !!s.players.p1?.team?.length, p2: !!s.players.p2?.team?.length },
-			sprites: { p1: s.players.p1?.sprite || '', p2: s.players.p2?.sprite || '' } };
+			picked: this.map(sd => !!s.players[sd]?.picked), status: s.ended ? 'ended' : s.seed ? 'battle' : 'waiting',
+			players: this.map(sd => s.players[sd]?.name || null), version: s.players.p1?.version,
+			online: this.map(sd => this.alive(sd).length > 0), away: s.away || {},
+			lobby: !!s.lobby, title: s.title || '', locked: !!s.pw, closed: !!s.closed, seats: s.seats || 2,
+			ready: this.map(sd => !!s.players[sd]?.ready), hasTeam: this.map(sd => !!s.players[sd]?.team?.length),
+			sprites: this.map(sd => s.players[sd]?.sprite || '') };
 	}
 	/** 로비 목록에 알림 (바뀐 경우만). 닫혔거나 끝났거나 로비 방이 아니면 목록에서 뺌 */
 	private chatSavedAt = 0;
@@ -205,7 +213,7 @@ export class Room extends DurableObject<Env> {
 		if (!s.lobby) return undefined;
 		const p1 = s.players.p1;
 		const card: RoomCard | null = !p1 || s.closed ? null : { code: s.code, title: s.title || `${p1.name}의 방`, host: p1.name, sprite: p1.sprite || '', ruleId: s.ruleId, doubles: s.doubles,
-			pick: s.pick || 6, locked: !!s.pw, players: s.players.p2 ? 2 : 1, status: s.seed && !s.ended ? 'battle' : 'waiting', version: p1.version, at: s.created };
+			pick: s.pick || 6, locked: !!s.pw, players: this.sides().filter(sd => !!s.players[sd]).length, status: s.seed && !s.ended ? 'battle' : 'waiting', version: p1.version, at: s.created, ...(s.seats === 4 ? { seats: 4 } : {}) };
 		const key = JSON.stringify(card);
 		if (key === s.cardKey) return undefined;
 		s.cardKey = key;
@@ -216,12 +224,12 @@ export class Room extends DurableObject<Env> {
 	}
 	/** 저장하지 않는 경로(닫기 등)에서 로비에 알림 */
 	private async notifyLobby() { const c = this.cardChange(); if (c !== undefined) await this.sendCard(c); }
-	private sendPreviews() { for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) this.send(w, this.previewMsg(sd)); }
+	private sendPreviews() { for (const sd of this.sides()) for (const w of this.sockets(sd)) this.send(w, this.previewMsg(sd)); }
 	private broadcastRoom() { for (const ws of this.ctx.getWebSockets()) this.send(ws, this.roomInfo(this.sideOf(ws))); }
 	private startMsg(side: Side) {
 		const s = this.st!;
-		return { t: 'start', side, seed: s.seed, ruleId: s.ruleId, doubles: s.doubles, clock: this.clock(),
-			p1: this.pub('p1', true), p2: this.pub('p2', true) };
+		return { t: 'start', side, seed: s.seed, ruleId: s.ruleId, doubles: s.doubles, clock: this.clock(), seats: s.seats || 2,
+			...this.map(sd => this.pub(sd, true)) };
 	}
 	private pub(sd: Side, picked: boolean) {
 		const p = this.st!.players[sd]!;
@@ -229,24 +237,24 @@ export class Room extends DurableObject<Env> {
 	}
 	private previewMsg(side: Side) {
 		const s = this.st!;
-		return { t: 'preview', side, pick: s.pick || 6, doubles: s.doubles, ruleId: s.ruleId, p1: this.pub('p1', false), p2: this.pub('p2', false), picked: !!s.players[side]?.picked };
+		return { t: 'preview', side, pick: s.pick || 6, doubles: s.doubles, ruleId: s.ruleId, seats: s.seats || 2, ...this.map(sd => this.pub(sd, false)), picked: !!s.players[side]?.picked };
 	}
 	/** 둘 다 골랐으면 시드를 정하고 시작 */
 	private async maybeStart() {
 		const s = this.st!;
-		if (s.seed || !s.players.p1?.picked || !s.players.p2?.picked) return false;
+		if (s.seed || !this.sides().every(sd => !!s.players[sd]?.picked)) return false;
 		s.seed = Array.from(crypto.getRandomValues(new Uint16Array(4)));
-		s.startedAt = Date.now(); s.spent = { p1: 0, p2: 0 };
+		s.startedAt = Date.now(); s.spent = {};
 		await this.save(); await this.schedule();
 		this.broadcastRoom();
-		for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) this.send(w, this.startMsg(sd));
+		for (const sd of this.sides()) for (const w of this.sockets(sd)) this.send(w, this.startMsg(sd));
 		return true;
 	}
 	/** 알람: 방 수명(TTL) · 끊긴 쪽 기한 · 대전 시간 끝 중 빠른 것. 이미 그 시각이면 쓰지 않음 */
 	private async schedule() {
 		const s = this.st!;
-		const live = !s.ended && !!s.players.p1 && !!s.players.p2;
-		const ts = [s.created + ROOM_TTL, s.away?.p1, s.away?.p2, live && s.seed && s.startedAt ? s.startedAt + GAME : 0].filter((x): x is number => !!x);
+		const live = !s.ended && this.full();
+		const ts = [s.created + ROOM_TTL, ...this.sides().map(sd => s.away?.[sd]), live && s.seed && s.startedAt ? s.startedAt + GAME : 0].filter((x): x is number => !!x);
 		const want = Math.min(...ts);
 		if (this.alarmAt === undefined) this.alarmAt = await this.ctx.storage.getAlarm();
 		if (this.alarmAt === want) return;
@@ -256,9 +264,9 @@ export class Room extends DurableObject<Env> {
 	/** 소식 없는 쪽(잠자기 등)을 끊긴 것으로: 소켓을 닫고 마지막 소식 + STALE + GRACE 까지 기다림. 바뀌었으면 true */
 	private markStale(now: number): boolean {
 		const s = this.st!;
-		if (s.ended || !s.players.p1 || !s.players.p2) return false;
+		if (s.ended || !this.full()) return false;
 		let changed = false;
-		for (const sd of ['p1', 'p2'] as Side[]) {
+		for (const sd of this.sides()) {
 			if (s.away?.[sd] || this.alive(sd, now).length) continue;
 			const socks = this.sockets(sd);
 			const last = Math.max(0, ...socks.map(w => this.lastSeen(w)));
@@ -274,7 +282,7 @@ export class Room extends DurableObject<Env> {
 	/** 로비 방 대기 중에 방장이 빠짐: 남은 사람이 있으면 그 사람이 방장이 됨 (자리 p2 → p1). 아무도 없으면 false */
 	private handOver(note: string): boolean {
 		const s = this.st!, g = s.players.p2;
-		if (!g) return false;
+		if (!g || s.seats === 4) return false;   // 4자리 방은 방장을 넘기지 않음 (자리가 편을 뜻하므로) — 방장이 나가면 방을 닫음
 		for (const w of this.ctx.getWebSockets()) {
 			const a = w.deserializeAttachment() as any;
 			try { if (a?.side === 'p1') w.serializeAttachment({ at: Date.now() }); else if (a?.side === 'p2') w.serializeAttachment({ ...a, side: 'p1' }); } catch {}
@@ -290,9 +298,9 @@ export class Room extends DurableObject<Env> {
 		const s = this.st!;
 		if (sd === 'p1' && this.handOver(note)) return;
 		if (sd === 'p1') { s.closed = true; s.ended = true; for (const w of this.ctx.getWebSockets()) this.send(w, { t: 'error', msg: '방장의 연결이 끊어져 방이 닫혔어요' }); void this.notifyLobby(); return; }
-		for (const w of this.sockets('p2')) { try { w.serializeAttachment({ at: Date.now() }); } catch {} }
-		delete s.players.p2; delete s.away?.p2;
-		if (s.players.p1) { s.players.p1.ready = false; s.players.p1.picked = undefined; }
+		for (const w of this.sockets(sd)) { try { w.serializeAttachment({ at: Date.now() }); } catch {} }
+		delete s.players[sd]; delete s.away?.[sd];
+		for (const o of this.sides()) if (s.players[o]) { s.players[o]!.ready = false; s.players[o]!.picked = undefined; }
 		this.pushChat({ side: '', name: '', text: note, at: Date.now() });
 		this.broadcastRoom(); this.sendChatTail();
 	}
@@ -300,7 +308,7 @@ export class Room extends DurableObject<Env> {
 	private resetBattle() {
 		const s = this.st!;
 		s.seed = undefined; s.inputs = []; s.ended = false; s.startedAt = undefined; s.spent = undefined;
-		for (const sd of ['p1', 'p2'] as Side[]) {
+		for (const sd of this.sides()) {
 			if (this.alive(sd).length && s.away) delete s.away[sd];
 			if (s.players[sd]) { s.players[sd]!.ready = false; s.players[sd]!.picked = undefined; }
 		}
@@ -330,7 +338,7 @@ export class Room extends DurableObject<Env> {
 		// 대전 시간 끝: 양쪽 앱이 같은 판정(남은 포켓몬 수 → 남은 HP 비율 → HP 합)으로 끝냄
 		if (s.seed && !s.ended && s.startedAt && now >= s.startedAt + GAME) { this.relay('p1', 'tod'); dirty = true; }
 		if (this.markStale(now)) dirty = true;
-		for (const sd of ['p1', 'p2'] as Side[]) {
+		for (const sd of this.sides()) {
 			const t = s.away?.[sd];
 			if (!t || t > now) continue;
 			delete s.away![sd]; dirty = true;
@@ -356,25 +364,26 @@ export class Room extends DurableObject<Env> {
 			const token = String(m.token || '').slice(0, 64), version = String(m.version || '');
 			if (!token) return err('token 이 필요해요');
 			if (s.closed) return err('닫힌 방이에요');
-			let side: Side | null = s.players.p1?.token === token ? 'p1' : s.players.p2?.token === token ? 'p2' : null;
+			let side: Side | null = this.sides().find(sd => s.players[sd]?.token === token) || null;
 			const fresh = !side;
 			if (!side) {
-				if (s.players.p1 && s.players.p2) return err('방이 꽉 찼어요');
+				if (this.full()) return err('방이 꽉 찼어요');
 				if (s.players.p1 && s.players.p1.version !== version) return err(`앱 버전이 달라서 함께 대전할 수 없어요 (방장 v${s.players.p1.version} · 나 v${version}). 둘 다 최신 버전으로 맞춰 주세요.`);
 				if (s.players.p1 && s.pw && (await sha(String(m.pw || ''))) !== s.pw) return err('비밀번호가 맞지 않아요');
 				if (!s.players.p1 && s.ended) return err('이미 끝난 방이에요');
 				const team = Array.isArray(m.team) ? m.team.slice(0, 6) : [];
 				const lobbyJoin = !!m.create || (!!s.lobby && !!s.players.p1);
 				if (!team.length && !lobbyJoin) return err('팀이 비어 있어요');
-				side = s.players.p1 ? 'p2' : 'p1';
+				side = this.sides().find(sd => !s.players[sd])!;
 				let name = String(m.name || '트레이너').slice(0, 16);
-				if (side === 'p2' && name === s.players.p1!.name) name += ' (2)';   // 승자 판정이 이름으로 되므로 겹치지 않게
+				for (let k = 2; this.sides().some(sd => s.players[sd]?.name === name); k++) name = String(m.name || '트레이너').slice(0, 16) + ` (${k})`;   // 승자 판정이 이름으로 되므로 겹치지 않게
 				if (side === 'p1') {
 					if (m.ruleId) s.ruleId = String(m.ruleId).slice(0, 80); s.doubles = !!m.doubles; s.pick = [3, 4, 6].includes(m.pick) ? m.pick : 6;
 					if (m.create) {   // 로비식 방 만들기
 						const c = m.create;
 						s.lobby = true; s.title = String(c.title || '').slice(0, 24); s.pw = c.pw ? await sha(String(c.pw).slice(0, 16)) : undefined;
 						if (c.ruleId) s.ruleId = String(c.ruleId).slice(0, 80); s.doubles = !!c.doubles; s.pick = [3, 4, 6].includes(c.pick) ? c.pick : 6;
+						if (c.seats === 4) s.seats = 4;   // 2vs2 멀티배틀 방
 						s.chat = [];
 					}
 				}
@@ -394,9 +403,9 @@ export class Room extends DurableObject<Env> {
 			if (s.seed) {   // 재접속: 시작 정보와 지금까지의 선택
 				this.send(ws, this.startMsg(side));
 				this.send(ws, { t: 'inputs', list: s.inputs, clock: this.clock() });
-			} else if (s.players.p1 && s.players.p2 && (!s.lobby || (s.players.p1.ready && s.players.p2.ready))) {   // 둘 다 들어옴(로비 방은 둘 다 준비): 서로 전체 엔트리 → 고르기
+			} else if (this.full() && (!s.lobby || this.allReady())) {   // 둘 다 들어옴(로비 방은 둘 다 준비): 서로 전체 엔트리 → 고르기
 				// 다시 접속한 것이면 본인에게만 (상대에게도 보내면 상대의 고르기 화면과 시간이 처음으로 돌아감)
-				for (const sd of ['p1', 'p2'] as Side[]) for (const w of this.sockets(sd)) if (w === ws || (fresh && sd !== side)) this.send(w, this.previewMsg(sd));
+				for (const sd of this.sides()) for (const w of this.sockets(sd)) if (w === ws || (fresh && sd !== side)) this.send(w, this.previewMsg(sd));
 			}
 			return;
 		}
@@ -440,7 +449,7 @@ export class Room extends DurableObject<Env> {
 		if (m.t === 'leave' && s.lobby && s.seed && s.ended && !s.closed) resetBattle();
 		if (s.lobby && !s.seed) {   // 로비 방 대기 중: 파티·규칙·준비·나가기
 			const p = s.players[side]!;
-			const picking = !!(s.players.p1?.ready && s.players.p2?.ready);   // 둘 다 준비 → 고르는 중에는 파티·규칙을 바꾸지 않음
+			const picking = this.full() && this.allReady();   // 둘 다 준비 → 고르는 중에는 파티·규칙을 바꾸지 않음
 			if ((m.t === 'team' || m.t === 'rules') && picking) return err('참가 포켓몬을 고르는 중이에요');
 			if (m.t === 'team') {
 				const team = Array.isArray(m.team) ? m.team.slice(0, 6) : [];
@@ -452,7 +461,7 @@ export class Room extends DurableObject<Env> {
 				if (side !== 'p1') return err('방장만 규칙을 바꿀 수 있어요');
 				if (m.ruleId) s.ruleId = String(m.ruleId).slice(0, 80);
 				s.doubles = !!m.doubles; s.pick = [3, 4, 6].includes(m.pick) ? m.pick : 6;
-				for (const sd of ['p1', 'p2'] as Side[]) if (s.players[sd]) { s.players[sd]!.ready = false; s.players[sd]!.picked = undefined; }
+				for (const sd of this.sides()) if (s.players[sd]) { s.players[sd]!.ready = false; s.players[sd]!.picked = undefined; }
 				this.pushChat({ side: '', name: '', text: '방장이 규칙을 바꿨어요', at: Date.now() });
 				await this.save(); this.broadcastRoom(); this.sendChatTail(); return;
 			}
@@ -460,7 +469,7 @@ export class Room extends DurableObject<Env> {
 				if (m.on && !p.team?.length) return err('먼저 파티를 골라 주세요');
 				p.ready = !!m.on;
 				await this.save(); this.broadcastRoom();
-				if (s.players.p1?.ready && s.players.p2?.ready) this.sendPreviews();
+				if (this.full() && this.allReady()) this.sendPreviews();
 				return;
 			}
 			if (m.t === 'leave') {
@@ -469,7 +478,7 @@ export class Room extends DurableObject<Env> {
 					s.closed = true; s.ended = true; await this.save();
 					for (const w of this.ctx.getWebSockets()) if (w !== ws) this.send(w, { t: 'error', msg: '방장이 나가서 방이 닫혔어요' });
 					await this.notifyLobby();
-				} else this.dropPlayer('p2', `${p.name} 님이 나갔어요`);
+				} else this.dropPlayer(side, `${p.name} 님이 나갔어요`);
 				await this.save();
 				return;
 			}
@@ -495,10 +504,10 @@ export class Room extends DurableObject<Env> {
 			if (!choice) return;
 			if (choice === 'tod' || choice === 'forfeit disconnect') return;   // 서버만 넣음
 			// 고르는 데 쓴 시간(앱이 잰 값, 연출 시간 제외)을 내 시간에서 뺌
-			const sp = s.spent || (s.spent = { p1: 0, p2: 0 });
-			sp[side] += Math.max(0, Math.min(TURN + 5000, Number(m.ms) || 0));
+			const sp = s.spent || (s.spent = {});
+			sp[side] = (sp[side] || 0) + Math.max(0, Math.min(TURN + 5000, Number(m.ms) || 0));
 			this.relay(side, choice.startsWith('forfeit') ? (choice === 'forfeit timeout' ? choice : 'forfeit') : choice);
-			if (!s.ended && sp[side] >= OWN) this.relay(side, 'forfeit timeout');   // 내 시간 0
+			if (!s.ended && (sp[side] || 0) >= OWN) this.relay(side, 'forfeit timeout');   // 내 시간 0
 			await this.save();
 			return;
 		}
@@ -513,7 +522,7 @@ export class Room extends DurableObject<Env> {
 	/** 한쪽 연결이 모두 끊기면 GRACE 동안 기다림 (돌아오지 않으면 alarm 에서 기권 처리) */
 	private async gone(ws: WebSocket) {
 		const s = await this.load(), side = this.sideOf(ws);
-		const watch = s.lobby ? !s.closed && !!s.players[side!] : !s.ended && !!s.players.p1 && !!s.players.p2;   // 로비 방은 대기실·배틀 뒤에도 (방장이 떠나면 방을 닫으려고)
+		const watch = s.lobby ? !s.closed && !!s.players[side!] : !s.ended && this.full();   // 로비 방은 대기실·배틀 뒤에도 (방장이 떠나면 방을 닫으려고)
 		if (side && watch && !s.away?.[side] && !this.sockets(side).some(w => w !== ws && w.readyState === 1)) {
 			s.away = { ...(s.away || {}), [side]: Date.now() + GRACE };
 			await this.save(); await this.schedule();

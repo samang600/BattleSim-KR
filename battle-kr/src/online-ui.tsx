@@ -30,8 +30,8 @@ export const splitSkin = (v?: string): { cls: string; style: any } => {
 export const splitSprite = (v?: string): [string, string] => { const [sp, t] = String(v || '').split('|'); return [sp || 'acetrainer', t ? 't:' + t : '']; };
 import { ChoiceScreen, InfoScreen } from './ui/screens';
 import { chooseTeam, playerName, playerSprite, withLevel, BACK, BgmRow, towerOpponent } from './modes';
-import { CoopSession, type CoopFoe } from './online-coop';
-import { OnlineRoom, RemoteSession, matchmake, newRoomCode, normCode, watchLobby, APP_VERSION, setActiveRoom, getActiveRoom, roomRule, type RoomMode, type ActiveRoom, type StartInfo, type RoomInfo, type PreviewInfo, type ChatMsg, type RoomCard } from './online';
+import { TeamSession, type CoopFoe } from './online-coop';
+import { OnlineRoom, RemoteSession, matchmake, newRoomCode, normCode, watchLobby, APP_VERSION, setActiveRoom, getActiveRoom, roomRule, serverSeats4, type RoomMode, type ActiveRoom, type StartInfo, type RoomInfo, type PreviewInfo, type ChatMsg, type RoomCard } from './online';
 import { josa } from './josa';
 import { OnlinePick } from './ui/online-pick';
 import { randomTeam, type PSet } from './sets';
@@ -46,9 +46,13 @@ const LEVEL = 50;
 type Fmt = { doubles: boolean; pick: number };
 const fmtKo = (d: boolean, pick = 6) => (d ? '더블' : '싱글') + (pick < 6 ? ` 6→${pick}` : ' 6vs6');
 /** 방의 형식 글: 협력 타워는 형식이 정해져 있음 (멀티배틀 · 각자 3마리) */
-const roomFmt = (x: { mode?: RoomMode; doubles: boolean; pick?: number }) => x.mode === 'coop' ? '협력 타워 · 각자 3마리' : fmtKo(x.doubles, x.pick || 6);
+const roomFmt = (x: { mode?: RoomMode; doubles: boolean; pick?: number }) => x.mode === 'coop' ? '협력 타워 · 각자 3마리' : x.mode === 'multi' ? '2vs2 멀티배틀 · 각자 3마리' : fmtKo(x.doubles, x.pick || 6);
+/** 방의 자리들: 보통 p1·p2, 2vs2 멀티배틀은 p1·p2(한 편) · p3·p4(한 편) */
+type Seat = 'p1' | 'p2' | 'p3' | 'p4';
+const seatsOf = (x: { seats?: number }): Seat[] => x.seats === 4 ? ['p1', 'p2', 'p3', 'p4'] : ['p1', 'p2'];
+const mateOf = (sd: Seat): Seat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const)[sd];
 const COOP_FMT = { doubles: true, pick: 3 };
-const labelOf = (mode?: RoomMode) => mode === 'coop' ? '협력 타워' : '친구 대전';
+const labelOf = (mode?: RoomMode) => mode === 'coop' ? '협력 타워' : mode === 'multi' ? '2vs2 멀티배틀' : '친구 대전';
 const ruleName = (id: string) => { try { return ruleById(id).name; } catch { return id; } };
 
 async function chooseFmt(title: string): Promise<Fmt | typeof BACK> {
@@ -104,14 +108,18 @@ async function proceed(room: OnlineRoom, w: WaitResult, label: string) {
 /** 고르기 화면: 내가 고르면 보내고 그대로 기다림. 시작·오류·나가기·엔트리 다시 옴(재접속) 때 끝남 */
 function pickPhase(room: OnlineRoom, pv: PreviewInfo, label: string, sent: boolean, onSent: () => void, _lobby = false): Promise<WaitResult> {
 	return new Promise(resolve => {
-		const oppSide = pv.side === 'p1' ? 'p2' : 'p1';
-		const mine = pv[pv.side], opp = pv[oppSide];
+		const P: any = pv, my = pv.side as Seat, four = pv.seats === 4;
+		const oppSide = (four ? (my === 'p1' || my === 'p2' ? 'p3' : 'p1') : my === 'p1' ? 'p2' : 'p1') as Seat;
+		// 2vs2: 상대 편 두 사람의 엔트리를 이어서 보여 줌 (이름은 'A & B')
+		const mine = P[my], opp = four ? { name: `${P[oppSide].name} & ${P[mateOf(oppSide)].name}`, team: [...P[oppSide].team, ...P[mateOf(oppSide)].team], sprite: P[oppSide].sprite } : P[oppSide];
+		const others = seatsOf(pv).filter(sd => sd !== my);
 		let done = false, status: 'picking' | 'done' | 'away' = 'picking';
 		let setStatus: ((s: typeof status) => void) | null = null;
 		const finish = (r: WaitResult) => { if (done) return; done = true; room.handlers.room = undefined; resolve(r); };
 		room.handlers.room = info => {
-			if (info.lobby && info.ready && !(info.ready.p1 && info.ready.p2) && !info.picked?.[pv.side]) return finish({ back: true });   // 로비 방: 상대가 나가는 등 준비가 풀림
-			status = !info.online[oppSide] ? 'away' : info.picked?.[oppSide] ? 'done' : 'picking';
+			const I: any = info;
+			if (info.lobby && info.ready && !seatsOf(pv).every(sd => I.ready[sd]) && !I.picked?.[my]) return finish({ back: true });   // 로비 방: 상대가 나가는 등 준비가 풀림
+			status = others.some(sd => !I.online[sd]) ? 'away' : others.every(sd => I.picked?.[sd]) ? 'done' : 'picking';
 			setStatus?.(status);
 		};
 		room.handlers.start = st => finish({ start: st });
@@ -119,7 +127,7 @@ function pickPhase(room: OnlineRoom, pv: PreviewInfo, label: string, sent: boole
 		room.handlers.error = msg => finish({ error: msg });
 		const Wrap = () => {
 			const [st, ss] = useState(status); setStatus = ss;
-			return <OnlinePick title={pv.mode === 'coop' ? `${label} · 파트너 ${opp.name} · 각자 3마리` : `${label} · ${fmtKo(pv.doubles, pv.pick)}`} mine={mine.team} myName={mine.name} oppName={opp.name} oppTitle={splitSprite((opp as any).sprite)[1]} oppTeam={opp.team}
+			return <OnlinePick title={pv.mode === 'coop' ? `${label} · 파트너 ${opp.name} · 각자 3마리` : four ? `${label} · 파트너 ${P[mateOf(my)].name} · 각자 3마리` : `${label} · ${fmtKo(pv.doubles, pv.pick)}`} mine={mine.team} myName={mine.name} oppName={opp.name} oppTitle={splitSprite((opp as any).sprite)[1]} oppTeam={opp.team}
 				count={pv.pick} sent={sent} opp={st}
 				onDone={idx => { room.send({ t: 'pick', idx }); onSent(); }}
 				onLeave={() => finish({ cancel: true })} prep={<BgmRow />} />;
@@ -156,7 +164,7 @@ let lastPreview: PreviewInfo | null = null;
 async function play(room: OnlineRoom, start: StartInfo, label: string, lobby = false): Promise<'again' | 'leave'> {
 	// 앱 데이터(종족값·타입·기술 수치와 설명)를 방 규칙에 맞춤 — 두 앱이 같은 데이터로 같은 배틀을 돌리게 (끝나면·오류가 나도 내 설정으로 되돌림)
 	applyRuleData(ruleById(start.ruleId));
-	try { return start.mode === 'coop' ? await playCoop(room, start, lobby) : await playRoom(room, start, label, lobby); }
+	try { return start.mode === 'coop' ? await playCoop(room, start, lobby) : start.mode === 'multi' ? await playMulti(room, start, lobby) : await playRoom(room, start, label, lobby); }
 	finally { applyRuleData(ruleById(loadSettings().battleRule)); }
 }
 async function playRoom(room: OnlineRoom, start: StartInfo, label: string, lobby: boolean): Promise<'again' | 'leave'> {
@@ -218,7 +226,7 @@ function coopFoe(streak: number): CoopFoe {
 }
 async function playCoop(room: OnlineRoom, start: StartInfo, lobby: boolean): Promise<'again' | 'leave'> {
 	const label = '협력 타워';
-	const cs = new CoopSession(start, room, () => coopFoe(coopStreak[room.code] || 0));
+	const cs = new TeamSession(start, room, () => coopFoe(coopStreak[room.code] || 0));
 	const partnerSide = start.side === 'p1' ? 'p2' : 'p1', partner = start[partnerSide];
 	// 방장이 상대를 정해 보내올 때까지 잠깐 기다림
 	const err = await ask<string>(r => { cs.ready.then(() => r(''), e => r(e?.message || '시작하지 못했어요')); return <Screen title={label} cls="wide-scr"><div class="online-wait"><p class="hint">다음 상대를 부르는 중…</p></div></Screen>; });
@@ -258,8 +266,46 @@ async function playCoop(room: OnlineRoom, start: StartInfo, lobby: boolean): Pro
 		actions={[{ label: win ? '방으로 돌아가기 (다음 승부)' : '방으로 돌아가기', onClick: () => r('again') }, { label: '나가기', kind: 'ghost', onClick: () => r('leave') }]} />);
 }
 
+// ───────── 2vs2 멀티배틀 (online-coop.ts 의 TeamSession, 서버의 4자리 방) ─────────
+async function playMulti(room: OnlineRoom, start: StartInfo, lobby: boolean): Promise<'again' | 'leave'> {
+	const label = '2vs2 멀티배틀', S: any = start, my = start.side as Seat, mate = mateOf(my);
+	const ts = new TeamSession(start, room);
+	const err = await ts.ready.then(() => '', e => e?.message || '시작하지 못했어요');
+	if (err) { toast(err); room.handlers.input = undefined; room.handlers.inputs = undefined; return 'again'; }
+	const partner = S[mate];
+	setActiveRoom({ code: room.code, lobby, label, opp: ts.foeName, at: Date.now() });
+	resuming = false;
+	const away: { [sd: string]: boolean } = {};
+	const ext: { end?: (r: BattleResult) => void } = {};
+	room.handlers.room = info => {
+		const I: any = info;
+		if (info.status === 'waiting' && !ts.ended) { toast('다른 사람이 먼저 방으로 돌아가 배틀이 끝났어요'); ext.end?.({ win: false, forfeit: true, turns: 0, p1Left: 0, p2Left: 0 }); return; }
+		for (const sd of seatsOf(start)) { if (sd === my) continue;
+			const gone = !I.online[sd] && info.status === 'battle';
+			if (gone && !away[sd]) toast(`${josa(S[sd].name, 'conjunctive')}의 연결이 끊겼어요. 1분 안에 돌아오지 않으면 그 편의 패배로 처리돼요`);
+			else if (!gone && away[sd] && info.status === 'battle') toast(`${josa(S[sd].name, 'subject')} 다시 연결됐어요`);
+			away[sd] = gone; }
+	};
+	const spr = (sd: Seat) => lastPreview && (lastPreview as any)[sd]?.name === S[sd].name ? splitSprite((lastPreview as any)[sd].sprite)[0] : undefined;
+	const foeA = (my === 'p1' || my === 'p2' ? 'p3' : 'p1') as Seat;
+	const res = await runBattle({
+		gen: 9, doubles: true, aiSkill: 0, bg: 'pwt', music: 'pwt', label, noRecord: true, ruleId: start.ruleId, online: ts as any,
+		partner: { name: partner.name, theirs: ts.flags, sprite: spr(mate), remote: true, timed: true },
+		p1: { name: ts.sideName, team: ts.team, sprite: playerSprite() },
+		p2: { name: ts.foeName, title: '', team: ts.foeTeam, sprite: spr(foeA), sprite2: spr(mateOf(foeA)) } as any,
+	}, ext);
+	setActiveRoom(null);
+	room.handlers.input = undefined; room.handlers.inputs = undefined;
+	if (res.quit) { if (lobby) room.send({ t: 'leave' }); room.close(); abortMode(); return 'leave'; }
+	const draw = ts.ended && !ts.winner, win = ts.ended && ts.winner === ts.sideName;
+	room.send({ t: 'ended' });
+	return ask<'again' | 'leave'>(r => <InfoScreen title={label} heading={draw ? '무승부' : win ? '승리!' : '패배…'}
+		lines={[ts.endReason, `${josa(partner.name, 'conjunctive')} 함께 ${ts.foeName}${draw ? '와(과) 비겼다' : win ? '에게 이겼다!' : '에게 졌다…'} (${res.turns}턴)`].filter(Boolean)}
+		actions={[{ label: '방으로 돌아가기', onClick: () => r('again') }, { label: '나가기', kind: 'ghost', onClick: () => r('leave') }]} />);
+}
+
 // ───────── 로비 ─────────
-const statusKo = (c: RoomCard) => c.status === 'battle' ? '대전 중' : c.players >= 2 ? '꽉 참' : '대기 중';
+const statusKo = (c: RoomCard) => c.status === 'battle' ? '대전 중' : c.players >= (c.seats || 2) ? '꽉 참' : '대기 중';
 function TrainerImg({ sprite, size = 40 }: { sprite: string; size?: number }) {
 	return <img class="lb-tr" src={SPRITE_URL(splitSprite(sprite)[0])} onError={trainerImgError} alt="" style={{ width: size + 'px', height: size + 'px' }} />;
 }
@@ -288,15 +334,15 @@ function LobbyScreen({ done }: { done: (a: LobbyAction) => void }) {
 		<h3 class="sec">열린 방 <small class="muted">{rooms ? `${rooms.length}개` : ok ? '불러오는 중…' : '서버에 연결하는 중…'}</small></h3>
 		{rooms && !rooms.length && <p class="muted lb-empty">아직 열린 방이 없어요. 방을 만들어 친구를 기다려 보세요!</p>}
 		<div class="lb-list">{(rooms || []).map(c => {
-			const vOk = c.version === APP_VERSION, can = vOk && c.status === 'waiting' && c.players < 2;
+			const vOk = c.version === APP_VERSION, can = vOk && c.status === 'waiting' && c.players < (c.seats || 2);
 			return <button class={'lb-room' + (can ? '' : ' off')} onClick={() => can ? done({ room: c }) : toast(!vOk ? `앱 버전이 달라요 (방 v${c.version} · 나 v${APP_VERSION})` : c.status === 'battle' ? '대전 중인 방이에요' : '방이 꽉 찼어요')}>
 				<TrainerImg sprite={c.sprite} />
 				<span class="lb-body">
 					<b>{c.locked && <i class="lb-lock" aria-label="비밀번호 방">🔒</i>}{c.title}</b>
 					<span class="lb-host">{c.host}{splitSprite(c.sprite)[1] && <TitleChip it={itemById(splitSprite(c.sprite)[1])} />}</span>
-					<span class="lb-tags"><em class={c.mode === 'coop' ? 'coop' : ''}>{roomFmt(c)}</em><em>{ruleName(c.ruleId)}</em>{!vOk && <em class="warn">v{c.version}</em>}</span>
+					<span class="lb-tags"><em class={c.mode ? 'coop' : ''}>{roomFmt(c)}</em><em>{ruleName(c.ruleId)}</em>{!vOk && <em class="warn">v{c.version}</em>}</span>
 				</span>
-				<span class={'lb-status ' + (c.status === 'battle' ? 'inbattle' : c.players >= 2 ? 'full' : 'wait')}>{statusKo(c)}<small>{c.players}/2</small></span>
+				<span class={'lb-status ' + (c.status === 'battle' ? 'inbattle' : c.players >= (c.seats || 2) ? 'full' : 'wait')}>{statusKo(c)}<small>{c.players}/{c.seats || 2}</small></span>
 			</button>;
 		})}</div>
 	</Screen>;
@@ -319,7 +365,7 @@ function RulePicker({ cur, onPick, onClose }: { cur: string; onPick: (id: string
 	</Modal>;
 }
 const FMTS: Fmt[] = [{ doubles: false, pick: 3 }, { doubles: true, pick: 4 }, { doubles: false, pick: 6 }, { doubles: true, pick: 6 }];
-type CreateOpts = { title: string; pw: string; ruleId: string; doubles: boolean; pick: number; mode?: RoomMode };
+type CreateOpts = { title: string; pw: string; ruleId: string; doubles: boolean; pick: number; mode?: RoomMode; seats?: number };
 function CreateRoom({ done }: { done: (o: CreateOpts | typeof BACK) => void }) {
 	const [title, setTitle] = useState(`${playerName()}의 방`);
 	const [locked, setLocked] = useState(false);
@@ -328,18 +374,22 @@ function CreateRoom({ done }: { done: (o: CreateOpts | typeof BACK) => void }) {
 	const [rid, setRid] = useState(loadSettings().battleRule);
 	const [pick, setPick] = useState(false);
 	const [mode, setMode] = useState<RoomMode>(undefined);
+	// 2vs2 멀티배틀은 서버가 4자리 방을 지원할 때만 (서버가 예전 것이면 단추를 숨김)
+	const [s4, setS4] = useState(false);
+	useEffect(() => { void serverSeats4().then(setS4); }, []);
 	const ok = title.trim() && (!locked || pw.length >= 2);
 	return <Screen title="방 만들기" onBack={() => done(BACK)} cls="wide-scr lobby-scr">
 		<div class="lc-form">
 			<label class="lc-row"><span>방 제목</span><input value={title} maxLength={24} onInput={(e: any) => setTitle(e.currentTarget.value)} /></label>
 			<div class="lc-row"><span>공개</span><div class="seg"><button class={!locked ? 'on' : ''} onClick={() => setLocked(false)}>공개 방</button><button class={locked ? 'on' : ''} onClick={() => setLocked(true)}>🔒 비밀번호 방</button></div></div>
 			{locked && <label class="lc-row"><span>비밀번호</span><input value={pw} maxLength={16} placeholder="2자 이상" onInput={(e: any) => setPw(e.currentTarget.value)} /></label>}
-			<div class="lc-row"><span>모드</span><div class="seg"><button class={!mode ? 'on' : ''} onClick={() => setMode(undefined)}>대전</button><button class={mode === 'coop' ? 'on' : ''} onClick={() => setMode('coop')}>협력 타워</button></div></div>
+			<div class="lc-row"><span>모드</span><div class="seg"><button class={!mode ? 'on' : ''} onClick={() => setMode(undefined)}>대전</button><button class={mode === 'coop' ? 'on' : ''} onClick={() => setMode('coop')}>협력 타워</button>{s4 && <button class={mode === 'multi' ? 'on' : ''} onClick={() => setMode('multi')}>2vs2 멀티</button>}</div></div>
 			{!mode && <div class="lc-row"><span>형식</span><div class="seg wrap">{FMTS.map(f => <button class={f === fmt ? 'on' : ''} onClick={() => setFmt(f)}>{fmtKo(f.doubles, f.pick)}</button>)}</div></div>}
 			<div class="lc-row"><span>규칙</span><button class="btn lc-rule" onClick={() => setPick(true)}>{ruleName(rid)} <small>바꾸기</small></button></div>
 			{mode === 'coop' ? <p class="hint"><b>협력 타워</b>: 들어온 사람과 한 편(멀티배틀)이 되어 배틀타워의 트레이너 두 명과 싸웁니다. 각자 6마리 중 3마리를 골라 나가고, 이길 때마다 방으로 돌아와 다음 승부로 연승을 이어 갑니다. 상대는 연승이 오를수록 강해져요.</p>
+				: mode === 'multi' ? <p class="hint"><b>2vs2 멀티배틀</b>: 네 사람이 두 편으로 나뉘어 싸웁니다. 들어온 순서대로 1·2번째가 한 편, 3·4번째가 한 편이 되고, 각자 6마리 중 3마리를 골라 자기 포켓몬만 지시합니다. 넷이 모두 준비하면 시작해요. (한 번 고르는 시간 60초)</p>
 				: <p class="hint">방은 로비 목록에 보여요. 규칙과 형식은 방에 들어간 뒤에도 바꿀 수 있어요.</p>}
-			<button class="btn big primary" disabled={!ok} onClick={() => done({ title: title.trim(), pw: locked ? pw : '', ruleId: rid, mode, ...(mode === 'coop' ? COOP_FMT : { doubles: fmt.doubles, pick: fmt.pick }) })}>방 만들기</button>
+			<button class="btn big primary" disabled={!ok} onClick={() => done({ title: title.trim(), pw: locked ? pw : '', ruleId: rid, mode, ...(mode ? COOP_FMT : { doubles: fmt.doubles, pick: fmt.pick }), ...(mode === 'multi' ? { seats: 4 } : {}) })}>방 만들기</button>
 		</div>
 		{pick && <RulePicker cur={rid} onPick={id => { setRid(id); setPick(false); }} onClose={() => setPick(false)} />}
 	</Screen>;
@@ -383,7 +433,8 @@ function roomPhase(box: RoomBox): Promise<RoomAct> {
 		ask<void>(() => <RoomView box={box} act={finish} />).catch(() => finish({ leave: true }));
 	});
 }
-function PlayerSlot({ info, sd, me }: { info: RoomInfo; sd: 'p1' | 'p2'; me: boolean }) {
+function PlayerSlot({ info: info0, sd, me }: { info: RoomInfo; sd: Seat; me: boolean }) {
+	const info: any = info0;
 	const name = info.players[sd];
 	if (!name) return <div class="lr-slot empty"><span class="lr-wait">빈 자리</span><small>상대를 기다리는 중…</small></div>;
 	const [sp, tid] = splitSprite(info.sprites?.[sd]);
@@ -405,9 +456,9 @@ function RoomView({ box, act }: { box: RoomBox; act: (a: RoomAct) => void }) {
 	useEffect(() => { const el = logRef.current; if (el) el.scrollTop = el.scrollHeight; }, [box.chat.length]);
 	const info = box.info;
 	if (!info) return <Screen title="방" onBack={() => act({ leave: true })} cls="wide-scr"><div class="online-wait"><p class="hint">방에 들어가는 중…</p></div></Screen>;
-	const me = info.side || 'p2', host = me === 'p1';
-	const myReady = !!info.ready?.[me];
-	const picking = !!(info.ready?.p1 && info.ready?.p2);
+	const I: any = info, me = (info.side || 'p2') as Seat, host = me === 'p1', four = info.seats === 4;
+	const myReady = !!I.ready?.[me];
+	const picking = seatsOf(info).every(sd => I.players[sd] && I.ready?.[sd]);
 	const issues = box.team ? issueText(info.ruleId, box.team) : [];
 	useEffect(() => { if (issues.length && myReady && !picking) box.room.send({ t: 'ready', on: false }); }, [issues.length, myReady]);   // 규칙이 바뀌어 안 맞게 되면 준비를 풂
 	const send = () => { const t = text.trim(); if (!t) return; box.room.send({ t: 'chat', text: t }); setText(''); };
@@ -422,18 +473,20 @@ function RoomView({ box, act }: { box: RoomBox; act: (a: RoomAct) => void }) {
 					<span><em>{roomFmt(info)}</em> {ruleName(info.ruleId)}</span>
 					{host && <button class="btn small" disabled={picking} onClick={() => setRules(true)}>규칙 바꾸기</button>}
 				</div>
-				<div class="lr-players"><PlayerSlot info={info} sd="p1" me={me === 'p1'} /><span class="lr-vs">{info.mode === 'coop' ? '＆' : 'VS'}</span><PlayerSlot info={info} sd="p2" me={me === 'p2'} /></div>
+				{four ? <div class="lr-teams">{([['p1', 'p2'], ['p3', 'p4']] as Seat[][]).map((pair, k) => [k ? <span class="lr-vs big">VS</span> : null,
+					<div class="lr-players"><PlayerSlot info={info} sd={pair[0]} me={me === pair[0]} /><span class="lr-vs">＆</span><PlayerSlot info={info} sd={pair[1]} me={me === pair[1]} /></div>])}</div>
+				: <div class="lr-players"><PlayerSlot info={info} sd="p1" me={me === 'p1'} /><span class="lr-vs">{info.mode === 'coop' ? '＆' : 'VS'}</span><PlayerSlot info={info} sd="p2" me={me === 'p2'} /></div>}
 				<div class="lr-team">
 					<span class="lr-team-l">내 파티</span>
 					{box.team ? <span class="lr-icons">{box.team.map(p => <PokeIcon species={p.species} />)}</span> : <span class="muted small">아직 고르지 않았어요</span>}
 					<button class={'btn small' + (box.team ? '' : ' primary')} disabled={picking} onClick={() => act({ team: true })}>{box.team ? '파티 바꾸기' : '파티 고르기'}</button>
 				</div>
 				{issues.length > 0 && <p class="lr-warn">이 방 규칙에서 쓸 수 없어요: {issues.join(' · ')}<small>파티를 바꾸거나 방장이 규칙을 바꿔야 준비할 수 있어요.</small></p>}
-				{!info.players.p2 && box.team && !issues.length && <button class="btn lr-practice" onClick={() => act({ practice: true })}>기다리는 동안 AI와 연습<small>상대가 들어오면 알려 줘요</small></button>}
-				<p class="hint lr-hint">{info.mode === 'coop' ? `협력 타워: 둘 다 「준비 완료」를 누르면 서로의 파티를 보고 각자 3마리를 골라 함께 싸워요.${info.side === 'p1' && coopStreak[info.code] ? ` 지금 ${coopStreak[info.code]}연승 중!` : ''}` : '팀은 방 규칙에 맞게 골라 주세요. 둘 다 「준비 완료」를 누르면 서로 엔트리를 보고 참가 포켓몬을 골라요.'}</p>
+				{!info.players.p2 && !four && box.team && !issues.length && <button class="btn lr-practice" onClick={() => act({ practice: true })}>기다리는 동안 AI와 연습<small>상대가 들어오면 알려 줘요</small></button>}
+				<p class="hint lr-hint">{four ? '2vs2 멀티배틀: 위의 두 사람이 한 편, 아래 두 사람이 한 편이에요(들어온 순서). 넷이 모두 「준비 완료」를 누르면 상대 편의 파티를 보고 각자 3마리를 골라요.' : info.mode === 'coop' ? `협력 타워: 둘 다 「준비 완료」를 누르면 서로의 파티를 보고 각자 3마리를 골라 함께 싸워요.${info.side === 'p1' && coopStreak[info.code] ? ` 지금 ${coopStreak[info.code]}연승 중!` : ''}` : '팀은 방 규칙에 맞게 골라 주세요. 둘 다 「준비 완료」를 누르면 서로 엔트리를 보고 참가 포켓몬을 골라요.'}</p>
 			</div>
 			<div class="lr-chat">
-				<div class="lr-log" ref={logRef}>{box.chat.map(c => c.side ? <p class={'lr-msg ' + (c.name === info.players[me] ? 'mine' : 'theirs')}><b>{c.name}</b>{c.text}</p> : <p class="lr-msg sys">{c.text}</p>)}
+				<div class="lr-log" ref={logRef}>{box.chat.map(c => c.side ? <p class={'lr-msg ' + (c.name === I.players[me] ? 'mine' : 'theirs')}><b>{c.name}</b>{c.text}</p> : <p class="lr-msg sys">{c.text}</p>)}
 					{!box.chat.length && <p class="lr-msg sys">채팅으로 인사해 보세요!</p>}</div>
 				<div class="lr-input"><input value={text} maxLength={120} placeholder="메시지 보내기" onInput={(e: any) => setText(e.currentTarget.value)} onKeyDown={(e: any) => { if (e.key === 'Enter') send(); }} />
 					<button class="btn small" disabled={!text.trim()} onClick={send}>보내기</button></div>
@@ -443,7 +496,7 @@ function RoomView({ box, act }: { box: RoomBox; act: (a: RoomAct) => void }) {
 			<button class={'btn big ' + (myReady ? 'ghost' : 'primary')} disabled={!box.team || picking || issues.length > 0} onClick={() => box.room.send({ t: 'ready', on: !myReady })}>{myReady ? (picking ? '곧 시작해요…' : '준비 취소') : '준비 완료'}</button>
 			<button class="btn big ghost" onClick={() => act({ leave: true })}>나가기</button>
 		</div>
-		{rules && <RuleAndFmt info={info} onDone={(rid, f) => { setRules(false); if (rid) box.room.send({ t: 'rules', ruleId: roomRule(rid, info.mode), ...(info.mode === 'coop' ? COOP_FMT : { doubles: f!.doubles, pick: f!.pick }) }); }} />}
+		{rules && <RuleAndFmt info={info} onDone={(rid, f) => { setRules(false); if (rid) box.room.send({ t: 'rules', ruleId: roomRule(rid, info.mode), ...(info.mode ? COOP_FMT : { doubles: f!.doubles, pick: f!.pick }) }); }} />}
 	</Screen>;
 }
 function RuleAndFmt({ info, onDone }: { info: RoomInfo; onDone: (rid?: string, f?: Fmt) => void }) {
@@ -453,7 +506,7 @@ function RuleAndFmt({ info, onDone }: { info: RoomInfo; onDone: (rid?: string, f
 	if (pick) return <RulePicker cur={rid} onPick={id => { setRid(id); setPick(false); }} onClose={() => setPick(false)} />;
 	return <Modal title="규칙·형식 바꾸기" onClose={() => onDone()}>
 		<div class="lc-form">
-			{info.mode !== 'coop' && <div class="lc-row"><span>형식</span><div class="seg wrap">{FMTS.map(f => <button class={f === fmt ? 'on' : ''} onClick={() => setFmt(f)}>{fmtKo(f.doubles, f.pick)}</button>)}</div></div>}
+			{!info.mode && <div class="lc-row"><span>형식</span><div class="seg wrap">{FMTS.map(f => <button class={f === fmt ? 'on' : ''} onClick={() => setFmt(f)}>{fmtKo(f.doubles, f.pick)}</button>)}</div></div>}
 			<div class="lc-row"><span>규칙</span><button class="btn lc-rule" onClick={() => setPick(true)}>{ruleName(rid)} <small>바꾸기</small></button></div>
 			<p class="hint">바꾸면 두 사람의 준비가 풀려요.</p>
 			<div class="pv-btns"><button class="btn primary" onClick={() => onDone(rid, fmt)}>바꾸기</button><button class="btn ghost" onClick={() => onDone()}>닫기</button></div>
@@ -527,7 +580,7 @@ async function practice(room: OnlineRoom, box: RoomBox): Promise<'ok' | 'closed'
 async function enterRoom(code: string, pw: string | undefined, create?: CreateOpts) {
 	const room = new OnlineRoom(code);
 	const box = new RoomBox(room);
-	room.connect({ name: playerName(), sprite: spriteWithTitle(), pw, ...(create ? { create: { ...create, ruleId: roomRule(create.ruleId, create.mode), mode: undefined }, ruleId: roomRule(create.ruleId, create.mode), doubles: create.doubles, pick: create.pick } : {}) } as any);
+	room.connect({ name: playerName(), sprite: spriteWithTitle(), pw, ...(create ? { create: { ...create, ruleId: roomRule(create.ruleId, create.mode), mode: undefined, seats: create.seats }, ruleId: roomRule(create.ruleId, create.mode), doubles: create.doubles, pick: create.pick } : {}) } as any);
 	await lobbyRoom(room, box);
 }
 

@@ -24,6 +24,8 @@ export interface SessionConfig {
 	replayP2?: string[];
 	/** 멀티배틀: p1 팀 중 파트너 포켓몬 표시 (팀 순서대로). 기믹 사용 횟수를 나와 파트너가 따로 셈 */
 	partnerFlags?: boolean[];
+	/** 온라인 2vs2 멀티배틀: 상대 편(p2)도 두 사람 — p2 팀의 주인 표시 (partnerFlags 와 같은 방식) */
+	partnerFlags2?: boolean[];
 	/** 상대 선택을 AI 대신 정함 (배틀팰리스: 성격대로). null 이면 평소 AI */
 	p2Auto?: (battle: any, req: any) => string | null;
 	/** 온라인 대전: 양쪽 선택을 모두 밖(서버가 중계한 순서)에서 넣음 (applyInput). AI 는 돌지 않음 */
@@ -41,8 +43,9 @@ export class Session {
 	/** 각 진영이 이번 배틀에 쓴 기믹 종류 */
 	gimmickUsed: { p1: Set<GimmickKind>; p2: Set<GimmickKind> } = { p1: new Set(), p2: new Set() };
 	/** 멀티배틀: 내 쪽(p1)의 기믹 사용을 포켓몬 주인별로 (나 / 파트너) */
-	private ownerUsed = { me: new Set<GimmickKind>(), partner: new Set<GimmickKind>() };
-	private get multi() { return !!this.cfg.partnerFlags; }
+	private ownerUsed = { p1: { me: new Set<GimmickKind>(), partner: new Set<GimmickKind>() }, p2: { me: new Set<GimmickKind>(), partner: new Set<GimmickKind>() } };
+	/** 이 편이 두 주인(멀티배틀)인가 */
+	private multiOn(side: string) { return side === 'p1' ? !!this.cfg.partnerFlags : side === 'p2' ? !!this.cfg.partnerFlags2 : false; }
 	private ownerOf(p: any): 'me' | 'partner' { return p?.kPartner ? 'partner' : 'me'; }
 	/** 포켓몬(시뮬레이터 객체)마다 쓴 기믹 — 한 포켓몬은 기믹을 하나만 (울트라버스트+Z기술은 예외) */
 	private usedBy = new WeakMap<any, Set<GimmickKind>>();
@@ -102,7 +105,7 @@ export class Session {
 					const ident = line.split('|')[2] || '';
 					const pk = this.battle[gm[0]]?.active?.['abc'.indexOf(ident.charAt(2))];
 					if (pk) { const set = this.usedBy.get(pk) || new Set<GimmickKind>(); set.add(gm[1]); this.usedBy.set(pk, set); }
-					if (this.multi && gm[0] === 'p1' && pk) this.ownerUsed[this.ownerOf(pk)].add(gm[1]);
+					if (this.multiOn(gm[0]) && pk) this.ownerUsed[gm[0] as 'p1' | 'p2'][this.ownerOf(pk)].add(gm[1]);
 				}
 				if (line.startsWith('|win|')) { this.ended = true; this.winner = line.slice(5); }
 				if (line === '|tie') { this.ended = true; this.winner = ''; }
@@ -128,10 +131,10 @@ export class Session {
 	/** 기믹 규칙 적용 (설정의 '기믹 규칙')
 	 *  one: 한 배틀에 한 종류(처음 쓴 종류만, 1회) / free: 종류마다 1회 / mega·zmove·dynamax·tera: 그 기믹만 / none: 사용 불가 */
 	private applyGimmickRule(req: any, side: 'p1' | 'p2') {
-		if (this.multi && side === 'p1') {
+		if (this.multiOn(side)) {
 			// 멀티배틀: 슬롯마다 그 포켓몬 주인의 사용 기록으로 판단, 상대 주인이 메가진화해도 내 메가진화는 다시 열어 줌
-			const act = this.battle.p1.active;
-			this.extraDmax[side] = filterGimmicks(req, this.rule, (i: number) => this.ownerUsed[this.ownerOf(act[i])], this.battle[side], this.usedBy, true);
+			const act = this.battle[side].active;
+			this.extraDmax[side] = filterGimmicks(req, this.rule, (i: number) => this.ownerUsed[side][this.ownerOf(act[i])], this.battle[side], this.usedBy, true);
 			return;
 		}
 		this.extraDmax[side] = filterGimmicks(req, this.rule, this.gimmickUsed[side], this.battle[side], this.usedBy);
@@ -187,43 +190,47 @@ export class Session {
 		this.battle.setPlayer('p2', { name: this.cfg.p2.name, team: this.cfg.p2.team } as any);
 		// 배틀이 시작되며 남은 포켓몬 수가 팀 전체로 다시 세어지므로, 기절한 채 시작한 포켓몬을 빼 둠 (안 그러면 전멸해도 배틀이 끝나지 않음)
 		if (this.cfg.p1State) (this.battle.p1 as any).pokemonLeft = this.p1Orig.filter((p: any) => !p.fainted).length;
-		if (this.cfg.partnerFlags) {
-			const side: any = this.battle.p1;
-			side.pokemon.forEach((p: any, i: number) => { p.kPartner = !!this.cfg.partnerFlags![i]; });
-			// 포켓몬이 쓰러진 자리는 그 주인만 채움: 주인(나 또는 파트너)에게 남은 포켓몬이 없으면 그 자리는 비워 둠
-			// (다른 쪽의 포켓몬이 대신 나가지 않게 — 시뮬레이터가 그 자리의 교체를 요구하지 않도록 표시를 지움)
-			const bt: any = this.battle, origCF = bt.checkFainted.bind(bt);
-			bt.checkFainted = () => {
-				origCF();
-				for (const pk of side.active) if (pk?.fainted && !side.pokemon.some((x: any) => !!x.kPartner === !!pk.kPartner && !x.fainted && !x.isActive)) pk.switchFlag = false;
-			};
-			// Z기술·다이맥스의 '편 단위 1회' 표시는 끄고, 주인별 판단(filterGimmicks)에 맡김
-			for (const k of ['zMoveUsed', 'dynamaxUsed']) Object.defineProperty(side, k, { get: () => false, set: () => {}, configurable: true });
-			// 메가진화·테라스탈은 시뮬레이터가 같은 편 전원을 막으므로, 다른 주인의 포켓몬은 원래대로 되돌림 (같은 턴에 둘 다 써도 되게)
-			const acts: any = this.battle.actions;
-			const keepOthers = (fn: string, keys: string[]) => {
-				const orig = acts[fn].bind(acts);
-				acts[fn] = (pk: any, ...rest: any[]) => {
-					const others = pk?.side === side ? side.pokemon.filter((x: any) => x !== pk && this.ownerOf(x) !== this.ownerOf(pk)) : [];
-					const saved = others.map((x: any) => keys.map(k => x[k]));
-					const r = orig(pk, ...rest);
-					others.forEach((x: any, j: number) => keys.forEach((k, n) => { x[k] = saved[j][n]; }));
-					return r;
-				};
-			};
-			keepOthers('runMegaEvo', ['canMegaEvo', 'canMegaEvoX', 'canMegaEvoY', 'canUltraBurst']);
-			keepOthers('terastallize', ['canTerastallize']);
-			// 선택 검사: 한 턴에 같은 편이 같은 기믹을 두 번 못 쓰게 하는 표시를 슬롯마다 지움 (나·파트너가 같은 턴에 각자 쓸 수 있게.
-			// 같은 주인이 두 번 쓰는 것은 기믹 규칙(filterGimmicks)과 선택 화면·AI 가 막음)
-			const origChoose = side.chooseMove.bind(side);
-			side.chooseMove = (...a: any[]) => {
-				for (const k of ['mega', 'ultra', 'zMove', 'dynamax', 'terastallize']) if (side.choice) side.choice[k] = false;
-				return origChoose(...a);
-			};
-		}
+		if (this.cfg.partnerFlags) this.setupMulti('p1', this.cfg.partnerFlags);
+		if (this.cfg.partnerFlags2) this.setupMulti('p2', this.cfg.partnerFlags2);
 		this.battle.sendUpdates();
 		this.runAI();
 		return this.flush();
+	}
+
+	/** 멀티배틀인 편(두 주인)의 준비: 주인 표시 · 쓰러진 자리는 그 주인만 채움 · 기믹은 주인별로 */
+	private setupMulti(sideId: 'p1' | 'p2', flags: boolean[]) {
+		const side: any = this.battle[sideId];
+		side.pokemon.forEach((p: any, i: number) => { p.kPartner = !!flags[i]; });
+		// 포켓몬이 쓰러진 자리는 그 주인만 채움: 주인(나 또는 파트너)에게 남은 포켓몬이 없으면 그 자리는 비워 둠
+		// (다른 쪽의 포켓몬이 대신 나가지 않게 — 시뮬레이터가 그 자리의 교체를 요구하지 않도록 표시를 지움)
+		const bt: any = this.battle, origCF = bt.checkFainted.bind(bt);
+		bt.checkFainted = () => {
+			origCF();
+			for (const pk of side.active) if (pk?.fainted && !side.pokemon.some((x: any) => !!x.kPartner === !!pk.kPartner && !x.fainted && !x.isActive)) pk.switchFlag = false;
+		};
+		// Z기술·다이맥스의 '편 단위 1회' 표시는 끄고, 주인별 판단(filterGimmicks)에 맡김
+		for (const k of ['zMoveUsed', 'dynamaxUsed']) Object.defineProperty(side, k, { get: () => false, set: () => {}, configurable: true });
+		// 메가진화·테라스탈은 시뮬레이터가 같은 편 전원을 막으므로, 다른 주인의 포켓몬은 원래대로 되돌림 (같은 턴에 둘 다 써도 되게)
+		const acts: any = this.battle.actions;
+		const keepOthers = (fn: string, keys: string[]) => {
+			const orig = acts[fn].bind(acts);
+			acts[fn] = (pk: any, ...rest: any[]) => {
+				const others = pk?.side === side ? side.pokemon.filter((x: any) => x !== pk && this.ownerOf(x) !== this.ownerOf(pk)) : [];
+				const saved = others.map((x: any) => keys.map(k => x[k]));
+				const r = orig(pk, ...rest);
+				others.forEach((x: any, j: number) => keys.forEach((k, n) => { x[k] = saved[j][n]; }));
+				return r;
+			};
+		};
+		keepOthers('runMegaEvo', ['canMegaEvo', 'canMegaEvoX', 'canMegaEvoY', 'canUltraBurst']);
+		keepOthers('terastallize', ['canTerastallize']);
+		// 선택 검사: 한 턴에 같은 편이 같은 기믹을 두 번 못 쓰게 하는 표시를 슬롯마다 지움 (나·파트너가 같은 턴에 각자 쓸 수 있게.
+		// 같은 주인이 두 번 쓰는 것은 기믹 규칙(filterGimmicks)과 선택 화면·AI 가 막음)
+		const origChoose = side.chooseMove.bind(side);
+		side.chooseMove = (...a: any[]) => {
+			for (const k of ['mega', 'ultra', 'zMove', 'dynamax', 'terastallize']) if (side.choice) side.choice[k] = false;
+			return origChoose(...a);
+		};
 	}
 
 	/** 시나리오: 내 팀 포켓몬 (처음 팀 순서 그대로) */
