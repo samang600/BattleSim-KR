@@ -1002,6 +1002,10 @@ export const AbilitiesText: { [id: IDEntry]: AbilityText } = {
 		desc: "This Pokemon's pulse moves have their power multiplied by 1.5. Heal Pulse restores 3/4 of a target's maximum HP, rounded half down.",
 		shortDesc: "This Pokemon's pulse moves have 1.5× power. Heal Pulse heals 3/4 target's max HP.",
 	},
+	specialgrade: {
+		name: "Special Grade",
+		shortDesc: "On switch-in, this Pokemon's Special Attack is raised by 1 stage.",
+	},
 	megasol: {
 		name: "Mega Sol",
 		shortDesc: "This Pokemon's moves are used as if the effects of Sun were active.",

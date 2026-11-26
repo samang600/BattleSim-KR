@@ -190,6 +190,7 @@ const ABIL_ERA_DESC: { [id: string]: { [k: string]: string } } = {
 const MAX_ABIL_DESC = ['intrepidsword', 'dauntlessshield', 'protean', 'libero', 'transistor', 'disguise', 'galewings', 'aerilate', 'pixilate', 'refrigerate', 'parentalbond', 'prankster'];
 /** 게임 문구가 아직 없는 특성의 설명 (배틀 동작 기준) */
 const ABIL_DESC_EXTRA: { [id: string]: string } = {
+	specialgrade: '등장했을 때 특수공격이 1랭크 올라간다.',
 	eelevate: '땅에서 떠올라 땅타입 기술을 받지 않는다. 기술로 상대를 쓰러뜨리면 자신의 가장 높은 능력이 1랭크 올라간다.',
 };
 export function abilityDesc(id: string) {

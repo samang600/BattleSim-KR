@@ -6,6 +6,11 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.87.0', date: '2026-11-26', title: '온라인 협력 타워', items: [
+		['new', '온라인 「협력 타워」: 방을 만들 때 모드에서 고르면, 들어온 사람과 한 편이 되어 배틀타워의 트레이너들과 연승에 도전해요.'],
+		['new', '챔피언스 M-D 에 싸리용·히드런이 나옵니다. 메가싸리용의 특성은 「특상」, 메가히드런은 꾸덕꾸덕굳기.'],
+		['new', '교환소에 크리스마스 배경과 HP 창이 생겼어요. 온라인 방에서도 초전설·환상 마릿수를 정할 수 있습니다.'],
+	] },
 	{ ver: '2.86.12', date: '2026-11-20', title: '배틀팩토리', items: [
 		['fix', '배틀팩토리의 두 번째 팩토리 헤드(금 심볼)는 다시 49번째에 나옵니다.'],
 	] },

@@ -992,6 +992,59 @@ def momiji():
     return im
 
 
+def xmas():
+    """크리스마스 마을 (교환소): 눈 내린 밤, 별을 단 큰 트리와 전구 줄, 불 켜진 오두막, 눈 덮인 전나무와 선물 상자"""
+    im = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(im)
+    bands(d, 0, 74, ['#0e1638', '#121c46', '#182656', '#1e3066', '#263c78', '#30488a'])
+    rnd = random.Random(1225)
+    for _ in range(46):   # 별
+        d.point((rnd.randint(0, W - 1), rnd.randint(0, 56)), fill=rnd.choice(['#ffffff', '#dfe8ff', '#fff0b0']))
+    d.ellipse([214, 8, 232, 26], fill='#fff4c8'); d.ellipse([219, 8, 236, 23], fill='#0e1638')   # 초승달
+    for i, (col, base, amp, per) in enumerate([('#2a3a70', 60, 14, 41), ('#3a4c86', 68, 9, 23)]):   # 눈 덮인 먼 언덕
+        pts = [(0, H)]
+        for x in range(0, W + 8, 8):
+            pts.append((x, base - amp * abs(math.sin(x / per + i * 1.7))))
+        pts.append((W, H)); d.polygon(pts, fill=col)
+    for x in list(range(-4, 92, 10)) + list(range(170, W, 10)):   # 눈 얹힌 전나무 줄
+        h = 12 + (x * 7) % 7
+        d.polygon([(x, 78), (x + 5, 78 - h), (x + 10, 78)], fill='#1e4a3a')
+        d.polygon([(x + 2, 78 - h + 5), (x + 5, 78 - h), (x + 8, 78 - h + 5)], fill='#eef4ff')
+    # 오두막: 통나무 벽 + 눈 지붕 + 불 켜진 창 + 굴뚝
+    d.rectangle([20, 52, 62, 78], fill='#6a3e26'); d.rectangle([20, 60, 62, 61], fill='#55301c'); d.rectangle([20, 68, 62, 69], fill='#55301c')
+    d.polygon([(14, 53), (41, 34), (68, 53)], fill='#f4f8ff'); d.polygon([(20, 53), (41, 39), (62, 53)], fill='#dfe8f8')
+    d.rectangle([50, 34, 56, 46], fill='#7a4a30'); d.rectangle([49, 32, 57, 34], fill='#f4f8ff')
+    for wx in (26, 46):
+        d.rectangle([wx, 58, wx + 9, 68], fill='#ffd870'); d.line([(wx + 4, 58), (wx + 4, 68)], fill='#a8702a'); d.line([(wx, 63), (wx + 9, 63)], fill='#a8702a')
+    d.rectangle([37, 64, 43, 78], fill='#3a2014'); d.point((42, 71), fill='#ffd870')
+    # 큰 트리: 계단식 세 단 + 눈 + 꼭대기 별 + 장식
+    tx = 128
+    for k, (w2, y0, y1) in enumerate([(14, 22, 36), (22, 32, 52), (30, 46, 70)]):
+        d.polygon([(tx - w2, y1), (tx, y0), (tx + w2, y1)], fill=['#2a7a4a', '#226a40', '#1a5a36'][k])
+        d.polygon([(tx - w2 // 2, (y0 + y1) // 2), (tx, y0), (tx + w2 // 2, (y0 + y1) // 2)], fill='#eef4ff' if k == 0 else ['#2a7a4a', '#2e8250', '#267446'][k])
+        for sx in range(-w2 + 3, w2 - 2, 5):   # 단 끝의 눈
+            d.rectangle([tx + sx, y1 - 1, tx + sx + 2, y1], fill='#f4f8ff')
+    d.rectangle([tx - 3, 70, tx + 3, 78], fill='#5a3420')
+    for (sx, sy) in [(0, 17), (-1, 18), (1, 18), (0, 19), (-2, 18), (2, 18), (0, 16), (0, 20)]: d.point((tx + sx, sy), fill='#ffe060')
+    for (ox, oy, col) in [(-6, 32, '#ff5a5a'), (5, 30, '#ffd040'), (-10, 46, '#5ac8ff'), (0, 42, '#ff5a5a'), (9, 48, '#ffd040'), (-16, 62, '#ffd040'), (-5, 58, '#5ac8ff'), (6, 64, '#ff5a5a'), (17, 60, '#5ac8ff'), (-12, 68, '#ff5a5a'), (12, 68, '#ffd040')]:
+        d.rectangle([tx + ox, oy, tx + ox + 1, oy + 1], fill=col)
+    # 전구 줄 (오두막 ↔ 트리 ↔ 오른쪽 숲)
+    for a, b in [((62, 50), (114, 44)), ((142, 44), (196, 52))]:
+        for t in range(0, 13):
+            x = a[0] + (b[0] - a[0]) * t // 12; y = a[1] + (b[1] - a[1]) * t // 12 + int(5 * math.sin(math.pi * t / 12))
+            d.point((x, y), fill='#3a4a70')
+            if t % 2 == 0: d.rectangle([x, y + 1, x + 1, y + 2], fill=['#ff5a5a', '#ffd040', '#5ad878', '#5ac8ff'][(t // 2) % 4])
+    bands(d, 78, H, ['#f4f8ff', '#eaf1fc', '#e0eafa', '#d6e2f6', '#ccdaf2', '#c2d2ee'])
+    for y in range(82, H, 4):
+        for x in range((y * 7) % 13, W, 13):
+            d.point((x, y), fill='#aebfe0')
+    for (gx, gy, c1, c2) in [(106, 80, '#d8303a', '#ffd040'), (146, 82, '#2a8a4a', '#ffffff'), (156, 79, '#3a6ad8', '#ffd040')]:   # 선물 상자
+        d.rectangle([gx, gy, gx + 7, gy + 6], fill=c1); d.line([(gx + 3, gy), (gx + 3, gy + 6)], fill=c2); d.line([(gx, gy + 3), (gx + 7, gy + 3)], fill=c2)
+    ellipse_platform(d, 196, 86, 46, 9, '#ffffff', '#c8d8f0', '#8ea4cc')
+    ellipse_platform(d, 62, 132, 62, 11, '#ffffff', '#c8d8f0', '#8ea4cc')
+    return im
+
+
 def orbit():
     """우주 정거장 (교환소): 큰 전망창 밖으로 푸른 행성과 별, 금속 격자 바닥, 기둥의 표시등"""
     im = Image.new('RGB', (W, H))
@@ -1203,7 +1256,7 @@ if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [('field', field), ('tower', tower), ('factory', factory), ('pwt', stadium), ('champion', champion),
                      ('cave', cave), ('beach', beach), ('snow', snow), ('volcano', volcano), ('gym', gym),
-                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry), ('sakura', sakura), ('desert', desert), ('aurora', aurora), ('deepsea', deepsea), ('skypillar', skypillar), ('momiji', momiji), ('orbit', orbit), ('firefly', firefly), ('neon', neon), ('yume', yume), ('yami', yami), ('menhera', menhera)]:
+                     ('palace', palace), ('rank', rank), ('rush', rush), ('daily', daily), ('sunset', sunset), ('starry', starry), ('sakura', sakura), ('desert', desert), ('aurora', aurora), ('deepsea', deepsea), ('skypillar', skypillar), ('momiji', momiji), ('xmas', xmas), ('orbit', orbit), ('firefly', firefly), ('neon', neon), ('yume', yume), ('yami', yami), ('menhera', menhera)]:
         im = fn()
         if name != 'title':
             im = extend_top(im, 48, stars=name not in ('cave', 'gym', 'palace', 'rush'), light=name in ('yume', 'menhera'))  # 4:3 (256x192) — 세로 화면용으로 위쪽 하늘/벽을 늘림

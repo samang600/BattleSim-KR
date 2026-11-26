@@ -2556,6 +2556,17 @@ export const Abilities: import('../sim/dex-abilities').AbilityDataTable = {
 		rating: 3,
 		num: 178,
 	},
+	specialgrade: {
+		// 포켓몬 챔피언스 레귤레이션 M-D: 메가싸리용의 특성 「특상」 — 등장했을 때 특수공격 +1 (영어 이름은 공식 발표 전이라 임시)
+		isNonstandard: "Future",
+		onStart(pokemon) {
+			this.boost({ spa: 1 }, pokemon);
+		},
+		flags: {},
+		name: "Special Grade",
+		rating: 3.5,
+		num: 320,
+	},
 	megasol: {
 		isNonstandard: "Future",
 		onWeatherModifyDamagePriority: 1,

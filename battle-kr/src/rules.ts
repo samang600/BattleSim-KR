@@ -24,6 +24,8 @@ export interface BattleRule {
 	md?: boolean;
 	/** 한 포켓몬이 기믹을 겹쳐 쓸 수 있음 / 상대 무작위 팀에도 초전설·환상이 섞임 */
 	stack?: boolean; legendTeams?: boolean;
+	/** 풀에 따로 더한 포켓몬 (게임 등장 표시·준전설 스위치와 관계없이 쓸 수 있음 — 챔피언스 M-D 의 싸리용·히드런) */
+	extra?: Set<string>;
 }
 
 const MEGA_MA = ['kangaskhan', 'charizardy', 'charizardx', 'gengar', 'gardevoir', 'lucario', 'venusaur', 'blastoise', 'tyranitar', 'garchomp', 'scizor', 'lopunny',
@@ -57,14 +59,15 @@ export function parseGimmick(g: string): { kinds: GimmickKind[]; mode: GimmickMo
 }
 export function gimmickId(kinds: GimmickKind[], mode: GimmickMode) { return GIMMICK_KINDS.filter(x => kinds.includes(x.k)).map(x => x.c).join('') + '_' + mode; }
 /** 2) 포켓몬 풀 (게임·레귤레이션) — gimmick: 고를 때 맞춰 주는 그 게임의 기믹 */
-export const POOLS: (Choice & { gimmick: string; maxNum?: number; noFuture?: boolean; avail?: string; megaOnly?: Set<string>; noSub?: boolean; legends?: [LegendMode, LegendMode]; subPar?: [LegendMode, LegendMode]; era: string; mod: string; lsMode: 'all' | 'champ' | 'era'; itemAv: string; md?: boolean })[] = [
+export const POOLS: (Choice & { gimmick: string; maxNum?: number; noFuture?: boolean; avail?: string; megaOnly?: Set<string>; noSub?: boolean; legends?: [LegendMode, LegendMode]; subPar?: [LegendMode, LegendMode]; era: string; mod: string; lsMode: 'all' | 'champ' | 'era'; itemAv: string; md?: boolean; extra?: Set<string> })[] = [
+	// (챔피언스 M-D 의 extra 는 아래에서 채움)
 	{ id: 'natdex', name: '전국도감', gimmick: 'mzdt_one', era: '', mod: 'krchamp', lsMode: 'all', itemAv: '', md: true, desc: '모든 포켓몬·도구, 최신 사양(포켓몬 챔피언스 M-D 기술·상태이상), 모든 세대의 기술과 메가진화(레전즈 Z-A 메가 포함)' },
 	{ id: 'max', name: '무제한 (너프 없음)', gimmick: 'mzdt_stack', legends: ['yes', 'yes'], era: 'max', mod: 'krmax', lsMode: 'all', itemAv: '', md: true, desc: '모든 포켓몬·도구·기술, 너프 전 사양: 종족값은 가장 높았던 세대, 특성은 모든 세대의 특성 중에서, 기술 위력·명중·PP는 가장 높았던 값 (예: 킬가르도 블레이드폼 공격 150, 팬텀 부유)' },
 	{ id: 'sv', name: '스칼렛·바이올렛', gimmick: 't_one', avail: 's', era: '9', mod: 'gen9', lsMode: 'era', itemAv: 's', desc: '스칼렛·바이올렛(DLC 포함)의 포켓몬·도구·기술 사양' },
 	{ id: 'swsh', name: '소드·실드', gimmick: 'd_one', avail: 'w', maxNum: 905, era: '8', mod: 'kr8', lsMode: 'era', itemAv: 'w', desc: '소드·실드(DLC 포함)의 포켓몬·도구, 그때의 종족값·특성·기술' },
 	{ id: 'usum', name: '7세대까지', gimmick: 'mz_each', avail: '7', maxNum: 809, noFuture: true, era: '7', mod: 'kr7', lsMode: 'era', itemAv: '7', desc: '울트라썬·문까지의 포켓몬(1~7세대)·도구, 그때의 종족값·특성·기술' },
 	{ id: 'xy', name: '6세대까지', gimmick: 'm_one', avail: '6', maxNum: 721, noFuture: true, era: '6', mod: 'kr6', lsMode: 'era', itemAv: '6', desc: 'X·Y/오메가루비·알파사파이어까지의 포켓몬(1~6세대)·도구, 그때의 종족값·특성·기술' },
-	{ id: 'champmd', subPar: ['no', 'no'], name: '챔피언스 M-D', gimmick: 'm_one', avail: 'c', legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'c', md: true, desc: '포켓몬 챔피언스 레귤레이션 M-D(2026.12~) — 포켓몬·메가진화는 M-C 와 같고, 기술 명중률·새로 배우는 기술·특성 조정이 들어감' },
+	{ id: 'champmd', subPar: ['no', 'no'], name: '챔피언스 M-D', gimmick: 'm_one', avail: 'c', legends: ['no', 'no'], era: '', mod: 'krchamp', lsMode: 'champ', itemAv: 'c', md: true, desc: '포켓몬 챔피언스 레귤레이션 M-D(2026.12~) — M-C 의 포켓몬에 싸리용·히드런(메가진화 포함)이 더해지고, 기술 명중률·새로 배우는 기술·특성 조정이 들어감' },
 	{ id: 'champmc', subPar: ['no', 'no'], name: '챔피언스 M-C', gimmick: 'm_one', avail: 'c', legends: ['no', 'no'], era: '', mod: 'krchampc', lsMode: 'champ', itemAv: 'c', desc: '포켓몬 챔피언스 레귤레이션 M-C(2026.9~12)에 나오는 포켓몬과 메가진화' },
 	{ id: 'champmb', subPar: ['no', 'no'], name: '챔피언스 M-B', gimmick: 'm_one', avail: 'b', legends: ['no', 'no'], era: '', mod: 'krchampc', lsMode: 'champ', itemAv: 'b', desc: '레귤레이션 M-B(2026.6~9)에 나오는 포켓몬과 메가진화' },
 	{ id: 'champma', subPar: ['no', 'no'], name: '챔피언스 M-A', gimmick: 'm_one', avail: 'b', megaOnly: megaIds(MEGA_MA), legends: ['no', 'no'], era: '', mod: 'krchampc', lsMode: 'champ', itemAv: 'b', desc: '레귤레이션 M-A(2026.4~6, 출시 규칙) — 포켓몬은 M-B 기준, 메가진화 59종' },
@@ -78,7 +81,11 @@ export const LEGEND_MODES: Choice[] = [
 ];
 /** 챔피언스 풀의 메가: 그 레귤레이션에 나오는 메가 모습 */
 const champMegas = (flag: string) => new Set(Object.keys(RAW.species).filter(id => RAW.species[id].av?.includes(flag) && /mega/.test(id) && RAW.species[id].base));
+/** 챔피언스 M-D 에서 새로 나오는 포켓몬 (M-C 의 풀 + 이것): 싸리용(세 모습)·히드런과 그 메가진화 */
+const MD_EXTRA = ['tatsugiri', 'tatsugiridroopy', 'tatsugiristretchy', 'heatran'];
 for (const p of POOLS) if (p.id === 'champmc' || p.id === 'champmd') p.megaOnly = champMegas('c'); else if (p.id === 'champmb') p.megaOnly = champMegas('b');
+{ const md = POOLS.find(p => p.id === 'champmd')!; md.extra = new Set(MD_EXTRA);
+	md.megaOnly = new Set([...md.megaOnly!, ...Object.keys(RAW.species).filter(id => /mega/.test(id) && MD_EXTRA.includes(toID(RAW.species[id].base || '')))]); }
 
 /** 예전 규칙 id → 새 조합 */
 const LEGACY: { [id: string]: string } = {
@@ -126,7 +133,7 @@ export function ruleById(idIn: string): BattleRule {
 		desc: `${pool.desc}. 기믹: ${!names.length ? '없음' : modeOn ? `${names.join('·')} — ${GIMMICK_MODES.find(x => x.id === gim.mode)!.desc}` : `${names[0]}만`}. ${legTxt}.`,
 		kinds: gim.kinds, oneKind: !modeOn || gim.mode === 'one', stack: modeOn && gim.mode === 'stack',
 		maxNum: pool.maxNum, noFuture: pool.noFuture, avail: pool.avail, megaOnly: pool.megaOnly, noSub: pool.noSub || sub === 'no',
-		era: pool.era, mod: pool.mod, lsMode: pool.lsMode, itemAv: pool.itemAv, md: pool.md,
+		era: pool.era, mod: pool.mod, lsMode: pool.lsMode, itemAv: pool.itemAv, md: pool.md, extra: pool.extra,
 		legendTeams: restricted !== 'no' || mythical !== 'no',
 	};
 	cache.set(id0, rule); cache.set(id, rule);
@@ -159,6 +166,7 @@ export function speciesAllowed(rule: BattleRule, speciesId: string): boolean {
 	if (rule.noFuture && s.fut) return false;
 	const tags = s.tags || [];
 	const restricted = tags.includes('Restricted Legendary'), mythical = tags.includes('Mythical');
+	if (rule.extra && (rule.extra.has(toID(speciesId)) || (s.base && rule.extra.has(toID(s.base))))) return true;   // 풀에 따로 더한 포켓몬
 	const sub = isSubLike(tags);
 	if (restricted && rule.restricted === 'no') return false;
 	if (mythical && rule.mythical === 'no') return false;

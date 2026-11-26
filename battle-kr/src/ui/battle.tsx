@@ -55,7 +55,8 @@ export interface BattleSetup {
 	/** 배경음악 상황 (없으면 배경으로 정함): 악의 조직 간부·보스는 'evil', 관장·사천왕·챔피언은 'boss' */
 	music?: 'battle' | 'tower' | 'pwt' | 'boss' | 'evil' | 'champion';
 	/** 멀티배틀: p1.team 중 theirs[i] 가 true 인 포켓몬은 파트너(AI)의 것. 포켓몬 주인이 지시함 */
-	partner?: { name: string; theirs: boolean[]; skill?: number; /** 파트너 트레이너 그림 (내 트레이너 옆에 나옴) */ sprite?: string };
+	partner?: { name: string; theirs: boolean[]; skill?: number; /** 파트너 트레이너 그림 (내 트레이너 옆에 나옴) */ sprite?: string;
+		/** 온라인 협력: 파트너가 사람 — 파트너 자리는 AI 가 고르지 않고 '?' 로 비워 세션(online-coop.ts)에 넘김 */ remote?: boolean };
 	/** 배틀 규칙을 이 배틀만 바꿈 (배틀팰리스·스토리 등) */
 	ruleId?: string;
 	/** 내 선택·상대 선택을 대신 정함 (배틀팰리스: 포켓몬이 성격대로 스스로 싸움). null 이면 평소대로 */
@@ -1073,13 +1074,15 @@ function typeTint(type: string) {
 		await play(lines);
 	}
 
+	/** 온라인: 상대(협력이면 파트너)가 고르기를 기다리는 안내 */
+	const waitMsg = () => { const who = setup.partner?.remote ? setup.partner.name : setup.p2.name; return `${who}${josaSubject(who)} 고르기를 기다리는 중…`; };
 	function beginInput() {
 		setParts([]);
 		setGimmick('');
 		setPendingMove(null);
 		const req = sessionRef.current!.p1Request;
 		if (setup.replay && setup.session) { void replayStep(); return; }   // 온라인 리플레이: 내 차례가 아니어도(상대만 교체 등) 다음 선택을 넣음
-		if (!req || req.wait) { setPhase('playing'); if (setup.online && !sessionRef.current!.ended) setMessage(`${setup.p2.name}${josaSubject(setup.p2.name)} 고르기를 기다리는 중…`); return; }
+		if (!req || req.wait) { setPhase('playing'); if (setup.online && !sessionRef.current!.ended) setMessage(waitMsg()); return; }
 		if (setup.replay) { void replayStep(); return; }
 		const autoC = setup.auto?.(sessionRef.current!.battle, req);
 		if (autoC) {   // 배틀팰리스: 포켓몬이 스스로 고름
@@ -1107,6 +1110,8 @@ function typeTint(type: string) {
 	/** 이 슬롯을 파트너가 고르는가: 싸우는 중이면 그 포켓몬의 주인, 비었으면 0번은 나(내 포켓몬이 남았을 때)·1번은 파트너(파트너 포켓몬이 남았을 때) */
 	function aiSlot(req: any, i: number): boolean {
 		if (!setup.partner || setup.replay) return false;
+		// 온라인 협력: 자리의 주인은 그 자리에 있는(쓰러진) 포켓몬의 주인 — 내 자리가 0번이 아닐 수도 있음(손님)
+		if (setup.partner.remote) return partnerOf(sessionRef.current!.battle.p1.active[i]);
 		if (req.forceSwitch) return i === 0 ? !benchAlive(false) : benchAlive(true);
 		return partnerOf(sessionRef.current!.battle.p1.active[i]);
 	}
@@ -1131,6 +1136,7 @@ function typeTint(type: string) {
 			if (mon && !mon.condition.endsWith(' fnt') && mon.condition !== '0 fnt' && !req.active[i]?.commanding) needed.push(i);
 		}
 		if (!needed.some(i => aiSlot(req, i))) return mine;
+		if (setup.partner.remote) { let k = 0; return needed.map(slot => aiSlot(req, slot) ? '?' : mine[k++] || (req.forceSwitch ? 'pass' : 'move 1')); }
 		const ai = req.forceSwitch ? partnerParts({ ...req, forceSwitch: req.forceSwitch.map((f: boolean, i: number) => f && aiSlot(req, i)) }) : partnerParts(req);
 		const out: string[] = [];
 		let mi = 0, ai2 = 0;
@@ -1202,7 +1208,7 @@ function typeTint(type: string) {
 			beginInput();
 			return;
 		}
-		if (setup.online) { setPhase('playing'); setMessage(`${setup.p2.name}${josaSubject(setup.p2.name)} 고르기를 기다리는 중…`); return; }
+		if (setup.online) { setPhase('playing'); setMessage(waitMsg()); return; }
 		play(lines);
 	}
 
@@ -1734,7 +1740,7 @@ function typeTint(type: string) {
 			return <div class="controls end">
 				<button class="btn primary big" onClick={finish}>계속</button>
 				<button class="btn ghost" onClick={() => setShowLog(true)}>배틀 기록</button>
-				{!setup.replay && !replaySaved && <button class="btn ghost" onClick={saveThisReplay}>리플레이 저장</button>}
+				{!setup.replay && !replaySaved && !setup.partner?.remote && <button class="btn ghost" onClick={saveThisReplay}>리플레이 저장</button>}
 			</div>;
 		}
 		if (phase !== 'input' || !req) {
@@ -2000,7 +2006,7 @@ function typeTint(type: string) {
 	const tapAnywhere = (e: any) => { if (phase === 'input') return; if ((e.target as HTMLElement)?.closest?.('button, a, input, .modal, .modal-bg')) return; skipRef.current?.(); };
 	return <div class={'battle bg-' + arenaBg + (setup.doubles ? ' doubles' : ' singles') + (hpTheme ? ' hpt-' + hpTheme : '')} style={{ '--spd': FX.fxSpeed() } as any} onClick={tapAnywhere}>
 		<div class="hud-top">
-			{setup.online ? <OnlineClock rs={setup.online} onTimeout={onlineTimeout} /> : <span class="badge">{setup.label || ''}</span>}
+			{setup.online && !setup.partner?.remote ? <OnlineClock rs={setup.online} onTimeout={onlineTimeout} /> : <span class="badge">{setup.label || ''}</span>}
 			<span class="badge">{scene.turn ? `${scene.turn}턴` : ''}</span>
 			<button class="badge speed-btn" onClick={e => { e.stopPropagation(); cycleSpeed(); }}>{SPEED_LABEL[settings.speed]}</button>
 			<button class={'badge text-btn' + (settings.textManual ? ' manual' : '')} onClick={e => { e.stopPropagation(); toggleManual(); }} aria-label="메시지 진행">{settings.textManual ? '▶ 수동' : '▶ 자동'}</button>

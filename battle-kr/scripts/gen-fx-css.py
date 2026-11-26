@@ -190,6 +190,17 @@ pat['firefly'] = tile([
 	'......aaaaa.',
 	'.......aaa..',
 	'........a...'], {'a': ('#0a2a12', .22), 'b': ('#c8f070', .5)})
+# 크리스마스: HP 창은 지팡이 사탕 사선 줄 + 깜박이는 전구
+pat['xmas'] = tile([
+	'aa......aa......',
+	'.aa......aa.....',
+	'..aa......aa....',
+	'...aa......aa...',
+	'....aa......aa..',
+	'.....aa......aa.',
+	'......aa......aa',
+	'a......aa......a'], {'a': ('#ffffff', .16)})
+HPLIGHT = tile(scatter(40, 20, 6, [['a'], ['b'], ['c'], ['a'], ['b'], ['c']], 1225), {'a': ('#ffe060', 1), 'b': ('#8affa0', 1), 'c': ('#8ad8ff', 1)})
 LEAF = tile(scatter(32, 32, 3, [['.a.', 'aba', '.a.'], ['ab']], 61), {'a': ('#ffb040', .95), 'b': ('#e0562a', .95)})
 SCAN = tile(['aaaaaaaa'] + ['........'] * 11, {'a': ('#8affe0', .35)})
 GLOW = tile(scatter(40, 24, 4, [['.a.', 'aba', '.a.'], ['b']], 77), {'a': ('#c8f070', .6), 'b': ('#f0ffb0', 1)})
@@ -213,6 +224,7 @@ HP = [
 	('momiji', ['#ffb050', '#d0481e', '#a02a14', '#5a140a'], 'leaf'),
 	('orbit', ['#8ab8e8', '#28406e', '#1a2c52', '#0c1630'], 'scan'),
 	('firefly', ['#8ad890', '#226a3a', '#184e2c', '#0c2e1a'], 'glow'),
+	('xmas', ['#ff9a9a', '#c8283a', '#9a1a2c', '#1e6a3a'], 'lights'),
 ]
 
 
@@ -261,6 +273,9 @@ for key, cs, fx in HP:
 	elif fx == 'glow':
 		u2, w2, h2 = GLOW
 		out.append(f'{sel} {{ background: {u2} 0 0 / {w2}px {h2}px repeat; animation: hpSpark 3.2s steps(1) infinite; }}')
+	elif fx == 'lights':
+		u2, w2, h2 = HPLIGHT
+		out.append(f'{sel} {{ background: {u2} 0 0 / {w2}px {h2}px repeat; animation: hpSpark 2s steps(1) infinite; }}')
 	elif fx == 'bolt':
 		u2, w2, h2 = BOLT
 		out.append(f'{sel} {{ background: {u2} 70% 50% / {w2}px {h2}px no-repeat, {u2} 20% 30% / {w2}px {h2}px no-repeat; animation: hpFlash 2.6s steps(1) infinite; }}')
@@ -341,6 +356,10 @@ u, w, h = TWINK; layer('orbit', 'before', u, w, h, '5%', '50%', 'arTwinkle 2.4s 
 u, w, h = SHOOT; layer('orbit', 'after', u, w, h, '6%', '52%', f'arDrift 5s steps(48) infinite; --dx: {w}px; --dy: {h}px; opacity: .8')
 u, w, h = FLY; layer('firefly', 'before', u, w, h, '25%', '0', 'arTwinkle 2.8s steps(1) infinite')
 u, w, h = FLY2; layer('firefly', 'after', u, w, h, '30%', '8%', f'arDrift 16s steps(72) infinite; --dx: {w}px; --dy: -{h}px')
+# 크리스마스 마을: 날씨(눈)와 헷갈리지 않게 내리는 눈 대신 — 트리·전구 줄의 색 전구가 깜박이고 하늘의 별이 반짝임
+XLIGHT = tile(scatter(72, 30, 9, [['aa', 'aa'], ['bb', 'bb'], ['cc', 'cc'], ['dd', 'dd']], 1224), {'a': ('#ff6a6a', .95), 'b': ('#ffe060', .95), 'c': ('#6aff9a', .95), 'd': ('#6ad0ff', .95)})
+u, w, h = XLIGHT; layer('xmas', 'before', u, w, h, '32%', '46%', 'arBlink 2.2s steps(1) infinite')
+u, w, h = TWINK; layer('xmas', 'after', u, w, h, '0', '66%', 'arTwinkle 3s steps(1) infinite')
 ar += [
 	'.arena-bg { overflow: hidden; }',
 	'@keyframes arDrift { to { background-position: var(--dx) var(--dy); } }',

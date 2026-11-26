@@ -453,6 +453,11 @@ export const AbilitiesText: { [id: IDEntry]: AbilityText } = {
 		desc: null, // NEEDS TRANSLATION
 		shortDesc: null, // NEEDS TRANSLATION
 	},
+	specialgrade: {
+		name: "특상",
+		desc: "등장했을 때 특수공격이 1랭크 올라간다.",
+		shortDesc: "등장했을 때 특수공격이 1랭크 올라간다.",
+	},
 	eelevate: {
 		name: "천정부지",
 		desc: null, // NEEDS TRANSLATION

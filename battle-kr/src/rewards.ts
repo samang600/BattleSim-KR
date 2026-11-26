@@ -289,6 +289,7 @@ export const ITEMS: Item[] = [
 	{ id: 'hp:electric', slot: 'hp', name: '번개', price: 80, v: 'electric', desc: '번개 무늬 · 번쩍임' },
 	{ id: 'hp:lava', slot: 'hp', name: '용암', price: 90, v: 'lava', desc: '갈라진 바위 · 불똥 솟음' },
 	{ id: 'hp:momiji', slot: 'hp', name: '단풍 신사', price: 80, v: 'momiji', desc: '단풍잎 무늬 · 낙엽 날림' },
+	{ id: 'hp:xmas', slot: 'hp', name: '크리스마스', price: 80, v: 'xmas', desc: '지팡이 사탕 줄무늬 · 전구 깜박임' },
 	{ id: 'hp:orbit', slot: 'hp', name: '우주 정거장', price: 80, v: 'orbit', desc: '홀로그램 격자 · 주사선' },
 	{ id: 'hp:firefly', slot: 'hp', name: '반딧불 숲', price: 80, v: 'firefly', desc: '잎 무늬 · 불빛 반짝임' },
 	{ id: 'hp:yume', slot: 'hp', name: '솜사탕 꿈나라', price: 70, v: 'yume', desc: '하트 무늬 · 하트가 떠오름' },
@@ -314,6 +315,7 @@ export const ITEMS: Item[] = [
 	{ id: 'bg:menhera', slot: 'bg', name: '분홍 처방전', price: 120, v: 'menhera', desc: '알약·십자가 흩날림' },
 	// 테마 3벌 (필드 + HP 창 + 음악): 단풍 신사 · 우주 정거장 · 반딧불 숲
 	{ id: 'bg:momiji', slot: 'bg', name: '단풍 신사', price: 120, v: 'momiji', desc: '단풍잎이 흩날림' },
+	{ id: 'bg:xmas', slot: 'bg', name: '크리스마스 마을', price: 120, v: 'xmas', desc: '트리 전구가 깜박이고 별이 반짝임' },
 	{ id: 'bg:orbit', slot: 'bg', name: '우주 정거장', price: 120, v: 'orbit', desc: '별 반짝임 · 별똥별' },
 	{ id: 'bg:firefly', slot: 'bg', name: '반딧불 숲', price: 120, v: 'firefly', desc: '반딧불이 떠다님' },
 	{ id: 'bgm:g3momiji', slot: 'bgm', name: '단풍 신사', price: 120, v: 'g3momiji', desc: '마단조 · 코토처럼 튕기는 다섯 음' },

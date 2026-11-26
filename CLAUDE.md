@@ -54,6 +54,7 @@
 | `src/rewards.ts` `src/ui/shop.tsx` | 보상: BP 지갑·얻는 규칙·교환소 상품·주간 과제 / 교환소 화면·카드 꾸미기·승리 연출 (꾸미기 전용, 배틀 능력 영향 없음) |
 | `src/champions.tsx` `src/champions-data.ts` | 챔피언스 모드(정식): 6마리 파티로 시작·스카우트(일반·지명, 12시간마다 무료 1회, 도구 없이 옴)·로스터(박스형, 포켓몬·트레이닝은 팝업 창)·상점(검색)·미션·랭크 매치와 PWT(`modes.tsx` 의 `runRank`/`runPWT` 에 `ArenaCtx` 로 내 팀을 넘김 — 랭크는 더 어려운 척도·RP 는 `-ch` 로 따로, PWT 는 지방 리더스 전부 → 월드 리더스 5회 → 사천왕 대회 5회 → 챔피언스 순으로 열림)·타워(싱글·더블, 상대도 6마리)·도구 중복 불가·규칙은 설정의 배틀 규칙·승급전 스토리(랭크 매치 등급이 오르면 열림)와 컷씬(`EVENTS`). PWT 는 마스터볼급부터·오픈 대회 우승 뒤 리더스. 전용 심볼 3종(`CSYM`, 저장 `sym`)·타워 이야기(`TOWER_EVENTS`)·전용 업적/칭호/꾸미기(`stats.ts`·`rewards.ts` 의 `CHAMP_ON` 갈래). 초기화는 설정 화면 맨 아래. 값(BP)·등급·대사는 data 쪽. 저장 `champions`, 재화는 `rewards.ts` 의 BP(`spendBP`) |
 | `src/scenario.tsx` `src/scenario-data.ts` `src/scenario-script.ts` | 시나리오 모드(정식, 제작 중): 관동 편 |
+| `src/online.ts` `src/online-ui.tsx` `src/online-coop.ts` `server/` | 온라인: 서버(Cloudflare Worker, `battle-kr/server`)는 방·선택 중계만 하고 두 앱이 같은 엔진을 돌림. 협력 타워(`online-coop.ts`)는 서버를 고치지 않고 그 중계 위에 얹음 — 방 모드는 규칙 칸 앞 `coop~`. 서버 배포에는 Cloudflare 토큰이 필요(저장소에 없음). 로컬 시험: `server` 에서 `node build.mjs && npx wrangler dev --local --port 8787`, 앱 localStorage `pkbkr-server` = `127.0.0.1:8787` |
 | `src/ps/champions-md.ts` | 포켓몬 챔피언스 레귤레이션 M-D 조정표(명중률·추가 효과 확률·새로 배우는 기술·특성). 엔진(`ps/registry.ts`: `krchamp` = M-D 포함 최신, `krchampc` = M-C 까지)과 표시(`data.ts` 의 `MD`)가 같이 씀. 쓰는 풀은 `rules.ts` 의 `md: true` (전국도감·무제한·챔피언스 M-D) |
 | `src/style.css` | 전체 스타일(도트 테두리 변수 포함) |
 | `scripts/gen-arenas.py` | 배틀 배경 그림 생성 |

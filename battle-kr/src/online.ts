@@ -21,11 +21,16 @@ export const httpUrl = (path: string) => { const o = serverOverride(); return o 
 const wsUrl = (path: string) => { const o = serverOverride(); return o ? `${/^(localhost|127\.)/.test(o) ? 'ws' : 'wss'}://${o}${path}` : `wss://${SERVER}${path}`; };
 
 type Side = 'p1' | 'p2';
+/** 방 모드: 대전(없음) · 협력 타워(coop). 서버는 모드를 모르므로 규칙 칸 앞에 'coop~' 를 붙여 보내고, 받을 때 떼어 mode 로 옮김 */
+export type RoomMode = 'coop' | undefined;
+const MODE_RE = /^(coop)~/;
+export const roomRule = (ruleId: string, mode?: RoomMode) => mode ? `${mode}~${ruleId}` : ruleId;
+const splitMode = (m: any) => { if (m && typeof m.ruleId === 'string') { const x = MODE_RE.exec(m.ruleId); if (x) { m.mode = x[1]; m.ruleId = m.ruleId.slice(x[0].length); } } return m; };
 /** 시간 (서버 기준, ms): 한 번 고르는 시간 · 내 시간 · 대전 시간 · 남은 내 시간(진영별) · 남은 대전 시간 */
 export interface Clock { turn: number; own: number; game: number; left: { p1: number; p2: number }; gameLeft: number }
-export interface StartInfo { t: 'start'; side: Side; seed: [number, number, number, number]; ruleId: string; doubles: boolean; clock?: Clock;
+export interface StartInfo { t: 'start'; mode?: RoomMode; side: Side; seed: [number, number, number, number]; ruleId: string; doubles: boolean; clock?: Clock;
 	p1: { name: string; team: PSet[] }; p2: { name: string; team: PSet[] } }
-export interface RoomInfo { t: 'room'; code: string; side: Side | null; ruleId: string; doubles: boolean; pick: number; status: 'waiting' | 'battle' | 'ended';
+export interface RoomInfo { t: 'room'; mode?: RoomMode; code: string; side: Side | null; ruleId: string; doubles: boolean; pick: number; status: 'waiting' | 'battle' | 'ended';
 	players: { p1: string | null; p2: string | null }; online: { p1: boolean; p2: boolean }; picked: { p1: boolean; p2: boolean };
 	/** 연결이 끊긴 쪽: 이 시각까지 돌아오지 않으면 기권 처리 */ away: { p1?: number; p2?: number }; version?: string;
 	/** 로비식 방 */ lobby?: boolean; title?: string; locked?: boolean; closed?: boolean;
@@ -33,9 +38,9 @@ export interface RoomInfo { t: 'room'; code: string; side: Side | null; ruleId: 
 /** 방 채팅 한 줄 (side '' = 알림) */
 export interface ChatMsg { side: Side | ''; name: string; text: string; at: number }
 /** 로비 목록의 방 */
-export interface RoomCard { code: string; title: string; host: string; sprite: string; ruleId: string; doubles: boolean; pick: number; locked: boolean; players: number; status: 'waiting' | 'battle'; version: string; at: number }
+export interface RoomCard { mode?: RoomMode; code: string; title: string; host: string; sprite: string; ruleId: string; doubles: boolean; pick: number; locked: boolean; players: number; status: 'waiting' | 'battle'; version: string; at: number }
 /** 둘 다 들어오면: 서로 전체 엔트리 (참가 포켓몬 고르기) */
-export interface PreviewInfo { t: 'preview'; side: Side; pick: number; doubles: boolean; ruleId: string; picked: boolean;
+export interface PreviewInfo { t: 'preview'; mode?: RoomMode; side: Side; pick: number; doubles: boolean; ruleId: string; picked: boolean;
 	p1: { name: string; team: PSet[]; sprite?: string }; p2: { name: string; team: PSet[]; sprite?: string } }
 
 /** 기기마다 하나 (재접속 때 같은 진영으로 돌아오는 열쇠) */
@@ -98,7 +103,7 @@ export class OnlineRoom {
 		};
 		ws.onmessage = ev => {
 			this.lastMsg = Date.now();
-				let m: any; try { m = JSON.parse(String(ev.data)); } catch { return; }
+				let m: any; try { m = splitMode(JSON.parse(String(ev.data))); } catch { return; }
 				if (m.t === 'room') this.handlers.room?.(m);
 			else if (m.t === 'preview') this.handlers.preview?.(m);
 			else if (m.t === 'start') { this.early = []; this.handlers.start?.(m); }
@@ -132,7 +137,7 @@ export function watchLobby(onRooms: (list: RoomCard[]) => void, onStatus: (ok: b
 		if (closed) return;
 		ws = new WebSocket(wsUrl('/lobby'));
 		ws.onopen = () => { retry = 0; onStatus(true); ws!.send(JSON.stringify({ t: 'list' })); };
-		ws.onmessage = ev => { let m: any; try { m = JSON.parse(String(ev.data)); } catch { return; } if (m.t === 'rooms') onRooms(m.list || []); };
+		ws.onmessage = ev => { let m: any; try { m = JSON.parse(String(ev.data)); } catch { return; } if (m.t === 'rooms') onRooms((m.list || []).map(splitMode)); };
 		ws.onclose = () => { onStatus(false); if (!closed) setTimeout(open, Math.min(15000, 1000 * 2 ** retry++)); };
 	};
 	open();
