@@ -6,6 +6,9 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0';
 
 export const CHANGELOG: Change[] = [
+	{ ver: '2.87.2', date: '2026-11-27', title: '온라인 2vs2 멀티배틀', items: [
+		['new', '온라인 「2vs2 멀티」: 방을 만들 때 모드에서 고르면 네 명이 두 편으로 나뉘어 멀티배틀을 해요. 각자 3마리, 한 번 고르는 데 60초.'],
+	] },
 	{ ver: '2.87.0', date: '2026-11-26', title: '온라인 협력 타워', items: [
 		['new', '온라인 「협력 타워」: 방을 만들 때 모드에서 고르면, 들어온 사람과 한 편이 되어 배틀타워의 트레이너들과 연승에 도전해요.'],
 		['new', '챔피언스 M-D 에 싸리용·히드런이 나옵니다. 메가싸리용의 특성은 「특상」, 메가히드런은 꾸덕꾸덕굳기.'],
