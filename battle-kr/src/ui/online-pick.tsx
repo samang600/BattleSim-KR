@@ -39,7 +39,7 @@ export function useWide(q = '(min-width: 900px)') {
 
 export interface OnlinePickProps {
 	title: string;
-	mine: PSet[]; oppName: string; /** 칭호 (지금은 고르기 화면에 안 보임 — 양쪽 높이를 맞추려고) */ oppTitle?: string; oppTeam: PSet[]; myName: string;
+	mine: PSet[]; oppName: string; /** 칭호 (지금은 고르기 화면에 안 보임 — 양쪽 높이를 맞추려고) */ oppTitle?: string; oppTeam: PSet[]; myName: string; /** 2vs2: 상대 두 사람의 이름 — 엔트리를 사람별 세로줄(아이콘만)로 보여 줌 */ oppNames?: string[];
 	count: number;
 	/** 이미 골라 보낸 상태 (재접속 등) */
 	sent?: boolean;
@@ -55,7 +55,7 @@ export interface OnlinePickProps {
 
 const sexMark = (s: PSet) => s.gender === 'M' ? <i class="op-sex m">♂</i> : s.gender === 'F' ? <i class="op-sex f">♀</i> : null;
 
-export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent, opp, onDone, onLeave, prep, offline, hint }: OnlinePickProps) {
+export function OnlinePick({ title, mine, oppName, oppTeam, myName, oppNames, count, sent, opp, onDone, onLeave, prep, offline, hint }: OnlinePickProps) {
 	const need = Math.min(count, mine.length);
 	const [picked, setPicked] = useState<number[]>([]);
 	const [done, setDone] = useState(!!sent);
@@ -106,7 +106,16 @@ export function OnlinePick({ title, mine, oppName, oppTeam, myName, count, sent,
 					</div>;
 				})}
 			</div>
-			{oppTeam.length > 0 && <div class="opk-col foe">
+			{oppTeam.length > 0 && oppNames && <div class="opk-col foe">
+				<div class={'opk-name foe' + (opp === 'away' ? ' away' : '')}>상대{!offline && <small>{opp === 'done' ? '선택 완료' : opp === 'away' ? '연결 끊김' : '고르는 중'}</small>}</div>
+				<div class="opk-duo">
+					{oppNames.map((n, k) => { const per = Math.ceil(oppTeam.length / oppNames.length); return <div class="opk-duo-col">
+						<b class="opk-duo-name">{n}</b>
+						{oppTeam.slice(k * per, (k + 1) * per).map(s => <span class="opk-duo-cell" title={speciesData(toID(s.species), 9)?.n || s.species}><PokeIcon species={s.species} /></span>)}
+					</div>; })}
+				</div>
+			</div>}
+			{oppTeam.length > 0 && !oppNames && <div class="opk-col foe">
 				<div class={'opk-name foe' + (opp === 'away' ? ' away' : '')}>{oppName}{!offline && <small>{opp === 'done' ? '선택 완료' : opp === 'away' ? '연결 끊김' : '고르는 중'}</small>}</div>
 				{oppTeam.map(s => {
 					const sd = speciesData(toID(s.species), 9);

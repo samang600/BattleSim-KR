@@ -2457,6 +2457,13 @@ html { image-rendering: pixelated; }
 	background: linear-gradient(180deg, #d84a74 0 34%, #c43a64 34% 70%, #ae2c56 70% 100%);
 	box-shadow: inset 0 0 0 2px #3a0c1a, inset 2px 2px 0 4px #f088a8, inset -4px -4px 0 0 #861c40; }
 .opk-types { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px; justify-content: flex-end; align-items: center; }
+/* 2vs2: 상대 두 사람의 엔트리 — 사람별 세로줄, 아이콘만 */
+.opk-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; clip-path: var(--clip2);
+	background: linear-gradient(180deg, #d84a74 0 34%, #c43a64 34% 70%, #ae2c56 70% 100%);
+	box-shadow: inset 0 0 0 2px #3a0c1a, inset 2px 2px 0 4px #f088a8, inset -4px -4px 0 0 #861c40; }
+.opk-duo-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.opk-duo-name { display: block; padding: 2px 4px; font-size: 13px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #5a1430; text-shadow: 2px 2px 0 #000; clip-path: var(--clip1); }
+.opk-duo-cell { display: flex; align-items: center; justify-content: center; height: 40px; background: rgba(60, 8, 28, .45); box-shadow: inset 0 0 0 2px #861c40; clip-path: var(--clip1); }
 /* 아래 버튼 */
 .opk-bottom { margin-top: auto; position: sticky; bottom: 0; padding-top: 4px; }
 .opk-go { width: 100%; display: flex; align-items: center; justify-content: center; gap: 14px; height: 48px; font: inherit; font-size: 18px; color: #fff; border: 0; clip-path: var(--clip2);

@@ -127,7 +127,7 @@ function pickPhase(room: OnlineRoom, pv: PreviewInfo, label: string, sent: boole
 		room.handlers.error = msg => finish({ error: msg });
 		const Wrap = () => {
 			const [st, ss] = useState(status); setStatus = ss;
-			return <OnlinePick title={pv.mode === 'coop' ? `${label} · 파트너 ${opp.name} · 각자 3마리` : four ? `${label} · 파트너 ${P[mateOf(my)].name} · 각자 3마리` : `${label} · ${fmtKo(pv.doubles, pv.pick)}`} mine={mine.team} myName={mine.name} oppName={opp.name} oppTitle={splitSprite((opp as any).sprite)[1]} oppTeam={opp.team}
+			return <OnlinePick title={pv.mode === 'coop' ? `${label} · 파트너 ${opp.name} · 각자 3마리` : four ? `${label} · 파트너 ${P[mateOf(my)].name} · 각자 3마리` : `${label} · ${fmtKo(pv.doubles, pv.pick)}`} mine={mine.team} myName={mine.name} oppName={opp.name} oppTitle={splitSprite((opp as any).sprite)[1]} oppTeam={opp.team} oppNames={four ? [P[oppSide].name, P[mateOf(oppSide)].name] : undefined}
 				count={pv.pick} sent={sent} opp={st}
 				onDone={idx => { room.send({ t: 'pick', idx }); onSent(); }}
 				onLeave={() => finish({ cancel: true })} prep={<BgmRow />} />;
